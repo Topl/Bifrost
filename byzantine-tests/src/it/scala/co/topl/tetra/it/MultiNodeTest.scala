@@ -12,11 +12,11 @@ import scala.concurrent.duration._
 
 class MultiNodeTest extends IntegrationSuite {
 
-  override def munitTimeout: Duration = 30.minutes
+  override def munitTimeout: Duration = 15.minutes
 
   test("Multiple nodes launch and maintain consensus for three epochs") {
     val epochSlotLength = 500 // (50/4) * (100/15) * 6
-    val bigBang = Instant.now().plusSeconds(15)
+    val bigBang = Instant.now().plusSeconds(30)
     val config0 = DefaultConfig(bigBang, 3, 0, List("MultiNodeTest-node2"))
     val config1 = DefaultConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
     val config2 = DefaultConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
@@ -36,7 +36,7 @@ class MultiNodeTest extends IntegrationSuite {
         thirdEpochHeads <- nodes
           .parTraverse(
             _.rpcClient[F]
-              .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(12.minutes).compile.lastOrError)
+              .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(9.minutes).compile.lastOrError)
           )
           .toResource
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
