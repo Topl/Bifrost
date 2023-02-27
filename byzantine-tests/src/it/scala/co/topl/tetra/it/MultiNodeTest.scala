@@ -17,7 +17,7 @@ class MultiNodeTest extends IntegrationSuite {
   test("Multiple nodes launch and maintain consensus for three epochs") {
     val epochSlotLength = 500 // (50/4) * (100/15) * 6
     val bigBang = Instant.now().plusSeconds(30)
-    val config0 = DefaultConfig(bigBang, 3, 0, List("MultiNodeTest-node2"))
+    val config0 = DefaultConfig(bigBang, 3, 0, Nil)
     val config1 = DefaultConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
     val config2 = DefaultConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
     val resource =
@@ -28,10 +28,8 @@ class MultiNodeTest extends IntegrationSuite {
         node2 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1)
         node3 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
         nodes = List(node1, node2, node3)
-        _ <- nodes.parTraverse { node =>
-          node.startContainer[F] >>
-          node.rpcClient[F].use(_.waitForRpcStartUp)
-        }.toResource
+        _ <- nodes.parTraverse(_.startContainer[F]).toResource
+        _ <- nodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- nodes
           .parTraverse(

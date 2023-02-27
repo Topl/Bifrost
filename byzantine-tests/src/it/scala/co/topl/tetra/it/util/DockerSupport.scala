@@ -89,7 +89,7 @@ object DockerSupport {
             )
 
           val hostConfig =
-            HostConfig.builder().nanoCpus((1d * 1000000000).toLong).build()
+            HostConfig.builder().build()
 
           ContainerConfig
             .builder()
