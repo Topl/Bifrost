@@ -4,7 +4,6 @@ import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
-import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure, SlotData}
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
 import co.topl.models.TypedIdentifier
