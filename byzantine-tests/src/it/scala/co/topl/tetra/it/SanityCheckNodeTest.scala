@@ -1,29 +1,26 @@
 package co.topl.tetra.it
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
-import co.topl.grpc.ToplGrpc
+import cats.effect.implicits._
 import co.topl.tetra.it.util._
-import org.scalatest.freespec.AnyFreeSpec
-import org.scalatest.matchers.should.Matchers
+import com.spotify.docker.client.DockerClient
+import org.typelevel.log4cats.Logger
 
-class SanityCheckNodeTest extends AnyFreeSpec with Matchers with IntegrationSuite {
+class SanityCheckNodeTest extends IntegrationSuite {
 
-  "A single node is successfully started, id of the genesis block is available through RPC" in {
-    val node: BifrostDockerTetraNode =
-      dockerSupport.createNode("node", "SingleNodeTest")
+  test("A single node is successfully started, id of the genesis block is available through RPC") {
+    val resource =
+      for {
+        (dockerSupport, _dockerClient) <- DockerSupport.make[F]
+        implicit0(dockerClient: DockerClient) = _dockerClient
+        node1       <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", DefaultConfig())
+        _           <- node1.startContainer[F].toResource
+        node1Client <- node1.rpcClient[F]
+        _           <- node1Client.waitForRpcStartUp.toResource
+        _           <- Logger[F].info("Fetching genesis block").toResource
+        _           <- node1Client.blockIdAtHeight(1).map(_.nonEmpty).assert.toResource
+        _           <- Logger[F].info("Success").toResource
+      } yield ()
 
-    node.start()
-    node.waitForRpcStartUp()
-
-    val genesisBlockIdOpt =
-      ToplGrpc.Client
-        .make[IO](node.host, node.rpcPort, tls = false)
-        .use { rpc =>
-          rpc.blockIdAtHeight(1)
-        }
-        .unsafeRunSync()
-
-    assert(genesisBlockIdOpt.isDefined, "Successfully got genesis block id")
+    resource.use_
   }
 }
