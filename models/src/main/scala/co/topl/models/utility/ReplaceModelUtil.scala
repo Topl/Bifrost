@@ -1,6 +1,5 @@
 package co.topl.models.utility
 
-import co.topl.models.TypedIdentifier
 import com.google.protobuf.ByteString
 import co.topl.models.utility._
 
@@ -15,7 +14,7 @@ object ReplaceModelUtil {
     co.topl.brambl.models.Identifier.IoTransaction32(
       co.topl.brambl.models.Evidence.Sized32.of(
         quivr.models.Digest.Digest32
-          .of(ByteString.copyFrom(typedIdentifier.dataBytes.toArray))
+          .of(typedIdentifier.dataBytes)
       )
     )
 
@@ -26,19 +25,17 @@ object ReplaceModelUtil {
 
   def consensusHeader(header: co.topl.models.BlockHeader): co.topl.consensus.models.BlockHeader =
     co.topl.consensus.models.BlockHeader(
-      parentHeaderId = co.topl.consensus.models.BlockId(
-        ByteString.copyFrom(header.parentHeaderId.dataBytes.toArray)
-      ),
+      parentHeaderId = co.topl.consensus.models.BlockId(header.parentHeaderId.dataBytes),
       parentSlot = header.parentSlot,
-      txRoot = ByteString.copyFrom(header.txRoot.data.toArray),
-      bloomFilter = ByteString.copyFrom(header.bloomFilter.data.toArray),
+      txRoot = header.txRoot.data,
+      bloomFilter = header.bloomFilter.data,
       timestamp = header.timestamp,
       height = header.height,
       slot = header.slot,
       eligibilityCertificate = ReplaceModelUtil.eligibilityCertificate(header.eligibilityCertificate),
       operationalCertificate = ReplaceModelUtil.operationalCertificate(header.operationalCertificate),
       metadata = ByteString.copyFrom(header.metadata.map(_.data.bytes).getOrElse(Array.empty)),
-      address = ByteString.copyFrom(header.address.vk.bytes.data.toArray)
+      address = header.address.vk.bytes.data
     )
 
   def operationalCertificate(
@@ -48,10 +45,10 @@ object ReplaceModelUtil {
       parentVK = verificationKeyKesProduct(operationalCertificate.parentVK),
       parentSignature = signatureKesProduct(operationalCertificate.parentSignature),
       childVK = co.topl.consensus.models.VerificationKeyEd25519(
-        value = ByteString.copyFrom(operationalCertificate.childVK.bytes.data.toArray)
+        value = operationalCertificate.childVK.bytes.data
       ),
       childSignature = co.topl.consensus.models.SignatureEd25519(
-        value = ByteString.copyFrom(operationalCertificate.childSignature.bytes.data.toArray)
+        value = operationalCertificate.childSignature.bytes.data
       )
     )
 
@@ -60,20 +57,20 @@ object ReplaceModelUtil {
   ): co.topl.consensus.models.EligibilityCertificate =
     co.topl.consensus.models.EligibilityCertificate(
       vrfSig = co.topl.consensus.models.SignatureVrfEd25519(
-        value = ByteString.copyFrom(eligibilityCertificate.vrfSig.bytes.data.toArray)
+        value = eligibilityCertificate.vrfSig.bytes.data
       ),
       vrfVK = co.topl.consensus.models.VerificationKeyVrfEd25519(
-        value = ByteString.copyFrom(eligibilityCertificate.vkVRF.bytes.data.toArray)
+        value = eligibilityCertificate.vkVRF.bytes.data
       ),
-      thresholdEvidence = ByteString.copyFrom(eligibilityCertificate.thresholdEvidence.data.toArray),
-      eta = ByteString.copyFrom(eligibilityCertificate.eta.data.toArray)
+      thresholdEvidence = eligibilityCertificate.thresholdEvidence.data,
+      eta = eligibilityCertificate.eta.data
     )
 
   def verificationKeyKesProduct(
     vk: co.topl.models.VerificationKeys.KesProduct
   ): co.topl.consensus.models.VerificationKeyKesProduct =
     co.topl.consensus.models.VerificationKeyKesProduct(
-      value = ByteString.copyFrom(vk.bytes.data.toArray),
+      value = vk.bytes.data,
       step = vk.step
     )
 
@@ -83,33 +80,23 @@ object ReplaceModelUtil {
     co.topl.consensus.models.SignatureKesProduct(
       superSignature = co.topl.consensus.models.SignatureKesSum(
         verificationKey = co.topl.consensus.models.VerificationKeyEd25519(
-          ByteString
-            .copyFrom(kesProduct.superSignature.verificationKey.bytes.data.toArray)
+          kesProduct.superSignature.verificationKey.bytes.data
         ),
         signature = co.topl.consensus.models.SignatureEd25519(
-          ByteString
-            .copyFrom(kesProduct.superSignature.signature.bytes.data.toArray)
+          kesProduct.superSignature.signature.bytes.data
         ),
-        witness = kesProduct.superSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
+        witness = kesProduct.superSignature.witness.map(_.data)
       ),
       subSignature = co.topl.consensus.models.SignatureKesSum(
         verificationKey = co.topl.consensus.models.VerificationKeyEd25519(
-          ByteString
-            .copyFrom(kesProduct.subSignature.verificationKey.bytes.data.toArray)
+          kesProduct.subSignature.verificationKey.bytes.data
         ),
         signature = co.topl.consensus.models.SignatureEd25519(
-          ByteString
-            .copyFrom(kesProduct.subSignature.signature.bytes.data.toArray)
+          kesProduct.subSignature.signature.bytes.data
         ),
-        witness = kesProduct.subSignature.witness.map(w => ByteString.copyFrom(w.data.toArray))
+        witness = kesProduct.subSignature.witness.map(_.data)
       ),
-      subRoot = ByteString.copyFrom(kesProduct.subRoot.data.toArray)
-    )
-
-  def slotIdToLegacy(slotId: co.topl.consensus.models.SlotId): co.topl.models.SlotId =
-    co.topl.models.SlotId(
-      slot = slotId.slot,
-      blockId = slotId.blockId: TypedIdentifier
+      subRoot = kesProduct.subRoot.data
     )
 
   def slotDataFromLegacy(slotDataLegacy: co.topl.models.SlotDataLegacy): co.topl.consensus.models.SlotData =
