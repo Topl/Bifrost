@@ -50,16 +50,12 @@ package object fsnetwork {
         .map(NonEmptyChain.fromSeq)
   }
 
-  implicit class ChainSelectionAlgebraOps[F[_]: Applicative, A](algebra: ChainSelectionAlgebra[F, A]) {
-    def firstIsBetter(x: A, y: A): F[Boolean] = algebra.compare(x, y).map(_ > 0)
-  }
-
   object EitherTExt {
 
-    def condF[F[_]: Monad, S, E](test: F[Boolean], right: => F[S], left: => F[E]): EitherT[F, E, S] =
+    def condF[F[_]: Monad, S, E](test: F[Boolean], ifTrue: => F[S], ifFalse: => F[E]): EitherT[F, E, S] =
       EitherT.liftF(test).flatMap {
-        case true  => EitherT.right[E](right)
-        case false => EitherT.left[S](left)
+        case true  => EitherT.right[E](ifTrue)
+        case false => EitherT.left[S](ifFalse)
       }
   }
 
@@ -90,7 +86,7 @@ package object fsnetwork {
    * @param getSlotDataFromT define how slot data could be obtained for T
    * @param getT define how T could be get by Id
    * @param terminateOn terminate condition
-   * @param from start point to porcess chain
+   * @param from start point to process chain
    * @tparam F effect
    * @tparam T type of data retrieved from chain
    * @return chain with data T
@@ -114,7 +110,7 @@ package object fsnetwork {
   }
 
   /**
-   * build firt "size" elements missed in store
+   * build first "size" elements missed in store
    * @param store store to be checked, i.e. first "size" element absent in that store are returned
    * @param slotStore slot store
    * @param from start point to check
