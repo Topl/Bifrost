@@ -19,7 +19,7 @@ class MultiNodeTest extends IntegrationSuite {
     val bigBang = Instant.now().plusSeconds(15)
     val config0 = DefaultConfig(bigBang, 3, 0, List("MultiNodeTest-node2"))
     val config1 = DefaultConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
-    val config2 = DefaultConfig(bigBang, 3, 1, List("MultiNodeTest-node1"))
+    val config2 = DefaultConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
     val resource =
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]
@@ -41,7 +41,9 @@ class MultiNodeTest extends IntegrationSuite {
           .toResource
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
         heights = thirdEpochHeads.map(_.height)
-        _ <- IO(heights.max - heights.min <= 5).assert.toResource // All nodes should be at _roughly_ equal height
+        // All nodes should be at _roughly_ equal height
+        _ <- IO(heights.max - heights.min <= 5).assert.toResource
+        // All nodes should have a shared common ancestor near the tip of the chain
         _ <- nodes
           .parTraverse(
             _.rpcClient[F].use(
@@ -50,7 +52,7 @@ class MultiNodeTest extends IntegrationSuite {
           )
           .map(_.toSet.size)
           .assertEquals(1)
-          .toResource // All nodes should have a shared common ancestor near the tip of the chain
+          .toResource
       } yield ()
 
     resource.use_

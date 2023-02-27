@@ -133,7 +133,7 @@ object DefaultConfig {
        |  p2p:
        |    bind-host: 0.0.0.0
        |    port: 9085
-       |    known-peers: ${knownPeers.map(p => s"$p:9085").mkString(",")}
+       |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
        |  big-bang:
        |    staker-count: $stakerCount
        |    local-staker-index: $localStakerIndex
