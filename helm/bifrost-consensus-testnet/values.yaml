@@ -3,15 +3,15 @@ name: bifrost-consensus-testnet
 image:
   #  name: bifrost-node
   #  name: ghcr.io/topl/bifrost-node
-  name: localhost:32000/topl/bifrost-node
+  name: localhost:5000/topl/bifrost-node
   tag: latest
 
 delayerImage:
-  name: localhost:32000/topl/network-delayer
+  name: localhost:5000/topl/network-delayer
   tag: latest
 
 orchestratorImage:
-  name: localhost:32000/topl/testnet-simulation-orchestrator
+  name: localhost:5000/topl/testnet-simulation-orchestrator
   tag: latest
 
 bigBang:
@@ -64,7 +64,7 @@ service:
 
 volume:
   mountDirectory: /opt/docker/.bifrost
-  storageClass:
+  storageClass: standard
   storageSize: 1Gi
 
 livenessProbe:
