@@ -18,7 +18,7 @@ trait ConsensusValidationStateAlgebra[F[_]] {
    * @return a ratio, if one exists and is greater than 0.  None otherwise.
    */
   def operatorRelativeStake(currentBlockId: TypedIdentifier, slot: Slot)(
-    address:                                StakingAddresses.Operator
+    address: StakingAddresses.Operator
   ): F[Option[Ratio]]
 
   /**
@@ -33,7 +33,7 @@ trait ConsensusValidationStateAlgebra[F[_]] {
    * @return a ratio, if one exists and is greater than 0.  None otherwise.
    */
   def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
-    address:                               StakingAddresses.Operator
+    address: StakingAddresses.Operator
   ): F[Option[Box.Values.Registrations.Operator]] // TODO this algebra should return new OperatorNewModel
 
 }

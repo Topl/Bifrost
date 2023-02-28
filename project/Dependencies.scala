@@ -7,7 +7,7 @@ object Dependencies {
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.7"
+  val catsEffectVersion = "3.4.8"
   val fs2Version = "3.6.1"
   val logback = "1.4.5"
   val orientDbVersion = "3.2.16"
@@ -97,7 +97,7 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.10",
-    "org.scodec" %% "scodec-bits" % "1.1.35",
+    "org.scodec" %% "scodec-bits" % "1.1.36",
     "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
@@ -158,7 +158,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.18.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.19.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All

@@ -123,12 +123,12 @@ object DataStores {
     } yield dataStores
 
   private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path)(
-    name:                                                                        String
+    name: String
   ): Resource[F, Store[F, Key, Value]] =
     LevelDbStore.makeDb[F](dataDir / name).evalMap(LevelDbStore.make[F, Key, Value])
 
   private def makeCachedDb[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](dataDir: Path)(
-    name:                                                                                                  String,
+    name:         String,
     cacheConfig:  ApplicationConfig.Bifrost.Cache.CacheConfig,
     makeCacheKey: Key => CacheKey
   ): Resource[F, Store[F, Key, Value]] =

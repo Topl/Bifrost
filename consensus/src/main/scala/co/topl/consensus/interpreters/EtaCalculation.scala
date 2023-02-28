@@ -51,7 +51,7 @@ object EtaCalculation {
     slotsPerEpoch:      Long,
     blake2b256Resource: UnsafeResource[F, Blake2b256],
     blake2b512Resource: UnsafeResource[F, Blake2b512]
-  )(implicit cache:     CaffeineCache[F, Bytes, Eta])
+  )(implicit cache: CaffeineCache[F, Bytes, Eta])
       extends EtaCalculationAlgebra[F] {
 
     implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass(this.getClass)

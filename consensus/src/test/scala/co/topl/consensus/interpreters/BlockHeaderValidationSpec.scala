@@ -814,9 +814,9 @@ object BlockHeaderValidationSpec {
 
   // Note: These methods are in the companion object because `digest.Digest32#value` conflicts with a ScalaTest member
   def validRegistrationNew(
-    vkVrf:               VerificationKeyVrfEd25519,
-    poolVK:              VerificationKeyEd25519,
-    skKes:               SecretKeys.KesProduct
+    vkVrf:  VerificationKeyVrfEd25519,
+    poolVK: VerificationKeyEd25519,
+    skKes:  SecretKeys.KesProduct
   )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
     val commitmentMessage = new Blake2b256().hash(vkVrf.value.concat(poolVK.value))
     Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))

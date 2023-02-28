@@ -29,7 +29,7 @@ object ConsensusValidationState {
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {
         def operatorRelativeStake(currentBlockId: TypedIdentifier, slot: Slot)(
-          address:                                StakingAddresses.Operator
+          address: StakingAddresses.Operator
         ): F[Option[Ratio]] =
           useStateAtTargetBoundary(currentBlockId, slot)(consensusData =>
             OptionT(consensusData.operatorStakes.get(address))
@@ -42,7 +42,7 @@ object ConsensusValidationState {
           )
 
         def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
-          address:                               StakingAddresses.Operator
+          address: StakingAddresses.Operator
         ): F[Option[Box.Values.Registrations.Operator]] =
           useStateAtTargetBoundary(currentBlockId, slot)(_.registrations.get(address))
 
@@ -54,7 +54,7 @@ object ConsensusValidationState {
         private def useStateAtTargetBoundary[Res](
           currentBlockId: TypedIdentifier,
           slot:           Slot
-        )(f:              ConsensusDataEventSourcedState.ConsensusData[F] => F[Res]): F[Res] =
+        )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[Res]): F[Res] =
           for {
             epoch <- clock.epochOf(slot)
             targetEpoch = epoch - 2

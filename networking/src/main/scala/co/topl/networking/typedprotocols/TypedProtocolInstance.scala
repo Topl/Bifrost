@@ -76,7 +76,7 @@ case class TypedProtocolInstance[F[_]] private (
    */
   def applier[S: NetworkTypeTag](
     initialState: S
-  )(onComplete:   Either[Throwable, Unit] => F[Unit])(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
+  )(onComplete: Either[Throwable, Unit] => F[Unit])(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
     for {
       aQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
       bQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
@@ -105,8 +105,8 @@ case class TypedProtocolInstance[F[_]] private (
    */
   private def backgroundProcessor[S: NetworkTypeTag](
     initialState: S
-  )(aQueue:       Queue[F, (Any, NetworkTypeTag[_])], bQueue: Queue[F, (Any, NetworkTypeTag[_])])(implicit
-    asyncF:       Async[F]
+  )(aQueue: Queue[F, (Any, NetworkTypeTag[_])], bQueue: Queue[F, (Any, NetworkTypeTag[_])])(implicit
+    asyncF: Async[F]
   ) = {
     var state: Any = initialState
     var typeTag: NetworkTypeTag[_] = implicitly[NetworkTypeTag[S]]

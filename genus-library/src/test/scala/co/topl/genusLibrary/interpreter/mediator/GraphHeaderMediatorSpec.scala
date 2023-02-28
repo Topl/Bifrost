@@ -35,7 +35,7 @@ class GraphHeaderMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite
 
     PropF.forAllF {
       (
-        header: BlockHeader,
+        header: BlockHeader
       ) =>
         withMock {
           val graphTxDao = mock[GraphTxDAOMock]

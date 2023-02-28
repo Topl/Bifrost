@@ -24,11 +24,11 @@ import scala.concurrent.{ExecutionContext, Future}
 object AkkaP2PServer {
 
   def make[F[_]: Async: Parallel: Logger: FToFuture, Client](
-    host:            String,
-    port:            Int,
-    localPeer:       LocalPeer,
-    remotePeers:     Stream[F, DisconnectedPeer],
-    peerHandler:     ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
+    host:        String,
+    port:        Int,
+    localPeer:   LocalPeer,
+    remotePeers: Stream[F, DisconnectedPeer],
+    peerHandler: ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
   )(implicit system: ActorSystem): Resource[F, P2PServer[F, Client]] = {
     import system.dispatcher
     for {
@@ -90,7 +90,7 @@ object AkkaP2PServer {
     addConnectionChange:         PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addConnectedPeer:            (ConnectedPeer, F[Client]) => F[Unit]
-  )(implicit system:             ActorSystem, ec: ExecutionContext): Resource[F, Unit] =
+  )(implicit system: ActorSystem, ec: ExecutionContext): Resource[F, Unit] =
     Resource
       .make(
         Tcp()
@@ -128,7 +128,7 @@ object AkkaP2PServer {
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addPeer:                     (ConnectedPeer, F[Client]) => F[Unit],
     killSwitch:                  SharedKillSwitch
-  )(implicit system:             ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+  )(implicit system: ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     Async[F].background(
       remotePeers
         .filterNot(_.remoteAddress == localPeer.localAddress)
