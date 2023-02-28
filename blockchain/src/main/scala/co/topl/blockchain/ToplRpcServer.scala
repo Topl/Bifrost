@@ -157,7 +157,7 @@ object ToplRpcServer {
   private def processValidTransaction[F[_]: Monad: Logger](
     transactionStore: Store[F, TypedIdentifier, LTransaction],
     mempool:          MempoolAlgebra[F]
-  )(transaction:      LTransaction) =
+  )(transaction: LTransaction) =
     Logger[F].debug(show"Inserting Transaction id=${transaction.id.asTypedBytes} into transaction store") >>
     transactionStore.put(transaction.id, transaction) >>
     Logger[F].debug(show"Inserting Transaction id=${transaction.id.asTypedBytes} into mempool") >>

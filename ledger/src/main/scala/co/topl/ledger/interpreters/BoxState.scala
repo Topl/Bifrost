@@ -62,7 +62,7 @@ object BoxState {
   private def applyBlock[F[_]: MonadThrow](
     fetchBlockBody:   TypedIdentifier => F[BlockBody],
     fetchTransaction: TypedIdentifier => F[Transaction]
-  )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
+  )(state: State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
       body         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
       transactions <- body.traverse(fetchTransaction)
@@ -93,7 +93,7 @@ object BoxState {
   private def unapplyBlock[F[_]: MonadThrow](
     fetchBlockBody:   TypedIdentifier => F[BlockBody],
     fetchTransaction: TypedIdentifier => F[Transaction]
-  )(state:            State[F], blockId: TypedIdentifier): F[State[F]] =
+  )(state: State[F], blockId: TypedIdentifier): F[State[F]] =
     for {
       body         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
       transactions <- body.traverse(fetchTransaction)

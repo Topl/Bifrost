@@ -41,7 +41,7 @@ object TransactionAuthorizationValidation {
      * @param blockId the ID of the block containing this particular Transaction
      */
     def validate(blockId: TypedIdentifier)(
-      transaction:        Transaction
+      transaction: Transaction
     ): F[ValidatedNec[TransactionAuthorizationError, Transaction]] =
       transaction.inputs
         .foldMapM(input => verifyProof(blockId)(transaction)(input.proposition, input.proof))
@@ -52,8 +52,8 @@ object TransactionAuthorizationValidation {
      * given transaction and block ID
      */
     private def verifyProof(blockId: TypedIdentifier)(
-      transaction:                   Transaction
-    )(proposition:                   Proposition, proof: Proof): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
+      transaction: Transaction
+    )(proposition: Proposition, proof: Proof): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       (proposition, proof) match {
         case (proposition: Propositions.PermanentlyLocked.type, proof) =>
           validatePermanentlyLocked(proposition, proof)
@@ -92,8 +92,8 @@ object TransactionAuthorizationValidation {
         .pure[F]
 
     private def validateKnowledgeEd25519(transaction: Transaction)(
-      proposition:                                    Propositions.Knowledge.Ed25519,
-      proof:                                          Proofs.Knowledge.Ed25519
+      proposition: Propositions.Knowledge.Ed25519,
+      proof:       Proofs.Knowledge.Ed25519
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       ed25519Resource
         .use(_.verify(proof.bytes.data, transaction.signableBytes, proposition.key.bytes.data).pure[F])
@@ -118,7 +118,7 @@ object TransactionAuthorizationValidation {
         )
 
     private def validateCompositionalAnd(blockId: TypedIdentifier)(
-      transaction:                                Transaction
+      transaction: Transaction
     )(
       proposition: Propositions.Compositional.And,
       proof:       Proofs.Compositional.And
@@ -137,7 +137,7 @@ object TransactionAuthorizationValidation {
         .toValidated
 
     private def validateCompositionalOr(blockId: TypedIdentifier)(
-      transaction:                               Transaction
+      transaction: Transaction
     )(
       proposition: Propositions.Compositional.Or,
       proof:       Proofs.Compositional.Or
@@ -159,7 +159,7 @@ object TransactionAuthorizationValidation {
       ).toValidated
 
     private def validateCompositionalThreshold(blockId: TypedIdentifier)(
-      transaction:                                      Transaction
+      transaction: Transaction
     )(
       proposition: Propositions.Compositional.Threshold,
       proof:       Proofs.Compositional.Threshold
@@ -197,7 +197,7 @@ object TransactionAuthorizationValidation {
         }
 
     private def validateCompositionalNot(blockId: TypedIdentifier)(
-      transaction:                                Transaction
+      transaction: Transaction
     )(
       proposition: Propositions.Compositional.Not,
       proof:       Proofs.Compositional.Not
@@ -214,7 +214,7 @@ object TransactionAuthorizationValidation {
         )
 
     private def validateContextualHeightLock(blockId: TypedIdentifier)(
-      proposition:                                    Propositions.Contextual.HeightLock
+      proposition: Propositions.Contextual.HeightLock
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] =
       fetchSlotData(blockId)
         .map(_.height)
@@ -228,7 +228,7 @@ object TransactionAuthorizationValidation {
         )
 
     private def validateContextualRequiredTransactionIO(transaction: Transaction)(
-      proposition:                                                   Propositions.Contextual.RequiredTransactionIO
+      proposition: Propositions.Contextual.RequiredTransactionIO
     ): F[ValidatedNec[TransactionAuthorizationError, Unit]] = {
       val fetchBoxByLocation: BoxLocation => Option[Box] = {
         case BoxLocations.Input(index) =>

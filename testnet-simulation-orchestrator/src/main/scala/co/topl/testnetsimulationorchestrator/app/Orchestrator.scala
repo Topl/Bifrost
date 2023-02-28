@@ -197,7 +197,7 @@ object Orchestrator
     )
 
   private def publishBlockBodiesAndAssignTransactions(publisher: Publisher, nodes: NodeRpcs)(
-    blockAssignments:                                            List[(NodeName, TypedIdentifier, BlockHeader)]
+    blockAssignments: List[(NodeName, TypedIdentifier, BlockHeader)]
   ): F[Map[TypedIdentifier, NodeName]] =
     for {
       // Create a topic which is expected to contain two subscribers

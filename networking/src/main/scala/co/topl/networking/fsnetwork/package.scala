@@ -94,7 +94,7 @@ package object fsnetwork {
     getSlotDataFromT: T => F[SlotData],
     getT:             TypedIdentifier => F[T],
     terminateOn:      T => F[Boolean]
-  )(from:             TypedIdentifier): F[List[T]] = {
+  )(from: TypedIdentifier): F[List[T]] = {
     def iteration(acc: List[T], blockId: TypedIdentifier): F[List[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
