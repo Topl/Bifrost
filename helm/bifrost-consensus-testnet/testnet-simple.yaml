@@ -1,0 +1,24 @@
+results:
+  bucket: bifrost-topl-labs-testnet-scenario-results
+
+shared-config:
+  bifrost:
+    big-bang:
+      staker-count: 2
+    protocols:
+      0:
+        slot-duration: 250 milli
+    
+
+configs:
+  producer0:
+    bifrost:
+      big-bang:
+        local-staker-index: 0
+  producer1:
+    bifrost:
+      big-bang:
+        local-staker-index: 1
+    topology:
+      egress:
+        - peer: producer0

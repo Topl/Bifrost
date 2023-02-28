@@ -2,6 +2,7 @@ package co.topl.models
 
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.Sized
+import co.topl.models.utility._
 import com.google.protobuf.ByteString
 
 case class FullAddress(
@@ -24,7 +25,7 @@ object StakingAddresses {
   def operatorFromProtoString(address: ByteString): Operator =
     Operator(
       VerificationKeys.Ed25519(
-        Sized.strictUnsafe[Bytes, VerificationKeys.Ed25519.Length](Bytes(address.toByteArray))
+        Sized.strictUnsafe[Bytes, VerificationKeys.Ed25519.Length](address)
       )
     )
 }
