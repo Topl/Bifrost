@@ -138,22 +138,25 @@ object AkkaP2PServer {
         )
         .map(disconnected => ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate))
         .evalMap(connectedPeer =>
-          Async[F].start(
-            Async[F]
-              .fromFuture(
-                Tcp()
-                  .outgoingConnection(
-                    InetSocketAddress
-                      .createUnresolved(connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+          Async[F]
+            .blocking(
+              InetSocketAddress.createUnresolved(connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+            )
+            .flatMap(socketAddress =>
+              Async[F].start(
+                Async[F]
+                  .fromFuture(
+                    Tcp()
+                      .outgoingConnection(socketAddress)
+                      .viaMat(killSwitch.flow)(Keep.left)
+                      .joinMat(
+                        Flow[ByteString].viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
+                      )(Keep.right)
+                      .liftTo[F]
                   )
-                  .viaMat(killSwitch.flow)(Keep.left)
-                  .joinMat(
-                    Flow[ByteString].viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
-                  )(Keep.right)
-                  .liftTo[F]
+                  .flatMap(addPeer(connectedPeer, _))
               )
-              .flatMap(addPeer(connectedPeer, _))
-          )
+            )
         )
         .compile
         .toList

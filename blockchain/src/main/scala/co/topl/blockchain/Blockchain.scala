@@ -78,37 +78,43 @@ object Blockchain {
           .compile
           .drain
       )
-      experimentalHandler <- ActorPeerHandlerBridgeAlgebra.make(
-        localChain,
-        chainSelectionAlgebra,
-        headerValidation,
-        blockHeaderToBodyValidation,
-        bodySyntaxValidation,
-        bodySemanticValidation,
-        bodyAuthorizationValidation,
-        slotDataStore,
-        headerStore,
-        bodyStore,
-        transactionStore,
-        blockIdTree
-      )
-      mainHandler = BlockchainPeerHandler.ChainSynchronizer.make[F](
-        clock,
-        localChain,
-        headerValidation,
-        blockHeaderToBodyValidation,
-        bodySyntaxValidation,
-        bodySemanticValidation,
-        bodyAuthorizationValidation,
-        slotDataStore,
-        headerStore,
-        bodyStore,
-        transactionStore,
-        blockIdTree
-      )
+      synchronizationHandler <-
+        if (experimentalP2P) {
+          ActorPeerHandlerBridgeAlgebra.make(
+            localChain,
+            chainSelectionAlgebra,
+            headerValidation,
+            blockHeaderToBodyValidation,
+            bodySyntaxValidation,
+            bodySemanticValidation,
+            bodyAuthorizationValidation,
+            slotDataStore,
+            headerStore,
+            bodyStore,
+            transactionStore,
+            blockIdTree
+          )
+        } else {
+          Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
+            BlockchainPeerHandler.ChainSynchronizer.make[F](
+              clock,
+              localChain,
+              headerValidation,
+              blockHeaderToBodyValidation,
+              bodySyntaxValidation,
+              bodySemanticValidation,
+              bodyAuthorizationValidation,
+              slotDataStore,
+              headerStore,
+              bodyStore,
+              transactionStore,
+              blockIdTree
+            )
+          )
+        }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
-          if (experimentalP2P) experimentalHandler else mainHandler,
+          synchronizationHandler,
           BlockchainPeerHandler.FetchMempool.make(
             transactionSyntaxValidation,
             transactionStore,
