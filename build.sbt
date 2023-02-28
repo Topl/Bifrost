@@ -161,7 +161,7 @@ lazy val bifrost = project
     toplGrpc,
     crypto,
     catsAkka,
-    models, // TODO remove BN-714 PR v2
+    models,
     numerics,
     eventTree,
     algebras,
@@ -277,7 +277,6 @@ lazy val commonApplication = project
   .dependsOn(catsAkka)
   .settings(scalamacrosParadiseSettings)
 
-// TODO remve BN-714 , PR v2
 lazy val models = project
   .in(file("models"))
   .enablePlugins(BuildInfoPlugin)
@@ -289,9 +288,9 @@ lazy val models = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(
-    libraryDependencies ++= Dependencies.models
+    libraryDependencies ++= Dependencies.models ++ Dependencies.test,
+    dependencyOverrides += Dependencies.protobufSpecs.head // remove if bramble and quivr4s are aligned with latest protobufSpecs
   )
-  .settings(libraryDependencies ++= Dependencies.test)
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -450,6 +449,9 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.minting)
   .settings(scalamacrosParadiseSettings)
+  .settings(
+    dependencyOverrides += Dependencies.protobufSpecs.head
+  ) // remove if bramble and quivr4s are aligned with latest protobufSpecs
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,

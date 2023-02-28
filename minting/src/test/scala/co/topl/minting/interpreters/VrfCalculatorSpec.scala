@@ -5,13 +5,14 @@ import cats.effect.IO.asyncForIO
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.consensus.models.VrfConfig
+import co.topl.consensus.models.{SignatureVrfEd25519, VrfConfig}
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.{Ratio, Sized}
+import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import scodec.bits._
@@ -38,9 +39,9 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       slot = 10L
       eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
 
-      expectedProof = Proofs.Knowledge.VrfEd25519(
-        Sized.strictUnsafe(
-          hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d"
+      expectedProof = SignatureVrfEd25519.of(
+        ByteString.copyFrom(
+          hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d".toArray
         )
       )
 

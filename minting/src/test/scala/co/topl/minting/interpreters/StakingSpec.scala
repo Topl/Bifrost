@@ -8,16 +8,16 @@ import co.topl.consensus.algebras.{
   EtaCalculationAlgebra,
   LeaderElectionValidationAlgebra
 }
-import co.topl.consensus.models.{BlockId, SlotId}
-import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.consensus.models.{EligibilityCertificate, SlotId, _}
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
-import co.topl.minting.models.VrfHit
+import co.topl.minting.models.{OperationalKeyOut, VrfHit}
 import co.topl.models._
-import co.topl.models.utility._
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -38,10 +38,10 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
           )
 
-        val vkVrf = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
-        val proof = Proofs.Knowledge.VrfEd25519(
-          Sized.strictUnsafe(
-            hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d"
+        val vkVrf = VerificationKeyVrfEd25519.of(ByteString.copyFrom(Array.fill[Byte](32)(0)))
+        val proof = SignatureVrfEd25519.of(
+          ByteString.copyFrom(
+            hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d".toArray
           )
         )
         val rho = Rho(
@@ -105,7 +105,12 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           testProof <- vrfCalculator.proofForSlot(slot, eta)
 
           expectedVrfHit = VrfHit(
-            EligibilityCertificate(testProof, vkVrf, relativeStake.typedEvidence.evidence, eta),
+            EligibilityCertificate(
+              testProof,
+              vkVrf,
+              relativeStake.typedEvidence.evidence.data,
+              eta.data
+            ),
             slot,
             relativeStake
           )
@@ -122,7 +127,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         (operationalKeyMaker.operationalKeyForSlot _)
           .expects(slot, parentSlotId)
           .once()
-          .returning(None.pure[F])
+          .returning(Option.empty[OperationalKeyOut].pure[F])
 
         for {
           staking <- Staking
@@ -151,12 +156,14 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
       val slotDiff = 1L
       val eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
       val relativeStake = Ratio.One
-      val vkVrf = VerificationKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))))
-      val proof = Proofs.Knowledge.VrfEd25519(
-        Sized.strictUnsafe(
-          hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d"
+      val vkVrf = VerificationKeyVrfEd25519.of(ByteString.copyFrom(Array.fill[Byte](32)(0)))
+
+      val proof = SignatureVrfEd25519.of(
+        ByteString.copyFrom(
+          hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d".toArray
         )
       )
+
       val rho = Rho(
         Sized.strictUnsafe(
           data =
@@ -205,7 +212,12 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         testProof <- vrfCalculator.proofForSlot(slot, eta)
 
         expectedVrfHit = VrfHit(
-          EligibilityCertificate(testProof, vkVrf, relativeStake.typedEvidence.evidence, eta),
+          EligibilityCertificate(
+            testProof,
+            vkVrf,
+            relativeStake.typedEvidence.evidence.data,
+            eta.data
+          ),
           slot,
           relativeStake
         )

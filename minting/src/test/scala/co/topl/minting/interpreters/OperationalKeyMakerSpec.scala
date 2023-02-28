@@ -14,6 +14,7 @@ import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.models.utility.{Ratio, ReplaceModelUtil}
 import co.topl.consensus.models.{BlockId, SlotId}
 import com.google.common.primitives.Longs
@@ -54,7 +55,9 @@ class OperationalKeyMakerSpec
       val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
-      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
+      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L) match {
+        case (sk, vk) => (sk, ReplaceModelUtil.verificationKeyKesProduct(vk))
+      }
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
 
@@ -132,9 +135,9 @@ class OperationalKeyMakerSpec
         out.parentVK shouldBe vk
         kesProduct
           .verify(
-            ReplaceModelUtil.signatureKesProduct(out.parentSignature),
-            ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
-            ReplaceModelUtil.verificationKeyKesProduct(vk)
+            out.parentSignature,
+            ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
+            vk
           )
       }
     }
@@ -150,7 +153,9 @@ class OperationalKeyMakerSpec
       val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
-      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
+      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L) match {
+        case (sk, vk) => (sk, ReplaceModelUtil.verificationKeyKesProduct(vk))
+      }
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -238,9 +243,9 @@ class OperationalKeyMakerSpec
         out.parentVK shouldBe vk.copy(step = 1)
         kesProduct
           .verify(
-            ReplaceModelUtil.signatureKesProduct(out.parentSignature),
-            ed25519.getVerificationKey(out.childSK.bytes.data) ++ Bytes(Longs.toByteArray(i)),
-            ReplaceModelUtil.verificationKeyKesProduct(vk.copy(step = 1))
+            out.parentSignature,
+            ed25519.getVerificationKey(Bytes(out.childSK.value.toByteArray)) ++ Bytes(Longs.toByteArray(i)),
+            vk.copy(step = 1)
           )
       }
     }
