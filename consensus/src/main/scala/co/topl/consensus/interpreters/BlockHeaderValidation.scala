@@ -125,8 +125,7 @@ object BlockHeaderValidation {
             header.slot
           )
         )
-        .flatMap { expectedEta => // TODO, create for comprehension, and create validation for empty vrfSig, and vrfVK
-
+        .flatMap { expectedEta =>
           val eta = Sized.strictUnsafe[ByteVector, Eta.Length](header.eligibilityCertificate.eta)
           EitherT
             .cond[F](
@@ -295,9 +294,7 @@ object BlockHeaderValidation {
                 ).pure[F]
               )
             isValid <- kesProductResource
-              .use(p =>
-                p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
-              ) // TODO get ParentVK could fail
+              .use(p => p.verify(commitment, message, header.operationalCertificate.parentVK.copy(step = 0)).pure[F])
           } yield Either.cond(
             isValid,
             header,
