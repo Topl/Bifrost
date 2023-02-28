@@ -295,18 +295,20 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
             kesProductResource,
             ed25519Resource
           )
-          staking = Staking.make(
-            initializer.stakingAddress,
-            VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
-            operationalKeys,
-            consensusValidationState,
-            etaCalculation,
-            ed25519Resource,
-            vrfCalculator,
-            leaderElectionThreshold
-          )
-        } yield staking
+        } yield (operationalKeys, vrfCalculator)
       )
+      .flatMap { case (operationalKeys, vrfCalculator) =>
+        Staking.make(
+          initializer.stakingAddress,
+          VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
+          operationalKeys,
+          consensusValidationState,
+          etaCalculation,
+          ed25519Resource,
+          vrfCalculator,
+          leaderElectionThreshold
+        )
+      }
 
   private def makeConsensusValidationState(
     clock:                       ClockAlgebra[F],

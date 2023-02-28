@@ -2,6 +2,7 @@ package co.topl.minting.interpreters
 
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.consensus.algebras.{
   ConsensusValidationStateAlgebra,
@@ -88,7 +89,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .once()
           .returning(rho.pure[F])
 
-        for {
+        val resource = for {
           staking <- Staking
             .make[F](
               a = address,
@@ -100,9 +101,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               vrfCalculator,
               leaderElectionValidation
             )
-            .pure[F]
 
-          testProof <- vrfCalculator.proofForSlot(slot, eta)
+          testProof <- vrfCalculator.proofForSlot(slot, eta).toResource
 
           expectedVrfHit = VrfHit(
             EligibilityCertificate(
@@ -114,8 +114,9 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             slot,
             relativeStake
           )
-          _ <- staking.elect(parentSlotId, slot).assertEquals(expectedVrfHit.some)
+          _ <- staking.elect(parentSlotId, slot).assertEquals(expectedVrfHit.some).toResource
         } yield ()
+        resource.use_
       }
     }
   }
@@ -129,7 +130,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .once()
           .returning(Option.empty[OperationalKeyOut].pure[F])
 
-        for {
+        val resource = for {
           staking <- Staking
             .make[F](
               a = null,
@@ -141,11 +142,13 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               vrfCalculator = null,
               leaderElectionValidation = null
             )
-            .pure[F]
+
           _ <- staking
             .certifyBlock(parentSlotId, slot, _ => throw new NotImplementedError("unsignedBlockBuilder"))
             .assertEquals(None)
+            .toResource
         } yield ()
+        resource.use_
       }
     }
   }
@@ -195,7 +198,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         .once()
         .returning(rho.pure[F])
 
-      for {
+      val resource = for {
         staking <- Staking
           .make[F](
             a = null,
@@ -207,9 +210,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             vrfCalculator,
             leaderElectionValidation
           )
-          .pure[F]
 
-        testProof <- vrfCalculator.proofForSlot(slot, eta)
+        testProof <- vrfCalculator.proofForSlot(slot, eta).toResource
 
         expectedVrfHit = VrfHit(
           EligibilityCertificate(
@@ -221,9 +223,9 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           slot,
           relativeStake
         )
-        _ <- staking.getHit(relativeStake, slot, slotDiff, eta).assertEquals(expectedVrfHit.some)
+        _ <- staking.getHit(relativeStake, slot, slotDiff, eta).assertEquals(expectedVrfHit.some).toResource
       } yield ()
-
+      resource.use_
     }
   }
 
