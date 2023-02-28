@@ -1,142 +1,142 @@
 package co.topl.tetra.it.util
 
+import cats.effect._
+import cats.implicits._
 import co.topl.buildinfo.node.BuildInfo
-import co.topl.tetra.it.util.DockerSupport._
-import com.spotify.docker.client.DockerClient
 import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
-import com.typesafe.config.{Config, ConfigFactory, ConfigRenderOptions}
-import com.typesafe.scalalogging.StrictLogging
+import com.spotify.docker.client.{DefaultDockerClient, DockerClient}
 
-import java.nio.file.{Files, Path, Paths}
-import java.util.Comparator
+import java.time.Instant
 import scala.jdk.CollectionConverters._
 
-class DockerSupport(dockerClient: DockerClient) extends StrictLogging {
+trait DockerSupport[F[_]] {
 
-  private var nodeCache: Set[BifrostDockerTetraNode] = Set.empty
-
-  private var networkCache: Set[NetworkCreation] = Set.empty
-
-  // @TODO required exposed ports could be read from config
   def createNode(
     name:          String,
     nodeGroupName: String,
-    config:        Config = ConfigFactory.empty()
-  ): BifrostDockerTetraNode = {
-    val node = createContainer(name, nodeGroupName)
-    configureContainer(node.containerId, config)
-    node
-  }
+    configYaml:    String = ""
+  ): Resource[F, BifrostDockerTetraNode]
 
-  private def createContainer(name: String, nodeGroupName: String): BifrostDockerTetraNode = {
-    val networkName = DockerSupport.networkNamePrefix + nodeGroupName
-    val containerConfig = buildContainerConfig(name, Map.empty)
-    val containerCreation = dockerClient.createContainer(containerConfig, name)
-
-    val node = BifrostDockerTetraNode(containerCreation.id())
-    nodeCache += node
-
-    val networkId =
-      dockerClient.listNetworks().asScala.find(_.name == networkName) match {
-        case Some(network) => network.id()
-        case None =>
-          val network =
-            dockerClient.createNetwork(NetworkConfig.builder().name(networkName).build())
-          networkCache += network
-          network.id()
-      }
-
-    dockerClient.connectToNetwork(node.containerId, networkId)
-
-    node
-  }
-
-  private def configureContainer(containerId: String, config: Config): Unit = {
-    val configWithDefault = config.withFallback(DefaultConfig.config)
-    val renderedConfig = configWithDefault.root().render(ConfigRenderOptions.concise())
-    checkConfig(configWithDefault)
-
-    logger.info(s"Reconfiguring to: $renderedConfig")
-    require(!dockerClient.inspectContainer(containerId).state().running(), "Try to set configuration on running node")
-
-    val tmpConfigDirectory = Files.createTempDirectory("bifrost-test-config")
-    val testConfigPath = Paths.get(tmpConfigDirectory.toString, configFileName)
-    Files.write(testConfigPath, renderedConfig.getBytes("UTF-8"))
-
-    dockerClient.copyToContainer(tmpConfigDirectory, containerId, configDirectory)
-
-    Files
-      .walk(tmpConfigDirectory)
-      .sorted(Comparator.reverseOrder[Path]())
-      .iterator()
-      .asScala
-      .foreach(Files.delete)
-  }
-
-  private def checkConfig(configToCheck: Config): Unit =
-    require(configToCheck.getString(rpcPortKeyPath) == rpcPort, "Custom RPC port is not supported now")
-
-  private def buildContainerConfig(name: String, environment: Map[String, String]): ContainerConfig = {
-    val env =
-      environment.toList.map { case (key, value) => s"$key=$value" }
-
-    val cmd =
-      List(
-        s"-Dcom.sun.management.jmxremote.port=$jmxRemotePort",
-        s"-Dcom.sun.management.jmxremote.rmi.port=$jmxRemotePort",
-        "-Dcom.sun.management.jmxremote.ssl=false",
-        "-Dcom.sun.management.jmxremote.local.only=false",
-        "-Dcom.sun.management.jmxremote.authenticate=false",
-        "--config",
-        s"$configDirectory/$configFileName",
-        "--debug"
-      )
-
-    val hostConfig =
-      HostConfig.builder().nanoCpus((1d * 1000000000).toLong).build()
-
-    ContainerConfig
-      .builder()
-      .image(DockerSupport.bifrostImage)
-      .env(env: _*)
-      .volumes(configDirectory)
-      .cmd(cmd: _*)
-      .hostname(name)
-      .hostConfig(hostConfig)
-      .exposedPorts(exposedPorts: _*)
-      .build()
-  }
-
-  def close(): Unit = {
-    nodeCache
-      .map(_.containerId)
-      .foreach(containerId => dockerClient.removeContainer(containerId, DockerClient.RemoveContainerParam.forceKill))
-    networkCache
-      .map(_.id())
-      .foreach(dockerClient.removeNetwork)
-  }
-
-}
-
-object DefaultConfig {
-
-  private val configMap = Map(
-    "bifrost.rpc.bind-host" -> "0.0.0.0", // rpc will listen all interfaces instead of just localhost
-    rpcPortKeyPath          -> rpcPort
-  )
-
-  val config: Config = ConfigFactory.parseMap(configMap.asJava)
 }
 
 object DockerSupport {
+
+  def make[F[_]: Async]: Resource[F, (DockerSupport[F], DockerClient)] =
+    for {
+      implicit0(dockerClient: DockerClient) <- Resource.make(Sync[F].blocking(DefaultDockerClient.fromEnv().build()))(
+        c => Sync[F].blocking(c.close())
+      )
+      nodeCache <- Resource.make[F, Ref[F, Set[BifrostDockerTetraNode]]](Ref.of(Set.empty[BifrostDockerTetraNode]))(
+        _.get.flatMap(
+          _.toList
+            .traverse(node =>
+              Sync[F]
+                .blocking(dockerClient.removeContainer(node.containerId, DockerClient.RemoveContainerParam.forceKill))
+                .voidError
+            )
+            .void
+        )
+      )
+      networkCache <- Resource.make[F, Ref[F, Set[NetworkCreation]]](Ref.of(Set.empty[NetworkCreation]))(
+        _.get.flatMap(
+          _.toList
+            .traverse(network => Sync[F].blocking(dockerClient.removeNetwork(network.id())).voidError)
+            .void
+        )
+      )
+      dockerSupport = new DockerSupport[F] {
+
+        def createNode(name: String, nodeGroupName: String, configYaml: String): Resource[F, BifrostDockerTetraNode] =
+          Resource
+            .make(createContainer(name, nodeGroupName))(node =>
+              Sync[F]
+                .blocking(dockerClient.removeContainer(node.containerId, DockerClient.RemoveContainerParam.forceKill))
+            )
+            .evalTap(_.configure(configYaml))
+
+        private def createContainer(name: String, nodeGroupName: String): F[BifrostDockerTetraNode] =
+          for {
+            networkName       <- (DockerSupport.networkNamePrefix + nodeGroupName).pure[F]
+            containerConfig   <- buildContainerConfig(name, Map.empty).pure[F]
+            containerCreation <- Sync[F].blocking(dockerClient.createContainer(containerConfig, name))
+            node              <- BifrostDockerTetraNode(containerCreation.id(), name).pure[F]
+            _                 <- nodeCache.update(_ + node)
+            networkId <- Sync[F].blocking(dockerClient.listNetworks().asScala.find(_.name == networkName)).flatMap {
+              case Some(network) => network.id().pure[F]
+              case None =>
+                Sync[F]
+                  .blocking(dockerClient.createNetwork(NetworkConfig.builder().name(networkName).build()))
+                  .flatTap(n => networkCache.update(_ + n))
+                  .map(_.id())
+            }
+            _ <- Sync[F].blocking(dockerClient.connectToNetwork(node.containerId, networkId))
+          } yield node
+
+        private def buildContainerConfig(name: String, environment: Map[String, String]): ContainerConfig = {
+          val env =
+            environment.toList.map { case (key, value) => s"$key=$value" }
+
+          val cmd =
+            List(
+              s"-Dcom.sun.management.jmxremote.port=$jmxRemotePort",
+              s"-Dcom.sun.management.jmxremote.rmi.port=$jmxRemotePort",
+              "-Dcom.sun.management.jmxremote.ssl=false",
+              "-Dcom.sun.management.jmxremote.local.only=false",
+              "-Dcom.sun.management.jmxremote.authenticate=false",
+              "--config",
+              "/opt/docker/config/node.yaml",
+              "--debug"
+            )
+
+          val hostConfig =
+            HostConfig.builder().build()
+
+          ContainerConfig
+            .builder()
+            .image(DockerSupport.bifrostImage)
+            .env(env: _*)
+            .volumes(configDirectory)
+            .cmd(cmd: _*)
+            .hostname(name)
+            .hostConfig(hostConfig)
+            .exposedPorts(exposedPorts: _*)
+            .build()
+        }
+      }
+    } yield (dockerSupport, dockerClient)
+
   val configDirectory = "/opt/docker/config"
-  val configFileName = "testConfig.conf"
 
   val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
   val networkNamePrefix: String = "bifrost-it"
 
   val rpcPortKeyPath = "bifrost.rpc.bind-port"
   val rpcPort = "9084"
+  val p2pPort = "9085"
   val jmxRemotePort = "9083"
-  val exposedPorts: Seq[String] = List(rpcPort, jmxRemotePort)
+  val exposedPorts: Seq[String] = List(rpcPort, p2pPort, jmxRemotePort)
+}
+
+object DefaultConfig {
+
+  def apply(
+    bigBangTimestamp: Instant = Instant.now().plusSeconds(5),
+    stakerCount:      Int = 1,
+    localStakerIndex: Int = 0,
+    knownPeers:       List[String] = Nil
+  ): String =
+    s"""
+       |bifrost:
+       |  rpc:
+       |    bind-host: 0.0.0.0
+       |    port: 9084
+       |  p2p:
+       |    bind-host: 0.0.0.0
+       |    port: 9085
+       |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
+       |  big-bang:
+       |    staker-count: $stakerCount
+       |    local-staker-index: $localStakerIndex
+       |    timestamp: ${bigBangTimestamp.toEpochMilli}
+       |""".stripMargin
 }

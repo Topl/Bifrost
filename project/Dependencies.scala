@@ -49,10 +49,7 @@ object Dependencies {
 
   val mUnitTest: Seq[ModuleID] = mUnitTestBase.map(_ % Test)
 
-  val it: Seq[ModuleID] = Seq(
-    "org.scalatest" %% "scalatest"     % "3.2.12" % "it",
-    "com.spotify"    % "docker-client" % "8.16.0" % "it"
-  )
+  val dockerClient = "com.spotify" % "docker-client" % "8.16.0"
 
   def akka(name: String): ModuleID =
     "com.typesafe.akka" %% s"akka-$name" % akkaVersion
@@ -292,5 +289,5 @@ object Dependencies {
     mUnitTest
 
   lazy val byzantineTests: Seq[ModuleID] =
-    it
+    (mUnitTestBase :+ dockerClient).map(_ % IntegrationTest)
 }
