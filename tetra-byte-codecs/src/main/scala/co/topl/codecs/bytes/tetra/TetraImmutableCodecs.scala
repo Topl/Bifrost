@@ -2,6 +2,7 @@ package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.scodecs.valuetypes.{intCodec, longCodec}
 import co.topl.codecs.bytes.typeclasses.ImmutableCodec
+import co.topl.consensus.models.VerificationKeyVrfEd25519
 import co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -89,6 +90,9 @@ trait TetraImmutableCodecs {
     ImmutableCodec.fromScodecCodec
 
   implicit val ed25519VRFVKStableCodec: ImmutableCodec[VerificationKeys.VrfEd25519] =
+    ImmutableCodec.fromScodecCodec
+
+  implicit val verificationKeyVrfEd25519ImmutableCodec: ImmutableCodec[VerificationKeyVrfEd25519] =
     ImmutableCodec.fromScodecCodec
 
   implicit val kesSumVKStableCodec: ImmutableCodec[VerificationKeys.KesSum] =

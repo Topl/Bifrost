@@ -13,8 +13,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.VrfConfig
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{SlotData, VerificationKeyVrfEd25519, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
@@ -24,6 +23,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
@@ -32,7 +32,6 @@ import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
@@ -298,7 +297,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           )
           staking = Staking.make(
             initializer.stakingAddress,
-            initializer.vrfVK,
+            VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
             operationalKeys,
             consensusValidationState,
             etaCalculation,
