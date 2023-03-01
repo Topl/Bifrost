@@ -20,16 +20,12 @@ jobs:
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true
-  publish-docker-images-official:
-    uses: ./.github/workflows/_docker_publish_public.yml
-    needs: [sbt-build, sbt-integration-tests]
-    secrets: inherit
   build-jar:
     uses: ./.github/workflows/_sbt_jar.yml
-    needs: [sbt-build, sbt-integration-tests]
+    needs: [sbt-build]
   create-release:
     runs-on: ubuntu-latest
-    needs: [sbt-build, sbt-integration-tests, build-jar]
+    needs: [sbt-build, sbt-integration-tests, sbt-byzantine-tests, build-jar]
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v3
@@ -60,3 +56,7 @@ jobs:
             ${{ env.JAR_LOCATION }}
             ${{ env.MD5_LOCATION }}
             ${{ env.SHA256_LOCATION }}
+  publish-docker-images-official:
+    uses: ./.github/workflows/_docker_publish_public.yml
+    needs: [create-release]
+    secrets: inherit
