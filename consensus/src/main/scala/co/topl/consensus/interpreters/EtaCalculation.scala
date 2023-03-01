@@ -8,8 +8,8 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.consensus.models.{EtaCalculationArgs, SlotData, SlotId}
+import co.topl.consensus.rhoToRhoNonceHash
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
-import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility._
 import co.topl.models.utility.HasLength.instances.bytesLength
@@ -125,7 +125,7 @@ object EtaCalculation {
           .map(_.sizedBytes.data)
           .parTraverse(rho =>
             blake2b512Resource
-              .use(implicit b2b => Sync[F].delay(Ed25519VRF.rhoToRhoNonceHash(rho)))
+              .use(implicit b2b => Sync[F].delay(rhoToRhoNonceHash(rho)))
               .map(nonceHashBytes => RhoNonceHash(Sized.strictUnsafe(nonceHashBytes)))
           )
         nextEta <- calculateFromNonceHashValues(previousEta, epoch, rhoNonceHashes)
