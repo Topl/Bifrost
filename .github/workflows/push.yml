@@ -22,9 +22,12 @@ jobs:
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true
+  build-jar:
+    uses: ./.github/workflows/_sbt_jar.yml
+    needs: [sbt-build]
   publish-docker-images-unofficial:
     uses: ./.github/workflows/_docker_publish_private.yml
-    needs: [sbt-build, sbt-integration-tests]
+    needs: [sbt-build, sbt-integration-tests, sbt-byzantine-tests, build-jar]
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
     secrets: inherit

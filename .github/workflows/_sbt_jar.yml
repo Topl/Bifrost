@@ -77,7 +77,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Bifrost Node Jar (${{ matrix.java }})
-          path: node/target/scala-2.13/*.jar
+          path: node/target/scala-2.13/bifrost-node-*.jar
           if-no-files-found: error
       
       - name: Cleanup before cache
