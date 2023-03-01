@@ -9,6 +9,7 @@ import co.topl.consensus.models._
 import com.google.protobuf.ByteString
 
 // id = hash(headerBytes) INCLUDING kesCertificate proofs
+// TODO Remove after protobuf refactor is complete
 case class BlockHeader(
   parentHeaderId:         TypedIdentifier,
   parentSlot:             Slot,
@@ -30,30 +31,7 @@ object BlockHeader {
 
   type Metadata = Sized.Max[Latin1Data, Lengths.`32`.type]
 
-  case class Unsigned( // TODO rename to legacyUnsigned
-    parentHeaderId:                TypedIdentifier,
-    parentSlot:                    Slot,
-    txRoot:                        TxRoot,
-    bloomFilter:                   BloomFilter,
-    timestamp:                     Timestamp,
-    height:                        Long,
-    slot:                          Slot,
-    eligibilityCertificate:        legacyModels.EligibilityCertificate,
-    partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
-    metadata:                      Option[Sized.Max[Latin1Data, Lengths.`32`.type]],
-    address:                       StakingAddresses.Operator
-  )
-
-  object Unsigned { // TODO rename to legacyUnsigned
-
-    case class PartialOperationalCertificate(
-      parentVK:        VerificationKeys.KesProduct,
-      parentSignature: Proofs.Knowledge.KesProduct,
-      childVK:         VerificationKeys.Ed25519
-    )
-  }
-
-  case class UnsignedConsensus( // TODO rename Unsigned
+  case class Unsigned(
     parentHeaderId:                BlockId,
     parentSlot:                    Slot,
     txRoot:                        ByteString,
@@ -62,12 +40,12 @@ object BlockHeader {
     height:                        Long,
     slot:                          Slot,
     eligibilityCertificate:        EligibilityCertificate,
-    partialOperationalCertificate: UnsignedConsensus.PartialOperationalCertificate,
+    partialOperationalCertificate: Unsigned.PartialOperationalCertificate,
     metadata:                      ByteString,
     address:                       ByteString
   )
 
-  object UnsignedConsensus { // TODO rename Unsigned
+  object Unsigned {
 
     case class PartialOperationalCertificate(
       parentVK:        VerificationKeyKesProduct,
@@ -88,13 +66,8 @@ object BlockBody {
 
 object Block {
 
-  case class UnsignedLegacy(
-    unsignedHeader: BlockHeader.Unsigned,
-    body:           BlockBody
-  )
-
   case class Unsigned( // TODO ask if we need a new protobuf-spec for BlockUnsigned
-    unsignedHeader: BlockHeader.UnsignedConsensus,
+    unsignedHeader: BlockHeader.Unsigned,
     body:           co.topl.node.models.BlockBody
   )
 

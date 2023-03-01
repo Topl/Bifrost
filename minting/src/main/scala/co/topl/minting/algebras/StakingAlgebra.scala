@@ -19,7 +19,7 @@ trait StakingAlgebra[F[_]] {
   def certifyBlock(
     parentSlotId:         SlotId,
     slot:                 Slot,
-    unsignedBlockBuilder: BlockHeader.UnsignedConsensus.PartialOperationalCertificate => co.topl.models.Block.Unsigned
+    unsignedBlockBuilder: BlockHeader.Unsigned.PartialOperationalCertificate => co.topl.models.Block.Unsigned
   ): F[Option[Block]]
 
   def getHit(
