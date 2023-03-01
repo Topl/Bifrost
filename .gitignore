@@ -10,8 +10,6 @@
 .vscode/
 out/
 *.iml
-.jvmopts
-.sbtopts
 localVersion.sbt
 
 # scala build folders

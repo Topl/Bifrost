@@ -847,15 +847,10 @@ trait TetraScodecBlockCodecs {
 
   implicit val partialOperationalCertificateCodec
     : Codec[legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate] =
-    (vkKesProductCodec :: proofSignatureKesProductCodec :: vkEd25519Codec)
-      .as[legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate]
-
-  implicit val partialOperationalCertificateConsensusCodec
-    : Codec[legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate] =
     (consensusVkKesProductCodec ::
       consensusProofSignatureKesProductCodec ::
       cryptoVkEd25519Codec)
-      .as[legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate]
+      .as[legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate]
 
   implicit val blockHeaderCodec: Codec[legacyModels.BlockHeader] =
     (
@@ -916,21 +911,6 @@ trait TetraScodecBlockCodecs {
 
   implicit val unsignedBlockHeaderCodec: Codec[legacyModels.BlockHeader.Unsigned] =
     (
-      typedBytesCodec ::
-        longCodec ::
-        Codec[TxRoot] ::
-        Codec[BloomFilter] ::
-        longCodec ::
-        longCodec ::
-        longCodec ::
-        eligibilityCertificateCodec ::
-        partialOperationalCertificateCodec ::
-        optionCodec(maxSizedCodec[Latin1Data, Lengths.`32`.type]) ::
-        stakingAddressesOperatorCodec
-    ).as[legacyModels.BlockHeader.Unsigned]
-
-  implicit val unsignedConsensusBlockHeaderCodec: Codec[legacyModels.BlockHeader.UnsignedConsensus] =
-    (
       consensusBlockIdCodec ::
         longCodec ::
         protobufByteStringCodec ::
@@ -939,10 +919,10 @@ trait TetraScodecBlockCodecs {
         longCodec ::
         longCodec ::
         consensusEligibilityCertificateCodec ::
-        partialOperationalCertificateConsensusCodec ::
+        partialOperationalCertificateCodec ::
         protobufByteStringCodec ::
         protobufByteStringCodec
-    ).as[legacyModels.BlockHeader.UnsignedConsensus]
+    ).as[legacyModels.BlockHeader.Unsigned]
 
   implicit val blockBodyCodec: Codec[BlockBody] = listSetCodec[TypedIdentifier]
 
