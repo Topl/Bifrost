@@ -60,8 +60,6 @@ Testing
 
 To run the Bifrost unit test suite from the project directory: `sbt test`
 
-   - On some systems, the tests may fail with an `java.lang.OutOfMemoryError`. To solve this problem, provide the JVM more space: `echo "-Xmx4G -Xms1G" >> .jvmopts`
-      
 To publish a Docker image from the project directory for local testing: `sbt 'node/docker:publishLocal'`
    
    - To run the published container: `docker run bifrost:x.x.x` (where `x.x.x` is the version that was published).
