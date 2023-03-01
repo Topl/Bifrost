@@ -121,11 +121,11 @@ object BlockProducer {
       body:           co.topl.models.BlockBody.Full,
       timestamp:      Timestamp,
       nextHit:        VrfHit
-    ): BlockHeader.UnsignedConsensus.PartialOperationalCertificate => co.topl.models.Block.Unsigned =
-      (partialOperationalCertificate: BlockHeader.UnsignedConsensus.PartialOperationalCertificate) =>
+    ): BlockHeader.Unsigned.PartialOperationalCertificate => co.topl.models.Block.Unsigned =
+      (partialOperationalCertificate: BlockHeader.Unsigned.PartialOperationalCertificate) =>
         co.topl.models.Block
           .Unsigned(
-            BlockHeader.UnsignedConsensus(
+            BlockHeader.Unsigned(
               parentHeaderId = parentSlotData.slotId.blockId,
               parentSlot = parentSlotData.slotId.slot,
               txRoot = body.merkleTreeRootHash.data,

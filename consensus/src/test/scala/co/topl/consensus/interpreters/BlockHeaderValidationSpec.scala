@@ -713,10 +713,10 @@ class BlockHeaderValidationSpec
   }
 
   private def withPartialOperationalCertificate( // new models, remove the other and rename this
-    slot: Slot,
-    unsignedF: legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate => legacyModels.BlockHeader.UnsignedConsensus,
-    parentSK: SecretKeys.KesProduct
-  ): (legacyModels.BlockHeader.UnsignedConsensus, SecretKeys.Ed25519) = {
+    slot:      Slot,
+    unsignedF: legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate => legacyModels.BlockHeader.Unsigned,
+    parentSK:  SecretKeys.KesProduct
+  ): (legacyModels.BlockHeader.Unsigned, SecretKeys.Ed25519) = {
     val (linearSKBytes, linearVKBytes) =
       Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
@@ -724,7 +724,7 @@ class BlockHeaderValidationSpec
     val parentSignatureLegacy = kesProduct.sign(parentSK, message) // TODO, it should return new Models
     val parentSignature = ReplaceModelUtil.signatureKesProduct(parentSignatureLegacy)
     val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK) // TODO, it should return new Models
-    val partialCertificate = legacyModels.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
+    val partialCertificate = legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate(
       VerificationKeyKesProduct.of(
         ByteString.copyFrom(kesProductVerificationKey.bytes.data.toArray),
         kesProductVerificationKey.step
@@ -736,7 +736,7 @@ class BlockHeaderValidationSpec
   }
 
   private def genValid(
-    preSign:    legacyModels.BlockHeader.UnsignedConsensus => legacyModels.BlockHeader.UnsignedConsensus = identity,
+    preSign:    legacyModels.BlockHeader.Unsigned => legacyModels.BlockHeader.Unsigned = identity,
     parentSlot: Slot = 5000L
   ): Gen[(BlockHeader, BlockHeader, Box.Values.Registrations.Operator, Eta, Ratio)] =
     for {
@@ -765,7 +765,7 @@ class BlockHeaderValidationSpec
         withPartialOperationalCertificate(
           slot,
           partial =>
-            legacyModels.BlockHeader.UnsignedConsensus(
+            legacyModels.BlockHeader.Unsigned(
               parentHeaderId = BlockId.of(ByteString.copyFrom(parent.id._2.toArray)),
               parentSlot = parent.slot,
               txRoot = txRoot.data,

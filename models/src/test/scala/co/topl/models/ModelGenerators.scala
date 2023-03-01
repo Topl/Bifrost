@@ -2,13 +2,14 @@ package co.topl.models
 
 import cats.data.{Chain, NonEmptyChain, NonEmptyList}
 import co.topl.models.Propositions.Contextual.RequiredTransactionIO
+import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
+import com.google.protobuf.ByteString
 import org.scalacheck.rng.Seed
 import org.scalacheck.{Arbitrary, Gen}
-
 import scala.collection.immutable.ListSet
 
 trait ModelGenerators {
@@ -148,9 +149,9 @@ trait ModelGenerators {
 
   def partialOperationalCertificateGen: Gen[BlockHeader.Unsigned.PartialOperationalCertificate] =
     for {
-      parentVK        <- kesVKGen
-      parentSignature <- kesProductProofGen
-      childVK         <- ed25519VkGen
+      parentVK <- co.topl.models.generators.consensus.ModelGenerators.arbitraryVerificationKeyKesProduct.arbitrary
+      parentSignature <- co.topl.models.generators.consensus.ModelGenerators.signatureKesProductArbitrary.arbitrary
+      childVK         <- co.topl.models.generators.consensus.ModelGenerators.verificationKeyEd25519Gen
     } yield BlockHeader.Unsigned.PartialOperationalCertificate(parentVK, parentSignature, childVK)
 
   def operationalCertificateGen: Gen[OperationalCertificate] =
@@ -170,20 +171,20 @@ trait ModelGenerators {
     operatorStakingAddressGen
 
   def unsignedHeaderGen(
-    parentHeaderIdGen: Gen[TypedIdentifier] =
-      genSizedStrictBytes[Lengths.`32`.type]().map(sized => TypedBytes(IdentifierTypes.Block.HeaderV2, sized.data)),
-    parentSlotGen:             Gen[Slot] = Gen.chooseNum(0L, 50L),
-    txRootGen:                 Gen[TxRoot] = genSizedStrictBytes[Lengths.`32`.type](),
-    bloomFilterGen:            Gen[BloomFilter] = genSizedStrictBytes[Lengths.`256`.type](),
-    timestampGen:              Gen[Timestamp] = Gen.chooseNum(0L, 50L),
-    heightGen:                 Gen[Long] = Gen.chooseNum(0L, 20L),
-    slotGen:                   Gen[Slot] = Gen.chooseNum(0L, 50L),
-    eligibilityCertificateGen: Gen[EligibilityCertificate] = eligibilityCertificateGen,
+    parentHeaderIdGen: Gen[co.topl.consensus.models.BlockId] =
+      co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary,
+    parentSlotGen:  Gen[Slot] = Gen.chooseNum(0L, 50L),
+    txRootGen:      Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
+    bloomFilterGen: Gen[ByteString] = genSizedStrictByteString[Lengths.`256`.type]().map(_.data),
+    timestampGen:   Gen[Timestamp] = Gen.chooseNum(0L, 50L),
+    heightGen:      Gen[Long] = Gen.chooseNum(0L, 20L),
+    slotGen:        Gen[Slot] = Gen.chooseNum(0L, 50L),
+    eligibilityCertificateGen: Gen[co.topl.consensus.models.EligibilityCertificate] =
+      co.topl.models.generators.consensus.ModelGenerators.arbitraryEligibilityCertificate.arbitrary,
     partialOperationalCertificateGen: Gen[BlockHeader.Unsigned.PartialOperationalCertificate] =
       partialOperationalCertificateGen,
-    metadataGen: Gen[Option[Sized.Max[Latin1Data, Lengths.`32`.type]]] =
-      Gen.option(latin1DataGen.map(Sized.maxUnsafe[Latin1Data, Lengths.`32`.type](_))),
-    addressGen: Gen[StakingAddresses.Operator] = operatorStakingAddressGen
+    metadataGen: Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
+    addressGen:  Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
   ): Gen[BlockHeader.Unsigned] =
     for {
       parentHeaderID <- parentHeaderIdGen

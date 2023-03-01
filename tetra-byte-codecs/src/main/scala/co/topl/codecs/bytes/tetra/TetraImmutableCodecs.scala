@@ -3,7 +3,6 @@ package co.topl.codecs.bytes.tetra
 import co.topl.codecs.bytes.scodecs.valuetypes.{intCodec, longCodec}
 import co.topl.codecs.bytes.typeclasses.ImmutableCodec
 import co.topl.consensus.models.VerificationKeyVrfEd25519
-import co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate
 import co.topl.models._
 import co.topl.models.utility.Ratio
 
@@ -43,16 +42,10 @@ trait TetraImmutableCodecs {
   implicit val operationalCertificateConsensusCodec: ImmutableCodec[co.topl.consensus.models.OperationalCertificate] =
     ImmutableCodec.fromScodecCodec
 
-  implicit val partialOperationalCertificateStableCodec: ImmutableCodec[PartialOperationalCertificate] =
-    ImmutableCodec.fromScodecCodec
-
   implicit val headerImmutableCodec: ImmutableCodec[co.topl.consensus.models.BlockHeader] =
     ImmutableCodec.fromScodecCodec
 
-  implicit val unsignedHeaderV2StableCodec: ImmutableCodec[BlockHeader.Unsigned] =
-    ImmutableCodec.fromScodecCodec
-
-  implicit val unsignedHeaderConsensusCodec: ImmutableCodec[BlockHeader.UnsignedConsensus] =
+  implicit val unsignedHeaderConsensusCodec: ImmutableCodec[BlockHeader.Unsigned] =
     ImmutableCodec.fromScodecCodec
 
   implicit val transactionStableCodec: ImmutableCodec[Transaction] =
@@ -129,7 +122,6 @@ trait TetraImmutableCodecs {
   implicit val propositionCompositionalNotImmutableCodec: ImmutableCodec[Propositions.Compositional.Not] =
     ImmutableCodec.fromScodecCodec
 
-  // TODO Remove after full model replacement
   implicit val propositionContextualHeightLockImmutableCodec: ImmutableCodec[Propositions.Contextual.HeightLock] =
     ImmutableCodec.fromScodecCodec
 

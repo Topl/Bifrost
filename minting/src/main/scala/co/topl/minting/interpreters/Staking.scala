@@ -63,12 +63,12 @@ object Staking {
       def certifyBlock(
         parentSlotId: SlotId,
         slot:         Slot,
-        unsignedBlockBuilder: co.topl.models.BlockHeader.UnsignedConsensus.PartialOperationalCertificate => co.topl.models.Block.Unsigned
+        unsignedBlockBuilder: co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate => co.topl.models.Block.Unsigned
       ): F[Option[Block]] =
         OptionT(operationalKeyMaker.operationalKeyForSlot(slot, parentSlotId)).semiflatMap { operationalKeyOut =>
           for {
             partialCertificate <- Sync[F].delay(
-              co.topl.models.BlockHeader.UnsignedConsensus.PartialOperationalCertificate(
+              co.topl.models.BlockHeader.Unsigned.PartialOperationalCertificate(
                 operationalKeyOut.parentVK,
                 operationalKeyOut.parentSignature,
                 operationalKeyOut.childVK
