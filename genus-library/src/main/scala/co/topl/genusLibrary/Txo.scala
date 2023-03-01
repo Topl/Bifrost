@@ -6,6 +6,7 @@ import co.topl.models.{Box, Int128, SpendingAddress}
 import com.typesafe.scalalogging.Logger
 
 //noinspection ScalaFileName
+// TODO replace when this PR is published: https://github.com/Topl/protobuf-specs/pull/36
 object TxoState extends Enumeration {
   type TxoState = Value
 
@@ -20,6 +21,7 @@ import co.topl.genusLibrary.TxoState._
  * @param box the Box that represents the TxO
  * @param state The status of the box
  */
+// TODO replace when this PR is published: https://github.com/Topl/protobuf-specs/pull/36
 case class Txo(box: Box, state: TxoState, id: Box.Id, address: Option[SpendingAddress]) {
 
   private def unsupported[T](v: Box.Value): T = throw GenusException(s"Encountered unsupported type of box value: $v")

@@ -1,6 +1,7 @@
 package co.topl.networking.p2p
 
 import akka.actor.ActorSystem
+import akka.stream.{KillSwitches, SharedKillSwitch}
 import akka.stream.scaladsl._
 import akka.util.ByteString
 import cats.Parallel
@@ -23,28 +24,30 @@ import scala.concurrent.{ExecutionContext, Future}
 object AkkaP2PServer {
 
   def make[F[_]: Async: Parallel: Logger: FToFuture, Client](
-    host:            String,
-    port:            Int,
-    localPeer:       LocalPeer,
-    remotePeers:     Stream[F, DisconnectedPeer],
-    peerHandler:     ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
+    host:        String,
+    port:        Int,
+    localPeer:   LocalPeer,
+    remotePeers: Stream[F, DisconnectedPeer],
+    peerHandler: ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]]
   )(implicit system: ActorSystem): Resource[F, P2PServer[F, Client]] = {
     import system.dispatcher
     for {
-      topic <- Resource.make(Topic[F, PeerConnectionChange[Client]])(_.close.void)
+      topic      <- Resource.make(Topic[F, PeerConnectionChange[Client]])(_.close.void)
+      killSwitch <- Resource.make(Sync[F].delay(KillSwitches.shared("p2p-server")))(k => Sync[F].delay(k.shutdown()))
       addConnectionChange =
         (change: PeerConnectionChange[Client]) =>
           EitherT(topic.publish1(change)).leftMap(_ => new IllegalStateException("Topic closed")).rethrowT
       addConnectedPeer =
         (connectedPeer: ConnectedPeer, clientF: F[Client]) =>
           clientF.flatMap(c => addConnectionChange(PeerConnectionChanges.ConnectionEstablished(connectedPeer, c)))
-      peerHandlerFlowWithRemovalF = makePeerHandlerFlowWithRemovalF(peerHandler, addConnectionChange)
+      peerHandlerFlowWithRemovalF = makePeerHandlerFlowWithRemovalF(peerHandler, addConnectionChange, killSwitch)
       _ <- outboundConnectionsProcess(
         localPeer,
         remotePeers,
         addConnectionChange,
         peerHandlerFlowWithRemovalF,
-        addConnectedPeer
+        addConnectedPeer,
+        killSwitch
       )
       _ <- inboundConnectionsProcess(
         host,
@@ -66,11 +69,13 @@ object AkkaP2PServer {
 
   private def makePeerHandlerFlowWithRemovalF[F[_]: FToFuture, Client](
     peerHandler:         ConnectedPeer => F[Flow[ByteString, ByteString, F[Client]]],
-    addConnectionChange: PeerConnectionChange[Client] => F[Unit]
+    addConnectionChange: PeerConnectionChange[Client] => F[Unit],
+    killSwitch:          SharedKillSwitch
   ) =
     (connectedPeer: ConnectedPeer) =>
       Flow
         .futureFlow(implicitly[FToFuture[F]].apply(peerHandler(connectedPeer)))
+        .viaMat(killSwitch.flow)(Keep.left)
         .alsoTo(
           Sink.onComplete[ByteString](result =>
             implicitly[FToFuture[F]].apply(
@@ -85,7 +90,7 @@ object AkkaP2PServer {
     addConnectionChange:         PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
     addConnectedPeer:            (ConnectedPeer, F[Client]) => F[Unit]
-  )(implicit system:             ActorSystem, ec: ExecutionContext): Resource[F, Unit] =
+  )(implicit system: ActorSystem, ec: ExecutionContext): Resource[F, Unit] =
     Resource
       .make(
         Tcp()
@@ -109,6 +114,7 @@ object AkkaP2PServer {
           .liftTo[F]
           .flatMap(f => Async[F].fromFuture(Async[F].delay(f._1)).tupleRight(f._2))
       ) { case (binding, completionFuture) =>
+        Logger[F].info(s"Unbinding P2P server") *>
         Async[F].fromFuture(Async[F].delay(binding.unbind())) >> Async[F]
           .fromFuture(Async[F].delay(completionFuture))
           .void
@@ -120,8 +126,9 @@ object AkkaP2PServer {
     remotePeers:                 Stream[F, DisconnectedPeer],
     offerConnectionChange:       PeerConnectionChange[Client] => F[Unit],
     peerHandlerFlowWithRemovalF: ConnectedPeer => Flow[ByteString, ByteString, Future[F[Client]]],
-    addPeer:                     (ConnectedPeer, F[Client]) => F[Unit]
-  )(implicit system:             ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+    addPeer:                     (ConnectedPeer, F[Client]) => F[Unit],
+    killSwitch:                  SharedKillSwitch
+  )(implicit system: ActorSystem): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     Async[F].background(
       remotePeers
         .filterNot(_.remoteAddress == localPeer.localAddress)
@@ -131,21 +138,25 @@ object AkkaP2PServer {
         )
         .map(disconnected => ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate))
         .evalMap(connectedPeer =>
-          Async[F].start(
-            Async[F]
-              .fromFuture(
-                Tcp()
-                  .outgoingConnection(
-                    InetSocketAddress
-                      .createUnresolved(connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+          Async[F]
+            .blocking(
+              InetSocketAddress.createUnresolved(connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+            )
+            .flatMap(socketAddress =>
+              Async[F].start(
+                Async[F]
+                  .fromFuture(
+                    Tcp()
+                      .outgoingConnection(socketAddress)
+                      .viaMat(killSwitch.flow)(Keep.left)
+                      .joinMat(
+                        Flow[ByteString].viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
+                      )(Keep.right)
+                      .liftTo[F]
                   )
-                  .joinMat(
-                    Flow[ByteString].viaMat(peerHandlerFlowWithRemovalF(connectedPeer))(Keep.right)
-                  )(Keep.right)
-                  .liftTo[F]
+                  .flatMap(addPeer(connectedPeer, _))
               )
-              .flatMap(addPeer(connectedPeer, _))
-          )
+            )
         )
         .compile
         .toList

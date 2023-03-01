@@ -3,14 +3,11 @@ name: Pull Request
 on:
   pull_request:
     branches:
-      - 'main'
-      - 'dev'
-      - 'release-**'
+      - "main"
+      - "dev"
+      - "release-**"
 
 jobs:
-  validate-helm:
-    uses: ./.github/workflows/_validate_helm.yml
-
   sbt-build:
     uses: ./.github/workflows/_sbt_build.yml
     with:

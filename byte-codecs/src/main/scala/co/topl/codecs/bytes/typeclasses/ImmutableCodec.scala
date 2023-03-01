@@ -21,7 +21,7 @@ object ImmutableCodec {
     new ImmutableCodec[T] {
       private val encoder = ImmutableEncoder.fromScodecEncoder[T]
       private val decoder = ImmutableDecoder.fromScodecDecoder[T]
-      def immutableBytes(value: T): ByteVector = encoder.immutableBytes(value)
+      def immutableBytes(value:     T): ByteVector = encoder.immutableBytes(value)
       def fromImmutableBytes(bytes: ByteVector): Either[String, T] = decoder.fromImmutableBytes(bytes)
     }
 }

@@ -7,13 +7,11 @@ object Dependencies {
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.1"
+  val catsEffectVersion = "3.4.8"
   val fs2Version = "3.6.1"
   val logback = "1.4.5"
   val orientDbVersion = "3.2.16"
-
-  // Reference https://github.com/Topl/protobuf-specs/pull/32
-  val protobufSpecs = "com.github.Topl" % "protobuf-specs" % "c920f90" // scala-steward:off
+  val protobufSpecsVersion = "c226e4c" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -31,27 +29,27 @@ object Dependencies {
     "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test"
   )
 
-  val scalamock: Seq[ModuleID] = Seq(
-    "org.scalamock" %% "scalamock" % "5.2.0" % "test"
-  )
+  val scalamockBase = "org.scalamock" %% "scalamock" % "5.2.0"
+  val scalamock = scalamockBase        % Test
 
   val test: Seq[ModuleID] = Seq(
     "org.scalatest"    %% "scalatest"                     % "3.2.13" % "test",
     "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
-    "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test"
-  ) ++ scalacheck ++ scalamock
+    "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
+    scalamock
+  ) ++ scalacheck
 
-  val mUnitTest: Seq[ModuleID] = Seq(
-    "org.scalameta" %% "munit"                   % "0.7.29" % Test,
-    "org.scalameta" %% "munit-scalacheck"        % "0.7.29" % Test,
-    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7"  % Test,
-    "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4"  % Test
-  ) ++ scalamock
-
-  val it: Seq[ModuleID] = Seq(
-    "org.scalatest" %% "scalatest"     % "3.2.12" % "it",
-    "com.spotify"    % "docker-client" % "8.16.0" % "it"
+  private val mUnitTestBase: Seq[ModuleID] = Seq(
+    "org.scalameta" %% "munit"                   % "0.7.29",
+    "org.scalameta" %% "munit-scalacheck"        % "0.7.29",
+    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7",
+    "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4",
+    scalamockBase
   )
+
+  val mUnitTest: Seq[ModuleID] = mUnitTestBase.map(_ % Test)
+
+  val dockerClient = "com.spotify" % "docker-client" % "8.16.0"
 
   def akka(name: String): ModuleID =
     "com.typesafe.akka" %% s"akka-$name" % akkaVersion
@@ -99,12 +97,12 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.10",
-    "org.scodec" %% "scodec-bits" % "1.1.35",
+    "org.scodec" %% "scodec-bits" % "1.1.37",
     "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.3.0"
+    "com.lihaoyi" %% "mainargs" % "0.4.0"
   )
 
   val monocle: Seq[ModuleID] = Seq(
@@ -119,7 +117,13 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
   val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
 
-  val bramblScCrypto = "com.github.Topl" % "BramblSc" % "v2.0.3"
+  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "v2.0.3"
+  val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "652cdaa7a7" // scala-steward:off
+  val quivr4s = "com.github.Topl"               % "quivr4s"    % "3bcc730" // scala-steward:off
+
+  val protobufSpecs: Seq[ModuleID] = Seq(
+    "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
+  )
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -129,9 +133,7 @@ object Dependencies {
       catsSlf4j,
       akka("actor-typed"),
       fs2Core,
-      fs2IO,
-      pureConfig,
-      circeYaml
+      fs2IO
     ) ++
     cats ++
     catsEffect ++
@@ -139,7 +141,7 @@ object Dependencies {
     logging ++
     monocle ++
     monitoring ++
-    it
+    mUnitTestBase.map(_ % IntegrationTest)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -156,14 +158,14 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.18.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.19.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
 
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
-    Seq(protobufSpecs) ++
+    protobufSpecs ++
     test ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
@@ -193,9 +195,10 @@ object Dependencies {
     Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
     Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
-  // TODO remove BN-714, PR v2
   lazy val models: Seq[ModuleID] =
-    cats ++ simulacrum ++ newType ++ scodec ++ Seq(protobufSpecs)
+    cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
+    Seq(bramblScSdk).map(_ classifier ("tests")).map(_ % Test) ++
+    Seq(quivr4s).map(_ classifier ("tests")).map(_ % Test)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
@@ -241,8 +244,8 @@ object Dependencies {
     cats ++
     catsEffect ++
     mUnitTest ++
+    protobufSpecs ++
     Seq(
-      protobufSpecs,
       "io.grpc" % "grpc-netty-shaded" % "1.53.0"
     )
 
@@ -284,4 +287,7 @@ object Dependencies {
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
+
+  lazy val byzantineTests: Seq[ModuleID] =
+    (mUnitTestBase :+ dockerClient).map(_ % IntegrationTest)
 }

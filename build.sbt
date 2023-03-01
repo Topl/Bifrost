@@ -161,7 +161,7 @@ lazy val bifrost = project
     toplGrpc,
     crypto,
     catsAkka,
-    models, // TODO remove BN-714 PR v2
+    models,
     numerics,
     eventTree,
     algebras,
@@ -277,7 +277,6 @@ lazy val commonApplication = project
   .dependsOn(catsAkka)
   .settings(scalamacrosParadiseSettings)
 
-// TODO remve BN-714 , PR v2
 lazy val models = project
   .in(file("models"))
   .enablePlugins(BuildInfoPlugin)
@@ -289,9 +288,9 @@ lazy val models = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(
-    libraryDependencies ++= Dependencies.models
+    libraryDependencies ++= Dependencies.models ++ Dependencies.test,
+    dependencyOverrides += Dependencies.protobufSpecs.head // remove if bramble and quivr4s are aligned with latest protobufSpecs
   )
-  .settings(libraryDependencies ++= Dependencies.test)
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -343,7 +342,7 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Seq(Dependencies.protobufSpecs))
+  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.protobufSpecs)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
 
@@ -450,6 +449,9 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.minting)
   .settings(scalamacrosParadiseSettings)
+  .settings(
+    dependencyOverrides += Dependencies.protobufSpecs.head
+  ) // remove if bramble and quivr4s are aligned with latest protobufSpecs
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
@@ -658,6 +660,18 @@ lazy val munitScalamock = project
     commonSettings,
     libraryDependencies ++= Dependencies.munitScalamock
   )
+
+lazy val byzantineTests = project
+  .in(file("byzantine-tests"))
+  .settings(
+    name := "byzantine-tests",
+    commonSettings,
+    Defaults.itSettings,
+    IntegrationTest / parallelExecution := false,
+    libraryDependencies ++= Dependencies.byzantineTests
+  )
+  .configs(IntegrationTest)
+  .dependsOn(node)
 
 addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
 addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")

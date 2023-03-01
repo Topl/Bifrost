@@ -7,8 +7,10 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
-import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
-import co.topl.models.{Block, StakingAddresses}
+import co.topl.models.generators.consensus.ModelGenerators.{arbitraryEligibilityCertificate, arbitrarySlotData}
+import co.topl.models.generators.node.ModelGenerators.arbitraryBlock
+import co.topl.node.models.Block
+import co.topl.models.StakingAddresses
 import co.topl.consensus.models.SlotData
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -26,7 +28,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   test("Produce a block when eligible") {
     PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddresses.Operator, outputBlock: Block) =>
       withMock {
-        val vrfHit = VrfHit(eligibilityCertificateGen.first, parentSlotData.slotId.slot + 1, ratioGen.first)
+        val vrfHit =
+          VrfHit(arbitraryEligibilityCertificate.arbitrary.first, parentSlotData.slotId.slot + 1, ratioGen.first)
         val staker = mock[StakingAlgebra[F]]
 
         (() => staker.address).expects().once().returning(stakingAddress.pure[F])
@@ -54,16 +57,17 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           resultFiber    <- Async[F].start(Stream.force(underTest.blocks).enqueueNoneTerminated(results).compile.drain)
           clockDeferment <- IO.deferred[Unit]
           _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)
-          _            <- parents.offer(parentSlotData.some)
-          _            <- clockDeferment.complete(())
-          Some(result) <- results.take
+          _      <- parents.offer(parentSlotData.some)
+          _      <- clockDeferment.complete(())
+          result <- results.take
           // The `outputBlock` is generated and doesn't line up with the input data of the unsigned block
           // (It's not the responsibility of the BlockProducer to create the resulting full Block; that's the staker
           // during the certification process, and we rely on mocks for that)
-          _ = assert(result == outputBlock)
-          _    <- parents.offer(none)
-          None <- results.take
-          _    <- resultFiber.joinWithNever
+          _ = assert(result.isDefined)
+          _ = assert(result.get == outputBlock)
+          _ <- parents.offer(none)
+          _ <- results.take.assertEquals(None)
+          _ <- resultFiber.joinWithNever
         } yield ()
       }
     }

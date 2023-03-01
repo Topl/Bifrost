@@ -104,11 +104,15 @@ trait ModelGenerators {
       )
     )
 
-  implicit val blockIdGen: Gen[BlockId] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => BlockId(s.data))
+  implicit val arbitraryBlockId: Arbitrary[BlockId] =
+    Arbitrary(
+      for {
+        value <- genSizedStrictByteString[Lengths.`32`.type]()
+      } yield BlockId.of(value.data)
+    )
 
   def headerGen(
-    parentHeaderIdGen:         Gen[BlockId] = blockIdGen,
+    parentHeaderIdGen:         Gen[BlockId] = arbitraryBlockId.arbitrary,
     parentSlotGen:             Gen[Long] = Gen.chooseNum(0L, 50L),
     txRootGen:                 Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
     bloomFilterGen:            Gen[ByteString] = genSizedStrictByteString[Lengths.`256`.type]().map(_.data),
@@ -152,7 +156,7 @@ trait ModelGenerators {
     Arbitrary(
       for {
         slot    <- Gen.posNum[Long]
-        blockId <- blockIdGen
+        blockId <- arbitraryBlockId.arbitrary
       } yield SlotId.of(slot, blockId)
     )
 

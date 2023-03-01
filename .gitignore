@@ -10,8 +10,6 @@
 .vscode/
 out/
 *.iml
-.jvmopts
-.sbtopts
 localVersion.sbt
 
 # scala build folders
@@ -39,3 +37,4 @@ docker/*.jar
 /node/project/build.properties
 /project/project/metals.sbt
 /project/project/project/metals.sbt
+/venv/

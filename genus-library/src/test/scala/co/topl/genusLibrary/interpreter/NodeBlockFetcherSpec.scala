@@ -13,7 +13,7 @@ import co.topl.genusLibrary.failure.Failures.{
 import co.topl.{models => legacyModels}
 import co.topl.models.utility._
 import legacyModels.ModelGenerators._
-import legacyModels.generators.brambl.ModelGenerators._
+import co.topl.brambl.generators.ModelGenerators._
 import legacyModels.generators.models.ModelGenerators.arbitraryTransaction
 import legacyModels.generators.consensus.ModelGenerators.arbitraryHeader
 import legacyModels._
@@ -26,6 +26,7 @@ import org.scalamock.munit.AsyncMockFactory
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.genusLibrary.model.{BlockData, HeightData}
+import co.topl.genusLibrary.utils.ReplaceModelUtil.replaceTransactionLegacyModel
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import scala.collection.immutable.ListSet
@@ -362,7 +363,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
               blockData = BlockData(
                 header = blockHeader,
                 body = blockBody,
-                transactions = Chain(transaction_01, transaction_02, transaction_03)
+                transactions = Chain(transaction_01, transaction_02, transaction_03).map(replaceTransactionLegacyModel)
               ).some
             ).asRight
           )

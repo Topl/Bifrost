@@ -7,15 +7,14 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.consensus.models.{VrfArgument, VrfConfig}
+import co.topl.consensus.models.{SignatureVrfEd25519, VrfArgument, VrfConfig}
 import VrfArgument._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfCalculatorAlgebra
-import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.models.utility.{Ratio, Sized}
-import co.topl.typeclasses.implicits._
+import co.topl.models.utility._
 import com.github.benmanes.caffeine.cache.Caffeine
 import scalacache.caffeine.CaffeineCache
 import scala.collection.immutable.NumericRange
@@ -26,7 +25,6 @@ object VrfCalculator {
   private def caffeineCacheBuilder(vrfCacheSize: Long) = Caffeine.newBuilder.maximumSize(vrfCacheSize)
 
   def make[F[_]: Sync: Parallel](
-    vkVrf:                    VerificationKeys.VrfEd25519,
     skVrf:                    SecretKeys.VrfEd25519,
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
@@ -36,14 +34,13 @@ object VrfCalculator {
   ): F[VrfCalculatorAlgebra[F]] =
     for {
       vrfProofsCache <- Sync[F].delay(
-        CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Proofs.Knowledge.VrfEd25519]]())
+        CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[SignatureVrfEd25519]]())
       )
       rhosCache <-
         Sync[F].delay(
           CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Rho]]())
         )
       impl = new Impl[F](
-        vkVrf,
         skVrf,
         clock,
         leaderElectionValidation,
@@ -55,17 +52,16 @@ object VrfCalculator {
     } yield impl
 
   private class Impl[F[_]: Sync: Parallel](
-    vkVrf:                    VerificationKeys.VrfEd25519,
     skVrf:                    SecretKeys.VrfEd25519,
     clock:                    ClockAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     vrfConfig:                VrfConfig,
-    vrfProofsCache:           CaffeineCache[F, (Bytes, Long), Proofs.Knowledge.VrfEd25519],
+    vrfProofsCache:           CaffeineCache[F, (Bytes, Long), SignatureVrfEd25519],
     rhosCache:                CaffeineCache[F, (Bytes, Long), Rho]
   ) extends VrfCalculatorAlgebra[F] {
 
-    def proofForSlot(slot: Slot, eta: Eta): F[Proofs.Knowledge.VrfEd25519] =
+    def proofForSlot(slot: Slot, eta: Eta): F[SignatureVrfEd25519] =
       vrfProofsCache.cachingF((eta.data, slot))(ttl = None)(
         ed25519VRFResource.use(compute(VrfArgument(eta, slot), _))
       )
@@ -74,7 +70,7 @@ object VrfCalculator {
       rhosCache.cachingF((eta.data, slot))(ttl = None)(
         for {
           proof          <- proofForSlot(slot, eta)
-          proofHashBytes <- ed25519VRFResource.use(_.proofToHash(proof.bytes.data).pure[F])
+          proofHashBytes <- ed25519VRFResource.use(_.proofToHash(proof.value).pure[F])
           rho = Rho(Sized.strictUnsafe(proofHashBytes))
         } yield rho
       )
@@ -82,15 +78,14 @@ object VrfCalculator {
     private def compute(
       arg:        VrfArgument,
       ed25519VRF: Ed25519VRF
-    ): F[Proofs.Knowledge.VrfEd25519] =
+    ): F[SignatureVrfEd25519] =
       Sync[F].delay(
-        Proofs.Knowledge.VrfEd25519(
-          Sized.strictUnsafe(
-            ed25519VRF.sign(
+        SignatureVrfEd25519.of(
+          ed25519VRF
+            .sign(
               skVrf.bytes.data,
               arg.signableBytes
             )
-          )
         )
       )
 
@@ -113,24 +108,5 @@ object VrfCalculator {
         slots = leaderCalculations.collect { case (slot, false) => slot }.toVector
       } yield slots
 
-    def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =
-      (
-        leaderElectionValidation.getThreshold(relativeStake, slotDiff),
-        proofForSlot(slot, eta),
-        rhoForSlot(slot, eta)
-      ).tupled
-        .flatMap { case (threshold, testProof, rho) =>
-          leaderElectionValidation
-            .isSlotLeaderForThreshold(threshold)(rho)
-            .map(isLeader =>
-              Option.when(isLeader)(
-                VrfHit(
-                  EligibilityCertificate(testProof, vkVrf, threshold.typedEvidence.evidence, eta),
-                  slot,
-                  threshold
-                )
-              )
-            )
-        }
   }
 }

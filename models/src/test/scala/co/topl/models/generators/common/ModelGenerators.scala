@@ -11,7 +11,7 @@ trait ModelGenerators {
     Arbitrary(Arbitrary.arbByte.arbitrary.map(b => Array(b)).map(ByteString.copyFrom))
 
   def genSizedStrictByteString[L <: Length](
-    byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
+    byteGen: Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Strict[ByteString, L]] =
     Gen
       .containerOfN[Array, Byte](l.value, byteGen)

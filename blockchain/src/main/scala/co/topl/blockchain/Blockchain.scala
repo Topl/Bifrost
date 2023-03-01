@@ -9,7 +9,7 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
@@ -24,11 +24,12 @@ import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
-import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
+import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import scala.jdk.CollectionConverters._
 import scala.util.Random
 import fs2._
@@ -46,6 +47,7 @@ object Blockchain {
     bodyStore:                   Store[F, TypedIdentifier, BlockBody],
     transactionStore:            Store[F, TypedIdentifier, Transaction],
     _localChain:                 LocalChainAlgebra[F],
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     blockIdTree:                 ParentChildTree[F, TypedIdentifier],
     blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
     headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -59,8 +61,9 @@ object Blockchain {
     localPeer:                   LocalPeer,
     remotePeers:                 Stream[F, DisconnectedPeer],
     rpcHost:                     String,
-    rpcPort:                     Int
-  )(implicit system:             ActorSystem[_], random: Random): Resource[F, Unit] = {
+    rpcPort:                     Int,
+    experimentalP2P:             Boolean = false
+  )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
@@ -75,11 +78,11 @@ object Blockchain {
           .compile
           .drain
       )
-      clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
-        List(
-          BlockchainPeerHandler.ChainSynchronizer.make[F](
-            clock,
+      synchronizationHandler <-
+        if (experimentalP2P) {
+          ActorPeerHandlerBridgeAlgebra.make(
             localChain,
+            chainSelectionAlgebra,
             headerValidation,
             blockHeaderToBodyValidation,
             bodySyntaxValidation,
@@ -90,7 +93,28 @@ object Blockchain {
             bodyStore,
             transactionStore,
             blockIdTree
-          ),
+          )
+        } else {
+          Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
+            BlockchainPeerHandler.ChainSynchronizer.make[F](
+              clock,
+              localChain,
+              headerValidation,
+              blockHeaderToBodyValidation,
+              bodySyntaxValidation,
+              bodySemanticValidation,
+              bodyAuthorizationValidation,
+              slotDataStore,
+              headerStore,
+              bodyStore,
+              transactionStore,
+              blockIdTree
+            )
+          )
+        }
+      clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
+        List(
+          synchronizationHandler,
           BlockchainPeerHandler.FetchMempool.make(
             transactionSyntaxValidation,
             transactionStore,

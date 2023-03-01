@@ -41,8 +41,8 @@ object BodySemanticValidation {
          * @return a ValidatedNec containing either errors or the original Transaction
          */
         private def validateTransaction(
-          context:       BodyValidationContext,
-          prefix:        Chain[Transaction]
+          context: BodyValidationContext,
+          prefix:  Chain[Transaction]
         )(transactionId: TypedIdentifier) =
           for {
             transaction <- fetchTransaction(transactionId)

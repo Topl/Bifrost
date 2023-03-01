@@ -246,8 +246,8 @@ object TransactionSyntaxValidation {
     }
 
   private def matchProof(proposition: Proposition, proof: Proof)(
-    allowUndefined:                   Boolean
-  )(f:                                PartialFunction[Proof, Unit]): ValidatedNec[TransactionSyntaxError, Unit] =
+    allowUndefined: Boolean
+  )(f: PartialFunction[Proof, Unit]): ValidatedNec[TransactionSyntaxError, Unit] =
     if (allowUndefined && proof == Proofs.Undefined)
       ().validNec
     else

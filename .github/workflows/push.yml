@@ -3,19 +3,22 @@ name: Push
 on:
   push:
     branches:
-      - 'main'
-      - 'dev'
-      - 'release-**'
+      - "main"
+      - "dev"
+      - "release-**"
 
 jobs:
-  validate-helm:
-    uses: ./.github/workflows/_validate_helm.yml
   sbt-build:
     uses: ./.github/workflows/_sbt_build.yml
     with:
       preserve-cache-between-runs: true
   sbt-integration-tests:
     uses: ./.github/workflows/_sbt_integration_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+  sbt-byzantine-tests:
+    uses: ./.github/workflows/_sbt_byzantine_tests.yml
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true

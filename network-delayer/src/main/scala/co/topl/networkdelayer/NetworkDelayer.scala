@@ -82,7 +82,7 @@ object NetworkDelayer
    * to the local socket.  Apply throttling if configured.
    */
   private def handleSocket(route: ApplicationConfig.Route)(clientResource: Resource[F, Socket[F]])(
-    localSocket:                  Socket[F]
+    localSocket: Socket[F]
   ): F[Unit] =
     Logger[F].info(s"Accepted inbound connection at binding=${route.bindHost}:${route.bindPort}") >>
     clientResource

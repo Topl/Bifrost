@@ -21,7 +21,7 @@ class Ed25519VRF {
   }
 
   def deriveKeyPairFromEntropy(entropy: Entropy, password: Option[String])(implicit
-    entropyToSeed:                      EntropyToSeed = EntropyToSeed.instances.pbkdf2Sha512(32)
+    entropyToSeed: EntropyToSeed = EntropyToSeed.instances.pbkdf2Sha512(32)
   ): (ByteVector, ByteVector) = {
     val seed = entropyToSeed.toSeed(entropy, password)
     deriveKeyPairFromSeed(seed)

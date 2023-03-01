@@ -1,0 +1,80 @@
+name: Scala Integration Tests
+
+on:
+  workflow_call:
+    inputs:
+      target-os:
+        description: 'List of operating systems to build on.'
+        default: "['ubuntu-latest']"
+        required: false
+        type: string
+      java-versions:
+        description: 'List of Java versions to target.'
+        default: "['11']"
+        required: false
+        type: string
+      preserve-cache-between-runs:
+        description: 'Preserve project cache between new runs.'
+        default: false
+        required: false
+        type: boolean
+
+jobs:
+  tests:
+    name: Scala Byzantine Tests
+    strategy:
+      matrix:
+        os: ${{fromJson(inputs.target-os)}}
+        java: ${{fromJson(inputs.java-versions)}}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Need full history to update last modified time.
+          submodules: true
+
+      - name: git-restore-mtime
+        uses: chetan/git-restore-mtime-action@v1
+
+      - name: Cache sbt
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.sbt
+            ~/.ivy2/cache
+            ~/.coursier/cache/v1
+            ~/.cache/coursier/v1
+            ~/AppData/Local/Coursier/Cache/v1
+            ~/Library/Caches/Coursier/v1
+          key: ${{ runner.os }}-sbt-cache-v2-${{ hashFiles('**/*.sbt') }}-${{ hashFiles('project/build.properties') }}
+
+      - name: Cache project
+        uses: actions/cache@v3
+        with:
+          path: |
+            **/target/**
+            !**/test-results/**
+          key: ${{ format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
+          restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
+
+      - name: Integration Tests
+        run: sbt ";node/Docker/publishLocal;byzantineTests/IntegrationTest/test"
+
+      # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
+      # Artifacts can be found on the summary page for each individual workflow run.
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Scala Integration Test Results (Java ${{ matrix.java }})
+          path: byzantine-tests/target/it-reports/*.xml
+
+      - name: Cleanup before cache
+        shell: bash
+        run: |
+          rm -rf "$HOME/.ivy2/local" || true
+          find $HOME/Library/Caches/Coursier/v1        -name "ivydata-*.properties" -delete || true
+          find $HOME/.ivy2/cache                       -name "ivydata-*.properties" -delete || true
+          find $HOME/.cache/coursier/v1                -name "ivydata-*.properties" -delete || true
+          find $HOME/.sbt                              -name "*.lock"               -delete || true

@@ -255,7 +255,7 @@ trait ModelGenerators {
   def byteGen: Gen[Byte] = Gen.choose[Byte](Byte.MinValue, Byte.MaxValue)
 
   def genSizedMaxBytes[L <: Length](
-    byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
+    byteGen: Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Max[Bytes, L]] =
     Gen
       .containerOfN[Array, Byte](l.value, byteGen)
@@ -263,7 +263,7 @@ trait ModelGenerators {
       .map(Sized.max[Bytes, L](_).toOption.get)
 
   def genSizedStrictBytes[L <: Length](
-    byteGen:    Gen[Byte] = Gen.choose[Byte](0, 32)
+    byteGen: Gen[Byte] = Gen.choose[Byte](0, 32)
   )(implicit l: L): Gen[Sized.Strict[Bytes, L]] =
     Gen
       .containerOfN[Array, Byte](l.value, byteGen)
@@ -688,6 +688,7 @@ trait ModelGenerators {
         .map(ListSet.empty[TypedIdentifier] ++ _)
     )
 
+  // TODO remove Arbitrary implementation, we will not need it, clean up, when blockchain module is migrates: https://github.com/Topl/protobuf-specs/pull/37
   implicit val arbitraryBlock: Arbitrary[Block] =
     Arbitrary(
       for {

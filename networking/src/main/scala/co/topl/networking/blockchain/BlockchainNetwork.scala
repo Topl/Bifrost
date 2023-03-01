@@ -2,8 +2,8 @@ package co.topl.networking.blockchain
 
 import akka.actor.typed.ActorSystem
 import akka.stream.scaladsl.{Flow, Sink}
-import cats.Parallel
 import cats.effect._
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.catsakka._
 import co.topl.networking.p2p._
@@ -15,7 +15,7 @@ import scala.util.Random
 
 object BlockchainNetwork {
 
-  def make[F[_]: Async: Parallel: FToFuture](
+  def make[F[_]: Async: FToFuture](
     host:          String,
     bindPort:      Int,
     localPeer:     LocalPeer,
@@ -77,27 +77,24 @@ object BlockchainNetwork {
       _ <- Resource.eval(Logger[F].info(s"Bound P2P at host=$host port=$bindPort"))
     } yield p2pServer
 
-  private def handleNetworkClients[F[_]: Async: Parallel: Logger](
+  private def handleNetworkClients[F[_]: Async: Logger](
     clients:       Stream[F, BlockchainPeerClient[F]],
     clientHandler: BlockchainPeerHandlerAlgebra[F]
   ) =
     Async[F]
       .background(
         clients
-          .evalMap(client =>
-            Async[F].start(
-              clientHandler
-                .usePeer(client)
-                .handleErrorWith(t =>
-                  client.remotePeer
-                    .flatMap(peer => Logger[F].error(t)(show"Client connection to remote=${peer.remoteAddress} failed"))
-                    .void
-                )
-            )
+          .parEvalMapUnorderedUnbounded(client =>
+            clientHandler
+              .usePeer(client)
+              .handleErrorWith(t =>
+                client.remotePeer
+                  .flatMap(peer => Logger[F].error(t)(show"Client connection to remote=${peer.remoteAddress} failed"))
+                  .void
+              )
           )
           .compile
-          .toList
-          .flatMap(_.parTraverse(_.joinWithUnit))
+          .drain
       )
 
 }

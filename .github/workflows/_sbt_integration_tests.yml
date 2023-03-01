@@ -59,7 +59,7 @@ jobs:
           restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
 
       - name: Integration Tests
-        run: sbt ";node/Docker/publishLocal;node/IntegrationTest/test"
+        run: sbt node/IntegrationTest/test
 
       # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
       # Artifacts can be found on the summary page for each individual workflow run.
@@ -67,7 +67,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Scala Integration Test Results (${{ matrix.os }})
+          name: Scala Integration Test Results (Java ${{ matrix.java }})
           path: node/target/it-reports/*.xml
 
       - name: Cleanup before cache

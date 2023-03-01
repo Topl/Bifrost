@@ -2,7 +2,7 @@ package co.topl.genusLibrary.algebras
 
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
-import co.topl.proto.models.TypedEvidence
+import co.topl.brambl.models.Address
 
 /**
  * Inserter of addresses to the chain in the data store.
@@ -18,7 +18,7 @@ trait AddressInserter[F[_]] {
    * @return unit
    */
   def insert(
-    address: TypedEvidence,
+    address: Address,
     block:   BlockData
   ): F[Either[Failure, Unit]]
 

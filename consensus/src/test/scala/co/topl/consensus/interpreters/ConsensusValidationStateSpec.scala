@@ -55,7 +55,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
 
               def useStateAt[U](
                 eventId: TypedIdentifier
-              )(f:       ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
+              )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == n2Id)
                 f(consensusData)
               }
@@ -116,7 +116,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
 
               def useStateAt[U](
                 eventId: TypedIdentifier
-              )(f:       ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
+              )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == n2Id)
                 f(consensusData)
               }
@@ -174,7 +174,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
 
               def useStateAt[U](
                 eventId: TypedIdentifier
-              )(f:       ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
+              )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == bigBangId)
                 f(consensusData)
               }
@@ -232,7 +232,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
 
               def useStateAt[U](
                 eventId: TypedIdentifier
-              )(f:       ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
+              )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == bigBangId)
                 f(consensusData)
               }

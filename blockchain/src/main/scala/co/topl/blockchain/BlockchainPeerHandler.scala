@@ -8,10 +8,10 @@ import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
 import fs2._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
-import co.topl.blockchain.algebras.BlockHeaderToBodyValidationAlgebra
-import co.topl.blockchain.models.BlockHeaderToBodyValidationFailure
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockHeaderValidationFailure, SlotData, SlotId}
 import co.topl.eventtree.ParentChildTree
@@ -191,7 +191,7 @@ object BlockchainPeerHandler {
       headerValidation: BlockHeaderValidationAlgebra[F],
       slotDataStore:    Store[F, TypedIdentifier, SlotData],
       headerStore:      Store[F, TypedIdentifier, BlockHeader]
-    )(from:             TypedIdentifier) =
+    )(from: TypedIdentifier) =
       determineMissingValues(
         headerStore.contains,
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId: TypedIdentifier)
@@ -245,7 +245,7 @@ object BlockchainPeerHandler {
       headerStore:                 Store[F, TypedIdentifier, BlockHeader],
       bodyStore:                   Store[F, TypedIdentifier, BlockBody],
       transactionStore:            Store[F, TypedIdentifier, Transaction]
-    )(from:                        TypedIdentifier) =
+    )(from: TypedIdentifier) =
       determineMissingValues(
         bodyStore.contains,
         slotDataStore.getOrRaise(_).map(_.parentSlotId.blockId: TypedIdentifier)
@@ -321,7 +321,7 @@ object BlockchainPeerHandler {
     private def determineMissingValues[F[_]: Monad](
       existsLocally: TypedIdentifier => F[Boolean],
       parentOf:      TypedIdentifier => F[TypedIdentifier]
-    )(from:          TypedIdentifier) =
+    )(from: TypedIdentifier) =
       (NonEmptyChain(from), false)
         .iterateUntilM { case (ids, _) =>
           parentOf(ids.head).flatMap(parentId =>
@@ -338,7 +338,7 @@ object BlockchainPeerHandler {
       store:           Store[F, TypedIdentifier, Value],
       fetchRemoteData: TypedIdentifier => F[Value],
       parentOf:        (TypedIdentifier, Value) => F[TypedIdentifier]
-    )(from:            (TypedIdentifier, Value)): F[NonEmptyChain[Value]] =
+    )(from: (TypedIdentifier, Value)): F[NonEmptyChain[Value]] =
       // Tuple: (Data Elements, Parent Exists Locally)
       // Starting with `from`, work backwards until a local value is found
       (NonEmptyChain(from), false)
@@ -396,7 +396,7 @@ object BlockchainPeerHandler {
       transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
       transactionStore:            Store[F, TypedIdentifier, Transaction],
       mempool:                     MempoolAlgebra[F]
-    )(client:                      BlockchainPeerClient[F])(id: TypedIdentifier) =
+    )(client: BlockchainPeerClient[F])(id: TypedIdentifier) =
       for {
         _             <- Logger[F].debug(show"Received transaction notification from remote peer id=$id")
         alreadyExists <- transactionStore.contains(id)
@@ -450,7 +450,7 @@ object BlockchainPeerHandler {
       getLocalBlockIdAtHeight: Long => F[TypedIdentifier],
       currentHeight:           () => F[Long],
       slotDataStore:           StoreReader[F, TypedIdentifier, SlotData]
-    )(client:                  BlockchainPeerClient[F]) =
+    )(client: BlockchainPeerClient[F]) =
       Sync[F]
         .defer(
           Logger[F].debug(show"Starting common ancestor trace") >>

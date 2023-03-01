@@ -78,6 +78,7 @@ object BlockHeader {
 }
 
 // This is a synthetic type, and is not "identifiable"
+// TODO: Remove class when: https://github.com/Topl/protobuf-specs/pull/37
 case class Block(header: co.topl.consensus.models.BlockHeader, body: co.topl.node.models.BlockBody)
 
 object BlockBody {
@@ -87,9 +88,14 @@ object BlockBody {
 
 object Block {
 
-  case class Unsigned(
+  case class UnsignedLegacy(
     unsignedHeader: BlockHeader.Unsigned,
     body:           BlockBody
+  )
+
+  case class Unsigned( // TODO ask if we need a new protobuf-spec for BlockUnsigned
+    unsignedHeader: BlockHeader.UnsignedConsensus,
+    body:           co.topl.node.models.BlockBody
   )
 
   // TODO remove it after switch protobuf-spsc models
