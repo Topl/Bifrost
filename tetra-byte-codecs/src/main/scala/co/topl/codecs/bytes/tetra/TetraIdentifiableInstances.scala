@@ -1,6 +1,7 @@
 package co.topl.codecs.bytes.tetra
 
-import cats.data.Chain
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.TetraImmutableCodecs._
 import co.topl.codecs.bytes.typeclasses.Identifiable
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -8,8 +9,10 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.{models => legacyModels}
 import legacyModels._
 import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.models.utility.ReplaceModelUtil
-import co.topl.proto.models.Transaction
+
+import scala.language.implicitConversions
 
 trait TetraIdentifiableInstances {
 
@@ -18,32 +21,32 @@ trait TetraIdentifiableInstances {
 
   implicit val identifiableLegacyBlockHeader: Identifiable[legacyModels.BlockHeader] =
     header => identifiableConsensusBlockHeader.idOf(ReplaceModelUtil.consensusHeader(header))
-
-  implicit val transactionProtoIdentifiable: Identifiable[Transaction] =
-    transaction => {
-      val bytes =
-        legacyModels.Transaction
-          .UnprovenProto(
-            inputs = Chain.fromSeq(
-              transaction.inputs.map(i => legacyModels.Transaction.Unproven.InputProto(i.boxId, i.proposition, i.value))
-            ),
-            outputs = Chain.fromSeq(transaction.outputs),
-            transaction.schedule,
-            transaction.data
-          )
-          .immutableBytes
-      val hash = new Blake2b256().hash(bytes)
-      (IdentifierTypes.Transaction, hash)
-    }
-
-  implicit val transactionIdentifiable: Identifiable[legacyModels.Transaction] =
-    transaction =>
-      transactionProtoIdentifiable.idOf(
-        co.topl.models.utility.transactionIsomorphism[cats.Id].abMorphism.aToB(transaction) match {
-          case Right(id)   => id
-          case Left(error) => throw new IllegalArgumentException(error)
-        }
-      )
 }
 
 object TetraIdentifiableInstances extends TetraIdentifiableInstances
+
+trait ProtoIdentifiableOps {
+
+  implicit def blockHeaderAsBlockHeaderOps(header: BlockHeader): BlockHeaderIdOps =
+    new BlockHeaderIdOps(header)
+
+  implicit def ioTransactionAsIoTransactionOps(transaction: IoTransaction): IoTransactionIdOps =
+    new IoTransactionIdOps(transaction)
+}
+
+class IoTransactionIdOps(val transaction: IoTransaction) extends AnyVal {
+
+  import co.topl.brambl.common._
+  import co.topl.brambl.common.ContainsImmutable.instances.ioTransactionImmutable
+
+  def id: Identifier.IoTransaction32 =
+    Identifier.IoTransaction32(ContainsEvidence[IoTransaction].sized32Evidence(transaction))
+
+}
+
+class BlockHeaderIdOps(val header: BlockHeader) extends AnyVal {
+  import co.topl.models.utility._
+
+  def id: BlockId =
+    BlockId(new Blake2b256().hash(header.immutableBytes))
+}

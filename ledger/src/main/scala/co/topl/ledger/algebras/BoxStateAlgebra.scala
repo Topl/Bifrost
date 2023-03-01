@@ -1,7 +1,7 @@
 package co.topl.ledger.algebras
 
-import co.topl.{models => legacyModels}
-import legacyModels.{Box, TypedIdentifier}
+import co.topl.consensus.models.BlockId
+import co.topl.models.Box
 
 trait BoxStateAlgebra[F[_]] {
 
@@ -11,5 +11,5 @@ trait BoxStateAlgebra[F[_]] {
    *         F[false] if the box either never existed or has been spent already.  The interpretation should make no
    *         distinction between the two scenarios.
    */
-  def boxExistsAt(blockId: TypedIdentifier)(boxId: Box.Id): F[Boolean]
+  def boxExistsAt(blockId: BlockId)(boxId: Box.Id): F[Boolean]
 }

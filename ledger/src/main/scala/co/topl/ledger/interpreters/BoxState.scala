@@ -5,15 +5,17 @@ import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.BoxStateAlgebra
 import co.topl.node.models.BlockBody
 import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels.{Box, Transaction, TypedIdentifier}
+import legacyModels.Box
 import co.topl.typeclasses.implicits._
+
 import scala.collection.immutable.SortedSet
 
 object BoxState {
@@ -22,21 +24,21 @@ object BoxState {
    * Store Key: Transaction ID
    * Store Value: Array of Shorts, representing the currently spendable indices of the original transaction output array
    */
-  type State[F[_]] = Store[F, TypedIdentifier, NonEmptySet[Short]]
+  type State[F[_]] = Store[F, Identifier.IoTransaction32, NonEmptySet[Short]]
 
   /**
    * Creates a BoxStateAlgebra interpreter that is backed by an event-sourced tree
    */
   def make[F[_]: Async](
-    currentBlockId:      F[TypedIdentifier],
-    fetchBlockBody:      TypedIdentifier => F[BlockBody],
-    fetchTransaction:    TypedIdentifier => F[Transaction],
-    parentChildTree:     ParentChildTree[F, TypedIdentifier],
-    currentEventChanged: TypedIdentifier => F[Unit],
+    currentBlockId:      F[BlockId],
+    fetchBlockBody:      BlockId => F[BlockBody],
+    fetchTransaction:    Identifier.IoTransaction32 => F[IoTransaction],
+    parentChildTree:     ParentChildTree[F, BlockId],
+    currentEventChanged: BlockId => F[Unit],
     initialState:        F[State[F]]
   ): F[BoxStateAlgebra[F]] =
     for {
-      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
+      eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], BlockId](
         initialState,
         currentBlockId,
         applyEvent = applyBlock(fetchBlockBody, fetchTransaction),
@@ -46,10 +48,10 @@ object BoxState {
       )
     } yield new BoxStateAlgebra[F] {
 
-      def boxExistsAt(blockId: TypedIdentifier)(boxId: Box.Id): F[Boolean] =
+      def boxExistsAt(blockId: BlockId)(boxId: Box.Id): F[Boolean] =
         eventSourcedState
-          .useStateAt(blockId)(_.get(boxId.transactionId))
-          .map(_.exists(_.contains(boxId.transactionOutputIndex)))
+          .useStateAt(blockId)(_.get(boxId.id))
+          .map(_.exists(_.contains(boxId.index.toShort)))
     }
 
   /**
@@ -60,24 +62,28 @@ object BoxState {
    *   - Each output is added to the state
    */
   private def applyBlock[F[_]: MonadThrow](
-    fetchBlockBody:   TypedIdentifier => F[BlockBody],
-    fetchTransaction: TypedIdentifier => F[Transaction]
-  )(state: State[F], blockId: TypedIdentifier): F[State[F]] =
+    fetchBlockBody:   BlockId => F[BlockBody],
+    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+  )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
+      body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         transaction.inputs.traverse(input =>
           state
-            .getOrRaise(input.boxId.transactionId)
+            .getOrRaise(input.knownIdentifier.getTransactionOutput32.id)
             .flatMap(unspentIndices =>
               OptionT
-                .fromOption[F](NonEmptySet.fromSet(unspentIndices - input.boxId.transactionOutputIndex))
-                .foldF(state.remove(input.boxId.transactionId))(state.put(input.boxId.transactionId, _))
+                .fromOption[F](
+                  NonEmptySet.fromSet(unspentIndices - input.knownIdentifier.getTransactionOutput32.index.toShort)
+                )
+                .foldF(state.remove(input.knownIdentifier.getTransactionOutput32.id))(
+                  state.put(input.knownIdentifier.getTransactionOutput32.id, _)
+                )
             )
         ) >> OptionT
           .fromOption[F](
-            NonEmptySet.fromSet(SortedSet.from(transaction.outputs.void.zipWithIndex.map(_._2.toShort).toIterable))
+            NonEmptySet.fromSet(SortedSet.from(transaction.outputs.void.zipWithIndex.map(_._2.toShort)))
           )
           .foldF(Applicative[F].unit)(state.put(transaction.id, _))
       )
@@ -91,18 +97,20 @@ object BoxState {
    *   - Each input is added to the state
    */
   private def unapplyBlock[F[_]: MonadThrow](
-    fetchBlockBody:   TypedIdentifier => F[BlockBody],
-    fetchTransaction: TypedIdentifier => F[Transaction]
-  )(state: State[F], blockId: TypedIdentifier): F[State[F]] =
+    fetchBlockBody:   BlockId => F[BlockBody],
+    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+  )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
+      body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         state.remove(transaction.id) >>
         transaction.inputs.traverse(input =>
-          OptionT(state.get(input.boxId.transactionId))
-            .fold(NonEmptySet.one(input.boxId.transactionOutputIndex))(_.add(input.boxId.transactionOutputIndex))
-            .flatMap(state.put(input.boxId.transactionId, _))
+          OptionT(state.get(input.knownIdentifier.getTransactionOutput32.id))
+            .fold(NonEmptySet.one(input.knownIdentifier.getTransactionOutput32.index.toShort))(
+              _.add(input.knownIdentifier.getTransactionOutput32.index.toShort)
+            )
+            .flatMap(state.put(input.knownIdentifier.getTransactionOutput32.id, _))
         )
       )
     } yield state

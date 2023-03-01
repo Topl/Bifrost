@@ -1,7 +1,7 @@
 package co.topl.ledger.models
 
-import co.topl.models.Transaction.Schedule
-import co.topl.models.{Box, Slot, Transaction}
+import co.topl.brambl.models.transaction.{Schedule, SpentTransactionOutput}
+import co.topl.models.{Box, Slot}
 
 sealed abstract class TransactionSemanticError
 
@@ -10,7 +10,7 @@ object TransactionSemanticErrors {
   /**
    * The declared Transaction Input does not match the data stored on the chain
    */
-  case class InputDataMismatch(input: Transaction.Input) extends TransactionSemanticError
+  case class InputDataMismatch(input: SpentTransactionOutput) extends TransactionSemanticError
 
   /**
    * The given input Box ID is not currently spendable

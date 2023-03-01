@@ -49,7 +49,8 @@ lazy val commonSettings = Seq(
   ),
   addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1"),
-  testFrameworks += TestFrameworks.MUnit
+  testFrameworks += TestFrameworks.MUnit,
+  dependencyOverrides ++= Dependencies.protobufSpecs ++ Seq(Dependencies.quivr4s)
 )
 
 lazy val dockerSettings = Seq(

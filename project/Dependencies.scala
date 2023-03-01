@@ -117,9 +117,9 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
   val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
 
-  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "v2.0.3"
-  val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "652cdaa7a7" // scala-steward:off
-  val quivr4s = "com.github.Topl"               % "quivr4s"    % "3bcc730" // scala-steward:off
+  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "2490b2f"
+  val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "2490b2f" // scala-steward:off
+  val quivr4s = "com.github.Topl"               % "quivr4s"    % "ae5ca28" // scala-steward:off
 
   val protobufSpecs: Seq[ModuleID] = Seq(
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
@@ -216,7 +216,9 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
 
   lazy val ledger: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++
+    Seq(Dependencies.bramblScSdk) ++
+    Seq(Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(

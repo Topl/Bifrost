@@ -1,5 +1,7 @@
 package co.topl.models
 
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.KnownIdentifier
 import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility.{Lengths, ReplaceModelUtil, Sized}
 import co.topl.consensus.models.SignatureKesProduct
@@ -8,7 +10,13 @@ case class Box(evidence: TypedEvidence, value: Box.Value)
 
 object Box {
 
-  case class Id(transactionId: TypedIdentifier, transactionOutputIndex: Short)
+  type Id = KnownIdentifier.TransactionOutput32
+
+  object Id {
+
+    def apply(transactionId: Identifier.IoTransaction32, index: Int): Id =
+      KnownIdentifier.TransactionOutput32(0, 0, index, transactionId)
+  }
 
   sealed abstract class Value
 

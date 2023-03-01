@@ -1,7 +1,9 @@
 package co.topl.ledger.models
 
 import cats.data.Chain
-import co.topl.models.{Slot, Transaction, TypedIdentifier}
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.models.BlockId
+import co.topl.models.Slot
 
 /**
  * The context to use when validating the semantics of a Transaction
@@ -11,12 +13,12 @@ trait TransactionValidationContext {
   /**
    * The ID of the ancestor of the block being validated (i.e. if validating a transaction in block B, pass in block A)
    */
-  def parentHeaderId: TypedIdentifier
+  def parentHeaderId: BlockId
 
   /**
    * The sequence of transactions that have already been validated within the current block
    */
-  def prefix: Chain[Transaction]
+  def prefix: Chain[IoTransaction]
 
   /**
    * The height of the chain for validation purposes
@@ -30,8 +32,8 @@ trait TransactionValidationContext {
 }
 
 case class StaticTransactionValidationContext(
-  parentHeaderId: TypedIdentifier,
-  prefix:         Chain[Transaction],
+  parentHeaderId: BlockId,
+  prefix:         Chain[IoTransaction],
   height:         Long,
   slot:           Slot
 ) extends TransactionValidationContext
