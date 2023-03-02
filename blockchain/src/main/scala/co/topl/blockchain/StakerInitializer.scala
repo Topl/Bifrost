@@ -41,14 +41,15 @@ object StakerInitializers {
     val operatorVK: VerificationKeys.Ed25519 =
       VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(operatorSK.bytes.data)))
 
-    val registration: Box.Values.Registrations.Operator =
-      Box.Values.Registrations.Operator(
-        vrfCommitment = new KesProduct().sign(
-          kesSK,
-          new Blake2b256()
-            .hash(vrfVK.immutableBytes, operatorVK.immutableBytes)
-        )
+    val registration: Box.Values.Registrations.Operator = {
+      val vrfCommitment = new KesProduct().sign(
+        kesSK,
+        new Blake2b256()
+          .hash(vrfVK.immutableBytes, operatorVK.immutableBytes)
       )
+      // TODO, remove replace model util once operator refactor is done
+      Box.Values.Registrations.Operator(co.topl.crypto.models.ReplaceModelUtil.signatureKesProduct(vrfCommitment))
+    }
 
     val stakingAddress: StakingAddresses.Operator =
       StakingAddresses.Operator(
