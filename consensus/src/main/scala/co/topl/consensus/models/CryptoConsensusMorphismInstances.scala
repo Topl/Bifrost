@@ -6,32 +6,21 @@ import cats.data.EitherT
 import co.topl.models.utility.{IsomorphicValueOps, Isomorphism}
 import co.topl.consensus.{models => consensusModels}
 import co.topl.crypto.{models => cryptoModels}
+import com.google.protobuf.ByteString
 
 trait CryptoConsensusMorphismInstances {
-
-  implicit def verificationKeyEd25519Isomorphism[F[_]: Monad]
-    : Isomorphism[F, consensusModels.VerificationKeyEd25519, cryptoModels.VerificationKeyEd25519] =
-    Isomorphism(
-      _.map(ed2551 => EitherT.pure[F, String](cryptoModels.VerificationKeyEd25519(ed2551.value))).flatMap(_.value),
-      _.map(ed2551 => EitherT.pure[F, String](consensusModels.VerificationKeyEd25519(ed2551.value))).flatMap(_.value)
-    )
 
   implicit def verificationKeyKesProductIsomorphism[F[_]: Monad]
     : Isomorphism[F, consensusModels.VerificationKeyKesProduct, cryptoModels.VerificationKeyKesProduct] =
     Isomorphism(
       _.map(kesProduct =>
-        EitherT.pure[F, String](cryptoModels.VerificationKeyKesProduct(kesProduct.value, kesProduct.step))
+        EitherT.pure[F, String](cryptoModels.VerificationKeyKesProduct(kesProduct.value.toByteArray, kesProduct.step))
       ).flatMap(_.value),
       _.map(kesProduct =>
-        EitherT.pure[F, String](consensusModels.VerificationKeyKesProduct(kesProduct.value, kesProduct.step))
+        EitherT.pure[F, String](
+          consensusModels.VerificationKeyKesProduct(ByteString.copyFrom(kesProduct.value), kesProduct.step)
+        )
       ).flatMap(_.value)
-    )
-
-  implicit def signatureEd25519Isomorphism[F[_]: Monad]
-    : Isomorphism[F, consensusModels.SignatureEd25519, cryptoModels.SignatureEd25519] =
-    Isomorphism(
-      _.map(ed2551 => EitherT.pure[F, String](cryptoModels.SignatureEd25519(ed2551.value))).flatMap(_.value),
-      _.map(ed2551 => EitherT.pure[F, String](consensusModels.SignatureEd25519(ed2551.value))).flatMap(_.value)
     )
 
   implicit def signatureKesSumIsomorphism[F[_]: Monad]
@@ -39,16 +28,18 @@ trait CryptoConsensusMorphismInstances {
     Isomorphism[F, consensusModels.SignatureKesSum, cryptoModels.SignatureKesSum](
       _.map(kesSum =>
         for {
-          verificationKey <- EitherT(kesSum.verificationKey.toF[F, cryptoModels.VerificationKeyEd25519])
-          signature       <- EitherT(kesSum.signature.toF[F, cryptoModels.SignatureEd25519])
-          witness         <- EitherT.pure[F, String](kesSum.witness)
+          verificationKey <- EitherT.pure[F, String](kesSum.verificationKey.value.toByteArray)
+          signature       <- EitherT.pure[F, String](kesSum.signature.value.toByteArray)
+          witness         <- EitherT.pure[F, String](kesSum.witness.map(_.toByteArray))
         } yield cryptoModels.SignatureKesSum(verificationKey, signature, witness)
       ).flatMap(_.value),
       _.map(kesSum =>
         for {
-          verificationKey <- EitherT(kesSum.verificationKey.toF[F, consensusModels.VerificationKeyEd25519])
-          signature       <- EitherT(kesSum.signature.toF[F, consensusModels.SignatureEd25519])
-          witness         <- EitherT.pure[F, String](kesSum.witness)
+          verificationKey <- EitherT.pure[F, String](
+            consensusModels.VerificationKeyEd25519.of(ByteString.copyFrom(kesSum.verificationKey))
+          )
+          signature <- EitherT.pure[F, String](consensusModels.SignatureEd25519(ByteString.copyFrom(kesSum.signature)))
+          witness   <- EitherT.pure[F, String](kesSum.witness.map(ByteString.copyFrom))
         } yield consensusModels.SignatureKesSum(verificationKey, signature, witness)
       ).flatMap(_.value)
     )
@@ -60,14 +51,14 @@ trait CryptoConsensusMorphismInstances {
         for {
           superSignature <- EitherT(kesProduct.superSignature.toF[F, cryptoModels.SignatureKesSum])
           subSignature   <- EitherT(kesProduct.subSignature.toF[F, cryptoModels.SignatureKesSum])
-          subRoot        <- EitherT.pure[F, String](kesProduct.subRoot)
+          subRoot        <- EitherT.pure[F, String](kesProduct.subRoot.toByteArray)
         } yield cryptoModels.SignatureKesProduct(superSignature, subSignature, subRoot)
       ).flatMap(_.value),
       _.map(kesProduct =>
         for {
           superSignature <- EitherT(kesProduct.superSignature.toF[F, consensusModels.SignatureKesSum])
           subSignature   <- EitherT(kesProduct.subSignature.toF[F, consensusModels.SignatureKesSum])
-          subRoot        <- EitherT.pure[F, String](kesProduct.subRoot)
+          subRoot        <- EitherT.pure[F, String](ByteString.copyFrom(kesProduct.subRoot))
         } yield consensusModels.SignatureKesProduct(superSignature, subSignature, subRoot)
       ).flatMap(_.value)
     )

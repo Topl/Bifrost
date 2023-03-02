@@ -4,14 +4,7 @@ import co.topl.crypto.signing.kes.ProductComposition
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
-import co.topl.crypto.models.{
-  SignatureEd25519,
-  SignatureKesProduct,
-  SignatureKesSum,
-  VerificationKeyEd25519,
-  VerificationKeyKesProduct
-}
-import com.google.protobuf.ByteString
+import co.topl.crypto.models.{SignatureKesProduct, SignatureKesSum, VerificationKeyKesProduct}
 
 class KesProduct extends ProductComposition {
 
@@ -34,7 +27,7 @@ class KesProduct extends ProductComposition {
         ),
         offset
       ),
-      VerificationKeyKesProduct(ByteString.copyFrom(pk._1), pk._2)
+      VerificationKeyKesProduct(pk._1, pk._2)
     )
   }
 
@@ -43,16 +36,16 @@ class KesProduct extends ProductComposition {
 
     SignatureKesProduct(
       SignatureKesSum(
-        VerificationKeyEd25519(ByteString.copyFrom(prodSig._1._1)),
-        SignatureEd25519(ByteString.copyFrom(prodSig._1._2)),
-        prodSig._1._3.map(w => ByteString.copyFrom(w))
+        prodSig._1._1,
+        prodSig._1._2,
+        prodSig._1._3
       ),
       SignatureKesSum(
-        VerificationKeyEd25519(ByteString.copyFrom(prodSig._2._1)),
-        SignatureEd25519(ByteString.copyFrom(prodSig._2._2)),
-        prodSig._2._3.map(w => ByteString.copyFrom(w))
+        prodSig._2._1,
+        prodSig._2._2,
+        prodSig._2._3
       ),
-      ByteString.copyFrom(prodSig._3)
+      prodSig._3
     )
   }
 
@@ -63,19 +56,19 @@ class KesProduct extends ProductComposition {
   ): Boolean = {
     val prodSig = (
       (
-        signature.superSignature.verificationKey.value.toByteArray,
-        signature.superSignature.signature.value.toByteArray,
-        signature.superSignature.witness.map(_.toByteArray).toVector
+        signature.superSignature.verificationKey,
+        signature.superSignature.signature,
+        signature.superSignature.witness.toVector
       ),
       (
-        signature.subSignature.verificationKey.value.toByteArray,
-        signature.subSignature.signature.value.toByteArray,
-        signature.subSignature.witness.map(_.toByteArray).toVector
+        signature.subSignature.verificationKey,
+        signature.subSignature.signature,
+        signature.subSignature.witness.toVector
       ),
-      signature.subRoot.toByteArray
+      signature.subRoot
     )
 
-    val sumVk = (verifyKey.value.toByteArray, verifyKey.step)
+    val sumVk = (verifyKey.value, verifyKey.step)
     verify(prodSig, message.toArray, sumVk)
   }
 
@@ -103,7 +96,7 @@ class KesProduct extends ProductComposition {
 
   def getVerificationKey(privateKey: SecretKeys.KesProduct): VerificationKeyKesProduct = {
     val vk = generateVerificationKey(unpackSecret(privateKey))
-    VerificationKeyKesProduct(ByteString.copyFrom(vk._1), vk._2)
+    VerificationKeyKesProduct(vk._1, vk._2)
   }
 
   private def unpackSecret(privateKey: SecretKeys.KesProduct): SK =

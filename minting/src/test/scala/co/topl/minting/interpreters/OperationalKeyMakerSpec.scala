@@ -2,6 +2,7 @@ package co.topl.minting.interpreters
 
 import cats.Applicative
 import cats.data.Chain
+import cats.kernel.Eq
 import cats.effect.IO.asyncForIO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
@@ -11,6 +12,7 @@ import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.crypto.signing._
+import co.topl.crypto.models.EqInstances._
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.models.ModelGenerators._
@@ -131,7 +133,10 @@ class OperationalKeyMakerSpec
       Range.Long(1, operationalPeriodLength, 2).foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync().value
         out.slot shouldBe i
-        out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].unsafeRunSync().value shouldBe vk
+        Eq.eqv(
+          out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].unsafeRunSync().value,
+          vk
+        ) shouldBe true
         val parentSignature =
           out.parentSignature.toF[F, co.topl.crypto.models.SignatureKesProduct].unsafeRunSync().value
         kesProduct
@@ -239,8 +244,10 @@ class OperationalKeyMakerSpec
       Range.Long(operationalPeriodLength, operationalPeriodLength * 2, 1).foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync().value
         out.slot shouldBe i
-        out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].unsafeRunSync().value shouldBe vk
-          .copy(step = 1)
+        Eq.eqv(
+          out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].unsafeRunSync().value,
+          vk.copy(step = 1)
+        ) shouldBe true
         val parentSignature =
           out.parentSignature.toF[F, co.topl.crypto.models.SignatureKesProduct].unsafeRunSync().value
         kesProduct
