@@ -64,21 +64,19 @@ object TransactionSemanticValidation {
   private def dataValidation[F[_]: Functor](
     fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
   )(input: SpentTransactionOutput): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
-    fetchTransaction(input.knownIdentifier.getTransactionOutput32.id)
+    fetchTransaction(input.address.getIoTransaction32)
       .map(spentTransaction =>
         // Did the output referenced by this input ever exist?  (Not a spend-ability check, just existence)
         spentTransaction.outputs
-          .get(input.knownIdentifier.getTransactionOutput32.index)
-          .toValidNec[TransactionSemanticError](
-            TransactionSemanticErrors.UnspendableBox(input.knownIdentifier.getTransactionOutput32)
-          )
+          .get(input.address.index)
+          .toValidNec[TransactionSemanticError](TransactionSemanticErrors.UnspendableBox(input.address))
           .ensure(NonEmptyChain(TransactionSemanticErrors.InputDataMismatch(input)))(spentOutput =>
             // Does the box value claimed on the input of _this_ transaction match the
             // box value (in state) from the spent output?
             spentOutput.value == input.value &&
             // Does the proposition claimed in the input contain the same evidence that is defined on the
             // spent output's address?
-            spentOutput.address.identifier.getLock32.evidence == ContainsEvidence[Lock.Predicate]
+            spentOutput.address.getLock32.evidence == ContainsEvidence[Lock.Predicate]
               .sized32Evidence(input.attestation.getPredicate.lock)
           )
           .void
@@ -91,12 +89,10 @@ object TransactionSemanticValidation {
     boxState: BoxStateAlgebra[F]
   )(blockId: BlockId)(input: SpentTransactionOutput): F[ValidatedNec[TransactionSemanticError, Unit]] =
     boxState
-      .boxExistsAt(blockId)(input.knownIdentifier.getTransactionOutput32)
+      .boxExistsAt(blockId)(input.address)
       .ifM(
         ().validNec[TransactionSemanticError].pure[F],
-        (TransactionSemanticErrors.UnspendableBox(
-          input.knownIdentifier.getTransactionOutput32
-        ): TransactionSemanticError).invalidNec[Unit].pure[F]
+        (TransactionSemanticErrors.UnspendableBox(input.address): TransactionSemanticError).invalidNec[Unit].pure[F]
       )
 
   /**

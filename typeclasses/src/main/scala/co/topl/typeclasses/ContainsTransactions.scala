@@ -3,21 +3,26 @@ package co.topl.typeclasses
 import cats.Foldable
 import cats.data.ValidatedNec
 import cats.implicits._
-import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances._
-import co.topl.codecs.bytes.typeclasses.Identifiable.ops._
+import co.topl.brambl.models.Identifier
+import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
 import co.topl.crypto.accumulators.LeafData
 import co.topl.crypto.accumulators.merkle.MerkleTree
-import co.topl.crypto.hash.{Blake2b, Blake2bHash}
-import co.topl.crypto.hash.digest.{Digest, Digest32, InvalidDigestFailure}
+import co.topl.crypto.hash.digest.Digest
+import co.topl.crypto.hash.digest.Digest32
+import co.topl.crypto.hash.digest.InvalidDigestFailure
+import co.topl.crypto.hash.Blake2b
+import co.topl.crypto.hash.Blake2bHash
+import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
-import co.topl.models._
-import co.topl.typeclasses.IdentityOps._
-import simulacrum.{op, typeclass}
+import co.topl.node.models.FullBlockBody
+import com.google.protobuf.ByteString
+import simulacrum.op
+import simulacrum.typeclass
 
 @typeclass trait ContainsTransactionIds[T] {
-  @op("transactionIds") def transactionIds(t: T): Seq[TypedIdentifier]
+  @op("transactionIds") def transactionIds(t: T): Seq[Identifier.IoTransaction32]
 
   @op("merkleTree") def merkleTreeOf(t: T): MerkleTree[Blake2b, Digest32] = {
     // The current MerkleTree implementation will, by default, use a shared digest and hash instance,
@@ -30,25 +35,21 @@ import simulacrum.{op, typeclass}
       override def bytes(d: Digest32): Array[Byte] = d.value
     }
     implicit val hash: Blake2bHash[Digest32] = new Blake2bHash[Digest32] {}
-    MerkleTree[Blake2b, Digest32](transactionIds(t).map(id => LeafData(id.allBytes.toArray)))
+    MerkleTree[Blake2b, Digest32](transactionIds(t).map(id => LeafData(id.evidence.digest.value.toByteArray)))
   }
 
   @op("merkleTreeRootHash") def merkleTreeRootHashOf(t: T): TxRoot =
-    Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(merkleTreeOf(t).rootHash.value))
+    Sized.strictUnsafe[Bytes, Lengths.`32`.type](ByteString.copyFrom(merkleTreeOf(t).rootHash.value))
 }
 
 object ContainsTransactionIds {
 
   trait Instances {
-    implicit val typedIdentifiersAsTxIds: ContainsTransactionIds[Seq[TypedIdentifier]] = identity
 
-    implicit val blockBody: ContainsTransactionIds[BlockBody] = body => body.toSeq
-
-    implicit val blockNodeBody: ContainsTransactionIds[co.topl.node.models.BlockBody] = body =>
-      body.transactionIds.map(t => t: TypedIdentifier)
+    implicit val blockNodeBody: ContainsTransactionIds[co.topl.node.models.BlockBody] = _.transactionIds
 
     implicit def containsTxToContainTxsId[G: ContainsTransactions]: ContainsTransactionIds[G] = txs =>
-      implicitly[ContainsTransactions[G]].transactionsOf(txs).map(_.id.asTypedBytes)
+      implicitly[ContainsTransactions[G]].transactionsOf(txs).map(_.id)
   }
 
   object Instances extends Instances
@@ -62,12 +63,14 @@ object ContainsTransactionIds {
 
   @op("bloomFilter") def bloomFilterOf(@annotation.nowarn t: T): BloomFilter =
     // TODO
-    Sized.strictUnsafe[Bytes, Lengths.`256`.type](Bytes(Array.fill[Byte](256)(1)))
+    Sized.strictUnsafe[Bytes, Lengths.`256`.type](ByteString.copyFrom(Array.fill[Byte](256)(1)))
 }
 
 object ContainsTransactions {
 
   trait Instances {
+
+    implicit val fullBlockBodyContainsTransactions: ContainsTransactions[FullBlockBody] = _.transaction
 
     implicit val transactionsContainsTransactions: ContainsTransactions[Seq[Transaction]] = identity
 

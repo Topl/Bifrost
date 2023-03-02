@@ -1,12 +1,14 @@
 package co.topl.blockchain
 
 import cats.data.Chain
+import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility._
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import quivr.models.Int128
 
 object PrivateTestnet {
 
@@ -43,9 +45,9 @@ object PrivateTestnet {
     BigBang.Config(
       timestamp,
       stakers
-        .flatMap(_.bigBangOutputs(Sized.maxUnsafe(Ratio(TotalStake.data, stakers.length).round)))
+        .flatMap(_.bigBangOutputs(Sized.maxUnsafe(Ratio(TotalStake, stakers.length).round)))
         .append(
-          Transaction.Output(
+          UnspentTransactionOutput(
             FullAddress(
               networkPrefix,
               Propositions.Contextual.HeightLock(1).spendingAddress,

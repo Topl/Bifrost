@@ -6,12 +6,12 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.BlockId
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
 import co.topl.minting.models.VrfHit
 import co.topl.models._
-import co.topl.models.utility._
 import co.topl.consensus.models.{SlotData, SlotId}
+import co.topl.node.models.FullBlockBody
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
@@ -74,7 +74,7 @@ object BlockProducer {
             show" eligibilitySlot=${nextHit.slot}"
           )
           // Assemble the transactions to be placed in our new block
-          body <- packBlock(parentSlotData.slotId.blockId: TypedIdentifier, parentSlotData.height + 1, nextHit.slot)
+          body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
           timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
           blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
           // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
@@ -106,7 +106,7 @@ object BlockProducer {
      *
      * @param untilSlot The slot at which the block packer function should be halted and a value extracted
      */
-    private def packBlock(parentId: TypedIdentifier, height: Long, untilSlot: Slot): F[co.topl.models.BlockBody.Full] =
+    private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
       blockPacker
         .improvePackedBlock(parentId, height, untilSlot)
         .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
@@ -118,28 +118,27 @@ object BlockProducer {
      */
     private def prepareUnsignedBlock(
       parentSlotData: SlotData,
-      body:           co.topl.models.BlockBody.Full,
+      body:           FullBlockBody,
       timestamp:      Timestamp,
       nextHit:        VrfHit
-    ): BlockHeader.Unsigned.PartialOperationalCertificate => co.topl.models.Block.Unsigned =
-      (partialOperationalCertificate: BlockHeader.Unsigned.PartialOperationalCertificate) =>
-        co.topl.models.Block
-          .Unsigned(
-            BlockHeader.Unsigned(
-              parentHeaderId = parentSlotData.slotId.blockId,
-              parentSlot = parentSlotData.slotId.slot,
-              txRoot = body.merkleTreeRootHash.data,
-              bloomFilter = body.bloomFilter.data,
-              timestamp = timestamp,
-              height = parentSlotData.height + 1,
-              slot = nextHit.slot,
-              eligibilityCertificate = nextHit.cert,
-              partialOperationalCertificate = partialOperationalCertificate,
-              metadata = ByteString.EMPTY,
-              address = stakerAddress.vk.bytes.data
-            ),
-            body = BlockBody.of(body.map(_.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toList)
-          )
+    ): UnsignedBlockHeader.PartialOperationalCertificate => (UnsignedBlockHeader, BlockBody) =
+      (partialOperationalCertificate: UnsignedBlockHeader.PartialOperationalCertificate) =>
+        (
+          UnsignedBlockHeader(
+            parentHeaderId = parentSlotData.slotId.blockId,
+            parentSlot = parentSlotData.slotId.slot,
+            txRoot = body.merkleTreeRootHash.data,
+            bloomFilter = body.bloomFilter.data,
+            timestamp = timestamp,
+            height = parentSlotData.height + 1,
+            slot = nextHit.slot,
+            eligibilityCertificate = nextHit.cert,
+            partialOperationalCertificate = partialOperationalCertificate,
+            metadata = ByteString.EMPTY,
+            address = stakerAddress.vk
+          ),
+          BlockBody(body.transaction.map(_.id))
+        )
   }
 
 }

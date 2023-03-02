@@ -3,24 +3,24 @@ package co.topl.minting.interpreters
 import cats.Monad
 import cats.data.EitherT
 import cats.effect.std.Queue
-import cats.effect.{Async, Sync}
+import cats.effect.Async
+import cats.effect.Sync
 import cats.implicits._
+import co.topl.brambl.models.Identifier
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
-import co.topl.ledger.models.{
-  StaticBodyValidationContext,
-  StaticTransactionValidationContext,
-  TransactionValidationContext
-}
+import co.topl.ledger.models.StaticBodyValidationContext
+import co.topl.ledger.models.StaticTransactionValidationContext
+import co.topl.ledger.models.TransactionValidationContext
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
-import co.topl.models.utility.ReplaceModelUtil
-import co.topl.typeclasses.implicits._
+import co.topl.node.models.BlockBody
+import co.topl.node.models.FullBlockBody
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
-import scala.collection.immutable.ListSet
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
 
 /**
  * An extremely naive and greedy implementation of the BlockPackerAlgebra.
@@ -29,8 +29,8 @@ object BlockPacker {
 
   def make[F[_]: Async](
     mempool:                  MempoolAlgebra[F],
-    fetchTransaction:         TypedIdentifier => F[Transaction],
-    transactionExistsLocally: TypedIdentifier => F[Boolean],
+    fetchTransaction:         Identifier.IoTransaction32 => F[Transaction],
+    transactionExistsLocally: Identifier.IoTransaction32 => F[Boolean],
     validateBody:             TransactionValidationContext => F[Boolean]
   ): F[BlockPackerAlgebra[F]] =
     Sync[F].delay {
@@ -40,10 +40,10 @@ object BlockPacker {
           Slf4jLogger.getLoggerFromClass[F](BlockPacker.getClass)
 
         def improvePackedBlock(
-          parentBlockId: TypedIdentifier,
+          parentBlockId: BlockId,
           height:        Epoch,
           slot:          Epoch
-        ): F[Iterative[F, BlockBody.Full]] =
+        ): F[Iterative[F, FullBlockBody]] =
           for {
             // Read all transaction IDs from the mempool
             mempoolTransactionIds <- mempool.read(parentBlockId)
@@ -53,7 +53,7 @@ object BlockPacker {
             // Not all transactions in the mempool may have a complete parent graph (yet), so filter out any "orphans"
             transactionsWithLocalParents <- unsortedTransactions.traverseFilter(transaction =>
               transaction.inputs
-                .map(_.boxId.transactionId)
+                .map(_.address.getIoTransaction32)
                 .toList
                 .distinct
                 .forallM(transactionExistsLocally)
@@ -66,17 +66,17 @@ object BlockPacker {
                 .unbounded[F, Transaction]
                 .flatTap(queue => sortedTransactions.traverse(queue.offer))
                 .map(queue =>
-                  new Iterative[F, BlockBody.Full] {
+                  new Iterative[F, FullBlockBody] {
 
-                    def improve(current: BlockBody.Full): F[BlockBody.Full] =
+                    def improve(current: FullBlockBody): F[FullBlockBody] =
                       // Dequeue the next transaction (or block forever)
                       queue.take
                         .flatMap { transaction =>
                           // Attempt to stuff that transaction into our current block
-                          val fullBody = current.append(transaction)
+                          val fullBody = current.addTransaction(transaction)
                           // If it's valid, hooray.  If not, return the previous value
                           val transactionValidationContext =
-                            StaticTransactionValidationContext(parentBlockId, fullBody, height, slot)
+                            StaticTransactionValidationContext(parentBlockId, fullBody.transaction, height, slot)
                           validateBody(transactionValidationContext).ifF(fullBody, current)
                         }
                         .logDuration("BlockPacker Iteration")
@@ -92,7 +92,7 @@ object BlockPacker {
    */
   private def orderTransactions(transactions: List[Transaction]): List[Transaction] =
     // TODO: This may introduce an attack vector in which an adversary may spam 0-timestamp Transactions
-    transactions.sortBy(_.schedule.creation)
+    transactions.sortBy(_.datum.event.schedule.timestamp)
 
   def makeBodyValidator[F[_]: Monad: Logger](
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -100,10 +100,9 @@ object BlockPacker {
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F]
   ): TransactionValidationContext => F[Boolean] = { transactionValidationContext =>
     val proposedBody =
-      ListSet.empty[TypedIdentifier] ++ transactionValidationContext.prefix.map(_.id.asTypedBytes).toList
-    val proposedNodeBody = ReplaceModelUtil.nodeBlock(proposedBody)
+      BlockBody(transactionValidationContext.prefix.map(_.id).toList)
     (
-      EitherT(bodySyntaxValidation.validate(proposedNodeBody).map(_.toEither)).leftMap(_.toString) >>
+      EitherT(bodySyntaxValidation.validate(proposedBody).map(_.toEither)).leftMap(_.toString) >>
       EitherT(
         bodySemanticValidation
           .validate(
@@ -112,12 +111,12 @@ object BlockPacker {
               transactionValidationContext.height,
               transactionValidationContext.slot
             )
-          )(proposedNodeBody)
+          )(proposedBody)
           .map(_.toEither)
       ).leftMap(_.toString) >>
       EitherT(
         bodyAuthorizationValidation
-          .validate(transactionValidationContext.parentHeaderId)(proposedNodeBody)
+          .validate(transactionValidationContext.parentHeaderId)(proposedBody)
           .map(_.toEither)
       ).leftMap(_.toString)
     )

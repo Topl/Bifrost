@@ -11,11 +11,8 @@ import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.quivr.runtime.DynamicContext
-import co.topl.{models => legacyModels}
-import legacyModels.TypedIdentifier
 
 object BodyAuthorizationValidation {
 

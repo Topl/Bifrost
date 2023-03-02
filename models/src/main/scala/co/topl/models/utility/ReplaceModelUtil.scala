@@ -18,11 +18,6 @@ object ReplaceModelUtil {
       )
     )
 
-  def nodeBlock(blockBody: co.topl.models.BlockBody): co.topl.node.models.BlockBody =
-    co.topl.node.models.BlockBody(
-      transactionIds = blockBody.toSeq.map(ioTransaction32)
-    )
-
   def consensusHeader(header: co.topl.models.BlockHeader): co.topl.consensus.models.BlockHeader =
     co.topl.consensus.models.BlockHeader(
       parentHeaderId = co.topl.consensus.models.BlockId(header.parentHeaderId.dataBytes),

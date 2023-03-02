@@ -1,7 +1,12 @@
 package co.topl.networking.blockchain
 
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
-import co.topl.models.{BlockBody, BlockHeader, Transaction, TypedIdentifier}
+import co.topl.models.BlockBody
+import co.topl.models.Transaction
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
 
@@ -22,13 +27,16 @@ object NetworkTypeTags {
   implicit val commonMessagesStartNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Start.type] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Start")
 
-  implicit val commonMessagesGetTypedIdentifierNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Get[TypedIdentifier]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[TypedIdentifier]")
+  implicit val commonMessagesGetBlockIdNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Get[BlockId]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[BlockId]")
+
+  implicit val commonMessagesGetTransactionIdNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Get[Identifier.IoTransaction32]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[Identifier.IoTransaction32]")
 
   implicit val commonMessagesGetLongTypedIdentifierOptNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Get[(Long, Option[TypedIdentifier])]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[(Long, TypedIdentifier)]")
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Get[(Long, Option[BlockId])]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[(Long, BlockId)]")
 
   implicit val commonMessagesResponseSlotDataNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[SlotData]] =
@@ -39,34 +47,25 @@ object NetworkTypeTags {
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockHeader]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockHeader]")
 
-  implicit val commonMessagesResponseConsunsesBlockHeaderNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.consensus.models.BlockHeader]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockHeader]")
-
-  // TODO Remove after replace models
   implicit val commonMessagesResponseBlockBodyNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockBody]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockBody]")
 
-  implicit val commonMessagesResponseNodeBlockBodyNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.node.models.BlockBody]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockBody]")
-
   implicit val commonMessagesResponseTransactionNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[Transaction]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
-
-  implicit val commonMessagesResponseTransactionProtoNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[co.topl.proto.models.Transaction]] =
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[IoTransaction]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[Transaction]")
 
   implicit val commonMessagesResponseTypedIdentifierNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[TypedIdentifier]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[TypedIdentifier]")
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[BlockId]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Response[BlockId]")
 
   implicit val commonMessagesPushTypedIdentifierNetworkTypeTag
-    : NetworkTypeTag[TypedProtocol.CommonMessages.Push[TypedIdentifier]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Push[TypedIdentifier]")
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Push[BlockId]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Push[BlockId]")
+
+  implicit val commonMessagesPushTransactionIdNetworkTypeTag
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Push[Identifier.IoTransaction32]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Push[Identifier.IoTransaction32]")
 
   implicit val commonMessagesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Done.type] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Done")

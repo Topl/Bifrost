@@ -8,7 +8,6 @@ package object tetra {
 
   object instances
       extends TetraBinaryShowCodecs
-      with TetraIdentifiableInstances
       with ProtoIdentifiableOps
       with TetraPersistableCodecs
 //      with TetraScodecCodecs

@@ -1,16 +1,18 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{NonEmptyChain, NonEmptySet, ValidatedNec}
+import cats.data.NonEmptyChain
+import cats.data.NonEmptySet
+import cats.data.ValidatedNec
 import cats.effect.Sync
 import cats.implicits._
-import cats.{Foldable, Order}
+import cats.Foldable
+import cats.Order
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.{models => legacyModels}
-import legacyModels._
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 
@@ -18,11 +20,11 @@ import scala.collection.immutable.SortedSet
 
 object BodySyntaxValidation {
 
-  implicit private val orderBoxId: Order[Box.Id] = {
+  implicit private val orderBoxId: Order[TransactionOutputAddress] = {
     implicit val orderTypedIdentifier: Order[Identifier.IoTransaction32] =
       Order.from(ByteString.unsignedLexicographicalComparator().compare)
     Order.whenEqual(
-      Order.by(_.id),
+      Order.by(_.id.asInstanceOf[TransactionOutputAddress.Id.IoTransaction32].value),
       Order.by(_.index)
     )
   }
@@ -54,7 +56,7 @@ object BodySyntaxValidation {
             .fromSet(
               SortedSet.from(
                 transactions
-                  .foldMap(_.inputs.map(_.knownIdentifier.getTransactionOutput32))
+                  .foldMap(_.inputs.map(_.address))
                   .groupBy(identity)
                   .collect {
                     case (boxId, boxIds) if boxIds.size > 1 => boxId

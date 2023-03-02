@@ -5,10 +5,12 @@ import cats.effect.{Async, Concurrent, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.{Transaction, TypedIdentifier}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.Message.{DownloadBlockBodies, DownloadBlockHeaders, UpdateState}
@@ -32,13 +34,13 @@ object PeerActor {
      * Request to download block headers from peer, downloaded headers will be sent to block checker directly
      * @param blockIds headers block id to download
      */
-    case class DownloadBlockHeaders(blockIds: NonEmptyChain[TypedIdentifier]) extends Message
+    case class DownloadBlockHeaders(blockIds: NonEmptyChain[BlockId]) extends Message
 
     /**
      * Request to download block bodies from peer, downloaded bodies will be sent to block checker directly
      * @param blockIds bodies block id to download
      */
-    case class DownloadBlockBodies(blockIds: NonEmptyChain[TypedIdentifier]) extends Message
+    case class DownloadBlockBodies(blockIds: NonEmptyChain[BlockId]) extends Message
   }
 
   case class State[F[_]](
@@ -64,9 +66,9 @@ object PeerActor {
     reputationAggregator: ReputationAggregatorActor[F],
     blockChecker:         BlockCheckerActor[F],
     localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, TypedIdentifier, SlotData],
-    transactionStore:     Store[F, TypedIdentifier, Transaction],
-    blockIdTree:          ParentChildTree[F, TypedIdentifier]
+    slotDataStore:        Store[F, BlockId, SlotData],
+    transactionStore:     Store[F, Identifier.IoTransaction32, IoTransaction],
+    blockIdTree:          ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]] =
     for {
       header <- PeerBlockHeaderFetcher.makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
@@ -90,14 +92,14 @@ object PeerActor {
 
   private def downloadHeaders[F[_]: Concurrent](
     state:    State[F],
-    blockIds: NonEmptyChain[TypedIdentifier]
+    blockIds: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(blockIds)) >>
     (state, state).pure[F]
 
   private def downloadBodies[F[_]: Concurrent](
     state:    State[F],
-    blockIds: NonEmptyChain[TypedIdentifier]
+    blockIds: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.DownloadBlocks(blockIds)) >>
     (state, state).pure[F]

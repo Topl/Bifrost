@@ -11,7 +11,9 @@ object Dependencies {
   val fs2Version = "3.6.1"
   val logback = "1.4.5"
   val orientDbVersion = "3.2.16"
-  val protobufSpecsVersion = "c226e4c" // scala-steward:off
+  val protobufSpecsVersion = "ceceba75" // scala-steward:off
+  val bramblScVersion = "2.0.3+26-5c6a8ffd+20230303-1020-SNAPSHOT" // scala-steward:off
+  val quivr4sVersion = "0.1" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -117,12 +119,12 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
   val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
 
-  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "2490b2f"
-  val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "2490b2f" // scala-steward:off
-  val quivr4s = "com.github.Topl"               % "quivr4s"    % "ae5ca28" // scala-steward:off
+  val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
+  val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
+  val quivr4s = "co.topl"        %% "quivr4s"    % quivr4sVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
-    "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
+    "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
   )
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)

@@ -1,26 +1,28 @@
 package co.topl.transactiongenerator
 
 import cats.implicits._
+import co.topl.brambl.models.Address
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.{models => legacyModels}
 import legacyModels._
 import legacyModels.utility.HasLength.instances.bytesLength
 import legacyModels.utility.Sized
-import co.topl.proto.{models => protoModels}
-import co.topl.proto.models.PropositionContextualHeightLock
 import co.topl.transactiongenerator.models.Wallet
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
+import quivr.models._
 
 package object interpreters {
 
-  val HeightLockOneProposition: Proposition = Propositions.Contextual.HeightLock(1)
+  val HeightLockOneProposition: Proposition =
+    Proposition(
+      Proposition.Value.HeightRange(
+        Proposition.HeightRange("tick", 1, Long.MaxValue)
+      )
+    )
 
-  val HeightLockOnePropositionProto: PropositionContextualHeightLock =
-    protoModels.PropositionContextualHeightLock(1)
-
-  val HeightLockOneSpendingAddress: SpendingAddress = HeightLockOneProposition.spendingAddress
+  val HeightLockOneSpendingAddress: Address = HeightLockOneProposition.spendingAddress
 
   val HeightLockOneSpendingAddressProto: protoModels.SpendingAddress = {
     // See SpendingAddressable TODO on SpendingAddressable trait
@@ -45,7 +47,7 @@ package object interpreters {
   /**
    * Incorporate a Transaction into a Wallet by removing spent outputs and including new outputs.
    */
-  def applyTransaction(wallet: Wallet)(transaction: protoModels.Transaction): Wallet = {
+  def applyTransaction(wallet: Wallet)(transaction: IoTransaction): Wallet = {
     // TODO Wallet spentBoxIds model should change to new protobuf specs and not use boxIdIsomorphism
     val spentBoxIds = transaction.inputs
       .flatMap(_.boxId)
@@ -93,20 +95,4 @@ package object interpreters {
     }
     wallet.copy(spendableBoxes = wallet.spendableBoxes -- spentBoxIds ++ newBoxes)
   }
-
-  def simpleFullAddress(spendingAddress: SpendingAddress): FullAddress =
-    FullAddress(
-      NetworkPrefix(0),
-      spendingAddress,
-      StakingAddresses.NonStaking,
-      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-    )
-
-  def simpleFullAddressProto(spendingAddress: protoModels.SpendingAddress): protoModels.FullAddress =
-    protoModels.FullAddress(
-      protoModels.NetworkPrefix(0).some,
-      spendingAddress.some,
-      protoModels.StakingAddressNonStaking.of(),
-      protoModels.ProofKnowledgeEd25519.of(ByteString.copyFrom(Bytes.fill(64)(0: Byte).toArray)).some
-    )
 }

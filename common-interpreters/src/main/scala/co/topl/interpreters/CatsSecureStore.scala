@@ -8,8 +8,9 @@ import co.topl.algebras.SecureStore
 import co.topl.models.Bytes
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._
-import scala.jdk.CollectionConverters._
+import com.google.protobuf.ByteString
 
+import scala.jdk.CollectionConverters._
 import java.nio.file.{Files, Path, Paths, StandardOpenOption}
 
 /**
@@ -76,9 +77,9 @@ object CatsSecureStore {
   private def writeImpl[A: Persistable](baseDir: Path)(name: String)(data: A): Unit = {
     eraseImpl(baseDir)(name)
     val path = Paths.get(baseDir.toString, name)
-    val array = data.persistedBytes.toArray
+    val array = data.persistedBytes.toByteArray
     Files.write(path, array)
-    array.indices.foreach(idx => array(idx) = (0: Byte))
+    array.indices.foreach(idx => array(idx) = 0: Byte)
   }
 
   /**
@@ -92,9 +93,9 @@ object CatsSecureStore {
       // Erase the file from disk
       eraseImplNoCheck(path)
       // Parse the bytes into `A`
-      val result = Bytes(array).decodePersisted[A].toOption
+      val result = ByteString.copyFrom(array).decodePersisted[A].toOption
       // Overwrite the byte array with 0s
-      array.indices.foreach(idx => array(idx) = (0: Byte))
+      array.indices.foreach(idx => array(idx) = 0: Byte)
       // And return the parsed result
       result
     } else {

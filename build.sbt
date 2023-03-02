@@ -160,7 +160,7 @@ lazy val bifrost = project
     node,
     typeclasses,
     toplGrpc,
-    crypto,
+    nodeCrypto,
     catsAkka,
     models,
     numerics,
@@ -289,8 +289,7 @@ lazy val models = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(
-    libraryDependencies ++= Dependencies.models ++ Dependencies.test,
-    dependencyOverrides += Dependencies.protobufSpecs.head // remove if bramble and quivr4s are aligned with latest protobufSpecs
+    libraryDependencies ++= Dependencies.models ++ Dependencies.test
   )
 
 lazy val numerics = project
@@ -330,7 +329,7 @@ lazy val byteCodecs = project
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes"
   )
   .settings(
-    libraryDependencies ++= Dependencies.byteCodecs
+    libraryDependencies ++= Dependencies.byteCodecs ++ Dependencies.protobufSpecs
   )
   .settings(scalamacrosParadiseSettings)
 
@@ -345,7 +344,7 @@ lazy val tetraByteCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.protobufSpecs)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", crypto)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", nodeCrypto)
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))
@@ -360,7 +359,7 @@ lazy val typeclasses: Project = project
     libraryDependencies ++= Dependencies.test ++ Dependencies.logging
   )
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", crypto, tetraByteCodecs)
+  .dependsOn(models % "compile->compile;test->test", nodeCrypto, tetraByteCodecs)
 
 lazy val algebras = project
   .in(file("algebras"))
@@ -373,7 +372,7 @@ lazy val algebras = project
   )
   .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, crypto, tetraByteCodecs)
+  .dependsOn(models, nodeCrypto, tetraByteCodecs)
 
 lazy val actor = project
   .in(file("actor"))
@@ -430,7 +429,7 @@ lazy val consensus = project
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
-    crypto,
+    nodeCrypto,
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
     numerics,
@@ -450,13 +449,10 @@ lazy val minting = project
   )
   .settings(libraryDependencies ++= Dependencies.minting)
   .settings(scalamacrosParadiseSettings)
-  .settings(
-    dependencyOverrides += Dependencies.protobufSpecs.head
-  ) // remove if bramble and quivr4s are aligned with latest protobufSpecs
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
-    crypto,
+    nodeCrypto,
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
     consensus,
@@ -481,7 +477,7 @@ lazy val networking = project
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
-    crypto,
+    nodeCrypto,
     byteCodecs,
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
@@ -509,7 +505,7 @@ lazy val transactionGenerator = project
   .dependsOn(
     models % "compile->compile;test->test",
     typeclasses,
-    crypto,
+    nodeCrypto,
     byteCodecs,
     tetraByteCodecs,
     munitScalamock,
@@ -596,14 +592,14 @@ lazy val levelDbStore = project
     catsAkka
   )
 
-lazy val crypto = project
-  .in(file("crypto"))
+lazy val nodeCrypto = project
+  .in(file("node-crypto"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    name := "crypto",
+    name := "node-crypto",
     commonSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.crypto",
+    buildInfoPackage := "co.topl.buildinfo.nodecrypto",
     libraryDependencies ++= Dependencies.crypto
   )
   .dependsOn(models % "compile->compile;test->test")

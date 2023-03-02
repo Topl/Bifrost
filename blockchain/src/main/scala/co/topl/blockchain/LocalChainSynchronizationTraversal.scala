@@ -1,10 +1,15 @@
 package co.topl.blockchain
 
 import cats.effect.Async
-import co.topl.algebras.{SynchronizationTraversal, SynchronizationTraversalStep, SynchronizationTraversalSteps}
+import co.topl.algebras.SynchronizationTraversal
+import co.topl.algebras.SynchronizationTraversalStep
+import co.topl.algebras.SynchronizationTraversalSteps
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.TypedIdentifier
-import fs2.{Chunk, Pipe, Pull, Stream}
+import fs2.Chunk
+import fs2.Pipe
+import fs2.Pull
+import fs2.Stream
 
 /**
  * Transform a stream of local block adoptions into a stream of head traversal steps. The input stream
@@ -15,13 +20,13 @@ import fs2.{Chunk, Pipe, Pull, Stream}
 object LocalChainSynchronizationTraversal {
 
   def make[F[_]: Async](
-    currentHead:     TypedIdentifier,
-    adoptionsStream: Stream[F, TypedIdentifier],
-    parentChildTree: ParentChildTree[F, TypedIdentifier]
+    currentHead:     BlockId,
+    adoptionsStream: Stream[F, BlockId],
+    parentChildTree: ParentChildTree[F, BlockId]
   ): SynchronizationTraversal[F, Stream[F, *]] = {
 
-    val pullSteps: Pipe[F, TypedIdentifier, SynchronizationTraversalStep] = {
-      def go(s: Stream[F, TypedIdentifier], currentHead: TypedIdentifier): Pull[F, SynchronizationTraversalStep, Unit] =
+    val pullSteps: Pipe[F, BlockId, SynchronizationTraversalStep] = {
+      def go(s: Stream[F, BlockId], currentHead: BlockId): Pull[F, SynchronizationTraversalStep, Unit] =
         s.pull.uncons1.flatMap {
           case Some((head, tlStream)) =>
             Pull

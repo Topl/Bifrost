@@ -1,6 +1,5 @@
 package co.topl.ledger.models
 
-import cats.data.Chain
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.models.Slot
@@ -18,7 +17,7 @@ trait TransactionValidationContext {
   /**
    * The sequence of transactions that have already been validated within the current block
    */
-  def prefix: Chain[IoTransaction]
+  def prefix: Seq[IoTransaction]
 
   /**
    * The height of the chain for validation purposes
@@ -33,7 +32,7 @@ trait TransactionValidationContext {
 
 case class StaticTransactionValidationContext(
   parentHeaderId: BlockId,
-  prefix:         Chain[IoTransaction],
+  prefix:         Seq[IoTransaction],
   height:         Long,
   slot:           Slot
 ) extends TransactionValidationContext

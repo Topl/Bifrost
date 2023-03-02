@@ -2,14 +2,18 @@ package co.topl.networking.fsnetwork
 
 import cats.Applicative
 import cats.data.NonEmptyChain
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import cats.implicits._
-import co.topl.actor.{Actor, Fsm}
+import co.topl.actor.Actor
+import co.topl.actor.Fsm
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.models.Transaction
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -59,14 +63,14 @@ object PeersManager {
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> headers
      * @param blockHeaders requested headers
      */
-    case class BlockHeadersRequest(hostId: HostId, blockHeaders: NonEmptyChain[TypedIdentifier]) extends Message
+    case class BlockHeadersRequest(hostId: HostId, blockHeaders: NonEmptyChain[BlockId]) extends Message
 
     /**
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> blocks
      *               and send requests to many peers
      * @param blockBodies requested bodies
      */
-    case class BlockDownloadRequest(hostId: HostId, blockBodies: NonEmptyChain[TypedIdentifier]) extends Message
+    case class BlockDownloadRequest(hostId: HostId, blockBodies: NonEmptyChain[BlockId]) extends Message
   }
 
   // actor is option, because in future we shall be able to spawn actor without SetupPeer message,
@@ -86,9 +90,9 @@ object PeersManager {
     blocksChecker:        Option[BlockCheckerActor[F]],
     peers:                Map[HostId, Peer[F]],
     localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, TypedIdentifier, SlotData],
-    transactionStore:     Store[F, TypedIdentifier, Transaction],
-    blockIdTree:          ParentChildTree[F, TypedIdentifier]
+    slotDataStore:        Store[F, BlockId, SlotData],
+    transactionStore:     Store[F, Identifier.IoTransaction32, Transaction],
+    blockIdTree:          ParentChildTree[F, BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -114,9 +118,9 @@ object PeersManager {
   def makeActor[F[_]: Async: Logger](
     networkAlgebra:   NetworkAlgebra[F],
     localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, TypedIdentifier, SlotData],
-    transactionStore: Store[F, TypedIdentifier, Transaction],
-    blockIdTree:      ParentChildTree[F, TypedIdentifier]
+    slotDataStore:    Store[F, BlockId, SlotData],
+    transactionStore: Store[F, Identifier.IoTransaction32, Transaction],
+    blockIdTree:      ParentChildTree[F, BlockId]
   ): Resource[F, PeersManagerActor[F]] = {
     val initialState =
       PeersManager.State[F](
@@ -202,7 +206,7 @@ object PeersManager {
   private def blockDownloadRequest[F[_]: Async](
     state:           State[F],
     requestedHostId: HostId,
-    blocks:          NonEmptyChain[TypedIdentifier]
+    blocks:          NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>
@@ -215,7 +219,7 @@ object PeersManager {
   private def blockHeadersRequest[F[_]: Async](
     state:           State[F],
     requestedHostId: HostId,
-    blocks:          NonEmptyChain[TypedIdentifier]
+    blocks:          NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>

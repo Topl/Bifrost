@@ -1,6 +1,9 @@
 package co.topl.blockchain
 
 import cats.data.Chain
+import cats.implicits._
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
@@ -8,8 +11,10 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
+import quivr.models.Int128
 
 /**
  * Represents the data required to initialize a new staking.  This includes the necessary secret keys, plus their
@@ -28,63 +33,41 @@ object StakerInitializers {
    * @param kesSK The operator's forward-secure key
    */
   case class Operator(
-    operatorSK: SecretKeys.Ed25519,
-    walletSK:   SecretKeys.Ed25519,
-    spendingSK: SecretKeys.Ed25519,
+    operatorSK: ByteString,
+    walletSK:   ByteString,
+    spendingSK: ByteString,
     vrfSK:      SecretKeys.VrfEd25519,
     kesSK:      SecretKeys.KesProduct
   ) extends StakerInitializer {
 
-    val vrfVK: VerificationKeys.VrfEd25519 =
-      VerificationKeys.VrfEd25519(Sized.strictUnsafe(Ed25519VRF.precomputed().getVerificationKey(vrfSK.bytes.data)))
+    val vrfVK: Bytes = Ed25519VRF.precomputed().getVerificationKey(vrfSK.bytes.data)
+    val operatorVK: Bytes = new Ed25519().getVerificationKey(operatorSK)
 
-    val operatorVK: VerificationKeys.Ed25519 =
-      VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(operatorSK.bytes.data)))
-
-    val registration: Box.Values.Registrations.Operator = {
-      val vrfCommitment = new KesProduct().sign(
+    val registration =
+      new KesProduct().sign(
         kesSK,
-        new Blake2b256()
-          .hash(vrfVK.immutableBytes, operatorVK.immutableBytes)
-      )
-      // TODO, remove replace model util once operator refactor is done
-      Box.Values.Registrations.Operator(co.topl.crypto.models.ReplaceModelUtil.signatureKesProduct(vrfCommitment))
-    }
-
-    val stakingAddress: StakingAddresses.Operator =
-      StakingAddresses.Operator(
-        VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(operatorSK.bytes.data)))
+        new Blake2b256().hash(vrfVK, operatorVK)
       )
 
-    val spendingVK: VerificationKeys.Ed25519 =
-      VerificationKeys.Ed25519(Sized.strictUnsafe(new Ed25519().getVerificationKey(spendingSK.bytes.data)))
+    val stakingAddress =
+      new Ed25519().getVerificationKey(operatorSK)
+
+    val spendingVK =
+      new Ed25519().getVerificationKey(spendingSK)
 
     val spendingAddress: SpendingAddress =
       spendingVK.spendingAddress
 
-    def address(implicit networkPrefix: NetworkPrefix): FullAddress =
-      FullAddress(
-        networkPrefix = networkPrefix,
-        spendingAddress = spendingAddress,
-        stakingAddress = stakingAddress,
-        binding = Proofs.Knowledge.Ed25519(
-          Sized.strictUnsafe(
-            new Ed25519().sign(
-              walletSK.bytes.data,
-              spendingAddress.immutableBytes ++ stakingAddress.immutableBytes
-            )
-          )
-        )
-      )
-
     /**
      * This staker's initial stake in the network
      */
-    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[Transaction.Output] =
+    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[UnspentTransactionOutput] = {
+      val value = Value().withTopl(Value.TOPL(stake, registration.some))
       Chain(
-        Transaction.Output(address, Box.Values.Arbit(stake), minting = true),
-        Transaction.Output(address, registration, minting = true)
+        UnspentTransactionOutput(address, Box.Values.Arbit(stake), minting = true),
+        UnspentTransactionOutput(address, registration, minting = true)
       )
+    }
   }
 
   object Operator {
@@ -103,25 +86,21 @@ object StakerInitializers {
       // the hash of the given seed appended with a byte suffix
       val blake2b256 = new Blake2b256()
 
-      val (operatorSKBytes, _) = new Ed25519().deriveKeyPairFromSeed(
+      val (operatorSK, _) = new Ed25519().deriveKeyPairFromSeed(
         blake2b256.hash(seed.data :+ 1)
       )
-      val operatorSK = SecretKeys.Ed25519(Sized.strictUnsafe(operatorSKBytes))
-      val (walletSKBytes, _) = new Ed25519().deriveKeyPairFromSeed(
+      val (walletSK, _) = new Ed25519().deriveKeyPairFromSeed(
         blake2b256.hash(seed.data :+ 2)
       )
-      val walletSK = SecretKeys.Ed25519(Sized.strictUnsafe(walletSKBytes))
-      val (spendingSKBytes, _) = new Ed25519().deriveKeyPairFromSeed(
+      val (spendingSK, _) = new Ed25519().deriveKeyPairFromSeed(
         blake2b256.hash(seed.data :+ 3)
       )
-      val spendingSK = SecretKeys.Ed25519(Sized.strictUnsafe(spendingSKBytes))
-      val (vrfSKBytes, _) =
+      val (vrfSK, _) =
         Ed25519VRF
           .precomputed()
           .deriveKeyPairFromSeed(
             blake2b256.hash(seed.data :+ 4)
           )
-      val vrfSK = SecretKeys.VrfEd25519(Sized.strictUnsafe(vrfSKBytes))
       val (kesSK, _) = new KesProduct().createKeyPair(
         seed = blake2b256.hash(seed.data :+ 5),
         height = kesKeyHeight,

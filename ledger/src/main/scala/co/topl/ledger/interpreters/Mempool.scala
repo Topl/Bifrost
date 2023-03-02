@@ -7,19 +7,19 @@ import cats.effect.{Async, Deferred, Fiber, Ref, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.models.Box
 import co.topl.models.Slot
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
 // TODO: Non-minting nodes?
 object Mempool {
-  private case class MempoolEntry[F[_]](expirationFiber: Fiber[F, _, _], inputBoxIds: Set[Box.Id])
+  private case class MempoolEntry[F[_]](expirationFiber: Fiber[F, _, _], inputBoxIds: Set[TransactionOutputAddress])
   private type State[F[_]] = Ref[F, Map[Identifier.IoTransaction32, MempoolEntry[F]]]
 
   /**
@@ -55,7 +55,7 @@ object Mempool {
             )
           )
           expirationFiber <- Spawn[F].start(expirationTask)
-          entry = MempoolEntry(expirationFiber, transaction.inputs.map(_.knownIdentifier.getTransactionOutput32).toSet)
+          entry = MempoolEntry(expirationFiber, transaction.inputs.map(_.address).toSet)
           _ <- state.update(_.updated(transaction.id, entry))
         } yield ()
       // A function which inserts a transaction into the mempool using the limit specified in the transaction
@@ -69,7 +69,7 @@ object Mempool {
         for {
           blockBody         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
           blockTransactions <- blockBody.traverse(fetchTransaction)
-          blockInputIds = blockTransactions.flatMap(_.inputs.map(_.knownIdentifier.getTransactionOutput32)).toSet
+          blockInputIds = blockTransactions.flatMap(_.inputs.map(_.address)).toSet
           currentEntries <- state.get
           // First, cancel the scheduled expirations for the transactions associated with the block
           expirationsToCancel = blockBody.flatMap(currentEntries.get)

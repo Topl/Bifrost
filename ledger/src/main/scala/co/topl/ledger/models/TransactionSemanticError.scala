@@ -1,7 +1,9 @@
 package co.topl.ledger.models
 
-import co.topl.brambl.models.transaction.{Schedule, SpentTransactionOutput}
-import co.topl.models.{Box, Slot}
+import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.transaction.Schedule
+import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.models.Slot
 
 sealed abstract class TransactionSemanticError
 
@@ -17,7 +19,7 @@ object TransactionSemanticErrors {
    *   - The box may have never existed
    *   - The box may have been spent already
    */
-  case class UnspendableBox(boxId: Box.Id) extends TransactionSemanticError
+  case class UnspendableBox(boxId: TransactionOutputAddress) extends TransactionSemanticError
 
   /**
    * The Transaction was included in a block with a Slot that does not satisfy the Transaction's schedule requirements

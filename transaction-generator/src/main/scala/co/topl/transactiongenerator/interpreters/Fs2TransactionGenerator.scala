@@ -5,9 +5,16 @@ import cats.effect._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import cats.Applicative
+import co.topl.brambl.models.Datum
+import co.topl.brambl.models.Event
+import co.topl.brambl.models.box.Box
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.transaction.Schedule
+import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
+import co.topl.models.utility._
 import co.topl.transactiongenerator.algebras.TransactionGenerator
 import co.topl.transactiongenerator.models.Wallet
 import co.topl.typeclasses.implicits._
@@ -66,10 +73,10 @@ object Fs2TransactionGenerator {
   ): F[(Transaction, Wallet)] =
     for {
       (inputBoxId, inputBox) <- pickInput[F](wallet)
-      inputs = Chain(Transaction.Unproven.Input(inputBoxId, wallet.propositions(inputBox.evidence), inputBox.value))
+      inputs = Chain(SpentTransactionOutput(inputBoxId, wallet.propositions(inputBox.evidence), inputBox.value))
       outputs   <- createOutputs[F](inputBox)
       timestamp <- Async[F].realTimeInstant
-      schedule = Transaction.Schedule(timestamp.toEpochMilli, 0, Long.MaxValue)
+      schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
       data <- createData[F](transactionDataLength: Int)
       unprovenTransaction: Transaction.Unproven = Transaction.Unproven(
         inputs,
@@ -91,7 +98,7 @@ object Fs2TransactionGenerator {
   /**
    * Selects a spendable box from the wallet
    */
-  private def pickInput[F[_]: Applicative](wallet: Wallet): F[(Box.Id, Box)] =
+  private def pickInput[F[_]: Applicative](wallet: Wallet): F[(BoxId, Box)] =
     wallet.spendableBoxes.toList
       .maxBy(_._2.value.asInstanceOf[Box.Values.Poly].quantity.data)
       .pure[F]
@@ -99,34 +106,29 @@ object Fs2TransactionGenerator {
   /**
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
    */
-  private def createOutputs[F[_]: Applicative](inputBox: Box): F[Chain[Transaction.Output]] = {
-    val polyBoxValue = inputBox.value.asInstanceOf[Box.Values.Poly]
-    if (polyBoxValue.quantity.data > 1) {
-      val quantityOutput0 = polyBoxValue.quantity.data / 2
-      val output0 = Transaction.Output(
+  private def createOutputs[F[_]: Applicative](inputBox: Box): F[Chain[UnspentTransactionOutput]] = {
+    val polyBoxValue = inputBox.value.getLvl
+    if (polyBoxValue.quantity > BigInt(1)) {
+      val quantityOutput0 = polyBoxValue.quantity / 2
+      val output0 = UnspentTransactionOutput(
         simpleFullAddress(HeightLockOneSpendingAddress),
-        Box.Values.Poly(Sized.maxUnsafe(quantityOutput0)),
-        minting = false
+        Value().withLvl(Value.LVL(quantityOutput0))
       )
-      val output1 = Transaction.Output(
+      val output1 = UnspentTransactionOutput(
         simpleFullAddress(HeightLockOneSpendingAddress),
-        Box.Values.Poly(Sized.maxUnsafe(polyBoxValue.quantity.data - quantityOutput0)),
-        minting = false
+        Value().withLvl(Value.LVL(polyBoxValue.quantity - quantityOutput0))
       )
       Chain(output0, output1)
     } else {
       Chain(
-        Transaction.Output(
+        UnspentTransactionOutput(
           simpleFullAddress(HeightLockOneSpendingAddress),
           polyBoxValue,
-          minting = false
+          Datum.UnspentOutput.defaultInstance
         )
       )
     }
   }
     .pure[F]
-
-  private def createData[F[_]: Applicative: Random](transactionDataLength: Int): F[Transaction.DataTetra] =
-    Random[F].nextBytes(transactionDataLength).map(Bytes(_))
 
 }

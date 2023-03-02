@@ -1,18 +1,23 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.kernel.Concurrent
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import cats.implicits._
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
 import co.topl.consensus.algebras._
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
+import co.topl.models.Transaction
+import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.blockchain.BlockchainPeerHandlerAlgebra
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import org.typelevel.log4cats.Logger
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.models.{Transaction, TypedIdentifier}
 import co.topl.node.models.BlockBody
+import org.typelevel.log4cats.Logger
 
 object ActorPeerHandlerBridgeAlgebra {
 
@@ -24,11 +29,11 @@ object ActorPeerHandlerBridgeAlgebra {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
-    transactionStore:            Store[F, TypedIdentifier, Transaction],
-    blockIdTree:                 ParentChildTree[F, TypedIdentifier]
+    slotDataStore:               Store[F, BlockId, SlotData],
+    headerStore:                 Store[F, BlockId, BlockHeader],
+    bodyStore:                   Store[F, BlockId, BlockBody],
+    transactionStore:            Store[F, Identifier.IoTransaction32, Transaction],
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     val networkAlgebra = new NetworkAlgebraImpl[F]()
     val networkManager =

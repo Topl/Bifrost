@@ -1,12 +1,16 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.models.Transaction
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
@@ -18,9 +22,9 @@ trait NetworkAlgebra[F[_]] {
   def makePeerManger(
     networkAlgebra:   NetworkAlgebra[F],
     localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, TypedIdentifier, SlotData],
-    transactionStore: Store[F, TypedIdentifier, Transaction],
-    blockIdTree:      ParentChildTree[F, TypedIdentifier]
+    slotDataStore:    Store[F, BlockId, SlotData],
+    transactionStore: Store[F, Identifier.IoTransaction32, Transaction],
+    blockIdTree:      ParentChildTree[F, BlockId]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeReputationAggregation(peersManager: PeersManagerActor[F]): Resource[F, ReputationAggregatorActor[F]]
@@ -29,9 +33,9 @@ trait NetworkAlgebra[F[_]] {
     reputationAggregator:        ReputationAggregatorActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
-    slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    headerStore:                 Store[F, BlockId, BlockHeader],
+    bodyStore:                   Store[F, BlockId, BlockBody],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -47,9 +51,9 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
   override def makePeerManger(
     networkAlgebra:   NetworkAlgebra[F],
     localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, TypedIdentifier, SlotData],
-    transactionStore: Store[F, TypedIdentifier, Transaction],
-    blockIdTree:      ParentChildTree[F, TypedIdentifier]
+    slotDataStore:    Store[F, BlockId, SlotData],
+    transactionStore: Store[F, Identifier.IoTransaction32, Transaction],
+    blockIdTree:      ParentChildTree[F, BlockId]
   ): Resource[F, PeersManagerActor[F]] =
     PeersManager.makeActor(
       networkAlgebra,
@@ -68,9 +72,9 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     reputationAggregator:        ReputationAggregatorActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
-    slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    headerStore:                 Store[F, BlockId, BlockHeader],
+    bodyStore:                   Store[F, BlockId, BlockBody],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],

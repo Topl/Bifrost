@@ -6,6 +6,8 @@ import cats.{Applicative, MonadThrow}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.SignatureKesProduct
 import co.topl.eventtree.EventSourcedState
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -17,33 +19,31 @@ object ConsensusValidationState {
    * EventSourcecdState.  Requests for blocks at the tip of the chain will return data from 2 epochs before that block.
    */
   def make[F[_]: MonadThrow](
-    genesisBlockId: TypedIdentifier,
+    genesisBlockId: BlockId,
     epochBoundaryEventSourcedState: EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
       F
-    ], TypedIdentifier],
+    ], BlockId],
     consensusDataEventSourcedState: EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
       F
-    ], TypedIdentifier],
+    ], BlockId],
     clock: ClockAlgebra[F]
   ): F[ConsensusValidationStateAlgebra[F]] =
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {
-        def operatorRelativeStake(currentBlockId: TypedIdentifier, slot: Slot)(
-          address: StakingAddresses.Operator
-        ): F[Option[Ratio]] =
+        def operatorRelativeStake(currentBlockId: BlockId, slot: Slot)(address: StakingAddress): F[Option[Ratio]] =
           useStateAtTargetBoundary(currentBlockId, slot)(consensusData =>
             OptionT(consensusData.operatorStakes.get(address))
               .semiflatMap(operatorStake =>
                 consensusData.totalActiveStake
                   .getOrRaise(())
-                  .map(totalActiveStake => Ratio(operatorStake.data, totalActiveStake.data))
+                  .map(totalActiveStake => Ratio(operatorStake, totalActiveStake))
               )
               .value
           )
 
-        def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
-          address: StakingAddresses.Operator
-        ): F[Option[Box.Values.Registrations.Operator]] =
+        def operatorRegistration(currentBlockId: BlockId, slot: Slot)(
+          address: StakingAddress
+        ): F[Option[SignatureKesProduct]] =
           useStateAtTargetBoundary(currentBlockId, slot)(_.registrations.get(address))
 
         /**
@@ -52,7 +52,7 @@ object ConsensusValidationState {
          * given `f` function
          */
         private def useStateAtTargetBoundary[Res](
-          currentBlockId: TypedIdentifier,
+          currentBlockId: BlockId,
           slot:           Slot
         )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[Res]): F[Res] =
           for {

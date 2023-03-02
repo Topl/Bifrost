@@ -25,6 +25,9 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.interpreters.BlockchainPeerServer
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.consensus.models.BlockId
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
@@ -42,17 +45,17 @@ object Blockchain {
   def make[F[_]: Parallel: Async: FToFuture](
     clock:                       ClockAlgebra[F],
     stakerOpt:                   Option[StakingAlgebra[F]],
-    slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
-    transactionStore:            Store[F, TypedIdentifier, Transaction],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    headerStore:                 Store[F, BlockId, BlockHeader],
+    bodyStore:                   Store[F, BlockId, BlockBody],
+    transactionStore:            Store[F, Identifier.IoTransaction32, Transaction],
     _localChain:                 LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
-    blockIdTree:                 ParentChildTree[F, TypedIdentifier],
-    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     blockHeaderToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -73,7 +76,6 @@ object Blockchain {
         blockAdoptionsTopic.subscribeUnbounded
           .evalMap(id => bodyStore.getOrRaise(id))
           .flatMap(b => Stream.iterable(b.transactionIds))
-          .map(t => t: TypedIdentifier)
           .through(transactionAdoptionsTopic.publish)
           .compile
           .drain

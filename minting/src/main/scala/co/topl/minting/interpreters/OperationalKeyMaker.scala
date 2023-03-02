@@ -14,17 +14,13 @@ import co.topl.minting.algebras._
 import co.topl.minting.models.OperationalKeyOut
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.consensus.models.{
-  SecretKeyEd25519,
-  SignatureKesProduct,
-  SlotId,
-  VerificationKeyEd25519,
-  VerificationKeyKesProduct
-}
 import co.topl.consensus.models.CryptoConsensusMorphismInstances._
+import co.topl.consensus.models._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
+import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
+
 import java.util.UUID
 
 object OperationalKeyMaker {
@@ -44,7 +40,7 @@ object OperationalKeyMaker {
     parentSlotId:                SlotId,
     operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
-    address:                     StakingAddresses.Operator,
+    address:                     StakingAddress,
     secureStore:                 SecureStore[F],
     clock:                       ClockAlgebra[F],
     vrfCalculator:               VrfCalculatorAlgebra[F],
@@ -70,7 +66,7 @@ object OperationalKeyMaker {
         stateRef
       )
       initialKeysOpt <-
-        OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId: TypedIdentifier, initialSlot)(address))
+        OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, initialSlot)(address))
           .flatMapF(relativeStake =>
             impl.consumeEvolvePersist(
               (initialOperationalPeriod - activationOperationalPeriod).toInt,
@@ -84,7 +80,7 @@ object OperationalKeyMaker {
   private class Impl[F[_]: Sync: Parallel: Logger](
     operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
-    address:                     StakingAddresses.Operator,
+    address:                     StakingAddress,
     secureStore:                 SecureStore[F],
     clock:                       ClockAlgebra[F],
     vrfCalculator:               VrfCalculatorAlgebra[F],
@@ -229,8 +225,9 @@ object OperationalKeyMaker {
                       .delay {
                         kesProductScheme.sign(
                           kesParent,
-                          childVK ++ Bytes(Longs.toByteArray(slot))
+                          childVK ++ ByteString.copyFrom(Longs.toByteArray(slot))
                         )
+                        <<<<<<< dev
                       }
                       .flatMap(parentSignature =>
                         (for {
@@ -240,13 +237,7 @@ object OperationalKeyMaker {
                           .getOrRaise(new IllegalStateException("Invalid model conversion"))
                       )
                       .map { case (parentSignature, parentVK) =>
-                        OperationalKeyOut(
-                          slot,
-                          VerificationKeyEd25519.of(childVK),
-                          SecretKeyEd25519.of(childSK),
-                          parentSignature,
-                          parentVK
-                        )
+                        OperationalKeyOut(slot, childVK, childSK, parentSignature, parentVK)
                       }
                   )
                 }

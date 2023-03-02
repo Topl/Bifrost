@@ -2,9 +2,9 @@ package co.topl.ledger.models
 
 import cats.data.NonEmptyChain
 import cats.data.NonEmptySet
-import co.topl.brambl.models.KnownIdentifier
+import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.models.Box
+import co.topl.brambl.validation.TransactionSyntaxError
 
 trait BodySyntaxError
 
@@ -15,5 +15,5 @@ object BodySyntaxErrors {
     semanticErrors: NonEmptyChain[TransactionSyntaxError]
   ) extends BodySyntaxError
 
-  case class DoubleSpend(boxIds: NonEmptySet[KnownIdentifier.TransactionOutput32]) extends BodySyntaxError
+  case class DoubleSpend(boxIds: NonEmptySet[TransactionOutputAddress]) extends BodySyntaxError
 }
