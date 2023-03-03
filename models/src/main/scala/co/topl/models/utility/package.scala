@@ -1,7 +1,6 @@
 package co.topl.models
 
 import com.google.protobuf.ByteString
-import quivr.models.Int128
 import scodec.bits.ByteVector
 
 import scala.language.implicitConversions

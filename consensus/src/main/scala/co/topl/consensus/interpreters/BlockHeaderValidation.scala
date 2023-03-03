@@ -7,6 +7,7 @@ import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{
   BlockHeader,
   BlockHeaderValidationFailure,
@@ -352,9 +353,9 @@ object BlockHeaderValidation {
 
     def make[F[_]: Sync](
       underlying:       BlockHeaderValidationAlgebra[F],
-      blockHeaderStore: Store[F, TypedIdentifier, BlockHeader]
+      blockHeaderStore: Store[F, BlockId, BlockHeader]
     ): F[BlockHeaderValidationAlgebra[F]] =
-      CaffeineCache[F, Bytes, TypedIdentifier].map(implicit cache =>
+      CaffeineCache[F, Bytes, BlockId].map(implicit cache =>
         new BlockHeaderValidationAlgebra[F] {
 
           def validate(

@@ -1,6 +1,7 @@
 package co.topl.blockchain
 
 import cats.data.Chain
+import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
@@ -8,6 +9,7 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility._
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import quivr.models.Int128
 
 object PrivateTestnet {
@@ -29,7 +31,9 @@ object PrivateTestnet {
       .fromSeq(
         List.tabulate(stakerCount)(index =>
           // This staker's "seed" is concatenation of timestamp bytes + index bytes
-          blake2b256.hash(Bytes.fromLong(timestamp) ++ Bytes.fromInt(index))
+          blake2b256.hash(
+            ByteString.copyFrom(BigInt(timestamp).toByteArray).concat(ByteString.copyFrom(BigInt(index).toByteArray))
+          )
         )
       )
       .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9)))
@@ -45,17 +49,11 @@ object PrivateTestnet {
     BigBang.Config(
       timestamp,
       stakers
-        .flatMap(_.bigBangOutputs(Sized.maxUnsafe(Ratio(TotalStake, stakers.length).round)))
+        .flatMap(_.bigBangOutputs(Ratio(TotalStake, stakers.length).round))
         .append(
           UnspentTransactionOutput(
-            FullAddress(
-              networkPrefix,
-              Propositions.Contextual.HeightLock(1).spendingAddress,
-              StakingAddresses.NonStaking,
-              Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes.fill(64)(0: Byte)))
-            ),
-            Box.Values.Poly(10_000_000),
-            minting = true
+            Propositions.Contextual.HeightLock(1).spendingAddress,
+            Value().withLvl(Value.LVL(10_000_000L))
           )
         )
     )

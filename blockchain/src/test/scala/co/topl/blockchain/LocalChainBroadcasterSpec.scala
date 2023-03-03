@@ -5,9 +5,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.models.utility._
 import co.topl.consensus.models.SlotData
-import co.topl.models.TypedIdentifier
 import co.topl.typeclasses.implicits._
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -32,7 +30,7 @@ class LocalChainBroadcasterSpec extends CatsEffectSuite with ScalaCheckEffectSui
                 .map(_.concurrently(Stream.eval(underTest.adopt(Validated.Valid(slotData)))))
             }
             .use(_.head.interruptAfter(3.seconds).compile.lastOrError)
-          _ = IO(id === (slotData.slotId.blockId: TypedIdentifier)).assert
+          _ = IO(id === slotData.slotId.blockId).assert
         } yield ()
       }
     }

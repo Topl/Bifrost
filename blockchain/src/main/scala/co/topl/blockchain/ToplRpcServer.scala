@@ -138,10 +138,13 @@ object ToplRpcServer {
     transactionStore: Store[F, Identifier.IoTransaction32, Transaction],
     mempool:          MempoolAlgebra[F]
   )(transaction: Transaction) =
-    Logger[F].debug(show"Inserting Transaction id=${transaction.id} into transaction store") >>
-    transactionStore.put(transaction.id, transaction) >>
-    Logger[F].debug(show"Inserting Transaction id=${transaction.id} into mempool") >>
-    mempool.add(transaction.id) >>
-    Logger[F].info(show"Processed Transaction id=${transaction.id} from RPC")
+    for {
+      id <- transaction.id.pure[F]
+      _  <- Logger[F].debug(show"Inserting Transaction id=$id into transaction store")
+      _  <- transactionStore.put(id, transaction)
+      _  <- Logger[F].debug(show"Inserting Transaction id=$id into mempool")
+      _  <- mempool.add(id)
+      _  <- Logger[F].info(show"Processed Transaction id=$id from RPC")
+    } yield ()
 
 }

@@ -18,20 +18,20 @@ trait ModelGenerators {
     genSizedStrictByteString[Lengths.`64`.type]()
 
   // Signatures
-  def signatureVrfEd25519Gen: Gen[SignatureVrfEd25519] =
-    genSizedStrictByteString[Lengths.`80`.type]().map(s => SignatureVrfEd25519.of(s.data))
+  def signatureVrfEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`80`.type]().map(_.data)
 
   def witnessGen: Gen[Sized.Strict[ByteString, Lengths.`32`.type]] =
     genSizedStrictByteString[Lengths.`32`.type]()
 
-  def verificationKeyEd25519Gen: Gen[VerificationKeyEd25519] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => VerificationKeyEd25519.of(s.data))
+  def verificationKeyEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
 
-  def secretKeyEd25519Gen: Gen[SecretKeyEd25519] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => SecretKeyEd25519.of(s.data))
+  def secretKeyEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
 
-  def signatureEd25519Gen: Gen[SignatureEd25519] =
-    genSizedStrictByteString[Lengths.`64`.type]().map(s => SignatureEd25519.of(s.data))
+  def signatureEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`64`.type]().map(_.data)
 
   implicit val signatureKesSumArbitrary: Arbitrary[SignatureKesSum] =
     Arbitrary(
@@ -60,8 +60,8 @@ trait ModelGenerators {
     )
 
   // Verifications
-  def vkVrfEd25519Gen: Gen[VerificationKeyVrfEd25519] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => VerificationKeyVrfEd25519(s.data))
+  def vkVrfEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
 
   implicit val arbitraryEligibilityCertificate: Arbitrary[EligibilityCertificate] =
     Arbitrary(

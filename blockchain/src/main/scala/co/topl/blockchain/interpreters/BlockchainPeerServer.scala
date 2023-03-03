@@ -2,13 +2,13 @@ package co.topl.blockchain.interpreters
 
 import cats.effect.{Async, Resource}
 import cats.implicits._
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka.DroppingTopic
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.{models => legacyModels}
-import legacyModels._
-import legacyModels.utility._
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -22,15 +22,15 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 object BlockchainPeerServer {
 
   def make[F[_]: Async](
-    fetchSlotData:           TypedIdentifier => F[Option[SlotData]],
-    fetchHeader:             TypedIdentifier => F[Option[BlockHeader]],
-    fetchBody:               TypedIdentifier => F[Option[BlockBody]],
-    fetchTransaction:        TypedIdentifier => F[Option[Transaction]],
-    blockHeights:            EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
+    fetchSlotData:           BlockId => F[Option[SlotData]],
+    fetchHeader:             BlockId => F[Option[BlockHeader]],
+    fetchBody:               BlockId => F[Option[BlockBody]],
+    fetchTransaction:        Identifier.IoTransaction32 => F[Option[IoTransaction]],
+    blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MempoolAlgebra[F],
-    newBlockIds:             Topic[F, TypedIdentifier],
-    newTransactionIds:       Topic[F, TypedIdentifier],
+    newBlockIds:             Topic[F, BlockId],
+    newTransactionIds:       Topic[F, Identifier.IoTransaction32],
     blockIdBufferSize:       Int = 8,
     transactionIdBufferSize: Int = 64
   )(peer: ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
@@ -49,10 +49,10 @@ object BlockchainPeerServer {
           /**
            * Serves a stream containing the current head ID plus a stream of block IDs adopted in the local chain.
            */
-          def localBlockAdoptions: F[Stream[F, TypedIdentifier]] =
+          def localBlockAdoptions: F[Stream[F, BlockId]] =
             Async[F].delay(
               Stream
-                .eval(localChain.head.map(_.slotId.blockId: TypedIdentifier))
+                .eval(localChain.head.map(_.slotId.blockId))
                 .append(newBlockIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
             )
@@ -61,28 +61,28 @@ object BlockchainPeerServer {
            * Serves a stream containing all _current_ mempool transactions plus a stream containing
            * any new mempool transaction as-it-happens
            */
-          def localTransactionNotifications: F[Stream[F, TypedIdentifier]] =
+          def localTransactionNotifications: F[Stream[F, Identifier.IoTransaction32]] =
             Async[F].delay(
               Stream
-                .eval(localChain.head.map(_.slotId.blockId: TypedIdentifier).flatMap(mempool.read))
+                .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
                 .flatMap(Stream.iterable)
                 .append(newTransactionIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
             )
 
-          def getLocalSlotData(id: TypedIdentifier): F[Option[SlotData]] =
+          def getLocalSlotData(id: BlockId): F[Option[SlotData]] =
             fetchSlotData(id)
 
-          def getLocalHeader(id: TypedIdentifier): F[Option[BlockHeader]] =
+          def getLocalHeader(id: BlockId): F[Option[BlockHeader]] =
             fetchHeader(id)
 
-          def getLocalBody(id: TypedIdentifier): F[Option[BlockBody]] =
+          def getLocalBody(id: BlockId): F[Option[BlockBody]] =
             fetchBody(id)
 
-          def getLocalTransaction(id: TypedIdentifier): F[Option[Transaction]] =
+          def getLocalTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]] =
             fetchTransaction(id)
 
-          def getLocalBlockAtHeight(height: Long): F[Option[TypedIdentifier]] =
+          def getLocalBlockAtHeight(height: Long): F[Option[BlockId]] =
             for {
               head       <- localChain.head
               blockIdOpt <- blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))

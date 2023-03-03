@@ -2,9 +2,9 @@ package co.topl.blockchain
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.models.Identifier
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators._
-import co.topl.models.TypedIdentifier
 import co.topl.typeclasses.implicits._
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -18,7 +18,7 @@ class MempoolBroadcasterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
   type F[A] = IO[A]
 
   test("Transactions should be produced in a stream whenever they are added to the mempool") {
-    PropF.forAllF { transactionId: TypedIdentifier =>
+    PropF.forAllF { transactionId: Identifier.IoTransaction32 =>
       withMock {
         for {
           delegate <- mock[MempoolAlgebra[F]].pure[F]

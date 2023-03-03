@@ -1,12 +1,13 @@
 package co.topl.blockchain.interpreters
 
 import cats.effect.IO
-import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.interpreters.BlockHeaderToBodyValidation
-import co.topl.models.Block
-import co.topl.models.ModelGenerators._
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
+import co.topl.models.generators.node.ModelGenerators._
+import co.topl.node.models._
 import co.topl.typeclasses.implicits._
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
@@ -29,9 +30,7 @@ class BlockHeaderToBodyValidationSpec extends CatsEffectSuite with ScalaCheckEff
   test("validation should success if block header txRoot is match header body") {
     PropF.forAllF { block: Block =>
       val merkleRootHash = block.body.merkleTreeRootHash
-      val correctBlock = block.copy(header =
-        block.header.copy(txRoot = com.google.protobuf.ByteString.copyFrom(merkleRootHash.data.toArray))
-      )
+      val correctBlock = block.copy(header = block.header.copy(txRoot = merkleRootHash.data))
       withMock {
         for {
           underTest <- BlockHeaderToBodyValidation.make[F]()

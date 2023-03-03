@@ -1,61 +1,67 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{Chain, NonEmptySet}
+import cats.data.NonEmptySet
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
-import co.topl.{models => legacyModels}
-import legacyModels.ModelGenerators._
-import legacyModels.utility.ReplaceModelUtil
-import legacyModels.{Box, Transaction, TypedIdentifier}
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
-import scala.collection.immutable.ListSet
 
 class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   test("BoxState includes new outputs and exclude spent outputs") {
     PropF.forAllF {
       (
-        blockId0:         TypedIdentifier,
-        txBase1:          Transaction,
-        txOutput10:       Transaction.Output,
-        txOutput11:       Transaction.Output,
-        transaction2Base: Transaction,
-        input:            Transaction.Input,
-        blockId1:         TypedIdentifier
+        blockId0:         BlockId,
+        txBase1:          IoTransaction,
+        txOutput10:       UnspentTransactionOutput,
+        txOutput11:       UnspentTransactionOutput,
+        transaction2Base: IoTransaction,
+        input:            SpentTransactionOutput,
+        blockId1:         BlockId
       ) =>
-        val transaction1 =
-          txBase1.copy(inputs = Chain.empty, outputs = txBase1.outputs ++ Chain(txOutput10, txOutput11))
-        val outputBoxId10 = Box.Id(transaction1.id, (transaction1.outputs.length - 2).toShort)
-        val outputBoxId11 = Box.Id(transaction1.id, (transaction1.outputs.length - 1).toShort)
-        val transaction2 = transaction2Base.copy(inputs = Chain(input.copy(boxId = outputBoxId11)))
+        val transaction1 = txBase1.addOutputs(txOutput10, txOutput11)
+        val outputBoxId10 = TransactionOutputAddress(
+          0,
+          0,
+          transaction1.outputs.length - 2,
+          TransactionOutputAddress.Id.IoTransaction32(transaction1.id)
+        )
+        val outputBoxId11 = TransactionOutputAddress(
+          0,
+          0,
+          transaction1.outputs.length - 1,
+          TransactionOutputAddress.Id.IoTransaction32(transaction1.id)
+        )
+        val transaction2 = transaction2Base.addInputs(input.copy(address = outputBoxId11))
 
         for {
-          parentChildTree <- ParentChildTree.FromRef.make[IO, TypedIdentifier]
+          parentChildTree <- ParentChildTree.FromRef.make[IO, BlockId]
           boxState <- BoxState.make[IO](
             blockId0.pure[IO],
             Map(
               blockId1 ->
-              BlockBody(
-                ListSet(transaction1.id.asTypedBytes, transaction2.id.asTypedBytes)
-                  .map(ReplaceModelUtil.ioTransaction32)
-                  .toSeq
-              )
+              BlockBody(List(transaction1.id, transaction2.id))
                 .pure[IO]
             ).apply(_),
             Map(
-              transaction1.id.asTypedBytes -> transaction1.pure[IO],
-              transaction2.id.asTypedBytes -> transaction2.pure[IO]
+              transaction1.id -> transaction1.pure[IO],
+              transaction2.id -> transaction2.pure[IO]
             ),
             parentChildTree,
             _ => IO.unit,
-            TestStore.make[IO, TypedIdentifier, NonEmptySet[Short]].widen
+            TestStore.make[IO, Identifier.IoTransaction32, NonEmptySet[Short]].widen
           )
 
           stateAugmentation <-

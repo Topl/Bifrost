@@ -10,14 +10,14 @@ import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
 import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgebra}
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, BlockHeaderValidationFailure, SlotData, SlotId}
+import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
@@ -378,7 +378,7 @@ object BlockchainPeerHandler {
 
     def make[F[_]: Async](
       transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-      transactionStore:            Store[F, Identifier.IoTransaction32, Transaction],
+      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
       mempool:                     MempoolAlgebra[F]
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
@@ -397,7 +397,7 @@ object BlockchainPeerHandler {
 
     private def processTransactionId[F[_]: Async: Logger](
       transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-      transactionStore:            Store[F, Identifier.IoTransaction32, Transaction],
+      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
       mempool:                     MempoolAlgebra[F]
     )(client: BlockchainPeerClient[F])(id: Identifier.IoTransaction32) =
       for {

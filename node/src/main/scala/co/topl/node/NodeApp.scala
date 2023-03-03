@@ -13,8 +13,9 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{SlotData, VerificationKeyVrfEd25519, VrfConfig}
+import co.topl.consensus.models.{SlotData, VrfConfig}
 import co.topl.consensus.interpreters._
+import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
@@ -23,6 +24,7 @@ import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
@@ -32,6 +34,7 @@ import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
@@ -87,9 +90,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         )
         .toResource
       bigBangBlock = BigBang.block
-      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.header.id.asTypedBytes}"))
+      bigBangBlockId = bigBangBlock.header.id
+      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=$bigBangBlockId"))
 
-      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.header.id.asTypedBytes.show
+      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlockId.show
       _ <- Resource.eval(Files[F].createDirectories(stakingDir))
       _ <- Resource.eval(Logger[F].info(show"Using stakingDir=$stakingDir"))
 
@@ -104,12 +108,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
 
       blockIdTree <- Resource.eval(
         ParentChildTree.FromReadWrite
-          .make[F, TypedIdentifier](
+          .make[F, BlockId](
             dataStores.parentChildTree.get,
             dataStores.parentChildTree.put,
             bigBangBlock.header.parentHeaderId
           )
-          .flatTap(_.associate(bigBangBlock.header.id, bigBangBlock.header.parentHeaderId))
+          .flatTap(_.associate(bigBangBlockId, bigBangBlock.header.parentHeaderId))
       )
 
       // Start the supporting interpreters
@@ -145,7 +149,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         EtaCalculation.make(
           dataStores.slotData.getOrRaise,
           clock,
-          bigBangBlock.header.eligibilityCertificate.eta,
+          Sized.strictUnsafe(bigBangBlock.header.eligibilityCertificate.eta),
           cryptoResources.blake2b256,
           cryptoResources.blake2b512
         )
@@ -156,7 +160,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock,
           dataStores,
           currentEventIdGetterSetters,
-          bigBangBlock,
+          bigBangBlockId,
           blockIdTree
         )
       )
@@ -314,8 +318,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
     clock:                       ClockAlgebra[F],
     dataStores:                  DataStores[F],
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    bigBangBlock:                Block.Full,
-    blockIdTree:                 ParentChildTree[F, TypedIdentifier]
+    bigBangBlockId:                BlockId,
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ) =
     for {
       epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
@@ -334,14 +338,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
           .pure[F],
         dataStores.bodies.getOrRaise,
-        dataStores.transactions.getOrRaise,
-        boxId =>
-          dataStores.transactions
-            .getOrRaise(boxId.transactionId)
-            .map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+        dataStores.transactions.getOrRaise
       )
       consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlock.header.id, epochBoundariesState, consensusDataState, clock)
+        .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
     } yield consensusValidationState
 
   private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =

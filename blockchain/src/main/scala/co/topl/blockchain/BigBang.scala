@@ -1,24 +1,15 @@
 package co.topl.blockchain
 
-import co.topl.brambl.models.Datum
-import co.topl.brambl.models.Event
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.models._
+import co.topl.brambl.models.transaction._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.EligibilityCertificate
-import co.topl.consensus.models.OperationalCertificate
-import co.topl.consensus.models.SignatureKesProduct
-import co.topl.consensus.models.SignatureKesSum
-import co.topl.consensus.models.VerificationKeyKesProduct
+import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
-import co.topl.node.models.FullBlock
-import co.topl.node.models.FullBlockBody
+import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import quivr.models.SmallData
@@ -45,8 +36,7 @@ object BigBang {
 
   object Config {
 
-    val DefaultEtaPrefix: Bytes =
-      Bytes.encodeUtf8("genesis").toOption.get
+    val DefaultEtaPrefix: Bytes = ByteString.copyFromUtf8("genesis")
 
   }
 
@@ -76,14 +66,14 @@ object BigBang {
         parentHeaderId = ParentId,
         parentSlot = ParentSlot,
         txRoot = transactions.merkleTreeRootHash.data,
-        bloomFilter = transactions.bloomFilter,
+        bloomFilter = transactions.bloomFilter.data,
         timestamp = config.timestamp,
         height = Height,
         slot = Slot,
         eligibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
-        metadata = None,
-        address = zeroBytes(Lengths.`32`)
+        metadata = ByteString.EMPTY,
+        address = zeroBytes(Lengths.`32`).data
       )
     FullBlock(header, FullBlockBody(transactions))
   }
@@ -120,5 +110,5 @@ object BigBang {
   )
 
   def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
-    Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
+    Sized.strictUnsafe[Bytes, L](ByteString.copyFrom(Array.fill(l.value)(0: Byte)))
 }
