@@ -1,6 +1,5 @@
 package co.topl.crypto.signing
 
-import cats.kernel.Eq
 import co.topl.crypto.models.{SignatureKesProduct, SignatureKesSum, VerificationKeyKesProduct}
 import co.topl.crypto.utils.Generators.{genBytesWithBoundedSize, genRandomlySizedBytes}
 import co.topl.crypto.utils.Hex.implicits._
@@ -10,7 +9,6 @@ import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
-import co.topl.crypto.models.EqInstances._
 
 class KesProductSpec
     extends AnyFlatSpec
@@ -59,7 +57,7 @@ class KesProductSpec
         val (_, vk1) = kesProduct.createKeyPair(seedBytes, (supHeight, subHeight), 0)
         val (_, vk2) = kesProduct.createKeyPair(seedBytes, (supHeight, subHeight), 0)
 
-        Eq.eqv(vk1, vk2) shouldBe true
+        vk1 shouldBe vk2
     }
   }
 
@@ -120,7 +118,7 @@ class KesProductSpec
     )
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sk_t = kesProduct.update(sk, 6)
-    Eq.eqv(vk, specOut_vk) shouldBe true
+    vk shouldBe specOut_vk
     KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
   }
 
@@ -224,7 +222,7 @@ class KesProductSpec
     )
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sk_t = kesProduct.update(sk, 85)
-    Eq.eqv(vk, specOut_vk) shouldBe true
+    vk shouldBe specOut_vk
     KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
   }
 
@@ -340,11 +338,11 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    Eq.eqv(vk, specOut_vk) shouldBe true
-    Eq.eqv(sig_0, specOut_sig_0) shouldBe true
-    Eq.eqv(sig_1, specOut_sig_1) shouldBe true
-    Eq.eqv(sig_2, specOut_sig_2) shouldBe true
-    Eq.eqv(sig_3, specOut_sig_3) shouldBe true
+    vk shouldBe specOut_vk
+    sig_0 shouldBe specOut_sig_0
+    sig_1 shouldBe specOut_sig_1
+    sig_2 shouldBe specOut_sig_2
+    sig_3 shouldBe specOut_sig_3
     kesProduct.verify(
       sig_0,
       specIn_msg,
@@ -483,11 +481,11 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    Eq.eqv(vk, specOut_vk) shouldBe true
-    Eq.eqv(sig_0, specOut_sig_0) shouldBe true
-    Eq.eqv(sig_1, specOut_sig_1) shouldBe true
-    Eq.eqv(sig_2, specOut_sig_2) shouldBe true
-    Eq.eqv(sig_3, specOut_sig_3) shouldBe true
+    vk shouldBe specOut_vk
+    sig_0 shouldBe specOut_sig_0
+    sig_1 shouldBe specOut_sig_1
+    sig_2 shouldBe specOut_sig_2
+    sig_3 shouldBe specOut_sig_3
     kesProduct.verify(
       sig_0,
       specIn_msg,
@@ -629,11 +627,11 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    Eq.eqv(vk, specOut_vk) shouldBe true
-    Eq.eqv(sig_0, specOut_sig_0) shouldBe true
-    Eq.eqv(sig_1, specOut_sig_1) shouldBe true
-    Eq.eqv(sig_2, specOut_sig_2) shouldBe true
-    Eq.eqv(sig_3, specOut_sig_3) shouldBe true
+    vk shouldBe specOut_vk
+    sig_0 shouldBe specOut_sig_0
+    sig_1 shouldBe specOut_sig_1
+    sig_2 shouldBe specOut_sig_2
+    sig_3 shouldBe specOut_sig_3
     kesProduct.verify(
       sig_0,
       specIn_msg,
@@ -776,11 +774,11 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    Eq.eqv(vk, specOut_vk) shouldBe true
-    Eq.eqv(sig_0, specOut_sig_0) shouldBe true
-    Eq.eqv(sig_1, specOut_sig_1) shouldBe true
-    Eq.eqv(sig_2, specOut_sig_2) shouldBe true
-    Eq.eqv(sig_3, specOut_sig_3) shouldBe true
+    vk shouldBe specOut_vk
+    sig_0 shouldBe specOut_sig_0
+    sig_1 shouldBe specOut_sig_1
+    sig_2 shouldBe specOut_sig_2
+    sig_3 shouldBe specOut_sig_3
     kesProduct.verify(
       sig_0,
       specIn_msg,
@@ -931,11 +929,11 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    Eq.eqv(vk, specOut_vk) shouldBe true
-    Eq.eqv(sig_0, specOut_sig_0) shouldBe true
-    Eq.eqv(sig_1, specOut_sig_1) shouldBe true
-    Eq.eqv(sig_2, specOut_sig_2) shouldBe true
-    Eq.eqv(sig_3, specOut_sig_3) shouldBe true
+    vk shouldBe specOut_vk
+    sig_0 shouldBe specOut_sig_0
+    sig_1 shouldBe specOut_sig_1
+    sig_2 shouldBe specOut_sig_2
+    sig_3 shouldBe specOut_sig_3
     kesProduct.verify(
       sig_0,
       specIn_msg,
