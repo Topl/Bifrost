@@ -2,7 +2,8 @@ package co.topl.minting.interpreters
 
 import cats._
 import cats.data._
-import cats.effect.{Async, MonadCancelThrow, Ref, Sync}
+import cats.effect.implicits.effectResourceOps
+import cats.effect.{Async, MonadCancelThrow, Ref, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
@@ -33,7 +34,6 @@ object OperationalKeyMaker {
    * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
    */
   def make[F[_]: Async: Parallel: Logger](
-    initialSlot:                 Slot,
     parentSlotId:                SlotId,
     operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
@@ -45,10 +45,11 @@ object OperationalKeyMaker {
     consensusState:              ConsensusValidationStateAlgebra[F],
     kesProductResource:          UnsafeResource[F, KesProduct],
     ed25519Resource:             UnsafeResource[F, Ed25519]
-  ): F[OperationalKeyMakerAlgebra[F]] =
+  ): Resource[F,OperationalKeyMakerAlgebra[F]] =
     for {
-      initialOperationalPeriod <- (initialSlot / operationalPeriodLength).pure[F]
-      stateRef                 <- Ref.of((initialOperationalPeriod, none[Map[Long, OperationalKeyOut]]))
+      initialSlot <- clock.globalSlot.map(_.max(0L)).toResource
+      initialOperationalPeriod <- Resource.pure[F,Long](initialSlot / operationalPeriodLength)
+      stateRef                 <- Ref.of((initialOperationalPeriod, none[Map[Long, OperationalKeyOut]])).toResource
       impl = new Impl[F](
         operationalPeriodLength,
         activationOperationalPeriod,
@@ -70,8 +71,8 @@ object OperationalKeyMaker {
               impl.prepareOperationalPeriodKeys(_, initialSlot, parentSlotId, relativeStake)
             )
           )
-          .value
-      _ <- stateRef.set((initialOperationalPeriod, initialKeysOpt))
+          .value.toResource
+      _ <- stateRef.set((initialOperationalPeriod, initialKeysOpt)).toResource
     } yield impl
 
   private class Impl[F[_]: Sync: Parallel: Logger](

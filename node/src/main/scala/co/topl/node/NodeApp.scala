@@ -264,13 +264,13 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
     // Initialize a persistent secure store
     CatsSecureStore
       .make[F](stakingDir.toNioPath)
-      .evalMap(secureStore =>
+      .flatMap(secureStore =>
         for {
           // Determine if a key has already been initialized
           _ <- secureStore.list
             .map(_.isEmpty)
             // If uninitialized, generate a new key.  Otherwise, move on.
-            .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
+            .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit).toResource
           vrfCalculator <- VrfCalculator.make[F](
             initializer.vrfSK,
             clock,
@@ -278,11 +278,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
             ed25519VRFResource,
             vrfConfig,
             protocol.vrfCacheSize
-          )
-          currentSlot <- clock.globalSlot.map(_.max(0L))
+          ).toResource
+//          currentSlot <- clock.globalSlot.map(_.max(0L)).toResource
 
           operationalKeys <- OperationalKeyMaker.make[F](
-            initialSlot = currentSlot,
+//            initialSlot = currentSlot,
             currentHead.slotId,
             operationalPeriodLength = protocol.operationalPeriodLength,
             activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
