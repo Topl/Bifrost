@@ -2,7 +2,6 @@ package co.topl.crypto.signing
 
 import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.eddsa.ECVRF25519
 import scodec.bits.ByteVector
 
@@ -76,24 +75,4 @@ object Ed25519VRF {
 
   def precomputed(): Ed25519VRF =
     new Ed25519VRF
-
-  private val TestStringByteVector =
-    ByteVector.encodeUtf8("TEST").toOption.get
-
-  private val NonceStringByteVector =
-    ByteVector.encodeUtf8("NONCE").toOption.get
-
-  /**
-   * @param rho length = 64
-   * @return length = 64
-   */
-  def rhoToRhoTestHash(rho: ByteVector)(implicit blake2b512: Blake2b512): ByteVector =
-    blake2b512.hash(rho ++ TestStringByteVector)
-
-  /**
-   * @param rho length = 64
-   * @return length = 64
-   */
-  def rhoToRhoNonceHash(rho: ByteVector)(implicit blake2b512: Blake2b512): ByteVector =
-    blake2b512.hash(rho ++ NonceStringByteVector)
 }

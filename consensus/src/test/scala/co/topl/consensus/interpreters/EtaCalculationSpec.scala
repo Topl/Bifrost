@@ -9,6 +9,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.BlockHeaderOps
 import co.topl.consensus.models.{BlockId, SlotData, SlotId, VrfArgument}
+import co.topl.consensus.rhoToRhoNonceHash
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models.ModelGenerators._
@@ -199,7 +200,7 @@ object EtaCalculationSpec {
     val messages: List[Bytes] =
       List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
         .map(_.sizedBytes.data)
-        .map(Ed25519VRF.rhoToRhoNonceHash)
+        .map(rhoToRhoNonceHash)
     Sized.strictUnsafe(blake2b256.hash(Bytes.concat(messages)))
   }
 }

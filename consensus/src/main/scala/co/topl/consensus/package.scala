@@ -6,6 +6,8 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.utility.HasLength.instances.bytesLength
 import co.topl.consensus.{models => consensusModels}
+import co.topl.crypto.hash.Blake2b512
+import scodec.bits.ByteVector
 
 package object consensus {
 
@@ -49,4 +51,24 @@ package object consensus {
         blockHeader.height
       )
   }
+
+  private val TestStringByteVector =
+    ByteVector.encodeUtf8("TEST").toOption.get
+
+  private val NonceStringByteVector =
+    ByteVector.encodeUtf8("NONCE").toOption.get
+
+  /**
+   * @param rho length = 64
+   * @return length = 64
+   */
+  def rhoToRhoTestHash(rho: ByteVector)(implicit blake2b512: Blake2b512): ByteVector =
+    blake2b512.hash(rho ++ TestStringByteVector)
+
+  /**
+   * @param rho length = 64
+   * @return length = 64
+   */
+  def rhoToRhoNonceHash(rho: ByteVector)(implicit blake2b512: Blake2b512): ByteVector =
+    blake2b512.hash(rho ++ NonceStringByteVector)
 }
