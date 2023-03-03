@@ -261,54 +261,51 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
     protocol:                 ApplicationConfig.Bifrost.Protocol,
     vrfConfig:                VrfConfig
   ) =
-    // Initialize a persistent secure store
-    CatsSecureStore
-      .make[F](stakingDir.toNioPath)
-      .flatMap(secureStore =>
-        for {
-          // Determine if a key has already been initialized
-          _ <- secureStore.list
-            .map(_.isEmpty)
-            // If uninitialized, generate a new key.  Otherwise, move on.
-            .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit).toResource
-          vrfCalculator <- VrfCalculator.make[F](
-            initializer.vrfSK,
-            clock,
-            leaderElectionThreshold,
-            ed25519VRFResource,
-            vrfConfig,
-            protocol.vrfCacheSize
-          ).toResource
-//          currentSlot <- clock.globalSlot.map(_.max(0L)).toResource
+    for {
+      // Initialize a persistent secure store
+      secureStore <- CatsSecureStore.make[F](stakingDir.toNioPath)
+      // Determine if a key has already been initialized
+      _ <- secureStore.list
+        .map(_.isEmpty)
+        // If uninitialized, generate a new key.  Otherwise, move on.
+        .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
+        .toResource
 
-          operationalKeys <- OperationalKeyMaker.make[F](
-//            initialSlot = currentSlot,
-            currentHead.slotId,
-            operationalPeriodLength = protocol.operationalPeriodLength,
-            activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
-            initializer.stakingAddress,
-            secureStore = secureStore,
-            clock = clock,
-            vrfCalculator = vrfCalculator,
-            etaCalculation,
-            consensusValidationState,
-            kesProductResource,
-            ed25519Resource
-          )
-        } yield (operationalKeys, vrfCalculator)
+      vrfCalculator <- VrfCalculator.make[F](
+        initializer.vrfSK,
+        clock,
+        leaderElectionThreshold,
+        ed25519VRFResource,
+        vrfConfig,
+        protocol.vrfCacheSize
       )
-      .flatMap { case (operationalKeys, vrfCalculator) =>
-        Staking.make(
+
+      operationalKeys <- OperationalKeyMaker
+        .make[F](
+          currentHead.slotId,
+          operationalPeriodLength = protocol.operationalPeriodLength,
+          activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
           initializer.stakingAddress,
-          VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
-          operationalKeys,
-          consensusValidationState,
+          secureStore = secureStore,
+          clock = clock,
+          vrfCalculator = vrfCalculator,
           etaCalculation,
-          ed25519Resource,
-          vrfCalculator,
-          leaderElectionThreshold
+          consensusValidationState,
+          kesProductResource,
+          ed25519Resource
         )
-      }
+
+      staking <- Staking.make(
+        initializer.stakingAddress,
+        VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
+        operationalKeys,
+        consensusValidationState,
+        etaCalculation,
+        ed25519Resource,
+        vrfCalculator,
+        leaderElectionThreshold
+      )
+    } yield staking
 
   private def makeConsensusValidationState(
     clock:                       ClockAlgebra[F],

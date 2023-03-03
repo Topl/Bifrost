@@ -2,6 +2,7 @@ package co.topl.minting.interpreters
 
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
@@ -26,7 +27,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
   test("proofForSlot: fixed input") {
     for {
-      ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
+      ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
       vrfCalculator <- VrfCalculator.make[F](
         skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
         clock = null,
@@ -45,13 +46,13 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         )
       )
 
-      _ <- vrfCalculator.proofForSlot(slot, eta).assertEquals(expectedProof)
+      _ <- vrfCalculator.proofForSlot(slot, eta).assertEquals(expectedProof).toResource
     } yield ()
   }
 
   test("rhoForSlot: fixed input") {
-    for {
-      ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
+    val resource = for {
+      ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
       vrfCalculator <- VrfCalculator.make[F](
         skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
         clock = null,
@@ -71,8 +72,9 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         )
       )
 
-      _ <- vrfCalculator.rhoForSlot(slot, eta).assertEquals(expectedRho)
+      _ <- vrfCalculator.rhoForSlot(slot, eta).assertEquals(expectedRho).toResource
     } yield ()
+    resource.use_
   }
 
   test("ineligibleSlots: in empty inRange, no slots leader") {
@@ -99,8 +101,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         .anyNumberOfTimes()
         .returning(false.pure[F])
 
-      for {
-        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
+      val resource = for {
+        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
         vrfCalculator <- VrfCalculator.make[F](
           skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
           clock,
@@ -112,8 +114,12 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
         expectedSlot: Vector[Slot] = Vector(10, 11, 12, 13, 14, 15, 16, 17, 18, 19)
 
-        _ <- vrfCalculator.ineligibleSlots(epoch, eta, inRange = None, relativeStake).assertEquals(expectedSlot)
+        _ <- vrfCalculator
+          .ineligibleSlots(epoch, eta, inRange = None, relativeStake)
+          .assertEquals(expectedSlot)
+          .toResource
       } yield ()
+      resource.use_
 
     }
   }
@@ -142,8 +148,8 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         .anyNumberOfTimes()
         .returning(true.pure[F])
 
-      for {
-        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1)
+      val resource = for {
+        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
         vrfCalculator <- VrfCalculator.make[F](
           skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
           clock,
@@ -153,8 +159,12 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           vrfCacheTtl
         )
 
-        _ <- vrfCalculator.ineligibleSlots(epoch, eta, inRange = None, relativeStake).assertEquals(Vector.empty[Slot])
+        _ <- vrfCalculator
+          .ineligibleSlots(epoch, eta, inRange = None, relativeStake)
+          .assertEquals(Vector.empty[Slot])
+          .toResource
       } yield ()
+      resource.use_
 
     }
   }

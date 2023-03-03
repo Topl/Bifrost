@@ -1,7 +1,7 @@
 package co.topl.minting.interpreters
 
 import cats.Parallel
-import cats.effect.Sync
+import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
@@ -9,6 +9,7 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.consensus.models.{SignatureVrfEd25519, VrfArgument, VrfConfig}
 import VrfArgument._
+import cats.effect.implicits.effectResourceOps
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.algebras.VrfCalculatorAlgebra
 import co.topl.models._
@@ -31,23 +32,29 @@ object VrfCalculator {
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     vrfConfig:                VrfConfig,
     vrfCacheSize:             Long
-  ): F[VrfCalculatorAlgebra[F]] =
+  ): Resource[F, VrfCalculatorAlgebra[F]] =
     for {
-      vrfProofsCache <- Sync[F].delay(
-        CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[SignatureVrfEd25519]]())
-      )
-      rhosCache <-
-        Sync[F].delay(
-          CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Rho]]())
+      vrfProofsCache <- Sync[F]
+        .delay(
+          CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[SignatureVrfEd25519]]())
         )
-      impl = new Impl[F](
-        skVrf,
-        clock,
-        leaderElectionValidation,
-        ed25519VRFResource,
-        vrfConfig,
-        vrfProofsCache,
-        rhosCache
+        .toResource
+      rhosCache <-
+        Sync[F]
+          .delay(
+            CaffeineCache(caffeineCacheBuilder(vrfCacheSize).build[(Bytes, Long), Entry[Rho]]())
+          )
+          .toResource
+      impl <- Resource.pure(
+        new Impl[F](
+          skVrf,
+          clock,
+          leaderElectionValidation,
+          ed25519VRFResource,
+          vrfConfig,
+          vrfProofsCache,
+          rhosCache
+        )
       )
     } yield impl
 

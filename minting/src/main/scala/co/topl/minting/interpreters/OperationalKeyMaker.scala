@@ -45,10 +45,10 @@ object OperationalKeyMaker {
     consensusState:              ConsensusValidationStateAlgebra[F],
     kesProductResource:          UnsafeResource[F, KesProduct],
     ed25519Resource:             UnsafeResource[F, Ed25519]
-  ): Resource[F,OperationalKeyMakerAlgebra[F]] =
+  ): Resource[F, OperationalKeyMakerAlgebra[F]] =
     for {
-      initialSlot <- clock.globalSlot.map(_.max(0L)).toResource
-      initialOperationalPeriod <- Resource.pure[F,Long](initialSlot / operationalPeriodLength)
+      initialSlot              <- clock.globalSlot.map(_.max(0L)).toResource
+      initialOperationalPeriod <- Resource.pure[F, Long](initialSlot / operationalPeriodLength)
       stateRef                 <- Ref.of((initialOperationalPeriod, none[Map[Long, OperationalKeyOut]])).toResource
       impl = new Impl[F](
         operationalPeriodLength,
@@ -71,7 +71,8 @@ object OperationalKeyMaker {
               impl.prepareOperationalPeriodKeys(_, initialSlot, parentSlotId, relativeStake)
             )
           )
-          .value.toResource
+          .value
+          .toResource
       _ <- stateRef.set((initialOperationalPeriod, initialKeysOpt)).toResource
     } yield impl
 
