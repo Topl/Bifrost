@@ -23,6 +23,7 @@ object Hex {
     implicit class Ops(hexString: String) {
       def unsafeStrictBytes[L <: Length](implicit length: L): Sized.Strict[Bytes, L] = hexStringToStrictBytes(hexString)
       def hexStringToBytes: Bytes = Bytes(decode(hexString))
+      def hexStringToArrayBytes: Array[Byte] = decode(hexString)
     }
   }
 }

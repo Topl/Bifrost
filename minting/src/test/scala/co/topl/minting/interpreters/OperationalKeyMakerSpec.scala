@@ -2,6 +2,7 @@ package co.topl.minting.interpreters
 
 import cats.Applicative
 import cats.data.Chain
+import cats.kernel.Eq
 import cats.effect.IO.asyncForIO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
@@ -9,13 +10,15 @@ import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.algebras.{ClockAlgebra, SecureStore}
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
+import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.crypto.signing._
+import co.topl.crypto.models.EqInstances._
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.models.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.models.utility.{Ratio, ReplaceModelUtil}
+import co.topl.models.utility.Ratio
 import co.topl.consensus.models.{BlockId, SlotId}
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
@@ -55,9 +58,7 @@ class OperationalKeyMakerSpec
       val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
-      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L) match {
-        case (sk, vk) => (sk, ReplaceModelUtil.verificationKeyKesProduct(vk))
-      }
+      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
 
@@ -132,10 +133,15 @@ class OperationalKeyMakerSpec
       Range.Long(1, operationalPeriodLength, 2).foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync().value
         out.slot shouldBe i
-        out.parentVK shouldBe vk
+        Eq.eqv(
+          out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].unsafeRunSync().value,
+          vk
+        ) shouldBe true
+        val parentSignature =
+          out.parentSignature.toF[F, co.topl.crypto.models.SignatureKesProduct].unsafeRunSync().value
         kesProduct
           .verify(
-            out.parentSignature,
+            parentSignature,
             ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
             vk
           )
@@ -153,9 +159,7 @@ class OperationalKeyMakerSpec
       val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
-      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L) match {
-        case (sk, vk) => (sk, ReplaceModelUtil.verificationKeyKesProduct(vk))
-      }
+      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -240,10 +244,15 @@ class OperationalKeyMakerSpec
       Range.Long(operationalPeriodLength, operationalPeriodLength * 2, 1).foreach { i =>
         val out = underTest.operationalKeyForSlot(i, parentSlotId).unsafeRunSync().value
         out.slot shouldBe i
-        out.parentVK shouldBe vk.copy(step = 1)
+        Eq.eqv(
+          out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].unsafeRunSync().value,
+          vk.copy(step = 1)
+        ) shouldBe true
+        val parentSignature =
+          out.parentSignature.toF[F, co.topl.crypto.models.SignatureKesProduct].unsafeRunSync().value
         kesProduct
           .verify(
-            out.parentSignature,
+            parentSignature,
             ed25519.getVerificationKey(Bytes(out.childSK.value.toByteArray)) ++ Bytes(Longs.toByteArray(i)),
             vk.copy(step = 1)
           )
