@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   val akkaVersion = "2.6.20"
-  val circeVersion = "0.14.4"
+  val circeVersion = "0.14.5"
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
@@ -115,7 +115,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
   val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "v2.0.3"
   val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "652cdaa7a7" // scala-steward:off

@@ -7,6 +7,7 @@ import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
+import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.consensus.models._
 import co.topl.crypto.signing._
 import co.topl.crypto.generation.mnemonic.Entropy
@@ -721,15 +722,14 @@ class BlockHeaderValidationSpec
       Ed25519.instance.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
 
     val message = linearVKBytes ++ Bytes(Longs.toByteArray(slot))
-    val parentSignatureLegacy = kesProduct.sign(parentSK, message) // TODO, it should return new Models
-    val parentSignature = ReplaceModelUtil.signatureKesProduct(parentSignatureLegacy)
-    val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK) // TODO, it should return new Models
+    val parentSignature = kesProduct.sign(parentSK, message)
+    val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK)
     val partialCertificate = legacyModels.BlockHeader.Unsigned.PartialOperationalCertificate(
-      VerificationKeyKesProduct.of(
-        ByteString.copyFrom(kesProductVerificationKey.bytes.data.toArray),
-        kesProductVerificationKey.step
-      ),
-      parentSignature,
+      kesProductVerificationKey
+        .toF[F, co.topl.consensus.models.VerificationKeyKesProduct]
+        .unsafeRunSync()
+        .getOrElse(???),
+      parentSignature.toF[F, co.topl.consensus.models.SignatureKesProduct].unsafeRunSync().getOrElse(???),
       VerificationKeyEd25519.of(ByteString.copyFrom(linearVKBytes.toArray))
     )
     unsignedF(partialCertificate) -> SecretKeys.Ed25519(Sized.strictUnsafe(linearSKBytes))
@@ -819,6 +819,8 @@ object BlockHeaderValidationSpec {
     skKes:  SecretKeys.KesProduct
   )(implicit kesProduct: KesProduct): Box.Values.Registrations.Operator = {
     val commitmentMessage = new Blake2b256().hash(vkVrf.value.concat(poolVK.value))
-    Box.Values.Registrations.Operator(kesProduct.sign(skKes, commitmentMessage))
+    Box.Values.Registrations.Operator(
+      co.topl.crypto.models.ReplaceModelUtil.signatureKesProduct(kesProduct.sign(skKes, commitmentMessage))
+    )
   }
 }

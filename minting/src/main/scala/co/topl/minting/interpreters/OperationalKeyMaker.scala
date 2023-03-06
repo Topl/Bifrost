@@ -15,7 +15,14 @@ import co.topl.minting.algebras._
 import co.topl.minting.models.OperationalKeyOut
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.consensus.models.{SecretKeyEd25519, SlotId, VerificationKeyEd25519}
+import co.topl.consensus.models.{
+  SecretKeyEd25519,
+  SignatureKesProduct,
+  SlotId,
+  VerificationKeyEd25519,
+  VerificationKeyKesProduct
+}
+import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import org.typelevel.log4cats.Logger
@@ -220,20 +227,29 @@ object OperationalKeyMaker {
                 .zip(children)
                 .parTraverse { case (slot, (childSK, childVK)) =>
                   kesProductResource.use(kesProductScheme =>
-                    Sync[F].delay {
-                      val parentSignature =
+                    Sync[F]
+                      .delay {
                         kesProductScheme.sign(
                           kesParent,
                           childVK ++ Bytes(Longs.toByteArray(slot))
                         )
-                      OperationalKeyOut(
-                        slot,
-                        VerificationKeyEd25519.of(childVK),
-                        SecretKeyEd25519.of(childSK),
-                        ReplaceModelUtil.signatureKesProduct(parentSignature),
-                        ReplaceModelUtil.verificationKeyKesProduct(parentVK)
+                      }
+                      .flatMap(parentSignature =>
+                        (for {
+                          signature       <- EitherT(parentSignature.toF[F, SignatureKesProduct])
+                          verificationKey <- EitherT(parentVK.toF[F, VerificationKeyKesProduct])
+                        } yield (signature, verificationKey))
+                          .getOrRaise(new IllegalStateException("Invalid model conversion"))
                       )
-                    }
+                      .map { case (parentSignature, parentVK) =>
+                        OperationalKeyOut(
+                          slot,
+                          VerificationKeyEd25519.of(childVK),
+                          SecretKeyEd25519.of(childSK),
+                          parentSignature,
+                          parentVK
+                        )
+                      }
                   )
                 }
             )

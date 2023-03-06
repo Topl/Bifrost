@@ -10,6 +10,7 @@ import co.topl.algebras.{ClockAlgebra, SecureStore}
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.consensus.models.{BlockId, SlotId}
+import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.crypto.signing._
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.VrfCalculatorAlgebra
@@ -23,7 +24,6 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.scalatest.OptionValues
-import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.typelevel.log4cats.Logger
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -55,9 +55,7 @@ class OperationalKeyMakerSpec
         val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
         val operationalPeriodLength = 30L
         val activationOperationalPeriod = 0L
-        val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L) match {
-          case (sk, vk) => (sk, ReplaceModelUtil.verificationKeyKesProduct(vk))
-        }
+        val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
 
         val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
 
@@ -139,16 +137,27 @@ class OperationalKeyMakerSpec
             .Long(1, operationalPeriodLength, 2)
             .toVector
             .traverse(i =>
-              underTest.operationalKeyForSlot(i, parentSlotId).map(_.value).map { out =>
-                out.slot shouldBe i
-                out.parentVK shouldBe vk
-                kesProduct
-                  .verify(
-                    out.parentSignature,
-                    ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
-                    vk
-                  ) shouldBe true
-              }
+              for {
+                out <- underTest.operationalKeyForSlot(i, parentSlotId).map(_.value)
+                _   <- assertIO(out.slot.pure[F], i)
+                _ <- assertIO(
+                  out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].map(_.toOption.value),
+                  vk
+                )
+                parentSignature <- out.parentSignature
+                  .toF[F, co.topl.crypto.models.SignatureKesProduct]
+                  .map(_.toOption.value)
+                _ <- assertIO(
+                  kesProduct
+                    .verify(
+                      parentSignature,
+                      ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
+                      vk
+                    )
+                    .pure[F],
+                  true
+                )
+              } yield ()
             )
             .toResource
         } yield ()
@@ -168,9 +177,7 @@ class OperationalKeyMakerSpec
         val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
         val operationalPeriodLength = 30L
         val activationOperationalPeriod = 0L
-        val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L) match {
-          case (sk, vk) => (sk, ReplaceModelUtil.verificationKeyKesProduct(vk))
-        }
+        val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
 
         (() => clock.globalSlot)
           .expects()
@@ -260,17 +267,28 @@ class OperationalKeyMakerSpec
             .Long(operationalPeriodLength, operationalPeriodLength * 2, 1)
             .toVector
             .traverse(i =>
-              underTest.operationalKeyForSlot(i, parentSlotId).map(_.value).map { out =>
-                out.slot shouldBe i
-                out.parentVK shouldBe vk.copy(step = 1)
-                kesProduct
-                  .verify(
-                    out.parentSignature,
-                    ed25519.getVerificationKey(Bytes(out.childSK.value.toByteArray)) ++
-                    Bytes(Longs.toByteArray(i)),
-                    vk.copy(step = 1)
-                  ) shouldBe true
-              }
+              for {
+                out <- underTest.operationalKeyForSlot(i, parentSlotId).map(_.value)
+                _   <- assertIO(out.slot.pure[F], i)
+                expectedVK = vk.copy(step = 1)
+                _ <- assertIO(
+                  out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].map(_.toOption.value),
+                  expectedVK
+                )
+                parentSignature <- out.parentSignature
+                  .toF[F, co.topl.crypto.models.SignatureKesProduct]
+                  .map(_.toOption.value)
+                _ <- assertIO(
+                  kesProduct
+                    .verify(
+                      parentSignature,
+                      ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
+                      expectedVK
+                    )
+                    .pure[F],
+                  true
+                )
+              } yield ()
             )
             .toResource
         } yield ()
