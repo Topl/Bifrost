@@ -18,6 +18,7 @@ import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.node.models.BlockBody
 import co.topl.node.models.FullBlockBody
+import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger

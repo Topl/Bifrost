@@ -95,7 +95,11 @@ object ConsensusDataEventSourcedState {
           .filterNot(_.stakingAddress.isEmpty)
           .map(v => v.stakingAddress -> (v.quantity: BigInt))
           .toMap
-        result = inputStakeChanges ++ outputStakeChanges
+        result = Chain
+          .fromIterableOnce(inputStakeChanges ++ outputStakeChanges)
+          .map { case (address, delta) =>
+            StakeChange(address, delta)
+          }
       } yield result
 
     private def calculateRegistrationChanges(
@@ -110,7 +114,7 @@ object ConsensusDataEventSourcedState {
           .pure[F]
         registrations = transaction.outputs
           .flatMap(_.value.value.registration)
-          .map(r => r.stakingAddress -> r.registration)
+          .map(r => r.stakingAddress -> r.registration.some)
           .toMap
       } yield deregistrations ++ registrations
 
@@ -152,7 +156,12 @@ object ConsensusDataEventSourcedState {
         inputStakeChanges = transaction.inputs.reverse
           .flatMap(_.value.value.topl.filterNot(_.stakingAddress.isEmpty))
           .map(v => v.stakingAddress -> (v.quantity: BigInt))
-      } yield outputStakeChanges ++ inputStakeChanges
+        result = Chain
+          .fromIterableOnce(inputStakeChanges ++ outputStakeChanges)
+          .map { case (address, delta) =>
+            StakeChange(address, delta)
+          }
+      } yield result
 
     private def calculateRegistrationChanges(
       transaction: IoTransaction

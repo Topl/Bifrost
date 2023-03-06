@@ -4,10 +4,8 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.proto.models.Transaction
-import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels.TypedIdentifier
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.models.BlockId
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
@@ -47,7 +45,7 @@ object ToplRpcWalletInitializer {
     fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
-  ): F[Stream[F, Transaction]] =
+  ): F[Stream[F, IoTransaction]] =
     for {
       blockIds <- blockIdStream(toplRpc, fetchHeaderParallelism)
       stream = blockIds
@@ -69,7 +67,7 @@ object ToplRpcWalletInitializer {
   private def blockIdStream[F[_]: Async, S[_]](
     toplRpc:                ToplRpc[F, S],
     fetchHeaderParallelism: Int
-  ): F[Stream[F, TypedIdentifier]] =
+  ): F[Stream[F, BlockId]] =
     for {
       bigBangId <- OptionT(toplRpc.blockIdAtHeight(1))
         .getOrRaise(new IllegalStateException("Unknown Big Bang ID"))

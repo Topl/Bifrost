@@ -4,8 +4,6 @@ import cats.Show
 import cats.implicits._
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.Identifiable
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotId
 import co.topl.models._
@@ -15,12 +13,6 @@ import com.google.protobuf.ByteString
 import java.time.Instant
 
 trait ShowInstances {
-
-  implicit def showInstanceFromIdentifiable[T: Identifiable]: Show[T] =
-    t => {
-      val (prefix, bytes) = t.id
-      show"($prefix)$bytes"
-    }
 
   implicit val showByteString: Show[ByteString] =
     bytes => bytes.toBase58

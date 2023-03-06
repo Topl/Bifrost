@@ -1,6 +1,5 @@
 package co.topl.ledger.interpreters
 
-import cats.data.NonEmptyChain
 import cats.data.ValidatedNec
 import cats.effect.Sync
 import cats.implicits._
@@ -36,11 +35,10 @@ object BodyAuthorizationValidation {
                 context: DynamicContext[F, String, Datum] = ???
                 validationResult <- transactionAuthorizationValidation.validate(context)(transaction)
               } yield validationResult
-                .leftMap(errors =>
-                  NonEmptyChain[BodyAuthorizationError](
-                    BodyAuthorizationErrors.TransactionAuthorizationErrors(transaction, errors)
-                  )
+                .leftMap(error =>
+                  BodyAuthorizationErrors.TransactionAuthorizationErrors(transaction, error): BodyAuthorizationError
                 )
+                .toValidatedNec
                 .void
             )
             .map(_.as(body))

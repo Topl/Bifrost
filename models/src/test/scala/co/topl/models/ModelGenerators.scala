@@ -40,6 +40,7 @@ trait ModelGenerators {
 
   def networkPrefixGen: Gen[NetworkPrefix] =
     byteGen.map(NetworkPrefix(_))
+
   def partialOperationalCertificateGen: Gen[UnsignedBlockHeader.PartialOperationalCertificate] =
     for {
       parentVK <- co.topl.models.generators.consensus.ModelGenerators.arbitraryVerificationKeyKesProduct.arbitrary
@@ -114,9 +115,6 @@ trait ModelGenerators {
 
   implicit val arbitraryBytes: Arbitrary[Bytes] =
     Arbitrary(implicitly[Arbitrary[Array[Byte]]].arbitrary.map(ByteString.copyFrom(_)))
-
-  implicit val arbitraryKesProductSK: Arbitrary[SecretKeys.KesProduct] =
-    Arbitrary(kesProductSKGen)
 
   implicit def arbitraryStrictSizedBytes[L <: Length](implicit l: L): Arbitrary[Sized.Strict[Bytes, L]] =
     Arbitrary(genSizedStrictBytes[L]())

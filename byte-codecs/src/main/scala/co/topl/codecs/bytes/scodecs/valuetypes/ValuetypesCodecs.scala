@@ -6,6 +6,7 @@ import cats.implicits._
 import co.topl.codecs.bytes.ZigZagEncoder._
 import co.topl.codecs.bytes.scodecs.valuetypes.Constants._
 import co.topl.codecs.bytes.scodecs.valuetypes.Types._
+import com.google.protobuf.ByteString
 import scodec.bits.{BitVector, ByteVector}
 import scodec.interop.cats._
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
@@ -32,9 +33,11 @@ trait ValuetypesCodecs {
 
   implicit val byteCodec: Codec[Byte] = ByteCodec
 
-  def bytesCodec(size: Int): Codec[ByteVector] = byteArrayCodec(size).xmap(ByteVector(_), _.toArray)
+  def byteStringCodecSized(size: Int): Codec[ByteString] =
+    byteArrayCodecSized(size).xmap(ByteString.copyFrom, _.toByteArray)
 
-  def byteArrayCodec(size: Int): Codec[Array[Byte]] = new ByteArrayCodec(size)
+  def byteArrayCodecSized(size: Int): Codec[Array[Byte]] =
+    new ByteArrayCodec(size)
 
   val uByteCodec: Codec[UByte] =
     byteCodec
@@ -74,27 +77,6 @@ trait ValuetypesCodecs {
       else
         Attempt.failure(Err("UShort value is outside of valid range."))
     )(uShort => Attempt.successful(uShort))
-
-  implicit val byteStringCodec: Codec[ByteString] =
-    uByteCodec.consume[ByteString](size =>
-      byteArrayCodec(size)
-        .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
-    )(str => str.length.toByte)
-
-  implicit val intStringCodec: Codec[IntString] =
-    uIntCodec
-      .exmap[Int](
-        uInt =>
-          if (uInt < Int.MinValue || uInt > Int.MaxValue)
-            Attempt.failure(Err("UInt value is outside of valid range."))
-          else
-            Attempt.successful(uInt.toInt),
-        v => Attempt.successful(v.toLong)
-      )
-      .consume[IntString](int =>
-        byteArrayCodec(int)
-          .xmap(bytes => new String(bytes, stringCharacterSet), str => str.getBytes(stringCharacterSet))
-      )(str => str.length)
 
   implicit def tupleCodec[A: Codec, B: Codec]: Codec[(A, B)] =
     Codec[A].consume[(A, B)](a => Codec[B].xmap[(A, B)](b => (a, b), ab => ab._2))(ab => ab._1)

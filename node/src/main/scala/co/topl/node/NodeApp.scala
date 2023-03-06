@@ -16,6 +16,7 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.{SlotData, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.consensus.models.BlockId
+import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
@@ -202,6 +203,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
             consensusValidationState,
             leaderElectionThreshold,
             cryptoResources.ed25519,
+            cryptoResources.blake2b256,
             cryptoResources.ed25519VRF,
             cryptoResources.kesProduct,
             bigBangProtocol,
@@ -260,6 +262,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElectionThreshold:  LeaderElectionValidationAlgebra[F],
     ed25519Resource:          UnsafeResource[F, Ed25519],
+    blake2b256Resource:       UnsafeResource[F, Blake2b256],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
     protocol:                 ApplicationConfig.Bifrost.Protocol,
@@ -304,11 +307,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
 
       staking <- Staking.make(
         initializer.stakingAddress,
-        VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
+        initializer.vrfVK,
         operationalKeys,
         consensusValidationState,
         etaCalculation,
         ed25519Resource,
+        blake2b256Resource,
         vrfCalculator,
         leaderElectionThreshold
       )
@@ -318,7 +322,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
     clock:                       ClockAlgebra[F],
     dataStores:                  DataStores[F],
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    bigBangBlockId:                BlockId,
+    bigBangBlockId:              BlockId,
     blockIdTree:                 ParentChildTree[F, BlockId]
   ) =
     for {

@@ -1,6 +1,5 @@
 package co.topl.ledger.interpreters
 
-import cats.data.NonEmptyChain
 import cats.data.NonEmptySet
 import cats.data.ValidatedNec
 import cats.effect.Sync
@@ -22,7 +21,9 @@ object BodySyntaxValidation {
 
   implicit private val orderBoxId: Order[TransactionOutputAddress] = {
     implicit val orderTypedIdentifier: Order[Identifier.IoTransaction32] =
-      Order.from(ByteString.unsignedLexicographicalComparator().compare)
+      Order.by[Identifier.IoTransaction32, ByteString](_.evidence.digest.value)(
+        Order.from(ByteString.unsignedLexicographicalComparator().compare)
+      )
     Order.whenEqual(
       Order.by(_.id.asInstanceOf[TransactionOutputAddress.Id.IoTransaction32].value),
       Order.by(_.index)
@@ -75,7 +76,7 @@ object BodySyntaxValidation {
             .map(
               _.void
                 .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
-                .leftMap(NonEmptyChain[BodySyntaxError](_))
+                .toValidatedNec
             )
       }
     }

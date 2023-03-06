@@ -5,8 +5,7 @@ import co.topl.codecs.bytes.scodecs.valuetypes.emptyCodec
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
-import scodec.bits.{BitVector, ByteVector}
-import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err}
+import com.google.protobuf.ByteString
 
 /**
  * Encodes and decodes ByteVector data across many types.  In other words, this encodes and decodes _all_ messages
@@ -16,16 +15,16 @@ import scodec.{Attempt, Codec, DecodeResult, Decoder, Encoder, Err}
  * This codec is effectively type-unsafe, but it achieves pseudo-type-safety through byte discriminators.
  */
 trait MultiplexerCodec {
-  def decode(prefix:                  Byte)(data: ByteVector): Either[MultiplexerCodecFailure, (Any, NetworkTypeTag[_])]
-  def encode[T: NetworkTypeTag](data: T): Either[MultiplexerCodecFailure, (Byte, ByteVector)]
+  def decode(prefix:                  Byte)(data: ByteString): Either[MultiplexerCodecFailure, (Any, NetworkTypeTag[_])]
+  def encode[T: NetworkTypeTag](data: T): Either[MultiplexerCodecFailure, (Byte, ByteString)]
 }
 
 /**
  * A type-safe helper for constructing non-type-safe MultiplexerCodecs.
  */
 case class MultiplexerCodecBuilder(
-  private val decoders: Map[Byte, ByteVector => Either[MultiplexerCodecFailure, (Any, NetworkTypeTag[_])]],
-  private val encoders: Map[NetworkTypeTag[_], Any => Either[MultiplexerCodecFailure, (Byte, ByteVector)]]
+  private val decoders: Map[Byte, ByteString => Either[MultiplexerCodecFailure, (Any, NetworkTypeTag[_])]],
+  private val encoders: Map[NetworkTypeTag[_], Any => Either[MultiplexerCodecFailure, (Byte, ByteString)]]
 ) {
 
   /**
@@ -54,13 +53,13 @@ case class MultiplexerCodecBuilder(
   def multiplexerCodec: MultiplexerCodec =
     new MultiplexerCodec {
 
-      def decode(prefix: Byte)(data: ByteVector): Either[MultiplexerCodecFailure, (Any, NetworkTypeTag[_])] =
+      def decode(prefix: Byte)(data: ByteString): Either[MultiplexerCodecFailure, (Any, NetworkTypeTag[_])] =
         decoders
           .get(prefix)
           .toRight(MultiplexerCodecFailures.UnknownBytePrefix(prefix): MultiplexerCodecFailure)
           .flatMap(_.apply(data))
 
-      def encode[T: NetworkTypeTag](data: T): Either[MultiplexerCodecFailure, (Byte, ByteVector)] =
+      def encode[T: NetworkTypeTag](data: T): Either[MultiplexerCodecFailure, (Byte, ByteString)] =
         encoders
           .get(implicitly[NetworkTypeTag[T]])
           .toRight(MultiplexerCodecFailures.UnknownData(data): MultiplexerCodecFailure)
@@ -81,63 +80,51 @@ object MultiplexerCodecs {
 
   implicit def commonMessagesGetTransmittable[Query: Transmittable]
     : Transmittable[TypedProtocol.CommonMessages.Get[Query]] =
-    Transmittable.instanceFromCodec[TypedProtocol.CommonMessages.Get[Query]](
-      Codec[TypedProtocol.CommonMessages.Get[Query]](
-        (p: TypedProtocol.CommonMessages.Get[Query]) =>
-          Attempt.successful(Transmittable[Query].transmittableBytes(p.query)).map(_.toBitVector),
-        (p: BitVector) =>
-          Attempt.fromEither(
-            Transmittable[Query]
-              .fromTransmittableBytes(p.toByteVector)
-              .leftMap(Err(_))
-              .map(DecodeResult(_, BitVector.empty).map(t => TypedProtocol.CommonMessages.Get(t)))
-          )
-      )
-    )
+    new Transmittable[TypedProtocol.CommonMessages.Get[Query]] {
+
+      def transmittableBytes(value: TypedProtocol.CommonMessages.Get[Query]): ByteString =
+        Transmittable[Query].transmittableBytes(value.query)
+
+      def fromTransmittableBytes(bytes: ByteString): Either[String, TypedProtocol.CommonMessages.Get[Query]] =
+        Transmittable[Query].fromTransmittableBytes(bytes).map(TypedProtocol.CommonMessages.Get(_))
+
+    }
 
   implicit def commonMessagesResponseTransmittable[T: Transmittable]
     : Transmittable[TypedProtocol.CommonMessages.Response[T]] =
-    Transmittable.instanceFromCodec[TypedProtocol.CommonMessages.Response[T]](
-      Codec[TypedProtocol.CommonMessages.Response[T]](
-        encoder = Encoder((p: TypedProtocol.CommonMessages.Response[T]) =>
-          p.dataOpt match {
-            case Some(data) =>
-              Attempt
-                .successful(BitVector.one ++ Transmittable[T].transmittableBytes(data).toBitVector)
-            case _ =>
-              Attempt.successful(BitVector.zero)
-          }
-        ),
-        decoder = Decoder((p: BitVector) =>
-          (
-            if (p.head)
-              Attempt.fromEither(
-                Transmittable[T]
-                  .fromTransmittableBytes(p.tail.toByteVector)
-                  .leftMap(Err(_))
-                  .map(DecodeResult(_, BitVector.empty).map(t => TypedProtocol.CommonMessages.Response(t.some)))
-              )
-            else
-              Attempt.successful(DecodeResult(TypedProtocol.CommonMessages.Response(none[T]), p.tail))
-          )
+    new Transmittable[TypedProtocol.CommonMessages.Response[T]] {
+
+      def transmittableBytes(value: TypedProtocol.CommonMessages.Response[T]): ByteString =
+        value.dataOpt.fold(
+          ByteString.copyFrom(Array[Byte](0))
+        )(data =>
+          ByteString
+            .copyFrom(Array[Byte](1))
+            .concat(Transmittable[T].transmittableBytes(data))
         )
-      )
-    )
+
+      def fromTransmittableBytes(bytes: ByteString): Either[String, TypedProtocol.CommonMessages.Response[T]] =
+        bytes.byteAt(0) match {
+          case 0 =>
+            TypedProtocol.CommonMessages.Response(none[T]).asRight
+          case 1 =>
+            Transmittable[T].fromTransmittableBytes(bytes).map(_.some).map(TypedProtocol.CommonMessages.Response(_))
+          case _ =>
+            Left("Invalid byte prefix for Response")
+        }
+
+    }
 
   implicit def commonMessagesPushTransmittable[T: Transmittable]: Transmittable[TypedProtocol.CommonMessages.Push[T]] =
-    Transmittable.instanceFromCodec[TypedProtocol.CommonMessages.Push[T]](
-      Codec[TypedProtocol.CommonMessages.Push[T]](
-        (p: TypedProtocol.CommonMessages.Push[T]) =>
-          Attempt.successful(Transmittable[T].transmittableBytes(p.data)).map(_.toBitVector),
-        (p: BitVector) =>
-          Attempt.fromEither(
-            Transmittable[T]
-              .fromTransmittableBytes(p.toByteVector)
-              .leftMap(Err(_))
-              .map(DecodeResult(_, BitVector.empty).map(TypedProtocol.CommonMessages.Push[T](_)))
-          )
-      )
-    )
+    new Transmittable[TypedProtocol.CommonMessages.Push[T]] {
+
+      def transmittableBytes(value: TypedProtocol.CommonMessages.Push[T]): ByteString =
+        Transmittable[T].transmittableBytes(value.data)
+
+      def fromTransmittableBytes(bytes: ByteString): Either[String, TypedProtocol.CommonMessages.Push[T]] =
+        Transmittable[T].fromTransmittableBytes(bytes).map(TypedProtocol.CommonMessages.Push(_))
+
+    }
 
   implicit val commonMessagesDoneTransmittable: Transmittable[TypedProtocol.CommonMessages.Done.type] =
     Transmittable.instanceFromCodec(emptyCodec(TypedProtocol.CommonMessages.Done))

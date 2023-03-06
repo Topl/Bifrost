@@ -2,10 +2,10 @@ package co.topl.typeclasses
 
 import cats.Eq
 import cats.implicits._
+import co.topl.brambl.models.Identifier
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models._
 import co.topl.models.utility.Sized
-import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.consensus.models._
 import com.google.protobuf.ByteString
 
@@ -23,9 +23,6 @@ trait EqInstances {
   implicit def sizedStrictEq[T: Eq, L]: Eq[Sized.Strict[T, L]] =
     (a, b) => a.data === b.data
 
-  implicit val latin1DataEq: Eq[Latin1Data] =
-    (a, b) => a.value === b.value
-
   implicit val entropyEq: Eq[Entropy] =
     (a, b) => a.value === b.value
 
@@ -34,6 +31,9 @@ trait EqInstances {
 
   implicit val blockIdEq: Eq[BlockId] =
     (a, b) => a.value === b.value
+
+  implicit val transactionIdEq: Eq[Identifier.IoTransaction32] =
+    (a, b) => a.evidence.digest.value === b.evidence.digest.value
 
   implicit val eqSlotData: Eq[SlotData] =
     Eq.fromUniversalEquals

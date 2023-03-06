@@ -1,13 +1,18 @@
 package co.topl.blockchain
 
 import cats.data.Chain
-import cats.implicits._
+import co.topl.brambl.common.ContainsEvidence
+import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.CryptoConsensusMorphismInstances.signatureKesProductIsomorphism
+import co.topl.consensus.models.SignatureKesProduct
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing.Ed25519
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models._
@@ -15,6 +20,8 @@ import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import quivr.models.Int128
+import quivr.models.Proposition
+import quivr.models.VerificationKey
 
 /**
  * Represents the data required to initialize a new staking.  This includes the necessary secret keys, plus their
@@ -36,36 +43,64 @@ object StakerInitializers {
     operatorSK: ByteString,
     walletSK:   ByteString,
     spendingSK: ByteString,
-    vrfSK:      SecretKeys.VrfEd25519,
-    kesSK:      SecretKeys.KesProduct
+    vrfSK:      ByteString,
+    kesSK:      SecretKeyKesProduct
   ) extends StakerInitializer {
 
-    val vrfVK: Bytes = Ed25519VRF.precomputed().getVerificationKey(vrfSK.bytes.data)
+    val vrfVK: Bytes = ByteString.copyFrom(Ed25519VRF.precomputed().getVerificationKey(vrfSK.toByteArray))
     val operatorVK: Bytes = new Ed25519().getVerificationKey(operatorSK)
 
     val registration =
-      new KesProduct().sign(
-        kesSK,
-        new Blake2b256().hash(vrfVK, operatorVK)
-      )
+      new KesProduct()
+        .sign(
+          kesSK,
+          new Blake2b256().hash(vrfVK, operatorVK).toArray
+        )
+        .toF[cats.Id, SignatureKesProduct]
+        .toOption
+        .get
 
-    val stakingAddress =
+    val stakingAddress: ByteString =
       new Ed25519().getVerificationKey(operatorSK)
 
-    val spendingVK =
+    val spendingVK: ByteString =
       new Ed25519().getVerificationKey(spendingSK)
 
-    val spendingAddress: SpendingAddress =
-      spendingVK.spendingAddress
+    val lockAddress: LockAddress =
+      LockAddress(
+        0,
+        0,
+        LockAddress.Id.Lock32(
+          Identifier.Lock32(
+            ContainsEvidence[Lock].sized32Evidence(
+              Lock(
+                Lock.Value.Predicate(
+                  Lock.Predicate(
+                    List(
+                      Proposition(
+                        Proposition.Value.DigitalSignature(
+                          Proposition.DigitalSignature("ed25519", VerificationKey(spendingVK))
+                        )
+                      )
+                    ),
+                    1
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
 
     /**
      * This staker's initial stake in the network
      */
     def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[UnspentTransactionOutput] = {
-      val value = Value().withTopl(Value.TOPL(stake, registration.some))
+      val toplValue = Value().withTopl(Value.TOPL(stake, stakingAddress))
+      val registrationValue = Value().withRegistration(Value.Registration(registration, stakingAddress))
       Chain(
-        UnspentTransactionOutput(address, Box.Values.Arbit(stake), minting = true),
-        UnspentTransactionOutput(address, registration, minting = true)
+        UnspentTransactionOutput(lockAddress, toplValue),
+        UnspentTransactionOutput(lockAddress, registrationValue)
       )
     }
   }
@@ -99,14 +134,20 @@ object StakerInitializers {
         Ed25519VRF
           .precomputed()
           .deriveKeyPairFromSeed(
-            blake2b256.hash(seed.data :+ 4)
+            blake2b256.hash(seed.data :+ 4).toArray
           )
       val (kesSK, _) = new KesProduct().createKeyPair(
-        seed = blake2b256.hash(seed.data :+ 5),
+        seed = blake2b256.hash(seed.data :+ 5).toArray,
         height = kesKeyHeight,
         0
       )
-      Operator(operatorSK, walletSK, spendingSK, vrfSK, kesSK)
+      Operator(
+        operatorSK,
+        walletSK,
+        spendingSK,
+        ByteString.copyFrom(vrfSK),
+        kesSK
+      )
     }
   }
 

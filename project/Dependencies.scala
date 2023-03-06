@@ -199,8 +199,8 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
-    Seq(bramblScSdk).map(_ classifier ("tests")).map(_ % Test) ++
-    Seq(quivr4s).map(_ classifier ("tests")).map(_ % Test)
+    Seq(bramblScSdk, bramblScSdk.classifier("tests") % Test) ++
+    Seq(quivr4s, quivr4s.classifier("tests") % Test)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
@@ -219,8 +219,7 @@ object Dependencies {
 
   lazy val ledger: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++
-    Seq(Dependencies.bramblScSdk) ++
-    Seq(Dependencies.bramblScSdk.classifier("tests") % Test)
+    Seq(Dependencies.bramblScSdk, Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(

@@ -15,7 +15,6 @@ import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.{models => legacyModels}
-import co.topl.models.utility._
 import legacyModels._
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
@@ -210,15 +209,15 @@ object Blockchain {
         } yield block
       _ <- Async[F].background(
         mintedBlockStream
-          .evalMap(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
-            headerStore.put(block.header.id, block.header) &>
-            bodyStore.put(block.header.id, block.body) &>
+          .evalMap { block =>
+            val id = block.header.id
+            blockIdTree.associate(id, block.header.parentHeaderId) &>
+            headerStore.put(id, block.header) &>
+            bodyStore.put(id, block.body) &>
             ed25519VrfResource
               .use(implicit e => block.header.slotData.pure[F])
-              .map(ReplaceModelUtil.slotDataFromLegacy)
-              .flatTap(slotDataStore.put(block.header.id, _))
-          )
+              .flatTap(slotDataStore.put(id, _))
+          }
           .map(Validated.Valid(_))
           .evalTap(localChain.adopt)
           .compile

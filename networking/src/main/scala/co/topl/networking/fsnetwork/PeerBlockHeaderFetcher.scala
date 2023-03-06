@@ -130,9 +130,9 @@ object PeerBlockHeaderFetcher {
 
   // return: recent (current) block is the last
   private def buildTine[F[_]: MonadThrow: Logger](
-    store:  Store[F, TypedIdentifier, SlotData],
+    store:  Store[F, BlockId, SlotData],
     client: BlockchainPeerClient[F],
-    from:   TypedIdentifier
+    from:   BlockId
   ): OptionT[F, NonEmptyChain[SlotData]] = {
     val tine = getFromChainUntil(
       (s: SlotData) => s.pure[F],
@@ -166,7 +166,7 @@ object PeerBlockHeaderFetcher {
 
   private def downloadHeaders[F[_]: Async: Logger](
     state:    State[F],
-    blockIds: NonEmptyChain[TypedIdentifier]
+    blockIds: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] = {
     for {
       remoteHeaders <- getHeadersFromRemotePeer(state.client, blockIds)
@@ -176,11 +176,11 @@ object PeerBlockHeaderFetcher {
 
   private def getHeadersFromRemotePeer[F[_]: Async: Logger](
     client:   BlockchainPeerClient[F],
-    blockIds: NonEmptyChain[TypedIdentifier]
-  ): OptionT[F, NonEmptyChain[(TypedIdentifier, BlockHeader)]] =
+    blockIds: NonEmptyChain[BlockId]
+  ): OptionT[F, NonEmptyChain[(BlockId, BlockHeader)]] =
     OptionT(
       Stream
-        .foldable[F, NonEmptyChain, TypedIdentifier](blockIds)
+        .foldable[F, NonEmptyChain, BlockId](blockIds)
         .parEvalMapUnbounded(downloadHeader(client, _))
         .compile
         .toList
@@ -189,21 +189,21 @@ object PeerBlockHeaderFetcher {
 
   private def downloadHeader[F[_]: Async: Logger](
     client:  BlockchainPeerClient[F],
-    blockId: TypedIdentifier
-  ): F[(TypedIdentifier, BlockHeader)] = {
+    blockId: BlockId
+  ): F[(BlockId, BlockHeader)] = {
     val InconsistentHeaderId =
       new IllegalArgumentException("Claimed block ID did not match provided header")
 
     for {
       _      <- Logger[F].info(show"Fetching remote header id=$blockId")
       header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
-      _      <- MonadThrow[F].raiseWhen(header.id.asTypedBytes =!= blockId)(InconsistentHeaderId)
+      _      <- MonadThrow[F].raiseWhen(header.id =!= blockId)(InconsistentHeaderId)
     } yield (blockId, header)
   }
 
   private def sendHeadersToBlockChecker[F[_]](
     state:   State[F],
-    headers: NonEmptyChain[(TypedIdentifier, BlockHeader)]
+    headers: NonEmptyChain[(BlockId, BlockHeader)]
   ) = {
     val message = BlockChecker.Message.RemoteBlockHeader(state.hostId, headers)
     state.blockHeadersChecker.sendNoWait(message)

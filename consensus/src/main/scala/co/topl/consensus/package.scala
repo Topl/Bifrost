@@ -7,6 +7,7 @@ import co.topl.consensus.models.SlotId
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.Bytes
+import co.topl.models.UnsignedBlockHeader
 import co.topl.models.utility._
 import com.google.protobuf.ByteString
 
@@ -22,9 +23,28 @@ package object consensus {
       SlotData(
         SlotId(blockHeader.slot, blockHeader.id),
         SlotId(blockHeader.parentSlot, blockHeader.parentHeaderId),
-        ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig),
+        ByteString.copyFrom(ed25519VRF.proofToHash(blockHeader.eligibilityCertificate.vrfSig.toByteArray)),
         blockHeader.eligibilityCertificate.eta,
         blockHeader.height
+      )
+
+    def unsigned: UnsignedBlockHeader =
+      UnsignedBlockHeader(
+        blockHeader.parentHeaderId,
+        blockHeader.parentSlot,
+        blockHeader.txRoot,
+        blockHeader.bloomFilter,
+        blockHeader.timestamp,
+        blockHeader.height,
+        blockHeader.slot,
+        blockHeader.eligibilityCertificate,
+        UnsignedBlockHeader.PartialOperationalCertificate(
+          blockHeader.operationalCertificate.parentVK,
+          blockHeader.operationalCertificate.parentSignature,
+          blockHeader.operationalCertificate.childVK
+        ),
+        blockHeader.metadata,
+        blockHeader.address
       )
   }
 

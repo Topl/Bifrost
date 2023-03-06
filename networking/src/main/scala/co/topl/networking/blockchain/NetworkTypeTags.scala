@@ -5,10 +5,9 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
-import co.topl.models.BlockBody
-import co.topl.models.Transaction
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
+import co.topl.node.models.BlockBody
 
 object NetworkTypeTags {
 

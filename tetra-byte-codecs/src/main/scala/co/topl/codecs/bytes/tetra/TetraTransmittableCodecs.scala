@@ -2,10 +2,9 @@ package co.topl.codecs.bytes.tetra
 
 import cats.implicits._
 import co.topl.codecs.bytes.typeclasses.Transmittable
+import co.topl.consensus.models.BlockId
 import co.topl.models.utility.Ratio
-import co.topl.{models => legacyModels}
 import com.google.protobuf.ByteString
-import legacyModels._
 import scalapb.GeneratedMessage
 import scalapb.GeneratedMessageCompanion
 
@@ -26,12 +25,11 @@ trait TetraTransmittableCodecs {
     }
 
   implicit val ratioTransmittable: Transmittable[Ratio] = Transmittable.instanceFromCodec
-  implicit val typedIdentifierTransmittable: Transmittable[TypedBytes] = Transmittable.instanceFromCodec
 
-  implicit val longTypedIdentifierOptTransmittable: Transmittable[(Long, Option[TypedIdentifier])] =
+  implicit val longBlockIdOptTransmittable: Transmittable[(Long, Option[BlockId])] =
     Transmittable.instanceFromCodec(
-      (longCodec :: optionCodec[TypedIdentifier])
-        .as[(Long, Option[TypedIdentifier])]
+      (longCodec :: optionCodec[BlockId])
+        .as[(Long, Option[BlockId])]
     )
 }
 

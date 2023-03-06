@@ -4,15 +4,16 @@ import cats.data.{Chain, OptionT}
 import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.catsakka._
 import co.topl.consensus.models.BlockId
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
 import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.consensus.models.{SlotData, SlotId}
 import co.topl.node.models.FullBlockBody
-import co.topl.node.models.{Block, BlockBody}
+import co.topl.node.models.Block
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -42,7 +43,7 @@ object BlockProducer {
     staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker))
 
   private class Impl[F[_]: Async](
-    stakerAddress: StakingAddresses.Operator,
+    stakerAddress: StakingAddress,
     parentHeaders: Stream[F, SlotData],
     staker:        StakingAlgebra[F],
     clock:         ClockAlgebra[F],
@@ -74,18 +75,19 @@ object BlockProducer {
             show" eligibilitySlot=${nextHit.slot}"
           )
           // Assemble the transactions to be placed in our new block
-          body      <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+          fullBody  <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
           timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
-          blockMaker = prepareUnsignedBlock(parentSlotData, body, timestamp, nextHit)
+          blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
           // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
           // restarts in the middle of an operational period.  The node must wait until the next operational period
           // to have a set of corresponding linear keys to work with
-          maybeBlock <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+          maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+          body = BlockBody(fullBody.transaction.map(_.id))
           _ <- OptionT
-            .fromOption[F](maybeBlock)
-            .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
+            .fromOption[F](maybeHeader)
+            .semiflatTap(block => Logger[F].info(show"Minted header=$block body=$body"))
             .value
-        } yield maybeBlock,
+        } yield maybeHeader.map(Block(_, body)),
         Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
       )
 
@@ -109,7 +111,7 @@ object BlockProducer {
     private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
       blockPacker
         .improvePackedBlock(parentId, height, untilSlot)
-        .flatMap(Iterative.run(Chain.empty[Transaction].pure[F]))
+        .flatMap(Iterative.run(FullBlockBody().pure[F]))
         .productL(clock.delayedUntilSlot(untilSlot))
         .flatMap(_.apply())
 
@@ -121,23 +123,20 @@ object BlockProducer {
       body:           FullBlockBody,
       timestamp:      Timestamp,
       nextHit:        VrfHit
-    ): UnsignedBlockHeader.PartialOperationalCertificate => (UnsignedBlockHeader, BlockBody) =
+    ): UnsignedBlockHeader.PartialOperationalCertificate => UnsignedBlockHeader =
       (partialOperationalCertificate: UnsignedBlockHeader.PartialOperationalCertificate) =>
-        (
-          UnsignedBlockHeader(
-            parentHeaderId = parentSlotData.slotId.blockId,
-            parentSlot = parentSlotData.slotId.slot,
-            txRoot = body.merkleTreeRootHash.data,
-            bloomFilter = body.bloomFilter.data,
-            timestamp = timestamp,
-            height = parentSlotData.height + 1,
-            slot = nextHit.slot,
-            eligibilityCertificate = nextHit.cert,
-            partialOperationalCertificate = partialOperationalCertificate,
-            metadata = ByteString.EMPTY,
-            address = stakerAddress.vk
-          ),
-          BlockBody(body.transaction.map(_.id))
+        UnsignedBlockHeader(
+          parentHeaderId = parentSlotData.slotId.blockId,
+          parentSlot = parentSlotData.slotId.slot,
+          txRoot = body.merkleTreeRootHash.data,
+          bloomFilter = body.bloomFilter.data,
+          timestamp = timestamp,
+          height = parentSlotData.height + 1,
+          slot = nextHit.slot,
+          eligibilityCertificate = nextHit.cert,
+          partialOperationalCertificate = partialOperationalCertificate,
+          metadata = ByteString.EMPTY,
+          address = stakerAddress
         )
   }
 

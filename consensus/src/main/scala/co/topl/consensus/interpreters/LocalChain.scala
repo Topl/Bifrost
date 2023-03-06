@@ -8,6 +8,7 @@ import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
+import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger

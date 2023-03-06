@@ -16,6 +16,7 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.consensus.models._
+import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
@@ -120,7 +121,7 @@ object OperationalKeyMaker {
      */
     private[interpreters] def consumeEvolvePersist[T](
       timeStep: Int,
-      use:      SecretKeys.KesProduct => F[T]
+      use:      SecretKeyKesProduct => F[T]
     ): F[Option[T]] =
       MonadCancelThrow[F].uncancelable(_ =>
         (
@@ -133,13 +134,13 @@ object OperationalKeyMaker {
                 )
             })
             _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
-            diskKey <- OptionT(secureStore.consume[SecretKeys.KesProduct](fileName))
+            diskKey <- OptionT(secureStore.consume[SecretKeyKesProduct](fileName))
             latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
             currentPeriodKey <-
               if (latest === timeStep) OptionT.pure[F](diskKey)
               else if (latest > timeStep)
                 OptionT
-                  .none[F, SecretKeys.KesProduct]
+                  .none[F, SecretKeyKesProduct]
                   .flatTapNone(
                     Logger[F].info(
                       show"Persisted key timeStep=$latest is greater than current timeStep=$timeStep." +
@@ -164,7 +165,7 @@ object OperationalKeyMaker {
      * @param parentSlotId Used for Eta lookup when determining ineligible VRF slots
      */
     private[interpreters] def prepareOperationalPeriodKeys(
-      kesParent:     SecretKeys.KesProduct,
+      kesParent:     SecretKeyKesProduct,
       fromSlot:      Slot,
       parentSlotId:  SlotId,
       relativeStake: Ratio
@@ -199,18 +200,20 @@ object OperationalKeyMaker {
      * From some "parent" KES key, create several SKs for each slot in the given list of slots
      */
     private[interpreters] def prepareOperationalPeriodKeys(
-      kesParent: SecretKeys.KesProduct,
+      kesParent: SecretKeyKesProduct,
       slots:     Vector[Slot]
     ): F[Vector[OperationalKeyOut]] =
       Sync[F]
         .delay(List.fill(slots.size)(()))
         .flatMap(
           _.parTraverse(_ =>
-            ed25519Resource.use(ed =>
-              Sync[F].delay(
-                ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
+            ed25519Resource
+              .use(ed =>
+                Sync[F].delay(
+                  ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
+                )
               )
-            )
+              .map { case (sk, vk) => (sk: ByteString, vk: ByteString) }
           )
         )
         .flatMap(children =>
@@ -225,9 +228,8 @@ object OperationalKeyMaker {
                       .delay {
                         kesProductScheme.sign(
                           kesParent,
-                          childVK ++ ByteString.copyFrom(Longs.toByteArray(slot))
+                          childVK.concat(ByteString.copyFrom(Longs.toByteArray(slot))).toByteArray
                         )
-                        <<<<<<< dev
                       }
                       .flatMap(parentSignature =>
                         (for {

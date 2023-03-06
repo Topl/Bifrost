@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{Chain, NonEmptyChain, Validated, ValidatedNec}
+import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models.Identifier
@@ -24,9 +24,9 @@ object BodySemanticValidation {
          */
         def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
           body.transactionIds
-            .foldLeftM(Chain.empty[IoTransaction].validNec[BodySemanticError]) {
+            .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>
-                validateTransaction(context, prefix)(transactionId).map(_.map(prefix.append))
+                validateTransaction(context, prefix)(transactionId).map(_.map(prefix :+ _))
               case (invalid, _) => invalid.pure[F]
             }
             .map(_.as(body))
@@ -39,7 +39,7 @@ object BodySemanticValidation {
          */
         private def validateTransaction(
           context: BodyValidationContext,
-          prefix:  Chain[IoTransaction]
+          prefix:  Seq[IoTransaction]
         )(transactionId: Identifier.IoTransaction32) =
           for {
             transaction <- fetchTransaction(transactionId)

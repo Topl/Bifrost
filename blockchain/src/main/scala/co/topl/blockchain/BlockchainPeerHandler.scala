@@ -247,7 +247,7 @@ object BlockchainPeerHandler {
       slotDataStore:               Store[F, BlockId, SlotData],
       headerStore:                 Store[F, BlockId, BlockHeader],
       bodyStore:                   Store[F, BlockId, BlockBody],
-      transactionStore:            Store[F, Identifier.IoTransaction32, Transaction]
+      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction]
     )(from: BlockId) =
       determineMissingValues(
         bodyStore.contains,

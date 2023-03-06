@@ -512,7 +512,8 @@ lazy val transactionGenerator = project
     algebras,
     toplGrpc,
     commonApplication,
-    commonInterpreters
+    commonInterpreters,
+    numerics
   )
 
 lazy val ledger = project

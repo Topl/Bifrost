@@ -13,6 +13,7 @@ import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import quivr.models.SmallData
+import scodec.bits.ByteVector
 
 /**
  * The beginning of everything.  ("everything" of course just means the first block of a blockchain)
@@ -56,8 +57,9 @@ object BigBang {
     val eta: Eta =
       Sized.strictUnsafe(
         new Blake2b256().hash(
-          config.etaPrefix +:
-          transactions.map(_.immutableBytes).toList: _*
+          (config.etaPrefix +:
+          transactions.map(_.id.evidence.digest.value))
+            .map(v => v: ByteVector): _*
         )
       )
 

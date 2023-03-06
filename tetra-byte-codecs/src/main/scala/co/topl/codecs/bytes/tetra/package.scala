@@ -7,11 +7,8 @@ package co.topl.codecs.bytes
 package object tetra {
 
   object instances
-      extends TetraBinaryShowCodecs
-      with ProtoIdentifiableOps
+      extends ProtoIdentifiableOps
       with TetraPersistableCodecs
-//      with TetraScodecCodecs
       with TetraSignableCodecs
-      with TetraImmutableCodecs
       with TetraTransmittableCodecs
 }

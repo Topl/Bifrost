@@ -53,7 +53,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
 
   codecBehavior[KesBinaryTree](
     "KesBinaryTree",
-    TetraScodecCodecs.kesBinaryTreeCodec,
+    TetraScodecCodecs.nodeCryptoKesBinaryTreeCodec,
     ModelGenerators.kesBinaryTreeGen
   )
 
@@ -113,7 +113,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
 
   codecBehavior[Proofs.Knowledge.KesSum](
     "Proofs.Knowledge.KesSum",
-    TetraScodecCodecs.proofSignatureKesSumCodec,
+    TetraScodecCodecs.nodeCryptoSignatureKesSumCodec,
     ModelGenerators.kesSumProofGen
   )
 
@@ -149,13 +149,13 @@ class TetraScodecCodecsSpec extends CodecSpec {
 
   codecBehavior[SecretKeys.KesSum](
     "SecretKeys.KesSum",
-    TetraScodecCodecs.secretKeyKesSumCodec,
+    TetraScodecCodecs.nodeCryptoSecretKeyKesSumCodec,
     ModelGenerators.kesSumSKGen
   )
 
   codecBehavior[SecretKeys.KesProduct](
     "SecretKeys.KesProduct",
-    TetraScodecCodecs.secretKeyKesProductCodec,
+    TetraScodecCodecs.nodeCryptoSecretKeyKesProductCodec,
     ModelGenerators.kesProductSKGen
   )
 

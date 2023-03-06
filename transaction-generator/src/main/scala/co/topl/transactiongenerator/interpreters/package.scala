@@ -1,16 +1,16 @@
 package co.topl.transactiongenerator
 
-import cats.implicits._
-import co.topl.brambl.models.Address
+import co.topl.brambl.common.ContainsEvidence
+import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
+import co.topl.brambl.models.Evidence
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.box.Box
+import co.topl.brambl.models.box.Lock
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.{models => legacyModels}
-import legacyModels._
-import legacyModels.utility.HasLength.instances.bytesLength
-import legacyModels.utility.Sized
 import co.topl.transactiongenerator.models.Wallet
-import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
 import quivr.models._
 
 package object interpreters {
@@ -22,76 +22,55 @@ package object interpreters {
       )
     )
 
-  val HeightLockOneSpendingAddress: Address = HeightLockOneProposition.spendingAddress
-
-  val HeightLockOneSpendingAddressProto: protoModels.SpendingAddress = {
-    // See SpendingAddressable TODO on SpendingAddressable trait
-    val typedEvidence = HeightLockOnePropositionProto.spendingAddress.typedEvidence
-    protoModels.SpendingAddress.of(
-      Some(
-        protoModels
-          .TypedEvidence(typedEvidence.typePrefix.toInt, ByteString.copyFrom(typedEvidence.evidence.data.toArray))
+  val HeightLockOneLock: Lock =
+    Lock(
+      Lock.Value.Predicate(
+        Lock.Predicate(
+          List(HeightLockOneProposition),
+          1
+        )
       )
     )
-  }
+
+  val HeightLockOneEvidence: Evidence.Sized32 =
+    ContainsEvidence[Lock].sized32Evidence(HeightLockOneLock)
+
+  val HeightLockOneSpendingAddress: LockAddress =
+    lockAddressOf(HeightLockOneLock)
+
+  def lockAddressOf(lock: Lock): LockAddress =
+    LockAddress(
+      0,
+      0,
+      LockAddress.Id.Lock32(
+        Identifier.Lock32(
+          ContainsEvidence[Lock].sized32Evidence(lock)
+        )
+      )
+    )
 
   val emptyWallet: Wallet =
     Wallet(
       Map.empty,
-      Map(
-        HeightLockOneSpendingAddress.typedEvidence ->
-        HeightLockOneProposition
-      )
+      Map(HeightLockOneEvidence -> HeightLockOneLock)
     )
 
   /**
    * Incorporate a Transaction into a Wallet by removing spent outputs and including new outputs.
    */
   def applyTransaction(wallet: Wallet)(transaction: IoTransaction): Wallet = {
-    // TODO Wallet spentBoxIds model should change to new protobuf specs and not use boxIdIsomorphism
-    val spentBoxIds = transaction.inputs
-      .flatMap(_.boxId)
-      .map(boxId => co.topl.models.utility.boxIdIsomorphism[cats.Id].baMorphism.aToB(boxId))
-      .map(_.toEitherT[cats.Id])
-      .map(_.bimap(_ => Option.empty[Box.Id], _.some))
-      .map(_.value)
-      .flatMap(_.toOption)
-      .flatten
+    val spentBoxIds = transaction.inputs.map(_.address)
 
-    val transactionId = transaction.id.asTypedBytes
-    val newBoxes = transaction.outputs.zipWithIndex.collect {
-      case (output, index)
-          if wallet.propositions.contains(
-            output.address
-              .flatMap(fullAddress =>
-                // TODO Wallet spendingAddress model should change to new protobuf specs and not use boxIdIsomorphism
-                co.topl.models.utility
-                  .spendingAddressIsorphism[Option]
-                  .baMorphism
-                  .aToB(fullAddress.spendingAddress)
-                  .flatMap(_.toOption)
-                  .map(_.typedEvidence)
-              )
-              .getOrElse(TypedEvidence.empty)
-          ) =>
-        val boxId = Box.Id(transactionId, index.toShort)
-        val box =
-          Box(
-            // TODO Wallet spendingAddress model should change to new protobuf specs and not use boxIdIsomorphism
-            co.topl.models.utility
-              .spendingAddressIsorphism[Option]
-              .baMorphism
-              .aToB(output.address.flatMap(_.spendingAddress))
-              .flatMap(_.toOption)
-              .map(_.typedEvidence)
-              .getOrElse(TypedEvidence.empty),
-            co.topl.models.utility
-              .boxValueIsomorphism[cats.Id]
-              .baMorphism
-              .aToB(output.value)
-              .getOrElse(Box.Values.Empty)
+    val transactionId = transaction.id
+    val newBoxes = transaction.outputs.zipWithIndex.flatMap { case (output, index) =>
+      wallet.propositions
+        .get(output.address.getLock32.evidence)
+        .map(lock =>
+          (
+            TransactionOutputAddress(0, 0, index.toShort, TransactionOutputAddress.Id.IoTransaction32(transactionId)),
+            Box(lock, output.value)
           )
-        (boxId, box)
+        )
     }
     wallet.copy(spendableBoxes = wallet.spendableBoxes -- spentBoxIds ++ newBoxes)
   }

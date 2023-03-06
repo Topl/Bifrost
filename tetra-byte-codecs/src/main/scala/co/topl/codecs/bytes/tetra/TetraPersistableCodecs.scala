@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.models.BlockId
-import co.topl.models._
+import co.topl.crypto.models.SecretKeyKesProduct
 import com.google.protobuf.ByteString
 import scalapb.GeneratedMessage
 import scalapb.GeneratedMessageCompanion
@@ -45,12 +45,15 @@ trait TetraPersistableCodecs {
     }
 
   implicit val persistableHeightIdTuple: Persistable[(Long, BlockId)] =
-    Persistable.instanceFromCodec
+    Persistable.instanceFromCodec(tupleCodec(longCodec, blockIdCodec))
 
   implicit val persistableByte: Persistable[Byte] =
     Persistable.instanceFromCodec
 
-  implicit val persistableKesProductSecretKey: Persistable[SecretKeys.KesProduct] =
+  implicit val persistableByteString: Persistable[ByteString] =
+    Persistable.instanceFromCodec
+
+  implicit val persistableKesProductSecretKey: Persistable[SecretKeyKesProduct] =
     Persistable.instanceFromCodec
 }
 

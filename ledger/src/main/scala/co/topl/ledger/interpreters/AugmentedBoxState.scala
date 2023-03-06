@@ -41,10 +41,14 @@ object AugmentedBoxState {
      * the Transaction spends a box that exists in `newBoxIds`, the entry is moved from `newBoxIds` to `spentBoxIds`.
      */
     def augment(transaction: IoTransaction): StateAugmentation = {
-      val transactionSpentBoxIds = transaction.inputs.map(_.address.getIoTransaction32).toSet
+      val transactionSpentBoxIds = transaction.inputs.map(_.address).toSet
       val transactionId = transaction.id
       val transactionNewBoxIds =
-        transaction.outputs.mapWithIndex((_, idx) => BoxId(transactionId, idx.toShort)).toSet
+        transaction.outputs
+          .mapWithIndex((_, idx) =>
+            TransactionOutputAddress(0, 0, idx, TransactionOutputAddress.Id.IoTransaction32(transactionId))
+          )
+          .toSet
       StateAugmentation(
         spentBoxIds ++ transactionSpentBoxIds,
         (newBoxIds ++ transactionNewBoxIds) -- transactionSpentBoxIds

@@ -22,6 +22,7 @@ import co.topl.ledger.algebras.{
   BodySyntaxValidationAlgebra
 }
 import co.topl.ledger.interpreters._
+import co.topl.quivr.api.Verifier.instances.verifierInstance
 import co.topl.typeclasses.implicits._
 
 case class Validators[F[_]](
@@ -67,10 +68,10 @@ object Validators {
         currentEventIdGetterSetters.boxState.set,
         dataStores.spendableBoxIds.pure[F]
       )
-      transactionSyntaxValidation <- TransactionSyntaxInterpreter.make[F]
+      transactionSyntaxValidation = TransactionSyntaxInterpreter.make[F]
       transactionSemanticValidation <- TransactionSemanticValidation
         .make[F](dataStores.transactions.getOrRaise, boxState)
-      transactionAuthorizationValidation <- TransactionAuthorizationInterpreter.make[F]()
+      transactionAuthorizationValidation = TransactionAuthorizationInterpreter.make[F]()
       bodySyntaxValidation <- BodySyntaxValidation
         .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation)
       bodySemanticValidation <- BodySemanticValidation.make[F](

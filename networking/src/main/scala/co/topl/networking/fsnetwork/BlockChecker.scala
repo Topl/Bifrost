@@ -7,12 +7,10 @@ import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.StaticBodyValidationContext
-import co.topl.models.utility._
 import co.topl.models._
 import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor

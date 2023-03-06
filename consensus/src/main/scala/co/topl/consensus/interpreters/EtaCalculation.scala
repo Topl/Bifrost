@@ -13,14 +13,16 @@ import co.topl.consensus.rhoToRhoNonceHash
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
+import scodec.bits.ByteVector
 
 object EtaCalculation {
 
@@ -149,7 +151,8 @@ object EtaCalculation {
     ): F[Eta] =
       Sync[F]
         .delay(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
-        .flatMap(bytes => blake2b256Resource.use(b2b => Sync[F].delay(b2b.hash(bytes.map(v => v: Bytes): _*))))
+        .flatMap(bytes => blake2b256Resource.use(b2b => Sync[F].delay(b2b.hash(bytes.map(v => v: ByteVector): _*))))
+        .map(v => v: ByteString)
         .map(Sized.strictUnsafe(_): Eta)
 
     private def emptyEpochDetected(epoch: Epoch) =

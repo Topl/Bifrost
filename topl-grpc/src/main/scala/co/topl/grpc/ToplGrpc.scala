@@ -108,6 +108,14 @@ object ToplGrpc {
                     SynchronizationTraversalReq(),
                     new Metadata()
                   )
+                  .map(_.status match {
+                    case SynchronizationTraversalRes.Status.Applied(value) =>
+                      SynchronizationTraversalSteps.Applied(value)
+                    case SynchronizationTraversalRes.Status.Unapplied(value) =>
+                      SynchronizationTraversalSteps.Unapplied(value)
+                    case e =>
+                      throw new MatchError(e)
+                  })
               }
 
           }

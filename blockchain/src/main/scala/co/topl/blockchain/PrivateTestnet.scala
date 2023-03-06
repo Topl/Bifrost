@@ -1,6 +1,11 @@
 package co.topl.blockchain
 
 import cats.data.Chain
+import co.topl.brambl.common.ContainsEvidence
+import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.crypto.hash.Blake2b256
@@ -11,6 +16,7 @@ import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import quivr.models.Int128
+import quivr.models.Proposition
 
 object PrivateTestnet {
 
@@ -52,9 +58,39 @@ object PrivateTestnet {
         .flatMap(_.bigBangOutputs(Ratio(TotalStake, stakers.length).round))
         .append(
           UnspentTransactionOutput(
-            Propositions.Contextual.HeightLock(1).spendingAddress,
+            HeightLockOneSpendingAddress,
             Value().withLvl(Value.LVL(10_000_000L))
           )
         )
+        .toList
     )
+
+  val HeightLockOneProposition: Proposition =
+    Proposition(
+      Proposition.Value.HeightRange(
+        Proposition.HeightRange("tick", 1, Long.MaxValue)
+      )
+    )
+
+  val HeightLockOneLock: Lock =
+    Lock(
+      Lock.Value.Predicate(
+        Lock.Predicate(
+          List(HeightLockOneProposition),
+          1
+        )
+      )
+    )
+
+  val HeightLockOneSpendingAddress: LockAddress =
+    LockAddress(
+      0,
+      0,
+      LockAddress.Id.Lock32(
+        Identifier.Lock32(
+          ContainsEvidence[Lock].sized32Evidence(HeightLockOneLock)
+        )
+      )
+    )
+
 }
