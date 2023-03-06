@@ -1,8 +1,7 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.models.utility.KesBinaryTree
-import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
-
+import co.topl.crypto.models._
+import KesBinaryTree._
 import java.security.SecureRandom
 
 class ProductComposition extends KesEd25519Blake2b256 {

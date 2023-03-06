@@ -22,9 +22,6 @@ trait ShowInstances {
       show"($prefix)$bytes"
     }
 
-  implicit val showBytes: Show[Bytes] =
-    bytes => bytes.toBase58
-
   implicit val showByteString: Show[ByteString] =
     bytes => bytes.toBase58
 
@@ -41,13 +38,7 @@ trait ShowInstances {
     slotID => show"{${slotID.slot},${slotID.blockId}}"
 
   implicit val showRho: Show[Rho] =
-    _.sizedBytes.show
-
-  implicit val showStakingAddressesOperator: Show[StakingAddresses.Operator] =
-    showBytes.contramap[StakingAddresses.Operator](_.immutableBytes)
-
-  implicit val showStakingAddress: Show[StakingAddress] =
-    showBytes.contramap[StakingAddress](_.immutableBytes)
+    _.sizedBytes.data.show
 
   implicit val showBlockHeader: Show[BlockHeader] =
     header =>
@@ -67,6 +58,11 @@ trait ShowInstances {
 
   implicit val showNodeBlockBody: Show[BlockBody] =
     body => show"${body.transactionIds}"
+
+  implicit val showTransactionOutputAddressId: Show[TransactionOutputAddress.Id] = {
+    case TransactionOutputAddress.Id.IoTransaction32(value) => value.show
+    case t                                                  => throw new MatchError(t)
+  }
 
   implicit val showBoxId: Show[TransactionOutputAddress] =
     boxId => show"${boxId.id}.outputs[${boxId.index}]"

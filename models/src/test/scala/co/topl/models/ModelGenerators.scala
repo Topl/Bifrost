@@ -5,7 +5,6 @@ import cats.data.NonEmptyList
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.StringDataTypes.Latin1Data
 import co.topl.models.utility._
 import com.google.protobuf.ByteString
 import org.scalacheck.rng.Seed
@@ -39,59 +38,8 @@ trait ModelGenerators {
   def relativeStakeGen: Gen[Ratio] =
     Gen.chooseNum(1L, 5L).flatMap(denominator => Ratio(1L, denominator))
 
-  def latin1DataGen: Gen[Latin1Data] =
-    Gen
-      .containerOfN[Array, Byte](32, Gen.choose[Byte](0, 32))
-      .map(Latin1Data.fromData(_))
-
-  def vkVrfEd25519Gen: Gen[VerificationKeys.VrfEd25519] =
-    genSizedStrictBytes[Lengths.`32`.type]().map(VerificationKeys.VrfEd25519(_))
-
   def networkPrefixGen: Gen[NetworkPrefix] =
     byteGen.map(NetworkPrefix(_))
-
-  def vkKesSumGen: Gen[VerificationKeys.KesSum] =
-    for {
-      bytes <- genSizedStrictBytes[VerificationKeys.KesSum.Length]()
-      step  <- Gen.posNum[Int]
-    } yield VerificationKeys.KesSum(bytes, step)
-
-  def skVrfEd25519Gen: Gen[SecretKeys.VrfEd25519] =
-    genSizedStrictBytes[SecretKeys.VrfEd25519.Length]().map(SecretKeys.VrfEd25519(_))
-
-  def kesBinaryTreeGen: Gen[KesBinaryTree] =
-    Gen.chooseNum[Int](0, 2).flatMap {
-      case 0 =>
-        for {
-          seed         <- Gen.containerOfN[Array, Byte](32, byteGen)
-          witnessLeft  <- Gen.containerOfN[Array, Byte](32, byteGen)
-          witnessRight <- Gen.containerOfN[Array, Byte](32, byteGen)
-          left         <- kesBinaryTreeGen
-          right        <- kesBinaryTreeGen
-        } yield KesBinaryTree.MerkleNode(seed, witnessLeft, witnessRight, left, right)
-      case 1 =>
-        for {
-          sk <- Gen.containerOfN[Array, Byte](32, byteGen)
-          vk <- Gen.containerOfN[Array, Byte](32, byteGen)
-        } yield KesBinaryTree.SigningLeaf(sk, vk)
-      case 2 => Gen.const(KesBinaryTree.Empty())
-    }
-
-  def kesSumSKGen: Gen[SecretKeys.KesSum] =
-    for {
-      tree   <- kesBinaryTreeGen
-      offset <- Gen.long
-    } yield SecretKeys.KesSum(tree, offset)
-
-  def kesProductSKGen: Gen[SecretKeys.KesProduct] =
-    for {
-      superTree   <- kesBinaryTreeGen
-      subTree     <- kesBinaryTreeGen
-      nextSubSeed <- Gen.containerOfN[Array, Byte](32, byteGen)
-      signature   <- co.topl.models.generators.consensus.ModelGenerators.signatureKesSumArbitrary.arbitrary
-      offset      <- Gen.long
-    } yield SecretKeys.KesProduct(superTree, subTree, nextSubSeed, signature, offset)
-
   def partialOperationalCertificateGen: Gen[UnsignedBlockHeader.PartialOperationalCertificate] =
     for {
       parentVK <- co.topl.models.generators.consensus.ModelGenerators.arbitraryVerificationKeyKesProduct.arbitrary

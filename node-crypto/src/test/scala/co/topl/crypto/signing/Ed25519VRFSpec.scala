@@ -1,11 +1,11 @@
 package co.topl.crypto.signing
 
 import co.topl.crypto.generation.mnemonic.Entropy
-import co.topl.crypto.utils.{Hex, TestVector}
-import co.topl.crypto.utils.Generators.arbitraryEntropy
-import co.topl.models.ModelGenerators.arbitraryBytes
+import co.topl.crypto.utils.EntropySupport._
+import co.topl.crypto.utils._
 import io.circe.generic.semiauto.deriveDecoder
-import io.circe.{Decoder, HCursor}
+import io.circe.Decoder
+import io.circe.HCursor
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -24,8 +24,8 @@ import scodec.bits.ByteVector
 class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
 
   property("with Ed25519VRF, signed message should be verifiable with appropriate public key") {
-    forAll { (entropy1: Entropy, entropy2: Entropy, message1: ByteVector, message2: ByteVector) =>
-      whenever((entropy1 != entropy2) && !(message1 == message2)) {
+    forAll { (entropy1: Entropy, entropy2: Entropy, message1: Array[Byte], message2: Array[Byte]) =>
+      whenever((entropy1 != entropy2) && !(message1 sameElements message2)) {
         val ed25519vrf = new Ed25519VRF
         val (sk1, vk1) = ed25519vrf.deriveKeyPairFromEntropy(entropy1, None)
         val (_, vk2) = ed25519vrf.deriveKeyPairFromEntropy(entropy2, None)
@@ -69,13 +69,17 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
     property(s"${underTest.description}") {
       val ed25519vrf = new Ed25519VRF
 
-      val vk = ed25519vrf.getVerificationKey(underTest.inputs.secretKey)
-      val pi = ed25519vrf.sign(underTest.inputs.secretKey, underTest.inputs.message)
+      val vk = ed25519vrf.getVerificationKey(underTest.inputs.secretKey.toArray)
+      val pi = ed25519vrf.sign(underTest.inputs.secretKey.toArray, underTest.inputs.message.toArray)
 
-      ed25519vrf.verify(pi, underTest.inputs.message, vk) shouldBe true
-      ed25519vrf.verify(pi, underTest.inputs.message, underTest.outputs.verificationKey) shouldBe true
-      ed25519vrf.verify(underTest.outputs.pi, underTest.inputs.message, vk) shouldBe true
-      ed25519vrf.verify(underTest.outputs.pi, underTest.inputs.message, underTest.outputs.verificationKey) shouldBe true
+      ed25519vrf.verify(pi, underTest.inputs.message.toArray, vk) shouldBe true
+      ed25519vrf.verify(pi, underTest.inputs.message.toArray, underTest.outputs.verificationKey.toArray) shouldBe true
+      ed25519vrf.verify(underTest.outputs.pi.toArray, underTest.inputs.message.toArray, vk) shouldBe true
+      ed25519vrf.verify(
+        underTest.outputs.pi.toArray,
+        underTest.inputs.message.toArray,
+        underTest.outputs.verificationKey.toArray
+      ) shouldBe true
       ed25519vrf.proofToHash(pi) shouldBe underTest.outputs.beta
     }
   }

@@ -1,7 +1,7 @@
 package co.topl.crypto.signing.kes
 
-import co.topl.models.utility.KesBinaryTree
-import co.topl.models.utility.KesBinaryTree.{Empty, MerkleNode, SigningLeaf}
+import co.topl.crypto.models.KesBinaryTree
+import KesBinaryTree._
 import java.security.SecureRandom
 import scala.annotation.tailrec
 

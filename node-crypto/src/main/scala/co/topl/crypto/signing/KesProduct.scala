@@ -1,29 +1,26 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.models._
 import co.topl.crypto.signing.kes.ProductComposition
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
-import co.topl.crypto.models.{SignatureKesProduct, SignatureKesSum, VerificationKeyKesProduct}
 
 class KesProduct extends ProductComposition {
 
   def createKeyPair(
-    seed:   Bytes,
+    seed:   Array[Byte],
     height: (Int, Int),
     offset: Long
-  ): (SecretKeys.KesProduct, VerificationKeyKesProduct) = {
-    val sk = generateSecretKey(seed.toArray, height._1, height._2)
+  ): (SecretKeyKesProduct, VerificationKeyKesProduct) = {
+    val sk = generateSecretKey(seed, height._1, height._2)
     val pk = generateVerificationKey(sk)
     (
-      SecretKeys.KesProduct(
+      SecretKeyKesProduct(
         sk._1,
         sk._2,
         sk._3,
-        Proofs.Knowledge.KesSum(
-          VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
-          Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
-          sk._4._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
+        SignatureKesSum(
+          sk._4._1,
+          sk._4._2,
+          sk._4._3
         ),
         offset
       ),
@@ -31,8 +28,8 @@ class KesProduct extends ProductComposition {
     )
   }
 
-  def sign(privateKey: SecretKeys.KesProduct, message: Bytes): SignatureKesProduct = {
-    val prodSig = sign(unpackSecret(privateKey), message.toArray)
+  def sign(privateKey: SecretKeyKesProduct, message: Array[Byte]): SignatureKesProduct = {
+    val prodSig = sign(unpackSecret(privateKey), message)
 
     SignatureKesProduct(
       SignatureKesSum(
@@ -51,7 +48,7 @@ class KesProduct extends ProductComposition {
 
   def verify(
     signature: SignatureKesProduct,
-    message:   Bytes,
+    message:   Array[Byte],
     verifyKey: VerificationKeyKesProduct
   ): Boolean = {
     val prodSig = (
@@ -72,42 +69,42 @@ class KesProduct extends ProductComposition {
     verify(prodSig, message.toArray, sumVk)
   }
 
-  def update(privateKey: SecretKeys.KesProduct, steps: Int): SecretKeys.KesProduct = {
+  def update(privateKey: SecretKeyKesProduct, steps: Int): SecretKeyKesProduct = {
     val sk = updateKey(unpackSecret(privateKey), steps)
 
-    SecretKeys.KesProduct(
+    SecretKeyKesProduct(
       sk._1,
       sk._2,
       sk._3,
-      Proofs.Knowledge.KesSum(
-        VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sk._4._1))),
-        Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sk._4._2))),
-        sk._4._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
+      SignatureKesSum(
+        sk._4._1,
+        sk._4._2,
+        sk._4._3
       ),
       privateKey.offset
     )
   }
 
-  def getCurrentStep(privateKay: SecretKeys.KesProduct): Int = getKeyTime(unpackSecret(privateKay))
+  def getCurrentStep(privateKey: SecretKeyKesProduct): Int = getKeyTime(unpackSecret(privateKey))
 
-  def getMaxStep(privateKey: SecretKeys.KesProduct): Int = exp(
+  def getMaxStep(privateKey: SecretKeyKesProduct): Int = exp(
     getTreeHeight(privateKey.superTree) + getTreeHeight(privateKey.subTree)
   )
 
-  def getVerificationKey(privateKey: SecretKeys.KesProduct): VerificationKeyKesProduct = {
+  def getVerificationKey(privateKey: SecretKeyKesProduct): VerificationKeyKesProduct = {
     val vk = generateVerificationKey(unpackSecret(privateKey))
     VerificationKeyKesProduct(vk._1, vk._2)
   }
 
-  private def unpackSecret(privateKey: SecretKeys.KesProduct): SK =
+  private def unpackSecret(privateKey: SecretKeyKesProduct): SK =
     (
       privateKey.superTree,
       privateKey.subTree,
       privateKey.nextSubSeed,
       (
-        privateKey.subSignature.verificationKey.bytes.data.toArray,
-        privateKey.subSignature.signature.bytes.data.toArray,
-        privateKey.subSignature.witness.map(_.data.toArray)
+        privateKey.subSignature.verificationKey,
+        privateKey.subSignature.signature,
+        privateKey.subSignature.witness.toVector
       )
     )
 }

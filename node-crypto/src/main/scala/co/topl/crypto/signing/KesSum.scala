@@ -1,52 +1,50 @@
 package co.topl.crypto.signing
 
+import co.topl.crypto.models._
 import co.topl.crypto.signing.kes.SumComposition
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.{KesBinaryTree, Sized}
-import co.topl.models.{Bytes, Proofs, SecretKeys, VerificationKeys}
 
 class KesSum extends SumComposition {
 
-  def createKeyPair(seed: Bytes, height: Int, offset: Long): (SecretKeys.KesSum, VerificationKeys.KesSum) = {
+  def createKeyPair(seed: Array[Byte], height: Int, offset: Long): (SecretKeyKesSum, VerificationKeyKesSum) = {
     val sk: KesBinaryTree = generateSecretKey(seed.toArray, height)
     val pk: (Array[Byte], Int) = generateVerificationKey(sk)
-    (SecretKeys.KesSum(sk, offset), VerificationKeys.KesSum(Sized.strictUnsafe(Bytes(pk._1)), pk._2))
+    (SecretKeyKesSum(sk, offset), VerificationKeyKesSum(pk._1, pk._2))
   }
 
-  def sign(privateKey: SecretKeys.KesSum, message: Bytes): Proofs.Knowledge.KesSum = {
+  def sign(privateKey: SecretKeyKesSum, message: Array[Byte]): SignatureKesSum = {
     val sumSig = sign(privateKey.tree, message.toArray)
-    Proofs.Knowledge.KesSum(
-      VerificationKeys.Ed25519(Sized.strictUnsafe(Bytes(sumSig._1))),
-      Proofs.Knowledge.Ed25519(Sized.strictUnsafe(Bytes(sumSig._2))),
-      sumSig._3.map(w => Sized.strictUnsafe[Bytes, Proofs.Knowledge.KesSum.DigestLength](Bytes(w)))
+    SignatureKesSum(
+      sumSig._1,
+      sumSig._2,
+      sumSig._3
     )
   }
 
   def verify(
-    signature: Proofs.Knowledge.KesSum,
-    message:   Bytes,
-    verifyKey: VerificationKeys.KesSum
+    signature: SignatureKesSum,
+    message:   Array[Byte],
+    verifyKey: VerificationKeyKesSum
   ): Boolean = {
     val sumSig =
       (
-        signature.verificationKey.bytes.data.toArray,
-        signature.signature.bytes.data.toArray,
-        signature.witness.map(_.data.toArray)
+        signature.verificationKey,
+        signature.signature,
+        signature.witness.toVector
       )
-    val sumVk = (verifyKey.bytes.data.toArray, verifyKey.step)
-    verify(sumSig, message.toArray, sumVk)
+    val sumVk = (verifyKey.value, verifyKey.step)
+    verify(sumSig, message, sumVk)
   }
 
-  def update(privateKey: SecretKeys.KesSum, steps: Int): SecretKeys.KesSum =
+  def update(privateKey: SecretKeyKesSum, steps: Int): SecretKeyKesSum =
     privateKey.copy(tree = updateKey(privateKey.tree, steps))
 
-  def getCurrentStep(privateKay: SecretKeys.KesSum): Int = getKeyTime(privateKay.tree)
+  def getCurrentStep(privateKay: SecretKeyKesSum): Int = getKeyTime(privateKay.tree)
 
-  def getMaxStep(privateKay: SecretKeys.KesSum): Int = exp(getTreeHeight(privateKay.tree))
+  def getMaxStep(privateKay: SecretKeyKesSum): Int = exp(getTreeHeight(privateKay.tree))
 
-  def getVerificationKey(privateKey: SecretKeys.KesSum): VerificationKeys.KesSum = {
+  def getVerificationKey(privateKey: SecretKeyKesSum): VerificationKeyKesSum = {
     val vk = generateVerificationKey(privateKey.tree)
-    VerificationKeys.KesSum(Sized.strictUnsafe(Bytes(vk._1)), vk._2)
+    VerificationKeyKesSum(vk._1, vk._2)
   }
 }
 

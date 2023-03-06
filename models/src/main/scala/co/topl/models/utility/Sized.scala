@@ -1,6 +1,5 @@
 package co.topl.models.utility
 
-import co.topl.models.utility.StringDataTypes.Latin1Data
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 
@@ -95,9 +94,6 @@ object HasLength {
 
     implicit val bigIntLength: HasLength[BigInt] =
       _.bitLength
-
-    implicit val latin1DataLength: HasLength[Latin1Data] =
-      _.value.length
   }
 
   object instances extends Instances

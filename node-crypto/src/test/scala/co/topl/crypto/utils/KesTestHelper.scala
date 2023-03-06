@@ -1,7 +1,7 @@
 package co.topl.crypto.utils
 
-import co.topl.models.utility.KesBinaryTree
-import co.topl.models.{Bytes, SecretKeys}
+import co.topl.crypto.models._
+import scodec.bits.ByteVector
 
 object KesTestHelper {
 
@@ -10,9 +10,9 @@ object KesTestHelper {
     // false-true corresponds to left or right child node with respect to the parent being constructed
     // witness elements and seeds should be provided for each level of the tree in order of highest to lowest
     // sk and vk are the leaf (lowest) level private and public keys
-    type Args = (Boolean, (Bytes, Bytes, Bytes))
+    type Args = (Boolean, (ByteVector, ByteVector, ByteVector))
 
-    def build(sk: Bytes, vk: Bytes, args: Args*): KesBinaryTree =
+    def build(sk: ByteVector, vk: ByteVector, args: Args*): KesBinaryTree =
       args.length match {
         case 0 =>
           KesBinaryTree.SigningLeaf(sk.toArray, vk.toArray)
@@ -37,17 +37,17 @@ object KesTestHelper {
       }
   }
 
-  def areEqual(a: SecretKeys.KesProduct, b: Any): Boolean =
+  def areEqual(a: SecretKeyKesProduct, b: Any): Boolean =
     (a, b) match {
       case (
-            SecretKeys.KesProduct(
+            SecretKeyKesProduct(
               superTree_a,
               subTree_a,
               nextSubSeed_a,
               subSignature_a,
               offset_a
             ),
-            SecretKeys.KesProduct(
+            SecretKeyKesProduct(
               superTree_b,
               subTree_b,
               nextSubSeed_b,
@@ -57,7 +57,7 @@ object KesTestHelper {
           ) =>
         areEqual(superTree_a, superTree_b) &&
         areEqual(subTree_a, subTree_b) &&
-        Bytes(nextSubSeed_a) == Bytes(nextSubSeed_b) &&
+        nextSubSeed_a.sameElements(nextSubSeed_b) &&
         subSignature_a == subSignature_b &&
         offset_a == offset_b
       case _ => false
@@ -81,16 +81,16 @@ object KesTestHelper {
               right_b: KesBinaryTree
             )
           ) =>
-        Bytes(seed_a) == Bytes(seed_b) &&
-        Bytes(witnessLeft_a) == Bytes(witnessLeft_b) &&
-        Bytes(witnessRight_a) == Bytes(witnessRight_b) &&
+        seed_a.sameElements(seed_b) &&
+        witnessLeft_a.sameElements(witnessLeft_b) &&
+        witnessRight_a.sameElements(witnessRight_b) &&
         areEqual(left_a, left_b) &&
         areEqual(right_a, right_b)
       case (KesBinaryTree.Empty(), KesBinaryTree.Empty()) =>
         true
       case (KesBinaryTree.SigningLeaf(sk_a, vk_a), KesBinaryTree.SigningLeaf(sk_b, vk_b)) =>
-        Bytes(sk_a) == Bytes(sk_b) &&
-        Bytes(vk_a) == Bytes(vk_b)
+        sk_a.sameElements(sk_b) &&
+        vk_a.sameElements(vk_b)
       case _ =>
         false
     }

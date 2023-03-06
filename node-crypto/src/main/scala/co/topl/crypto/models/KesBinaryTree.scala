@@ -1,4 +1,4 @@
-package co.topl.models.utility
+package co.topl.crypto.models
 
 sealed trait KesBinaryTree
 

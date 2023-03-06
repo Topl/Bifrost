@@ -14,10 +14,8 @@ trait EqInstances {
   implicit def arrayEq[T: Eq]: Eq[Array[T]] =
     (a, b) => a.length == b.length && a.zip(b).forall { case (a1, b1) => a1 === b1 }
 
-  implicit val bytesEq: Eq[Bytes] =
-    (a, b) => a === b
-
-  implicit val bytesStringEq: Eq[ByteString] = Eq.fromUniversalEquals
+  implicit val bytesStringEq: Eq[ByteString] =
+    Eq.fromUniversalEquals
 
   implicit def sizedMaxEq[T: Eq, L]: Eq[Sized.Max[T, L]] =
     (a, b) => a.data === b.data

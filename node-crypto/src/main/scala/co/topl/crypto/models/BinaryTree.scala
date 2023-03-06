@@ -1,6 +1,8 @@
-package co.topl.models.utility
+package co.topl.crypto.models
 
-import co.topl.models.utility.BinaryTree.{Empty, Leaf, Node}
+import BinaryTree.Empty
+import BinaryTree.Leaf
+import BinaryTree.Node
 
 /**
  * AMS 2021: Modified for use with MMM construction, ported from: https://gist.github.com/dholbrook/2967371
