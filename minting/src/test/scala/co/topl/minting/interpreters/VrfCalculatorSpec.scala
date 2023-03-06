@@ -6,7 +6,7 @@ import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.consensus.models.{SignatureVrfEd25519, VrfConfig}
+import co.topl.consensus.models.VrfConfig
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models._
@@ -29,7 +29,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     for {
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
       vrfCalculator <- VrfCalculator.make[F](
-        skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+        skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
         clock = null,
         leaderElectionValidation = null,
         ed25519Resource,
@@ -38,13 +38,12 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       )
 
       slot = 10L
-      eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
+      eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
 
-      expectedProof = SignatureVrfEd25519.of(
+      expectedProof =
         ByteString.copyFrom(
           hex"bc31a2fb46995ffbe4b316176407f57378e2f3d7fee57d228a811194361d8e7040c9d15575d7a2e75506ffe1a47d772168b071a99d2e85511730e9c21397a1cea0e7fa4bd161e6d5185a94a665dd190d".toArray
         )
-      )
 
       _ <- vrfCalculator.proofForSlot(slot, eta).assertEquals(expectedProof).toResource
     } yield ()
@@ -54,7 +53,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     val resource = for {
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
       vrfCalculator <- VrfCalculator.make[F](
-        skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+        skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
         clock = null,
         leaderElectionValidation = null,
         ed25519Resource,
@@ -63,7 +62,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       )
 
       slot = 10L
-      eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
+      eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
 
       expectedRho = Rho(
         Sized.strictUnsafe(
@@ -80,7 +79,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   test("ineligibleSlots: in empty inRange, no slots leader") {
     withMock {
       val epoch = 1L
-      val eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
+      val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
       val relativeStake = Ratio.One
       val vrfConfig =
         VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
@@ -104,7 +103,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val resource = for {
         ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
         vrfCalculator <- VrfCalculator.make[F](
-          skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+          skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
           clock,
           leaderElectionValidation,
           ed25519Resource,
@@ -127,7 +126,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   test("ineligibleSlots: in empty inRange, all slots leader") {
     withMock {
       val epoch = 1L
-      val eta = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))): Eta
+      val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
       val relativeStake = Ratio.One
       val vrfConfig =
         VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
@@ -151,7 +150,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val resource = for {
         ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
         vrfCalculator <- VrfCalculator.make[F](
-          skVrf = SecretKeys.VrfEd25519(Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0)))),
+          skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
           clock,
           leaderElectionValidation,
           ed25519Resource,

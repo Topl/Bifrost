@@ -4,13 +4,13 @@ import cats.effect.std.Queue
 import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.StakingAddress
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
 import co.topl.models.generators.consensus.ModelGenerators.{arbitraryEligibilityCertificate, arbitrarySlotData}
 import co.topl.models.generators.node.ModelGenerators.arbitraryBlock
 import co.topl.node.models.Block
-import co.topl.models.StakingAddresses
 import co.topl.consensus.models.SlotData
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -26,7 +26,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   override val munitTimeout: FiniteDuration = 10.seconds
 
   test("Produce a block when eligible") {
-    PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddresses.Operator, outputBlock: Block) =>
+    PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddress, outputBlock: Block) =>
       withMock {
         val vrfHit =
           VrfHit(arbitraryEligibilityCertificate.arbitrary.first, parentSlotData.slotId.slot + 1, ratioGen.first)
@@ -41,7 +41,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           .certifyBlock(_, _, _))
           .expects(parentSlotData.slotId, vrfHit.slot, *)
           .once()
-          .returning(outputBlock.some.pure[F])
+          .returning(outputBlock.header.some.pure[F])
 
         val clock = mock[ClockAlgebra[F]]
         (() => clock.globalSlot).expects().once().returning(parentSlotData.slotId.slot.pure[F])

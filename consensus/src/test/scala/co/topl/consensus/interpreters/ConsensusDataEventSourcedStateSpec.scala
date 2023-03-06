@@ -23,8 +23,6 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import quivr.models.SmallData
 
-import scala.collection.immutable.ListSet
-
 class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
@@ -47,7 +45,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
       val bigBangBlockTransaction =
         IoTransaction(
           Nil,
-          List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5), stakingAddress))),
+          List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress)))),
           defaultDatum
         )
 
@@ -139,8 +137,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
           ),
           List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1), stakingAddress)),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1), ByteString.EMPTY))
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
           ),
           defaultDatum,
           None
@@ -180,7 +178,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         IoTransaction(
           Nil,
           List(
-            UnspentTransactionOutput(lockAddress, Value().withRegistration(Value.Registration(???), stakingAddress))
+            UnspentTransactionOutput(lockAddress, Value().withRegistration(Value.Registration(???, stakingAddress)))
           ),
           defaultDatum
         )

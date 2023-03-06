@@ -1,16 +1,15 @@
 package co.topl.testnetsimulationorchestrator.app
 
 import cats.Applicative
-import cats.data.{EitherT, OptionT}
+import cats.data.OptionT
 import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.brambl.models.Identifier
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
-import co.topl.models.TypedIdentifier
-import co.topl.models.utility._
 import co.topl.consensus.models.BlockHeader
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
@@ -21,8 +20,9 @@ import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.BlockId
 import co.topl.typeclasses.implicits._
+
 import scala.concurrent.duration._
 
 object Orchestrator
@@ -130,15 +130,6 @@ object Orchestrator
           .iterable(transactionAssignments.toList)
           .parEvalMap[F, TransactionDatum](Runtime.getRuntime.availableProcessors()) { case (transactionId, node) =>
             OptionT(nodes(node).fetchTransaction(transactionId))
-              // TODO TransactionDatum model should change to new protobuf specs and not use Isomorphism
-              .flatMapF(transaction =>
-                co.topl.models.utility
-                  .transactionIsomorphism[F]
-                  .baMorphism
-                  .aToB(transaction.pure[F])
-                  .map(_.toOption)
-                  .orRaise(new RuntimeException("transactionIsomorphism"))
-              )
               .getOrRaise(new NoSuchElementException(show"Transaction not found id=$transactionId"))
               .map(TransactionDatum(_))
           }
@@ -157,7 +148,7 @@ object Orchestrator
    */
   private def fetchHeaderAdoptions(
     nodes: NodeRpcs
-  ): F[List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeader)])]] =
+  ): F[List[(NodeName, Vector[(BlockId, Long, BlockHeader)])]] =
     nodes.toList.parTraverse { case (name, client) =>
       for {
         _          <- Logger[F].info(show"Fetching adoptions+headers from node=$name")
@@ -184,8 +175,8 @@ object Orchestrator
     }
 
   private def assignBlocksToNodes(
-    nodeBlockAdoptions: List[(NodeName, Vector[(TypedIdentifier, Long, BlockHeader)])]
-  ): F[List[(NodeName, TypedIdentifier, BlockHeader)]] =
+    nodeBlockAdoptions: List[(NodeName, Vector[(BlockId, Long, BlockHeader)])]
+  ): F[List[(NodeName, BlockId, BlockHeader)]] =
     Sync[F].delay(
       nodeBlockAdoptions
         .flatMap { case (node, adoptions) => adoptions.map { case (id, _, header) => (node, id, header) } }
@@ -197,8 +188,8 @@ object Orchestrator
     )
 
   private def publishBlockBodiesAndAssignTransactions(publisher: Publisher, nodes: NodeRpcs)(
-    blockAssignments: List[(NodeName, TypedIdentifier, BlockHeader)]
-  ): F[Map[TypedIdentifier, NodeName]] =
+    blockAssignments: List[(NodeName, BlockId, BlockHeader)]
+  ): F[Map[Identifier.IoTransaction32, NodeName]] =
     for {
       // Create a topic which is expected to contain two subscribers
       blockDatumTopic <- Topic[F, (NodeName, BlockDatum)]
@@ -215,8 +206,8 @@ object Orchestrator
       assignTransactionsStream =
         blockDatumTopic
           .subscribe(128)
-          .fold(Map.empty[TypedIdentifier, NodeName]) { case (assignments, (node, datum)) =>
-            assignments ++ datum.body.transactionIds.map(t => t: TypedIdentifier).tupleRight(node)
+          .fold(Map.empty[Identifier.IoTransaction32, NodeName]) { case (assignments, (node, datum)) =>
+            assignments ++ datum.body.transactionIds.tupleRight(node)
           }
       // Publish the block data results
       _ <- Logger[F].info("Fetching block bodies, publishing blocks, and assigning transactions (in parallel)")
@@ -249,25 +240,18 @@ object Orchestrator
         .make[F](
           wallet,
           Runtime.getRuntime.availableProcessors(),
-          20,
-          500
+          20
         )
         .flatMap(_.generateTransactions)
       // Build the stream
       runStreamF = transactionStream
         // Send 1 transaction per _this_ duration
         .metered((1_000_000_000d / targetTps).nanos)
-        // TODO model should change to new protobuf specs and not use Isomorphism
-        .evalMap(transaction =>
-          EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
-            .leftMap(new IllegalArgumentException(_))
-            .rethrowT
-        )
         // Broadcast+log the transaction
         .evalTap(transaction =>
-          Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
+          Logger[F].debug(show"Broadcasting transaction id=${transaction.id}") >>
           client.broadcastTransaction(transaction) >>
-          Logger[F].info(show"Broadcasted transaction id=${transaction.id.asTypedBytes}")
+          Logger[F].info(show"Broadcasted transaction id=${transaction.id}")
         )
         .onError { case e =>
           Stream.eval(Logger[F].error(e)("Stream failed"))

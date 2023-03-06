@@ -20,14 +20,17 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.models.utility.Ratio
 import co.topl.consensus.models.{BlockId, SlotId}
+import co.topl.crypto.models.SecretKeyKesProduct
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
+import org.scalacheck.Arbitrary
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.{EitherValues, OptionValues}
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.typelevel.log4cats.Logger
+
 import scala.collection.immutable.NumericRange
 import scala.util.Random
 
@@ -48,8 +51,10 @@ class OperationalKeyMakerSpec
   implicit private val kesProduct: KesProduct = new KesProduct
   implicit private val ed25519: Ed25519 = new Ed25519
 
+  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] = Arbitrary(stakingAddressGen)
+
   it should "load the initial key from SecureStore and produce (VRF-filtered) linear keys" in {
-    forAll { (eta: Eta, address: StakingAddresses.Operator) =>
+    forAll { (eta: Eta, address: StakingAddress) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfCalculatorAlgebra[F]]
@@ -58,7 +63,7 @@ class OperationalKeyMakerSpec
       val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
-      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
+      val (sk, vk) = kesProduct.createKeyPair(Random.nextBytes(32), (2, 2), 0L)
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
 
@@ -73,13 +78,13 @@ class OperationalKeyMakerSpec
         .returning(Chain("a").pure[F])
 
       (secureStore
-        .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
+        .consume[SecretKeyKesProduct](_: String)(_: Persistable[SecretKeyKesProduct]))
         .expects("a", *)
         .once()
         .returning(sk.some.pure[F])
 
       (secureStore
-        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
+        .write[SecretKeyKesProduct](_: String, _: SecretKeyKesProduct)(_: Persistable[SecretKeyKesProduct]))
         .expects(*, *, *)
         .once()
         .returning(Applicative[F].unit)
@@ -97,7 +102,7 @@ class OperationalKeyMakerSpec
         .returning(ineligibilities.pure[F])
 
       (consensusState
-        .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
         .expects(*, *, *)
         .once()
         .returning(Ratio.One.some.pure[F])
@@ -142,7 +147,7 @@ class OperationalKeyMakerSpec
         kesProduct
           .verify(
             parentSignature,
-            ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
+            ed25519.getVerificationKey(out.childSK).toArray ++ Longs.toByteArray(i),
             vk
           )
       }
@@ -150,7 +155,7 @@ class OperationalKeyMakerSpec
   }
 
   it should "update the initial key at the turn of an operational period" in {
-    forAll { (eta: Eta, address: StakingAddresses.Operator) =>
+    forAll { (eta: Eta, address: StakingAddress) =>
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
       val vrfProof = mock[VrfCalculatorAlgebra[F]]
@@ -159,7 +164,7 @@ class OperationalKeyMakerSpec
       val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
-      val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
+      val (sk, vk) = kesProduct.createKeyPair(Random.nextBytes(32), (2, 2), 0L)
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -172,13 +177,13 @@ class OperationalKeyMakerSpec
         .returning(Chain("a").pure[F])
 
       (secureStore
-        .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
+        .consume[SecretKeyKesProduct](_: String)(_: Persistable[SecretKeyKesProduct]))
         .expects("a", *)
         .once()
         .returning(sk.some.pure[F])
 
       (secureStore
-        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
+        .write[SecretKeyKesProduct](_: String, _: SecretKeyKesProduct)(_: Persistable[SecretKeyKesProduct]))
         .expects(*, *, *)
         .once()
         .returning(Applicative[F].unit)
@@ -196,7 +201,7 @@ class OperationalKeyMakerSpec
         .returning(Vector.empty[Slot].pure[F])
 
       (consensusState
-        .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+        .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
         .expects(*, *, *)
         .twice()
         .returning(Ratio.One.some.pure[F])
@@ -230,13 +235,13 @@ class OperationalKeyMakerSpec
         .returning(Chain("b").pure[F])
 
       (secureStore
-        .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
+        .consume[SecretKeyKesProduct](_: String)(_: Persistable[SecretKeyKesProduct]))
         .expects("b", *)
         .once()
         .returning(kesProduct.update(sk, 1).some.pure[F])
 
       (secureStore
-        .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
+        .write[SecretKeyKesProduct](_: String, _: SecretKeyKesProduct)(_: Persistable[SecretKeyKesProduct]))
         .expects(*, *, *)
         .once()
         .returning(Applicative[F].unit)
@@ -253,7 +258,7 @@ class OperationalKeyMakerSpec
         kesProduct
           .verify(
             parentSignature,
-            ed25519.getVerificationKey(Bytes(out.childSK.value.toByteArray)) ++ Bytes(Longs.toByteArray(i)),
+            ed25519.getVerificationKey(out.childSK).toArray ++ Longs.toByteArray(i),
             vk.copy(step = 1)
           )
       }

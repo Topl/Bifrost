@@ -113,9 +113,6 @@ trait ModelGenerators {
       .map(ByteString.copyFrom(_))
       .map(Sized.strict[Bytes, L](_).toOption.get)
 
-  implicit val arbitraryBytes: Arbitrary[Bytes] =
-    Arbitrary(implicitly[Arbitrary[Array[Byte]]].arbitrary.map(ByteString.copyFrom(_)))
-
   implicit def arbitraryStrictSizedBytes[L <: Length](implicit l: L): Arbitrary[Sized.Strict[Bytes, L]] =
     Arbitrary(genSizedStrictBytes[L]())
 
@@ -126,9 +123,6 @@ trait ModelGenerators {
 
   implicit val arbitraryEta: Arbitrary[Eta] =
     Arbitrary(etaGen)
-
-  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] =
-    Arbitrary(stakingAddressGen)
 
   implicit class GenHelper[T](gen: Gen[T]) {
     def first: T = gen.pureApply(Gen.Parameters.default, Seed.random())

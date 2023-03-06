@@ -344,7 +344,7 @@ lazy val tetraByteCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.protobufSpecs)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", nodeCrypto)
+  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", nodeCrypto % "compile->compile;test->test")
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))

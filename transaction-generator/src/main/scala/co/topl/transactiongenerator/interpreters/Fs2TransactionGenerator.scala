@@ -122,8 +122,7 @@ object Fs2TransactionGenerator {
       Chain(
         UnspentTransactionOutput(
           HeightLockOneSpendingAddress,
-          Value().withLvl(lvlBoxValue),
-          Datum.UnspentOutput.defaultInstance
+          Value().withLvl(lvlBoxValue)
         )
       )
     }

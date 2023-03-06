@@ -2,14 +2,14 @@ package co.topl.codecs.bytes.tetra
 
 import cats.{Eq, Show}
 import co.topl.codecs.bytes.CodecSpec
-import co.topl.models.utility.StringDataTypes.Latin1Data
-import co.topl.models.utility.{KesBinaryTree, Ratio}
+import co.topl.consensus.models.BlockId
+import co.topl.crypto.models.KesBinaryTree
+import co.topl.models.utility.Ratio
 import co.topl.models._
 import org.scalacheck.Gen
 
 class TetraScodecCodecsSpec extends CodecSpec {
 
-  import ModelGenerators._
   import TetraScodecCodecs._
 
   implicit def defaultShow[T]: Show[T] = Show.fromToString
@@ -27,181 +27,82 @@ class TetraScodecCodecsSpec extends CodecSpec {
     ModelGenerators.ratioGen
   )
 
-  codecBehavior[Latin1Data](
-    "Latin1Data",
-    TetraScodecCodecs.latin1DataCodec,
-    ModelGenerators.latin1DataGen
-  )
-
-  codecBehavior[Int128](
-    "Int128",
-    TetraScodecCodecs.int128Codec,
-    ModelGenerators.arbitraryInt128.arbitrary
-  )
-
-  codecBehavior[com.google.protobuf.ByteString](
-    "ProtoByteString",
-    TetraScodecCodecs.protobufByteStringCodec,
-    co.topl.models.generators.common.ModelGenerators.arbitraryByteString.arbitrary
-  )
-
-  codecBehavior[co.topl.proto.models.Int128](
-    "ProtoInt128",
-    TetraScodecCodecs.int128ProtoCodec,
-    co.topl.models.generators.models.ModelGenerators.arbitraryPositiveInt128.arbitrary
-  )
-
   codecBehavior[KesBinaryTree](
     "KesBinaryTree",
     TetraScodecCodecs.nodeCryptoKesBinaryTreeCodec,
-    ModelGenerators.kesBinaryTreeGen
+    co.topl.crypto.utils.NodeCryptoGenerators.kesBinaryTreeGen
   )
 
-  codecBehavior[VerificationKeys.Curve25519](
-    "VerificationKeys.Curve25519",
-    TetraScodecCodecs.vkCurve25519Codec,
-    ModelGenerators.arbitraryCurve25519VK.arbitrary
+  codecBehavior[co.topl.crypto.models.SignatureKesSum](
+    "co.topl.crypto.models.SignatureKesSum",
+    nodeCryptoSignatureKesSumCodec,
+    co.topl.crypto.utils.NodeCryptoGenerators.signatureKesSumArbitrary.arbitrary
   )
 
-  codecBehavior[VerificationKeys.Ed25519](
-    "VerificationKeys.Ed25519",
-    TetraScodecCodecs.vkEd25519Codec,
-    ModelGenerators.ed25519VkGen
+  codecBehavior[co.topl.crypto.models.SecretKeyKesSum](
+    "co.topl.crypto.models.SecretKeyKesSum",
+    nodeCryptoSecretKeyKesSumCodec,
+    co.topl.crypto.utils.NodeCryptoGenerators.kesSumSKGen
   )
 
-  codecBehavior[VerificationKeys.ExtendedEd25519](
-    "VerificationKeys.ExtendedEd25519",
-    TetraScodecCodecs.vkExtendedEd25519Codec,
-    ModelGenerators.extendedEd25519VkGen
+  codecBehavior[co.topl.crypto.models.SecretKeyKesProduct](
+    "co.topl.crypto.models.SecretKeyKesProduct",
+    nodeCryptoSecretKeyKesProductCodec,
+    co.topl.crypto.utils.NodeCryptoGenerators.kesProductSKGen
   )
 
-  codecBehavior[VerificationKeys.VrfEd25519](
-    "VerificationKeys.VrfEd25519",
-    TetraScodecCodecs.vkVrfCodec,
-    ModelGenerators.vkVrfEd25519Gen
+  codecBehavior[BlockId](
+    "co.topl.consensus.models.BlockId",
+    TetraScodecCodecs.blockIdCodec,
+    co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary
   )
 
-  codecBehavior[VerificationKeys.KesSum](
-    "VerificationKeys.KesSum",
-    TetraScodecCodecs.vkKesSumCodec,
-    ModelGenerators.vkKesSumGen
+  codecBehavior[BlockId](
+    "co.topl.consensus.models.EligibilityCertificate",
+    TetraScodecCodecs.consensusEligibilityCertificateCodec,
+    co.topl.models.generators.consensus.ModelGenerators.arbitraryEligibilityCertificate.arbitrary
   )
 
-  codecBehavior[VerificationKeys.KesProduct](
-    "VerificationKeys.KesProduct",
+  codecBehavior[co.topl.consensus.models.VerificationKeyKesProduct](
+    "co.topl.consensus.models.VerificationKeyKesProduct",
     TetraScodecCodecs.vkKesProductCodec,
-    ModelGenerators.kesVKGen
+    co.topl.models.generators.consensus.ModelGenerators.arbitraryVerificationKeyKesProduct.arbitrary
   )
 
-  codecBehavior[Proofs.Knowledge.Curve25519](
-    "Proofs.Knowledge.Curve25519",
-    TetraScodecCodecs.proofSignatureCurve25519,
-    ModelGenerators.curve25519ProofGen
+  codecBehavior[co.topl.consensus.models.SignatureKesSum](
+    "co.topl.consensus.models.SignatureKesSum",
+    TetraScodecCodecs.signatureKesSumCodec,
+    co.topl.models.generators.consensus.ModelGenerators.signatureKesSumArbitrary.arbitrary
   )
 
-  codecBehavior[Proofs.Knowledge.Ed25519](
-    "Proofs.Knowledge.Ed25519",
-    TetraScodecCodecs.proofSignatureEd25519Codec,
-    ModelGenerators.ed25519ProofGen
+  codecBehavior[co.topl.consensus.models.SignatureKesProduct](
+    "co.topl.consensus.models.SignatureKesProduct",
+    TetraScodecCodecs.signatureKesProductCodec,
+    co.topl.models.generators.consensus.ModelGenerators.signatureKesProductArbitrary.arbitrary
   )
 
-  codecBehavior[Proofs.Knowledge.VrfEd25519](
-    "Proofs.Knowledge.VrfEd25519",
-    TetraScodecCodecs.proofSignatureVrfCodec,
-    ModelGenerators.proofVrfEd25519Gen
+  codecBehavior[co.topl.consensus.models.OperationalCertificate](
+    "co.topl.consensus.models.OperationalCertificate",
+    TetraScodecCodecs.operationalCertificateCodec,
+    co.topl.models.generators.consensus.ModelGenerators.arbitraryOperationalCertificate.arbitrary
   )
 
-  codecBehavior[Proofs.Knowledge.KesSum](
-    "Proofs.Knowledge.KesSum",
-    TetraScodecCodecs.nodeCryptoSignatureKesSumCodec,
-    ModelGenerators.kesSumProofGen
-  )
-
-  codecBehavior[Proofs.Knowledge.KesProduct](
-    "Proofs.Knowledge.KesProduct",
-    TetraScodecCodecs.proofSignatureKesProductCodec,
-    ModelGenerators.kesProductProofGen
-  )
-
-  codecBehavior[SecretKeys.Curve25519](
-    "SecretKeys.Curve25519",
-    TetraScodecCodecs.secretKeyCurve25519Codec,
-    ModelGenerators.arbitraryCurve25519SK.arbitrary
-  )
-
-  codecBehavior[SecretKeys.Ed25519](
-    "SecretKeys.Ed25519",
-    TetraScodecCodecs.secretKeyEd25519Codec,
-    ModelGenerators.arbitraryEdSK.arbitrary
-  )
-
-  codecBehavior[SecretKeys.ExtendedEd25519](
-    "SecretKeys.ExtendedEd25519",
-    TetraScodecCodecs.secretKeyExtendedEd25519Codec,
-    ModelGenerators.arbitraryExtendedEdSK.arbitrary
-  )
-
-  codecBehavior[SecretKeys.VrfEd25519](
-    "SecretKeys.VrfEd25519",
-    TetraScodecCodecs.secretKeyVrfCodec,
-    ModelGenerators.skVrfEd25519Gen
-  )
-
-  codecBehavior[SecretKeys.KesSum](
-    "SecretKeys.KesSum",
-    TetraScodecCodecs.nodeCryptoSecretKeyKesSumCodec,
-    ModelGenerators.kesSumSKGen
-  )
-
-  codecBehavior[SecretKeys.KesProduct](
-    "SecretKeys.KesProduct",
-    TetraScodecCodecs.nodeCryptoSecretKeyKesProductCodec,
-    ModelGenerators.kesProductSKGen
-  )
-
-  codecBehavior[EligibilityCertificate](
-    "EligibilityCertificate",
-    TetraScodecCodecs.eligibilityCertificateCodec,
-    ModelGenerators.eligibilityCertificateGen
-  )
-
-  codecBehavior[BlockHeader.Unsigned.PartialOperationalCertificate](
-    "BlockHeader.Unsigned.PartialOperationalCertificate",
+  codecBehavior[co.topl.models.UnsignedBlockHeader.PartialOperationalCertificate](
+    "co.topl.models.UnsignedBlockHeader.PartialOperationalCertificate",
     TetraScodecCodecs.partialOperationalCertificateCodec,
     ModelGenerators.partialOperationalCertificateGen
   )
 
-  codecBehavior[StakingAddress]()
+  codecBehavior[co.topl.consensus.models.BlockHeader](
+    "co.topl.consensus.models.BlockHeader",
+    TetraScodecCodecs.consensusBlockHeaderCodec,
+    co.topl.models.generators.consensus.ModelGenerators.headerGen()
+  )
 
-  codecBehavior[BlockHeader.Unsigned](
-    "BlockHeader.Unsigned",
+  codecBehavior[co.topl.models.UnsignedBlockHeader](
+    "co.topl.models.UnsignedBlockHeader",
     TetraScodecCodecs.unsignedBlockHeaderCodec,
     ModelGenerators.unsignedHeaderGen()
   )
 
-  codecBehavior[BlockHeader]()
-
-  codecBehavior[TypedEvidence](
-    "TypedEvidence",
-    TetraScodecCodecs.typedEvidenceCodec,
-    ModelGenerators.typedEvidenceGen
-  )
-
-  codecBehavior[co.topl.proto.models.TypedEvidence](
-    "TypedEvidenceProto",
-    TetraScodecCodecs.typedEvidenceProtoCodec,
-    co.topl.models.generators.models.ModelGenerators.typedEvidenceGen
-  )
-
-  codecBehavior[SpendingAddress]()
-
-  codecBehavior[Proposition]()
-
-  codecBehavior[Proof]()
-
-  codecBehavior[Box]()
-
-  codecBehavior[Transaction]()
-
-  codecBehavior[Transaction.Unproven]()
 }
