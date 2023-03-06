@@ -25,7 +25,6 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import scodec.bits.ByteVector
 
 class EtaCalculationSpec
     extends AnyFlatSpec
@@ -71,9 +70,9 @@ class EtaCalculationSpec
       val signature =
         ed25519Vrf.sign(
           skVrf,
-          VrfArgument(Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta), slot).signableBytes
+          VrfArgument(Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta), slot).signableBytes.toByteArray
         )
-      slot -> signature
+      slot -> ByteString.copyFrom(signature)
     }
 
     val blocks: List[BlockHeader] =
@@ -128,9 +127,10 @@ class EtaCalculationSpec
         Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
         epoch + 1,
         blocks
-          .map(_.eligibilityCertificate.vrfSig: ByteVector)
+          .map(_.eligibilityCertificate.vrfSig.toByteArray)
           .map(ed25519Vrf.proofToHash)
-          .map(bytes => Rho(Sized.strictUnsafe(bytes: ByteString)))
+          .map(ByteString.copyFrom)
+          .map(bytes => Rho(Sized.strictUnsafe(bytes)))
       )
 
     actual shouldBe expected
@@ -186,7 +186,13 @@ class EtaCalculationSpec
       EtaCalculationSpec.expectedEta(
         Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
         epoch + 1,
-        List(Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig))))
+        List(
+          Rho(
+            Sized.strictUnsafe(
+              ByteString.copyFrom(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig.toByteArray))
+            )
+          )
+        )
       )
 
     actual shouldBe expected
