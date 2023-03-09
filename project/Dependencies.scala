@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   val akkaVersion = "2.6.20"
-  val circeVersion = "0.14.4"
+  val circeVersion = "0.14.5"
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
@@ -117,7 +117,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
   val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
   val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
@@ -160,7 +160,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.19.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.20.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
