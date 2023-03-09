@@ -249,7 +249,8 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.53.0"
+      "io.grpc" % "grpc-netty-shaded" % "1.53.0",
+      "io.grpc" % "grpc-services" % "1.53.0"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
@@ -266,6 +267,7 @@ object Dependencies {
       "com.orientechnologies"                  % "orientdb-client"             % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-tools"              % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-graphdb"            % orientDbVersion,
+      "com.orientechnologies"                  % "orientdb-studio"             % orientDbVersion,
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna
