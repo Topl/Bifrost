@@ -1,21 +1,21 @@
 package co.topl.ledger.interpreters
 
-import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras.TransactionSemanticValidationAlgebra
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-
-import scala.collection.immutable.ListSet
 
 class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 

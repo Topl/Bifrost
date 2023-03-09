@@ -11,7 +11,6 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.StaticBodyValidationContext
-import co.topl.models._
 import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
@@ -163,7 +162,7 @@ object BlockChecker {
    *         A0 - AN == slot data for appropriate block A0-AN and header for block A0-AN is absent in header storage
    *         Header storage shall contain block header which is parent of block A0
    */
-  private def buildFullSlotDataChain[F[_]: Async: Logger](
+  private def buildFullSlotDataChain[F[_]: Async](
     state:    State[F],
     slotData: NonEmptyChain[SlotData]
   ): F[NonEmptyChain[SlotData]] = {
@@ -357,7 +356,7 @@ object BlockChecker {
   }
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
-  private def updateState[F[_]: Async](state: State[F], newTopBlock: BlockId): State[F] =
+  private def updateState[F[_]](state: State[F], newTopBlock: BlockId): State[F] =
     if (state.bestKnownRemoteSlotDataOpt.exists(_.isLastId(newTopBlock))) {
       state.copy(bestKnownRemoteSlotDataOpt = None)
     } else {

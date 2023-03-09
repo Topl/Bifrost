@@ -4,12 +4,14 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotData
 import co.topl.consensus.models.SlotId
+import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.Bytes
 import co.topl.models.UnsignedBlockHeader
 import co.topl.models.utility._
 import com.google.protobuf.ByteString
+import scodec.bits.ByteVector
 
 package object consensus {
 
@@ -51,6 +53,11 @@ package object consensus {
   private val TestStringByteVector = ByteString.copyFromUtf8("TEST")
 
   private val NonceStringByteVector = ByteString.copyFromUtf8("NONCE")
+
+  def thresholdEvidence(threshold: Ratio)(implicit blake2b256: Blake2b256): ByteString =
+    blake2b256.hash(
+      ByteVector(threshold.numerator.toByteArray ++ threshold.denominator.toByteArray)
+    )
 
   /**
    * @param rho length = 64

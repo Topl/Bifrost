@@ -10,6 +10,7 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models._
 import co.topl.consensus.models.CryptoConsensusMorphismInstances._
+import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
@@ -21,7 +22,6 @@ import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 import scalacache.caffeine.CaffeineCache
-import scodec.bits.ByteVector
 
 /**
  * Interpreters for the ConsensusValidationAlgebra
@@ -253,14 +253,12 @@ object BlockHeaderValidation {
       blake2b256Resource: UnsafeResource[F, Blake2b256]
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT
-        .liftF[F, BlockHeaderValidationFailure, ByteVector](
-          blake2b256Resource.use(b =>
-            b.hash(ByteVector(threshold.numerator.toByteArray) ++ ByteVector(threshold.denominator.toByteArray)).pure[F]
-          )
+        .liftF[F, BlockHeaderValidationFailure, ByteString](
+          blake2b256Resource.use(thresholdEvidence(threshold)(_).pure[F])
         )
         .flatMap(evidence =>
           EitherT.cond[F](
-            header.eligibilityCertificate.thresholdEvidence === (evidence: ByteString),
+            header.eligibilityCertificate.thresholdEvidence === evidence,
             header,
             BlockHeaderValidationFailures.InvalidVrfThreshold(threshold): BlockHeaderValidationFailure
           )

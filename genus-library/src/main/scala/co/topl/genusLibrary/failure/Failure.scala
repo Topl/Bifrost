@@ -1,7 +1,8 @@
 package co.topl.genusLibrary.failure
 
 import cats.implicits._
-import co.topl.models.TypedIdentifier
+import co.topl.brambl.models.Identifier
+import co.topl.consensus.models.BlockId
 import scodec.bits.ByteVector
 
 import scala.collection.immutable.ListSet
@@ -25,13 +26,13 @@ object Failures {
         s"Block doesn't have a transactions vertex. transactions=[$transactions]"
       )
 
-  case class NoBlockHeaderFoundOnNodeFailure(blockId: TypedIdentifier)
+  case class NoBlockHeaderFoundOnNodeFailure(blockId: BlockId)
       extends Failure(s"Block header wasn't found. BlockId=[$blockId]")
 
-  case class NoBlockBodyFoundOnNodeFailure(blockId: TypedIdentifier)
+  case class NoBlockBodyFoundOnNodeFailure(blockId: BlockId)
       extends Failure(s"Block body wasn't found. BlockId=[$blockId]")
 
-  case class NonExistentTransactionsFailure(transactions: ListSet[TypedIdentifier])
+  case class NonExistentTransactionsFailure(transactions: ListSet[Identifier.IoTransaction32])
       extends Failure(s"Transactions weren't found. Transactions=[$transactions]")
 
   case class OrientCommitException(ex: RuntimeException)

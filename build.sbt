@@ -603,7 +603,6 @@ lazy val nodeCrypto = project
     buildInfoPackage := "co.topl.buildinfo.nodecrypto",
     libraryDependencies ++= Dependencies.crypto
   )
-  .dependsOn(models % "compile->compile;test->test")
 
 lazy val catsAkka = project
   .in(file("cats-akka"))

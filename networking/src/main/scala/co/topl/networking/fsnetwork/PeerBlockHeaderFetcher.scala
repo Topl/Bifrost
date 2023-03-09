@@ -18,7 +18,6 @@ import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import co.topl.models.utility._
 
 object PeerBlockHeaderFetcher {
   sealed trait Message

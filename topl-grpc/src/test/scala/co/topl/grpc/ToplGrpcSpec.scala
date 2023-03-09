@@ -8,9 +8,9 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
-import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
-import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
-import co.topl.models.utility._
+import co.topl.brambl.generators.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.models.generators.node.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
 import fs2.Stream
@@ -55,7 +55,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(header.some.pure[F])
 
         for {
-          res <- underTest.fetchBlockHeader(FetchBlockHeaderReq(id), new Metadata())
+          res <- underTest.fetchBlockHeader(FetchBlockHeaderReq(headerId), new Metadata())
           _ = assert(res.header.get == header)
         } yield ()
       }

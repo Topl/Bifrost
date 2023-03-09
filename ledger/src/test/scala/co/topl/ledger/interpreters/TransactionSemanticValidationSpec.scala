@@ -2,18 +2,19 @@ package co.topl.ledger.interpreters
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.ModelGenerators._
 import co.topl.models._
-import co.topl.typeclasses.implicits._
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 

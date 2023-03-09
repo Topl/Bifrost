@@ -12,7 +12,7 @@ import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
-import co.topl.models.utility.{Ratio, Sized}
+import co.topl.models.utility._
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory

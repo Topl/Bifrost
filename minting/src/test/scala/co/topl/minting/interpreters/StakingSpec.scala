@@ -10,6 +10,8 @@ import co.topl.consensus.algebras.{
   LeaderElectionValidationAlgebra
 }
 import co.topl.consensus.models.{EligibilityCertificate, SlotId, _}
+import co.topl.consensus.thresholdEvidence
+import co.topl.crypto.hash.Blake2b256
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
 import co.topl.minting.models.{OperationalKeyOut, VrfHit}
 import co.topl.models._
@@ -17,7 +19,6 @@ import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
-import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -104,7 +105,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             EligibilityCertificate(
               testProof,
               vkVrf,
-              relativeStake.typedEvidence.evidence.data,
+              thresholdEvidence(relativeStake)(new Blake2b256),
               eta.data
             ),
             slot,
@@ -213,7 +214,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           EligibilityCertificate(
             testProof,
             vkVrf,
-            relativeStake.typedEvidence.evidence.data,
+            thresholdEvidence(relativeStake)(new Blake2b256),
             eta.data
           ),
           slot,

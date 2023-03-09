@@ -13,10 +13,10 @@ import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
 import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
+import co.topl.models.StakingAddress
 import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
 
 /**
  * An EventSourcedState which operates on a `ConsensusData`.
@@ -29,8 +29,6 @@ import com.google.protobuf.ByteString
  * become re-registered.  Output arbits are subtracted from the staking parties, and spent arbits are added to the staking parties.
  */
 object ConsensusDataEventSourcedState {
-
-  type StakingAddress = ByteString
 
   case class ConsensusData[F[_]](
     operatorStakes:   Store[F, StakingAddress, BigInt],

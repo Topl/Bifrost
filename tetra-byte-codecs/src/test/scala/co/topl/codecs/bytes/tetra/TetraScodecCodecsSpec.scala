@@ -3,6 +3,7 @@ package co.topl.codecs.bytes.tetra
 import cats.{Eq, Show}
 import co.topl.codecs.bytes.CodecSpec
 import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.EligibilityCertificate
 import co.topl.crypto.models.KesBinaryTree
 import co.topl.models.utility.Ratio
 import co.topl.models._
@@ -57,7 +58,7 @@ class TetraScodecCodecsSpec extends CodecSpec {
     co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary
   )
 
-  codecBehavior[BlockId](
+  codecBehavior[EligibilityCertificate](
     "co.topl.consensus.models.EligibilityCertificate",
     TetraScodecCodecs.consensusEligibilityCertificateCodec,
     co.topl.models.generators.consensus.ModelGenerators.arbitraryEligibilityCertificate.arbitrary

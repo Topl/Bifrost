@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances._
@@ -27,7 +28,9 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           _ = (transactionSyntaxValidation.validate _)
             .expects(transaction)
             .once()
-            .returning((TransactionSyntaxError.EmptyInputs: TransactionSyntaxError).invalidNec[IoTransaction].pure[F])
+            .returning(
+              (TransactionSyntaxError.EmptyInputs: TransactionSyntaxError).invalidNec[IoTransaction].toEither.pure[F]
+            )
           underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation)
           result    <- underTest.validate(body)
           _         <- IO(result.isInvalid).assert

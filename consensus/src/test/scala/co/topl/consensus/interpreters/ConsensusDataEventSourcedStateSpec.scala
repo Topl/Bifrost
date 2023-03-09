@@ -8,14 +8,13 @@ import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.StakingAddress
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
 import co.topl.eventtree.ParentChildTree
 import co.topl.node.models.BlockBody
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.models.generators.node.ModelGenerators._
 import co.topl.models.ModelGenerators._
+import co.topl.models.StakingAddress
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
@@ -39,7 +38,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {
-      val stakingAddress = arbitraryStakingAddress.arbitrary.first
+      val stakingAddress = stakingAddressGen.first
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
       val bigBangBlockTransaction =
@@ -84,25 +83,29 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         // And create 3 arbits for the Operator and 2 arbits for a non-operator
         transaction2 = IoTransaction(
           List(
-            txOutputAddressFrom(bigBangBlockTransaction.id, 0),
-            Attestation.defaultInstance,
-            bigBangBlockTransaction.outputs(0).value
+            SpentTransactionOutput(
+              txOutputAddressFrom(bigBangBlockTransaction.id, 0),
+              Attestation.defaultInstance,
+              bigBangBlockTransaction.outputs(0).value
+            )
           ),
           List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4), stakingAddress)),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1), ByteString.EMPTY))
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
           ),
           defaultDatum
         )
         transaction3 = IoTransaction(
           List(
-            txOutputAddressFrom(transaction2.id, 0),
-            Attestation.defaultInstance,
-            transaction2.outputs(0).value
+            SpentTransactionOutput(
+              txOutputAddressFrom(transaction2.id, 0),
+              Attestation.defaultInstance,
+              transaction2.outputs(0).value
+            )
           ),
           List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3), stakingAddress)),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1), ByteString.EMPTY))
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
           ),
           defaultDatum
         )
@@ -140,8 +143,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress))),
             UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
           ),
-          defaultDatum,
-          None
+          defaultDatum
         )
 
         blockId3 = arbitraryBlockId.arbitrary.first
@@ -171,7 +173,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
   test("Return the registration of an operator at a particular block") {
     withMock {
-      val stakingAddress = arbitraryStakingAddress.arbitrary.first
+      val stakingAddress = stakingAddressGen.first
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
       val bigBangBlockTransaction =

@@ -1,7 +1,6 @@
 package co.topl.transactiongenerator.interpreters
 
 import cats.Applicative
-import cats.data.Chain
 import cats.effect._
 import cats.effect.std.Queue
 import cats.effect.std.Random
@@ -71,7 +70,7 @@ object Fs2TransactionGenerator {
    * Given a _current_ wallet, produce a new Transaction and new Wallet.  The generated transaction
    * will spend a random input from the wallet and produce two new outputs
    */
-  private def nextTransactionOf[F[_]: Async: Random](
+  private def nextTransactionOf[F[_]: Async](
     wallet: Wallet
   ): F[(Transaction, Wallet)] =
     for {
@@ -117,9 +116,9 @@ object Fs2TransactionGenerator {
         HeightLockOneSpendingAddress,
         Value().withLvl(Value.LVL(lvlBoxValue.quantity - quantityOutput0))
       )
-      Chain(output0, output1)
+      List(output0, output1)
     } else {
-      Chain(
+      List(
         UnspentTransactionOutput(
           HeightLockOneSpendingAddress,
           Value().withLvl(lvlBoxValue)

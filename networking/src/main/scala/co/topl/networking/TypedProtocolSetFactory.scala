@@ -19,7 +19,6 @@ import co.topl.networking.typedprotocols.TypedProtocol.CommonStates
 import co.topl.networking.typedprotocols._
 import fs2._
 import org.typelevel.log4cats.Logger
-import scodec.bits.ByteVector
 
 import java.util.concurrent.TimeoutException
 import scala.concurrent.duration._

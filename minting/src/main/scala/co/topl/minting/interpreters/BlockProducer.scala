@@ -1,6 +1,6 @@
 package co.topl.minting.interpreters
 
-import cats.data.{Chain, OptionT}
+import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra

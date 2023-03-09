@@ -14,6 +14,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.EligibilityCertificate
 import co.topl.consensus.models.OperationalCertificate
 import co.topl.consensus.models.SlotId
+import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras._
@@ -22,9 +23,9 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object Staking {
 
@@ -107,18 +108,10 @@ object Staking {
             vrfHit <- OptionT
               .whenF[F, VrfHit](isLeader)(
                 blake2b256Resource
-                  .use(
-                    _.hash(
-                      ByteString
-                        .copyFrom(threshold.numerator.toByteArray)
-                        .concat(
-                          ByteString.copyFrom(threshold.denominator.toByteArray)
-                        )
-                    ).pure[F]
-                  )
-                  .map(thresholdEvidence =>
+                  .use(thresholdEvidence(threshold)(_).pure[F])
+                  .map(evidence =>
                     VrfHit(
-                      EligibilityCertificate(testProof, vkVrf, thresholdEvidence, eta.data),
+                      EligibilityCertificate(testProof, vkVrf, evidence, eta.data),
                       slot,
                       threshold
                     )

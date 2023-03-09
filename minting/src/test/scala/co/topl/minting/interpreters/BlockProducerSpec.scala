@@ -1,19 +1,24 @@
 package co.topl.minting.interpreters
 
 import cats.effect.std.Queue
-import cats.effect.{Async, IO}
+import cats.effect.Async
+import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.StakingAddress
-import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
+import co.topl.consensus.models.SlotData
+import co.topl.minting.algebras.BlockPackerAlgebra
+import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
-import co.topl.models.generators.consensus.ModelGenerators.{arbitraryEligibilityCertificate, arbitrarySlotData}
+import co.topl.models.StakingAddress
+import co.topl.models.generators.consensus.ModelGenerators.arbitraryEligibilityCertificate
+import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.models.generators.node.ModelGenerators.arbitraryBlock
 import co.topl.node.models.Block
-import co.topl.consensus.models.SlotData
 import fs2._
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
+import org.scalacheck.Arbitrary
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
@@ -24,6 +29,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   type F[A] = IO[A]
 
   override val munitTimeout: FiniteDuration = 10.seconds
+
+  implicit private val arbitraryStakingAddress: Arbitrary[StakingAddress] = Arbitrary(stakingAddressGen)
 
   test("Produce a block when eligible") {
     PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddress, outputBlock: Block) =>

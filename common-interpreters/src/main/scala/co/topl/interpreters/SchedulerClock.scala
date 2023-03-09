@@ -15,7 +15,7 @@ object SchedulerClock {
 
   object Eval {
 
-    def make[F[_]: Monad: Async](
+    def make[F[_]: Async](
       _slotLength:              FiniteDuration,
       _slotsPerEpoch:           Long,
       genesisTime:              Instant,

@@ -192,14 +192,14 @@ package co.topl.genusLibrary.orientDb {
         GraphDataEncoder[Txo]
           .withProperty(
             "transactionId",
-            _.outputAddress.getIoTransaction32.evidence.digest.value.toByteArray,
+            _.outputAddress.get.getIoTransaction32.evidence.digest.value.toByteArray,
             _.setNotNull(true)
           )(
             byteArrayOrientDbTypes
           )
           .withProperty(
             "transactionOutputIndex",
-            txo => java.lang.Short.valueOf(txo.outputAddress.index.toShort),
+            txo => java.lang.Short.valueOf(txo.outputAddress.get.index.toShort),
             _.setNotNull(true)
           )(shortOrientDbTyped)
           // TODO
@@ -222,7 +222,7 @@ package co.topl.genusLibrary.orientDb {
           Txo(
             Box.parseFrom(v("box")),
             TxoState.values.find(_.name == v("state")).get,
-            txoAddress,
+            Some(txoAddress),
             None // TODO
           )
         }

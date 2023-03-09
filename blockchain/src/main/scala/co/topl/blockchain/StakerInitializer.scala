@@ -17,7 +17,6 @@ import co.topl.crypto.signing.Ed25519
 import co.topl.models.utility.{Lengths, Sized}
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.Proposition

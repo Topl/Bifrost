@@ -1,7 +1,6 @@
 package co.topl.crypto.utils
 
 import co.topl.crypto.models._
-import co.topl.models.ModelGenerators
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 
@@ -76,6 +75,6 @@ object NodeCryptoGenerators {
     )
 
   def byteArrayGen(length: Int): Gen[Array[Byte]] =
-    Gen.containerOfN[Array, Byte](length, ModelGenerators.byteGen)
+    Gen.containerOfN[Array, Byte](length, Gen.choose[Byte](Byte.MinValue, Byte.MaxValue))
 
 }

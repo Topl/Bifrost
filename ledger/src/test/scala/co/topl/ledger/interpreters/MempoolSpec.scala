@@ -1,13 +1,14 @@
 package co.topl.ledger.interpreters
 
+import cats.Applicative
+import cats.MonadThrow
 import cats.data.NonEmptyChain
 import cats.effect.Deferred
 import cats.effect.IO
 import cats.effect.MonadCancel
 import cats.implicits._
-import cats.Applicative
-import cats.MonadThrow
 import co.topl.algebras.ClockAlgebra
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.SpentTransactionOutput
@@ -20,9 +21,9 @@ import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
-import org.scalacheck.effect.PropF
 import org.scalacheck.Gen
 import org.scalacheck.Test
+import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
 import scala.concurrent.duration._

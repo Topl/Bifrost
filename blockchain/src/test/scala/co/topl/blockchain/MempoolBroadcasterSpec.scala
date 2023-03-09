@@ -2,12 +2,13 @@ package co.topl.blockchain
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.Identifier
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.models.ModelGenerators._
 import co.topl.typeclasses.implicits._
 import fs2._
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 

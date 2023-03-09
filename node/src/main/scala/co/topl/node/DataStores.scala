@@ -15,7 +15,6 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
-import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import co.topl.interpreters.CacheStore
 import co.topl.models.StakingAddress

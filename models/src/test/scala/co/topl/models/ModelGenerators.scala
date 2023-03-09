@@ -41,17 +41,15 @@ trait ModelGenerators {
   def networkPrefixGen: Gen[NetworkPrefix] =
     byteGen.map(NetworkPrefix(_))
 
+  val stakingAddressGen: Gen[StakingAddress] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
+
   def partialOperationalCertificateGen: Gen[UnsignedBlockHeader.PartialOperationalCertificate] =
     for {
       parentVK <- co.topl.models.generators.consensus.ModelGenerators.arbitraryVerificationKeyKesProduct.arbitrary
       parentSignature <- co.topl.models.generators.consensus.ModelGenerators.signatureKesProductArbitrary.arbitrary
       childVK         <- co.topl.models.generators.consensus.ModelGenerators.verificationKeyEd25519Gen
     } yield UnsignedBlockHeader.PartialOperationalCertificate(parentVK, parentSignature, childVK)
-
-  def stakingAddressGen: Gen[StakingAddress] =
-    for {
-      poolVK <- genSizedStrictBytes[Lengths.`32`.type]()
-    } yield poolVK.data
 
   def unsignedHeaderGen(
     parentHeaderIdGen: Gen[co.topl.consensus.models.BlockId] =

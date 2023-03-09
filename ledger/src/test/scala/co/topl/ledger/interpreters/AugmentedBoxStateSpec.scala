@@ -4,11 +4,9 @@ import cats.data.NonEmptySet
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
-import co.topl.brambl.models.Identifier
-import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.models._
+import co.topl.brambl.models.transaction._
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.consensus.models.BlockId

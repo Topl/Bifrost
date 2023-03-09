@@ -5,7 +5,6 @@ import cats.data.Chain
 import cats.effect.std.Semaphore
 import cats.effect.{Async, Resource, Sync}
 import co.topl.algebras.SecureStore
-import co.topl.models.Bytes
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import com.google.protobuf.ByteString

@@ -21,7 +21,6 @@ import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._

@@ -68,7 +68,7 @@ object Validators {
         currentEventIdGetterSetters.boxState.set,
         dataStores.spendableBoxIds.pure[F]
       )
-      transactionSyntaxValidation = TransactionSyntaxInterpreter.make[F]
+      transactionSyntaxValidation = TransactionSyntaxInterpreter.make[F]()
       transactionSemanticValidation <- TransactionSemanticValidation
         .make[F](dataStores.transactions.getOrRaise, boxState)
       transactionAuthorizationValidation = TransactionAuthorizationInterpreter.make[F]()

@@ -11,6 +11,7 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotId
+import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
@@ -31,6 +32,7 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import scodec.bits.ByteVector
 
 import java.util.UUID
 import scala.util.Random
@@ -348,7 +350,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, BlockId.of(parent.id)), child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         // This epoch nonce does not satisfy the generated VRF certificate
         .returning(eta.pure[F])
@@ -474,7 +476,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -503,10 +505,10 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       (blake2b256Resource
-        .use[Evidence](_: Function1[Blake2b256, F[Evidence]]))
+        .use[ByteVector](_: Function1[Blake2b256, F[ByteVector]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Blake2b256, F[Evidence]] => f(blake2b256) }
+        .onCall { f: Function1[Blake2b256, F[ByteVector]] => f(blake2b256) }
 
       underTest
         .validate(child, parent)
@@ -547,7 +549,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -582,10 +584,10 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       (blake2b256Resource
-        .use[Evidence](_: Function1[Blake2b256, F[Evidence]]))
+        .use[ByteVector](_: Function1[Blake2b256, F[ByteVector]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Blake2b256, F[Evidence]] => f(blake2b256) }
+        .onCall { f: Function1[Blake2b256, F[ByteVector]] => f(blake2b256) }
 
       underTest
         .validate(child, parent)
@@ -627,7 +629,7 @@ class BlockHeaderValidationSpec
 
       (etaInterpreter
         .etaToBe(_: SlotId, _: Slot))
-        .expects(SlotId(parent.slot, BlockId.of(parent.id._2)), child.slot)
+        .expects(SlotId(parent.slot, parent.id), child.slot)
         .anyNumberOfTimes()
         .returning(eta.pure[F])
 
@@ -662,10 +664,10 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       (blake2b256Resource
-        .use[Evidence](_: Function1[Blake2b256, F[Evidence]]))
+        .use[ByteVector](_: Function1[Blake2b256, F[ByteVector]]))
         .expects(*)
         .anyNumberOfTimes()
-        .onCall { f: Function1[Blake2b256, F[Evidence]] => f(blake2b256) }
+        .onCall { f: Function1[Blake2b256, F[ByteVector]] => f(blake2b256) }
 
       underTest.validate(child, parent).unsafeRunSync().value shouldBe child
     }
@@ -701,7 +703,7 @@ class BlockHeaderValidationSpec
     val cert = co.topl.consensus.models.EligibilityCertificate(
       testProof,
       ByteString.copyFrom(ed25519Vrf.getVerificationKey(skVrf.toByteArray)),
-      ByteString.copyFrom(threshold.typedEvidence.evidence.data.toArray),
+      thresholdEvidence(threshold)(new Blake2b256),
       ByteString.copyFrom(eta.data.toArray)
     )
 
@@ -726,7 +728,12 @@ class BlockHeaderValidationSpec
         .aToB(kesProductVerificationKey)
         .toOption
         .get,
-      parentSignature,
+      CryptoConsensusMorphismInstances
+        .signatureKesProductIsomorphism[cats.Id]
+        .baMorphism
+        .aToB(parentSignature)
+        .toOption
+        .get,
       ByteString.copyFrom(linearVKBytes.toArray)
     )
     unsignedF(partialCertificate) -> linearSKBytes
@@ -784,7 +791,7 @@ class BlockHeaderValidationSpec
           unsigned.partialOperationalCertificate.parentVK,
           unsigned.partialOperationalCertificate.parentSignature,
           unsigned.partialOperationalCertificate.childVK,
-          ed25519.sign(linearSK.bytes.data, unsigned.signableBytes)
+          ed25519.sign(linearSK, unsigned.signableBytes)
         )
 
       val child =

@@ -4,31 +4,24 @@ import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.brambl.models.Identifier.IoTransaction32
-import co.topl.genusLibrary.failure.Failures.{
-  NoBlockBodyFoundOnNodeFailure,
-  NoBlockHeaderFoundOnNodeFailure,
-  NonExistentTransactionsFailure
-}
-import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels.ModelGenerators._
 import co.topl.brambl.generators.ModelGenerators._
-import legacyModels.generators.models.ModelGenerators.arbitraryTransaction
-import legacyModels.generators.consensus.ModelGenerators.arbitraryHeader
-import legacyModels._
+import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
+import co.topl.genusLibrary.failure.Failures.NoBlockBodyFoundOnNodeFailure
+import co.topl.genusLibrary.failure.Failures.NoBlockHeaderFoundOnNodeFailure
+import co.topl.genusLibrary.failure.Failures.NonExistentTransactionsFailure
+import co.topl.genusLibrary.model.BlockData
+import co.topl.genusLibrary.model.HeightData
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
-import co.topl.proto.models.Transaction
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.genusLibrary.utils.ReplaceModelUtil.replaceTransactionLegacyModel
-import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
+
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -45,7 +38,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         (toplRpc.blockIdAtHeight _)
           .expects(height)
-          .returning(Option.empty[TypedIdentifier].pure[F])
+          .returning(Option.empty[BlockId].pure[F])
           .once()
 
         assertIO(
@@ -60,7 +53,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block without a header, a Left of NoBlockHeaderFoundOnNodeFailure should be returned"
   ) {
-    PropF.forAllF { (height: Long, blockId: TypedIdentifier) =>
+    PropF.forAllF { (height: Long, blockId: BlockId) =>
       withMock {
 
         (toplRpc.blockIdAtHeight _)
@@ -85,7 +78,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test(
     "On a block without a body, a Left of NoBlockBodyFoundOnNodeFailure should be returned"
   ) {
-    PropF.forAllF { (height: Long, blockId: TypedIdentifier, blockHeader: BlockHeader) =>
+    PropF.forAllF { (height: Long, blockId: BlockId, blockHeader: BlockHeader) =>
       withMock {
 
         (toplRpc.blockIdAtHeight _)
@@ -119,7 +112,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
     PropF.forAllF {
       (
         height:        Long,
-        blockId:       TypedIdentifier,
+        blockId:       BlockId,
         blockHeader:   BlockHeader,
         transactionId: IoTransaction32
       ) =>
@@ -143,8 +136,8 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId: TypedIdentifier)
-            .returning(Option.empty[Transaction].pure[F])
+            .expects(transactionId)
+            .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
           assertIO(
@@ -163,12 +156,12 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
     PropF.forAllF {
       (
         height:           Long,
-        blockId:          TypedIdentifier,
+        blockId:          BlockId,
         blockHeader:      BlockHeader,
         transactionId_01: IoTransaction32,
         transactionId_02: IoTransaction32,
         transactionId_03: IoTransaction32,
-        transaction_01:   Transaction
+        transaction_01:   IoTransaction
       ) =>
         withMock {
 
@@ -196,18 +189,18 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_01: TypedIdentifier)
+            .expects(transactionId_01)
             .returning(transaction_01.some.pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_02: TypedIdentifier)
-            .returning(Option.empty[Transaction].pure[F])
+            .expects(transactionId_02)
+            .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_03: TypedIdentifier)
-            .returning(Option.empty[Transaction].pure[F])
+            .expects(transactionId_03)
+            .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
           assertIO(
@@ -231,7 +224,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
     PropF.forAllF {
       (
         height:           Long,
-        blockId:          TypedIdentifier,
+        blockId:          BlockId,
         blockHeader:      BlockHeader,
         transactionId_01: IoTransaction32,
         transactionId_02: IoTransaction32,
@@ -263,18 +256,18 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_01: TypedIdentifier)
-            .returning(Option.empty[Transaction].pure[F])
+            .expects(transactionId_01)
+            .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_02: TypedIdentifier)
-            .returning(Option.empty[Transaction].pure[F])
+            .expects(transactionId_02)
+            .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
           (toplRpc.fetchTransaction _)
-            .expects(transactionId_03: TypedIdentifier)
-            .returning(Option.empty[Transaction].pure[F])
+            .expects(transactionId_03)
+            .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
           assertIO(
@@ -298,31 +291,23 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
     PropF.forAllF {
       (
         height:         Long,
-        blockId:        TypedIdentifier,
+        blockId:        BlockId,
         blockHeader:    BlockHeader,
-        transaction_01: Transaction,
-        transaction_02: Transaction,
-        transaction_03: Transaction
+        transaction_01: IoTransaction,
+        transaction_02: IoTransaction,
+        transaction_03: IoTransaction
       ) =>
         withMock {
 
-          val transactionId_01: TypedIdentifier = transaction_01.id.asTypedBytes
-          val transactionId_02: TypedIdentifier = transaction_02.id.asTypedBytes
-          val transactionId_03: TypedIdentifier = transaction_03.id.asTypedBytes
+          val transactionId_01 = transaction_01.id
+          val transactionId_02 = transaction_02.id
+          val transactionId_03 = transaction_03.id
 
-          // TODO move and rename in case we need to translate this model in other place
-          def aux(tx: TypedIdentifier): IoTransaction32 =
-            IoTransaction32.of(
-              co.topl.brambl.models.Evidence.Sized32.of(
-                quivr.models.Digest.Digest32.of(ByteString.copyFrom(tx.dataBytes.toArray))
-              )
-            )
-
-          val blockBody = BlockBody.of(
+          val blockBody = BlockBody(
             Seq(
-              aux(transactionId_01),
-              aux(transactionId_02),
-              aux(transactionId_03)
+              transactionId_01,
+              transactionId_02,
+              transactionId_03
             )
           )
 
@@ -363,7 +348,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
               blockData = BlockData(
                 header = blockHeader,
                 body = blockBody,
-                transactions = Chain(transaction_01, transaction_02, transaction_03).map(replaceTransactionLegacyModel)
+                transactions = Chain(transaction_01, transaction_02, transaction_03)
               ).some
             ).asRight
           )
