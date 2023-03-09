@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.IO.asyncForIO
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
+import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.{
   ConsensusValidationStateAlgebra,
   EtaCalculationAlgebra,
@@ -94,7 +95,9 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               consensusState,
               etaCalculation,
               ed25519Resource = null,
-              blake2b256Resource = null,
+              blake2b256Resource = new UnsafeResource[F, Blake2b256] {
+                def use[Res](f: Blake2b256 => F[Res]): F[Res] = f(new Blake2b256)
+              },
               vrfCalculator,
               leaderElectionValidation
             )
@@ -203,7 +206,9 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             consensusState = null,
             etaCalculation = null,
             ed25519Resource = null,
-            blake2b256Resource = null,
+            blake2b256Resource = new UnsafeResource[F, Blake2b256] {
+              def use[Res](f: Blake2b256 => F[Res]): F[Res] = f(new Blake2b256)
+            },
             vrfCalculator,
             leaderElectionValidation
           )

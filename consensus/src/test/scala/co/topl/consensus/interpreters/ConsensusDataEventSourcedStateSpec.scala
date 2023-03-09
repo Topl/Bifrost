@@ -4,6 +4,8 @@ import cats.Applicative
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
+import co.topl.brambl.common.ContainsEvidence
+import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction._
@@ -20,6 +22,7 @@ import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
+import quivr.models.Proposition
 import quivr.models.SmallData
 
 class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -33,8 +36,18 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         SmallData.defaultInstance
       )
     )
-  val lock: Lock = ???
-  val lockAddress: LockAddress = ???
+  val lock: Lock = Lock().withPredicate(Lock.Predicate(List(Proposition().withLocked(Proposition.Locked())), 1))
+
+  val lockAddress: LockAddress =
+    LockAddress(
+      0,
+      0,
+      LockAddress.Id.Lock32(
+        Identifier.Lock32(
+          ContainsEvidence[Lock].sized32Evidence(lock)
+        )
+      )
+    )
 
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {
@@ -85,7 +98,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           List(
             SpentTransactionOutput(
               txOutputAddressFrom(bigBangBlockTransaction.id, 0),
-              Attestation.defaultInstance,
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               bigBangBlockTransaction.outputs(0).value
             )
           ),
@@ -99,7 +112,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           List(
             SpentTransactionOutput(
               txOutputAddressFrom(transaction2.id, 0),
-              Attestation.defaultInstance,
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               transaction2.outputs(0).value
             )
           ),
@@ -130,12 +143,12 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           List(
             SpentTransactionOutput(
               txOutputAddressFrom(transaction2.id, 1),
-              Attestation.defaultInstance,
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               transaction2.outputs(1).value
             ),
             SpentTransactionOutput(
               txOutputAddressFrom(transaction3.id, 1),
-              Attestation.defaultInstance,
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               transaction3.outputs(1).value
             )
           ),
@@ -176,11 +189,15 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
       val stakingAddress = stakingAddressGen.first
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
+      val registration = signatureKesProductArbitrary.arbitrary.first
       val bigBangBlockTransaction =
         IoTransaction(
           Nil,
           List(
-            UnspentTransactionOutput(lockAddress, Value().withRegistration(Value.Registration(???, stakingAddress)))
+            UnspentTransactionOutput(
+              lockAddress,
+              Value().withRegistration(Value.Registration(registration, stakingAddress))
+            )
           ),
           defaultDatum
         )
@@ -222,7 +239,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           List(
             SpentTransactionOutput(
               txOutputAddressFrom(bigBangBlockTransaction.id, 0),
-              Attestation.defaultInstance,
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               bigBangBlockTransaction.outputs(0).value
             )
           ),

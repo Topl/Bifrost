@@ -95,7 +95,28 @@ package co.topl.genusLibrary.orientDb {
      * Schema for Address nodes
      */
     implicit private[genusLibrary] val addressVertexSchema: VertexSchema[LockAddress] =
-      ???
+      VertexSchema.create(
+        "LockAddress",
+        GraphDataEncoder[LockAddress]
+          .withProperty("network", v => java.lang.Integer.valueOf(v.network), _.setNotNull(true))
+          .withProperty("ledger", v => java.lang.Integer.valueOf(v.ledger), _.setNotNull(true))
+          .withProperty(
+            "id",
+            _.id match {
+              case v: LockAddress.Id.Lock32 => Array[Byte](0) ++ v.value.toByteArray
+              case v: LockAddress.Id.Lock64 => Array[Byte](1) ++ v.value.toByteArray
+            },
+            _.setNotNull(true)
+          ),
+        v => {
+          val idData: Array[Byte] = v("id")
+          val id = idData(0) match {
+            case 0 => LockAddress.Id.Lock32(Identifier.Lock32.parseFrom(idData.tail))
+            case 1 => LockAddress.Id.Lock64(Identifier.Lock64.parseFrom(idData.tail))
+          }
+          LockAddress(v("network"), v("ledger"), id)
+        }
+      )
 
     /**
      * Schema for TxO state vertexes

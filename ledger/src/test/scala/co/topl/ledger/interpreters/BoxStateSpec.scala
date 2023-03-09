@@ -22,15 +22,13 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   test("BoxState includes new outputs") {
     PropF.forAllF {
       (
-        blockId0:         BlockId,
-        transaction1Base: IoTransaction,
-        output:           UnspentTransactionOutput,
-        blockId1:         BlockId,
-        transaction2Base: IoTransaction,
-        input:            SpentTransactionOutput,
-        blockId2:         BlockId
+        blockId0: BlockId,
+        output:   UnspentTransactionOutput,
+        blockId1: BlockId,
+        input:    SpentTransactionOutput,
+        blockId2: BlockId
       ) =>
-        val transaction1 = transaction1Base.addOutputs(output)
+        val transaction1 = IoTransaction.defaultInstance.withOutputs(List(output))
         val outputBoxId =
           TransactionOutputAddress(
             0,
@@ -39,7 +37,7 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
             TransactionOutputAddress.Id.IoTransaction32(transaction1.id)
           )
 
-        val transaction2 = transaction2Base.addInputs(input.copy(address = outputBoxId))
+        val transaction2 = IoTransaction.defaultInstance.withInputs(List(input.copy(address = outputBoxId)))
 
         for {
           parentChildTree <- ParentChildTree.FromRef.make[IO, BlockId]

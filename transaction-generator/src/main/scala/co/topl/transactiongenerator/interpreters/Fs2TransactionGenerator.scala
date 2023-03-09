@@ -10,6 +10,8 @@ import co.topl.brambl.models.Event
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.box.Value
+import co.topl.brambl.common.ContainsSignable._
+import co.topl.brambl.common.ContainsSignable.instances._
 import co.topl.brambl.models.transaction.Attestation
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.Schedule
@@ -17,12 +19,11 @@ import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.models._
 import co.topl.numerics.implicits._
+import co.topl.quivr.api.Prover
 import co.topl.transactiongenerator.algebras.TransactionGenerator
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
-import quivr.models.Proof
 import quivr.models.SmallData
-import quivr.models.TxBind
 
 object Fs2TransactionGenerator {
 
@@ -75,13 +76,13 @@ object Fs2TransactionGenerator {
   ): F[(Transaction, Wallet)] =
     for {
       (inputBoxId, inputBox) <- pickInput[F](wallet)
-      attestation = Attestation().withPredicate(
+      unprovenAttestation = Attestation().withPredicate(
         Attestation.Predicate(
           wallet.propositions(lockAddressOf(inputBox.lock).getLock32.evidence).getPredicate,
-          List(Proof().withHeightRange(Proof.HeightRange(TxBind()))) // TODO TxBind
+          Nil
         )
       )
-      inputs = List(SpentTransactionOutput(inputBoxId, attestation, inputBox.value))
+      inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
       outputs   <- createOutputs[F](inputBox)
       timestamp <- Async[F].realTimeInstant
       schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
@@ -90,7 +91,25 @@ object Fs2TransactionGenerator {
         outputs,
         Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
       )
-      updatedWallet = applyTransaction(wallet)(transaction)
+      provenTransaction = transaction.update(
+        _.inputs.modify(
+          _.map(
+            _.update(
+              _.attestation.set(
+                Attestation().withPredicate(
+                  Attestation.Predicate(
+                    wallet.propositions(lockAddressOf(inputBox.lock).getLock32.evidence).getPredicate,
+                    List(
+                      Prover.heightProver[cats.Id].prove((), transaction.signable)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+      updatedWallet = applyTransaction(wallet)(provenTransaction)
     } yield (transaction, updatedWallet)
 
   /**

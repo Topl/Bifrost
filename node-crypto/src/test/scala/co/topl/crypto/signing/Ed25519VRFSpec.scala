@@ -3,9 +3,9 @@ package co.topl.crypto.signing
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.utils.EntropySupport._
 import co.topl.crypto.utils._
-import io.circe.generic.semiauto.deriveDecoder
 import io.circe.Decoder
 import io.circe.HCursor
+import io.circe.generic.semiauto.deriveDecoder
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.propspec.AnyPropSpec
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
@@ -45,8 +45,8 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         val keyPair1 = ed25519vrf.deriveKeyPairFromEntropy(seedByteVector, None)
         val keyPair2 = ed25519vrf.deriveKeyPairFromEntropy(seedByteVector, None)
 
-        keyPair1._1 === keyPair2._1 shouldBe true
-        keyPair1._2 === keyPair2._2 shouldBe true
+        ByteVector(keyPair1._1) shouldBe ByteVector(keyPair2._1)
+        ByteVector(keyPair1._2) shouldBe ByteVector(keyPair2._2)
       }
     }
   }
@@ -61,8 +61,8 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
 
     val underTest = new Ed25519VRF
     val (sk, vk) = underTest.deriveKeyPairFromEntropy(e, Some(p))
-    sk shouldBe specOutSK
-    vk shouldBe specOutVK
+    ByteVector(sk) shouldBe specOutSK
+    ByteVector(vk) shouldBe specOutVK
   }
 
   VrfEd25519SpecHelper.testVectors.foreach { underTest =>
@@ -80,7 +80,7 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
         underTest.inputs.message.toArray,
         underTest.outputs.verificationKey.toArray
       ) shouldBe true
-      ed25519vrf.proofToHash(pi) shouldBe underTest.outputs.beta
+      ByteVector(ed25519vrf.proofToHash(pi)) shouldBe underTest.outputs.beta
     }
   }
 

@@ -1,11 +1,10 @@
 package co.topl.consensus.interpreters
 
-import cats.data.Chain
+import cats.MonadThrow
+import cats.Monoid
 import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
-import cats.MonadThrow
-import cats.Monoid
 import co.topl.algebras._
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
@@ -65,7 +64,7 @@ object ConsensusDataEventSourcedState {
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
-        newTotalStake = stakeChanges.map(_.delta).prepend(previousTotalStake).sumAll
+        newTotalStake = previousTotalStake + stakeChanges.map(_.delta).sumAll
         _ <- state.totalActiveStake.put((), newTotalStake)
         _ <- stakeChanges.traverseTap { case StakeChange(address, quantity) =>
           OptionT(state.operatorStakes.get(address))
@@ -80,21 +79,18 @@ object ConsensusDataEventSourcedState {
         }
       } yield state
 
-    private def calculateStakeChanges(transaction: IoTransaction): F[Chain[StakeChange]] =
+    private def calculateStakeChanges(transaction: IoTransaction): F[Seq[StakeChange]] =
       for {
         inputStakeChanges <- transaction.inputs
           .flatMap(_.value.value.topl)
           .filterNot(_.stakingAddress.isEmpty)
           .map(v => v.stakingAddress -> -(v.quantity: BigInt))
-          .toMap
           .pure[F]
         outputStakeChanges = transaction.outputs
           .flatMap(_.value.value.topl)
           .filterNot(_.stakingAddress.isEmpty)
           .map(v => v.stakingAddress -> (v.quantity: BigInt))
-          .toMap
-        result = Chain
-          .fromIterableOnce(inputStakeChanges ++ outputStakeChanges)
+        result = (inputStakeChanges ++ outputStakeChanges)
           .map { case (address, delta) =>
             StakeChange(address, delta)
           }
@@ -130,7 +126,7 @@ object ConsensusDataEventSourcedState {
         stakeChanges        <- transactions.foldMapM(calculateStakeChanges)
         registrationChanges <- transactions.foldMapM(calculateRegistrationChanges)
         previousTotalStake  <- state.totalActiveStake.getOrRaise(())
-        newTotalStake = stakeChanges.map(_.delta).append(previousTotalStake).sumAll
+        newTotalStake = stakeChanges.map(_.delta).sumAll + previousTotalStake
         _ <- state.totalActiveStake.put((), newTotalStake)
         _ <- stakeChanges.traverseTap { stakeChange =>
           OptionT(state.operatorStakes.get(stakeChange.address))
@@ -145,7 +141,7 @@ object ConsensusDataEventSourcedState {
         }
       } yield state
 
-    private def calculateStakeChanges(transaction: IoTransaction): F[Chain[StakeChange]] =
+    private def calculateStakeChanges(transaction: IoTransaction): F[Seq[StakeChange]] =
       for {
         outputStakeChanges <- transaction.outputs.reverse
           .flatMap(_.value.value.topl.filterNot(_.stakingAddress.isEmpty))
@@ -154,8 +150,7 @@ object ConsensusDataEventSourcedState {
         inputStakeChanges = transaction.inputs.reverse
           .flatMap(_.value.value.topl.filterNot(_.stakingAddress.isEmpty))
           .map(v => v.stakingAddress -> (v.quantity: BigInt))
-        result = Chain
-          .fromIterableOnce(inputStakeChanges ++ outputStakeChanges)
+        result = (inputStakeChanges ++ outputStakeChanges)
           .map { case (address, delta) =>
             StakeChange(address, delta)
           }

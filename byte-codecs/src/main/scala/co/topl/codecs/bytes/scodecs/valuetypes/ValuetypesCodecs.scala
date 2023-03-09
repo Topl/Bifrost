@@ -7,7 +7,7 @@ import co.topl.codecs.bytes.ZigZagEncoder._
 import co.topl.codecs.bytes.scodecs.valuetypes.Constants._
 import co.topl.codecs.bytes.scodecs.valuetypes.Types._
 import com.google.protobuf.ByteString
-import scodec.bits.{BitVector, ByteVector}
+import scodec.bits.BitVector
 import scodec.interop.cats._
 import scodec.{Attempt, Codec, DecodeResult, Err, SizeBound}
 

@@ -3,7 +3,7 @@ package co.topl.interpreters
 import cats.effect.Sync
 import cats.effect.kernel.Async
 import cats.implicits._
-import cats.{Applicative, Monad}
+import cats.Applicative
 import co.topl.algebras.ClockAlgebra
 import co.topl.models.{Epoch, Slot, Timestamp}
 

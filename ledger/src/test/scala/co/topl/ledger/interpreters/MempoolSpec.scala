@@ -40,9 +40,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("expose a Set of Transaction IDs at a specific block") {
     PropF.forAllF(
       nonEmptyChainOf[(BlockId, NonEmptyChain[IoTransaction])](
-        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(Gen.const[IoTransaction](???)))
+        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(arbitraryIoTransaction.arbitrary))
       ),
-      Gen.const[IoTransaction](???)
+      arbitraryIoTransaction.arbitrary
     ) { case (bodies, newTx: IoTransaction) =>
       withMock {
         val bodiesMap = bodies.toList.toMap
