@@ -99,8 +99,10 @@ object TypedProtocolSetFactory {
       .map { case (prefix, data) =>
         val protoByteString = com.google.protobuf.ByteString.copyFrom(data.asByteBuffer)
         multiplexedSubHandler.codec.decode(prefix)(protoByteString) match {
-          case Right(value)  => value
-          case Left(failure) => throw new IllegalArgumentException(failure.toString)
+          case Right(value) =>
+            value
+          case Left(failure) =>
+            throw new IllegalArgumentException(failure.toString)
         }
       }
       .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)

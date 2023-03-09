@@ -108,7 +108,10 @@ object MultiplexerCodecs {
           case 0 =>
             TypedProtocol.CommonMessages.Response(none[T]).asRight
           case 1 =>
-            Transmittable[T].fromTransmittableBytes(bytes).map(_.some).map(TypedProtocol.CommonMessages.Response(_))
+            Transmittable[T]
+              .fromTransmittableBytes(bytes.substring(1))
+              .map(_.some)
+              .map(TypedProtocol.CommonMessages.Response(_))
           case _ =>
             Left("Invalid byte prefix for Response")
         }
