@@ -1,6 +1,5 @@
 package co.topl.minting.interpreters
 
-import cats.Monad
 import cats.data.EitherT
 import cats.effect.std.Queue
 import cats.effect.Async
@@ -11,6 +10,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
+import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.StaticBodyValidationContext
 import co.topl.ledger.models.StaticTransactionValidationContext
 import co.topl.ledger.models.TransactionValidationContext
@@ -95,7 +95,7 @@ object BlockPacker {
     // TODO: This may introduce an attack vector in which an adversary may spam 0-timestamp Transactions
     transactions.sortBy(_.datum.event.schedule.timestamp)
 
-  def makeBodyValidator[F[_]: Monad: Logger](
+  def makeBodyValidator[F[_]: Sync: Logger](
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F]
@@ -117,7 +117,9 @@ object BlockPacker {
       ).leftMap(_.toString) >>
       EitherT(
         bodyAuthorizationValidation
-          .validate(transactionValidationContext.parentHeaderId)(proposedBody)
+          .validate(
+            QuivrContext.forProposedBlock[F](transactionValidationContext.height, transactionValidationContext.slot, _)
+          )(proposedBody)
           .map(_.toEither)
       ).leftMap(_.toString)
     )

@@ -10,6 +10,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.ledger.algebras._
+import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.StaticBodyValidationContext
 import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
@@ -333,7 +334,7 @@ object BlockChecker {
       validationContext = StaticBodyValidationContext(header.parentHeaderId, header.height, header.slot)
       _ <- EitherT(state.bodySemanticValidation.validate(validationContext)(body).map(_.toEither.leftMap(_.show)))
       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
-      authValidation = state.bodyAuthorizationValidation.validate(header.parentHeaderId)(body)
+      authValidation = state.bodyAuthorizationValidation.validate(QuivrContext.forConstructedBlock(header, _))(body)
       _ <- EitherT(authValidation.map(_.toEither.leftMap(_.show)))
     } yield (blockId, block)
   }

@@ -20,6 +20,7 @@ import co.topl.consensus.algebras.{BlockHeaderValidationAlgebra, LocalChainAlgeb
 import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
+import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models._
 import co.topl.node.models._
 import co.topl.networking.blockchain._
@@ -298,7 +299,7 @@ object BlockchainPeerHandler {
                       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
                       _ <- EitherT(
                         bodyAuthorizationValidation
-                          .validate(header.parentHeaderId)(body)
+                          .validate(QuivrContext.forConstructedBlock(header, _))(body)
                           .map(_.toEither.leftMap(_.show))
                       )
                     } yield ()

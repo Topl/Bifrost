@@ -1,14 +1,14 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.kernel.Concurrent
 import cats.effect.Async
 import cats.effect.Resource
+import cats.effect.kernel.Concurrent
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._

@@ -7,7 +7,6 @@ import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
-import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
@@ -26,14 +25,14 @@ object BodyAuthorizationValidation {
          * Perform authorization validation on each of the transactions in this block
          */
         def validate(
-          parentBlockId: BlockId
+          context: IoTransaction => DynamicContext[F, String, Datum]
         )(body: BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
           body.transactionIds
             .foldMapM(transactionId =>
               for {
                 transaction <- fetchTransaction(transactionId)
-                context: DynamicContext[F, String, Datum] = ???
-                validationResult <- transactionAuthorizationValidation.validate(context)(transaction)
+                quivrContext = context(transaction)
+                validationResult <- transactionAuthorizationValidation.validate(quivrContext)(transaction)
               } yield validationResult
                 .leftMap(error =>
                   BodyAuthorizationErrors.TransactionAuthorizationErrors(transaction, error): BodyAuthorizationError
