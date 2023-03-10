@@ -14,8 +14,6 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
-import co.topl.{models => legacyModels}
-import legacyModels._
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
@@ -25,6 +23,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.signing.Ed25519VRF
@@ -47,7 +46,7 @@ object Blockchain {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    transactionStore:            Store[F, Identifier.IoTransaction32, Transaction],
+    transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
     _localChain:                 LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     blockIdTree:                 ParentChildTree[F, BlockId],

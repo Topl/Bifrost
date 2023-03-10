@@ -1,26 +1,31 @@
 package co.topl.node
 
-import cats.{Applicative, Monad, MonadThrow}
 import cats.data.NonEmptySet
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import cats.implicits._
+import cats.Applicative
+import cats.Monad
+import cats.MonadThrow
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.SlotData
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.BlockBody
-import co.topl.typeclasses.implicits._
 import co.topl.interpreters.CacheStore
-import co.topl.models.StakingAddress
+import co.topl.node.models.BlockBody
 import co.topl.node.models.FullBlock
+import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Files
+import fs2.io.file.Path
 import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](

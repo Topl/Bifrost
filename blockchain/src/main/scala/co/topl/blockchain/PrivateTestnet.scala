@@ -67,7 +67,7 @@ object PrivateTestnet {
   val HeightLockOneProposition: Proposition =
     Proposition(
       Proposition.Value.HeightRange(
-        Proposition.HeightRange("tick", 1, Long.MaxValue)
+        Proposition.HeightRange("header", 1, Long.MaxValue)
       )
     )
 

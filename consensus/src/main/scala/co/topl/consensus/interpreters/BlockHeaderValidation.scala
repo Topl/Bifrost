@@ -328,7 +328,7 @@ object BlockHeaderValidation {
           for {
             message <- blake2b256Resource
               .use(
-                _.hash(header.eligibilityCertificate.vrfVK, header.address).pure[F]
+                _.hash(header.eligibilityCertificate.vrfVK, header.address.value).pure[F]
               )
             isValid <- kesProductResource
               .use(p => p.verify(commitmentCrypto, message.toArray, parentVK.copy(step = 0)).pure[F])

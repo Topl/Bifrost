@@ -7,11 +7,11 @@ import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application._
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters._
-import co.topl.models._
 import co.topl.transactiongenerator.interpreters._
 import co.topl.typeclasses.implicits._
 import fs2._
@@ -104,7 +104,7 @@ object TransactionGeneratorApp
    * Broadcasts each transaction from the input stream
    */
   private def runBroadcastStream(
-    transactionStream: Stream[F, Transaction],
+    transactionStream: Stream[F, IoTransaction],
     client:            ToplRpc[F, Stream[F, *]],
     targetTps:         Double
   ) =

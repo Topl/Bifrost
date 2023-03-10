@@ -6,13 +6,13 @@ import cats.effect.kernel.Concurrent
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.models.Transaction
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.blockchain.BlockchainPeerHandlerAlgebra
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
@@ -32,7 +32,7 @@ object ActorPeerHandlerBridgeAlgebra {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    transactionStore:            Store[F, Identifier.IoTransaction32, Transaction],
+    transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     val networkAlgebra = new NetworkAlgebraImpl[F]()

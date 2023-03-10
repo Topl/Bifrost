@@ -7,6 +7,7 @@ import cats.effect.Async
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.LocalChainAlgebra
@@ -15,7 +16,6 @@ import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.node.models.BlockBody
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
-import co.topl.models.Transaction
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -43,7 +43,7 @@ object ToplRpcServer {
   def make[F[_]: Async](
     headerStore:               Store[F, BlockId, BlockHeader],
     bodyStore:                 Store[F, BlockId, BlockBody],
-    transactionStore:          Store[F, Identifier.IoTransaction32, Transaction],
+    transactionStore:          Store[F, Identifier.IoTransaction32, IoTransaction],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxVerifier[F],
     localChain:                LocalChainAlgebra[F],
@@ -56,7 +56,7 @@ object ToplRpcServer {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 
-        def broadcastTransaction(transaction: Transaction): F[Unit] = {
+        def broadcastTransaction(transaction: IoTransaction): F[Unit] = {
           val id = transaction.id
           transactionStore
             .contains(id)
@@ -79,7 +79,7 @@ object ToplRpcServer {
         def fetchBlockBody(blockId: BlockId): F[Option[BlockBody]] =
           bodyStore.get(blockId)
 
-        def fetchTransaction(transactionId: Identifier.IoTransaction32): F[Option[Transaction]] =
+        def fetchTransaction(transactionId: Identifier.IoTransaction32): F[Option[IoTransaction]] =
           transactionStore
             .get(transactionId)
 
@@ -99,7 +99,7 @@ object ToplRpcServer {
             head <- localChain.head
             atDepth <-
               if (depth === 0L) head.slotId.blockId.some.pure[F]
-              else if (depth > head.height) none.pure[F]
+              else if (depth >= head.height) none.pure[F]
               else blockHeights.useStateAt(head.slotId.blockId)(_.apply(head.height - depth))
           } yield atDepth
 
@@ -116,7 +116,7 @@ object ToplRpcServer {
                 .headChanges
             }
 
-        private def syntacticValidateOrRaise(transaction: Transaction) =
+        private def syntacticValidateOrRaise(transaction: IoTransaction) =
           EitherT(syntacticValidation.validate(transaction))
             .leftSemiflatTap(errors =>
               Logger[F].warn(
@@ -135,9 +135,9 @@ object ToplRpcServer {
     }
 
   private def processValidTransaction[F[_]: Monad: Logger](
-    transactionStore: Store[F, Identifier.IoTransaction32, Transaction],
+    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction],
     mempool:          MempoolAlgebra[F]
-  )(transaction: Transaction) =
+  )(transaction: IoTransaction) =
     for {
       id <- transaction.id.pure[F]
       _  <- Logger[F].debug(show"Inserting Transaction id=$id into transaction store")

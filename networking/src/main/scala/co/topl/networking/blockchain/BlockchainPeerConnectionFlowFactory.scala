@@ -5,10 +5,10 @@ import akka.util.ByteString
 import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
-import co.topl.models._
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking._
@@ -113,7 +113,7 @@ object BlockchainPeerConnectionFlowFactory {
           def getRemoteSlotData(id: BlockId): F[Option[SlotData]] = slotDataReceivedCallback(id)
           def getRemoteHeader(id:   BlockId): F[Option[BlockHeader]] = headerReceivedCallback(id)
           def getRemoteBody(id:     BlockId): F[Option[BlockBody]] = bodyReceivedCallback(id)
-          def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[Transaction]] =
+          def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]] =
             transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(
             height:       Long,

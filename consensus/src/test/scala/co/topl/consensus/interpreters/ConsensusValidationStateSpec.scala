@@ -7,22 +7,19 @@ import co.topl.algebras.testInterpreters.TestStore
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
 import co.topl.eventtree.EventSourcedState
 import co.topl.models._
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.models.ModelGenerators.stakingAddressGen
 import co.topl.models.utility.Ratio
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
-import org.scalacheck.Arbitrary
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
 class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
-
-  implicit private val arbitraryStakingAddress: Arbitrary[StakingAddress] = Arbitrary(stakingAddressGen)
 
   test("Retrieve relative stakes at epoch N-2 of the requested block for epoch N > 1") {
     PropF.forAllF {

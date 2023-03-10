@@ -6,6 +6,7 @@ import cats.effect.Async
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
@@ -30,7 +31,7 @@ object BlockPacker {
 
   def make[F[_]: Async](
     mempool:                  MempoolAlgebra[F],
-    fetchTransaction:         Identifier.IoTransaction32 => F[Transaction],
+    fetchTransaction:         Identifier.IoTransaction32 => F[IoTransaction],
     transactionExistsLocally: Identifier.IoTransaction32 => F[Boolean],
     validateBody:             TransactionValidationContext => F[Boolean]
   ): F[BlockPackerAlgebra[F]] =
@@ -64,7 +65,7 @@ object BlockPacker {
             iterative <-
               // Enqueue all of the transactions (in no particular order, which is terrible for performance and accuracy)
               Queue
-                .unbounded[F, Transaction]
+                .unbounded[F, IoTransaction]
                 .flatTap(queue => sortedTransactions.traverse(queue.offer))
                 .map(queue =>
                   new Iterative[F, FullBlockBody] {
@@ -91,7 +92,7 @@ object BlockPacker {
    * A naive mechanism to pre-sort the Transactions that are attempted into a block.  The pre-sort attempts to
    * decrease the odds of wasting an attempt on a double-spend Transaction.
    */
-  private def orderTransactions(transactions: List[Transaction]): List[Transaction] =
+  private def orderTransactions(transactions: List[IoTransaction]): List[IoTransaction] =
     // TODO: This may introduce an attack vector in which an adversary may spam 0-timestamp Transactions
     transactions.sortBy(_.datum.event.schedule.timestamp)
 

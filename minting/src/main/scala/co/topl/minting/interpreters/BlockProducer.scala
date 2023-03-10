@@ -7,6 +7,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.catsakka._
 import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.StakingAddress
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
 import co.topl.minting.models.VrfHit
 import co.topl.models._

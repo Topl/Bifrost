@@ -9,11 +9,11 @@ import co.topl.actor.Actor
 import co.topl.actor.Fsm
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.Transaction
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -91,7 +91,7 @@ object PeersManager {
     peers:                Map[HostId, Peer[F]],
     localChain:           LocalChainAlgebra[F],
     slotDataStore:        Store[F, BlockId, SlotData],
-    transactionStore:     Store[F, Identifier.IoTransaction32, Transaction],
+    transactionStore:     Store[F, Identifier.IoTransaction32, IoTransaction],
     blockIdTree:          ParentChildTree[F, BlockId]
   )
 
@@ -119,7 +119,7 @@ object PeersManager {
     networkAlgebra:   NetworkAlgebra[F],
     localChain:       LocalChainAlgebra[F],
     slotDataStore:    Store[F, BlockId, SlotData],
-    transactionStore: Store[F, Identifier.IoTransaction32, Transaction],
+    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction],
     blockIdTree:      ParentChildTree[F, BlockId]
   ): Resource[F, PeersManagerActor[F]] = {
     val initialState =

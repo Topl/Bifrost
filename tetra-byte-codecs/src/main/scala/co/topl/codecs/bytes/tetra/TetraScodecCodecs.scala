@@ -148,6 +148,9 @@ trait TetraScodecCodecs {
     (vkKesProductCodec :: signatureKesProductCodec :: byteStringCodecSized(32))
       .as[UnsignedBlockHeader.PartialOperationalCertificate]
 
+  implicit val stakingAddressCodec: Codec[StakingAddress] =
+    (byteStringCodecSized(32) :: unknownFieldSetCodec).as[StakingAddress]
+
   implicit val consensusBlockHeaderCodec: Codec[BlockHeader] = (
     blockIdCodec :: // parentHeaderId
       longCodec :: // parentSlot
@@ -159,7 +162,7 @@ trait TetraScodecCodecs {
       consensusEligibilityCertificateCodec ::
       operationalCertificateCodec ::
       byteStringCodec :: // metadata
-      byteStringCodecSized(32) :: // address
+      stakingAddressCodec :: // address
       unknownFieldSetCodec
   ).as[BlockHeader]
 
@@ -174,7 +177,7 @@ trait TetraScodecCodecs {
       consensusEligibilityCertificateCodec ::
       partialOperationalCertificateCodec ::
       byteStringCodec :: // metadata
-      byteStringCodecSized(32) // address
+      stakingAddressCodec // address
   ).as[UnsignedBlockHeader]
 
 }

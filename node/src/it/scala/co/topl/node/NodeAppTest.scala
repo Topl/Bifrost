@@ -6,11 +6,27 @@ import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.blockchain.PrivateTestnet
+import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
+import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
+import co.topl.brambl.models.Datum
+import co.topl.brambl.models.Event
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.transaction.Attestation
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.transaction.Schedule
+import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.consensus.models.BlockId
 import co.topl.grpc.ToplGrpc
+import co.topl.quivr.api.Prover
 import co.topl.typeclasses.implicits._
 import fs2._
 import fs2.io.file.{Files, Path}
 import munit._
+import quivr.models.SmallData
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
@@ -21,11 +37,13 @@ class NodeAppTest extends CatsEffectSuite {
 
   type RpcClient = ToplRpc[F, Stream[F, *]]
 
+  override val munitTimeout: Duration = 2.minutes
+
   test("Two block-producing nodes that maintain consensus") {
     // Allow the nodes to produce/adopt blocks until reaching this height
-    val targetProductionHeight = 8
+    val targetProductionHeight = 10
     // All of the nodes should agree on the same block at this height
-    val targetConsensusHeight = 5
+    val targetConsensusHeight = 8
     val startTimestamp = System.currentTimeMillis() + 10_000L
     val configNodeA =
       s"""
@@ -72,6 +90,16 @@ class NodeAppTest extends CatsEffectSuite {
         rpcClientB  <- ToplGrpc.Client.make[F]("localhost", 9153, tls = false)
         _           <- (awaitNodeReady(rpcClientA).toResource, awaitNodeReady(rpcClientB).toResource).parTupled
         _ <- (
+          fetchUntilHeight(rpcClientA, 3).toResource,
+          fetchUntilHeight(rpcClientB, 3).toResource
+        ).parTupled
+        (utxoAddress, utxo) <- bigBangSpendableUtxo(rpcClientA).toResource
+        newTransaction      <- spendUtxo(rpcClientB)(utxoAddress, utxo).toResource
+        _ <- (
+          Async[F].timeout(confirmTransaction(rpcClientA)(newTransaction.id), 15.seconds).toResource,
+          Async[F].timeout(confirmTransaction(rpcClientB)(newTransaction.id), 15.seconds).toResource
+        ).parTupled
+        _ <- (
           fetchUntilHeight(rpcClientA, targetProductionHeight).toResource,
           fetchUntilHeight(rpcClientB, targetProductionHeight).toResource
         ).parTupled
@@ -108,9 +136,13 @@ class NodeAppTest extends CatsEffectSuite {
   private def launch(configFile: Path): Resource[F, Unit] =
     for {
       app1 <- Sync[F].delay(new AbstractNodeApp {}).toResource
-      _    <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
-      bg   <- app1.run.start.toResource
-      _    <- Resource.onFinalize(bg.cancel)
+      _ <- Sync[F]
+        .delay(
+          app1.initialize(Array("--config", configFile.toString))
+        )
+        .toResource
+      bg <- app1.run.start.toResource
+      _  <- Resource.onFinalize(bg.cancel)
     } yield ()
 
   private def awaitNodeReady(client: ToplRpc[F, Stream[F, *]]) =
@@ -131,4 +163,84 @@ class NodeAppTest extends CatsEffectSuite {
       )
       .compile
       .drain
+
+  private def bigBangSpendableUtxo(client: RpcClient): F[(TransactionOutputAddress, UnspentTransactionOutput)] =
+    client
+      .blockIdAtHeight(1)
+      .map(_.get)
+      .flatMap(client.fetchBlockBody)
+      .map(_.get)
+      .map(_.transactionIds.head)
+      .flatMap(client.fetchTransaction)
+      .map(_.get)
+      .map { t =>
+        val index = t.outputs.indexWhere(_.address == PrivateTestnet.HeightLockOneSpendingAddress)
+        val address = TransactionOutputAddress(0, 0, index, TransactionOutputAddress.Id.IoTransaction32(t.id))
+        (address, t.outputs(index))
+      }
+
+  private def spendUtxo(
+    client: RpcClient
+  )(address: TransactionOutputAddress, output: UnspentTransactionOutput) =
+    for {
+      predicate <- Attestation.Predicate(PrivateTestnet.HeightLockOneLock.getPredicate, Nil).pure[F]
+      unprovenTransaction <- IoTransaction(
+        inputs = List(
+          SpentTransactionOutput(
+            address,
+            Attestation(Attestation.Value.Predicate(predicate)),
+            output.value
+          )
+        ),
+        outputs = List(
+          UnspentTransactionOutput(
+            PrivateTestnet.HeightLockOneSpendingAddress,
+            output.value
+          )
+        ),
+        Datum.IoTransaction(
+          Event.IoTransaction(Schedule(0, Long.MaxValue, System.currentTimeMillis()), SmallData.defaultInstance)
+        )
+      ).pure[F]
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      provenTransaction = unprovenTransaction.copy(
+        inputs = unprovenTransaction.inputs.map(
+          _.copy(attestation =
+            Attestation(
+              Attestation.Value.Predicate(
+                predicate.copy(responses = List(proof))
+              )
+            )
+          )
+        )
+      )
+      _ <- client.broadcastTransaction(provenTransaction)
+    } yield provenTransaction
+
+  private def confirmTransaction(
+    client: RpcClient
+  )(id: Identifier.IoTransaction32, confirmationDepth: Int = 4): F[Unit] = {
+    def containsTransaction(targetBlock: BlockId): F[Boolean] =
+      client
+        .fetchBlockBody(targetBlock)
+        .map(_.get.transactionIds.contains(id))
+        .ifM(
+          true.pure[F],
+          client
+            .fetchBlockHeader(targetBlock)
+            .map(_.get)
+            .flatMap(header =>
+              if (header.height > 1) containsTransaction(header.parentHeaderId)
+              else false.pure[F]
+            )
+        )
+
+    client
+      .blockIdAtDepth(confirmationDepth)
+      .iterateUntil(_.nonEmpty)
+      .map(_.get)
+      .flatMap(containsTransaction)
+      .iterateUntil(identity)
+      .void
+  }
 }

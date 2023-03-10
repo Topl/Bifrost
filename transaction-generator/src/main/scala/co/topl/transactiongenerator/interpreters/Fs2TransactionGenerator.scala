@@ -17,7 +17,6 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.Schedule
 import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.models._
 import co.topl.numerics.implicits._
 import co.topl.quivr.api.Prover
 import co.topl.transactiongenerator.algebras.TransactionGenerator
@@ -40,7 +39,7 @@ object Fs2TransactionGenerator {
     Sync[F].delay(
       new TransactionGenerator[F, Stream[F, *]] {
 
-        def generateTransactions: F[Stream[F, Transaction]] =
+        def generateTransactions: F[Stream[F, IoTransaction]] =
           Queue
             // Create a queue of wallets to process.  The queue is "recursive" in that processing a wallet
             // will subsequently enqueue at least one new wallet after processing.
@@ -73,7 +72,7 @@ object Fs2TransactionGenerator {
    */
   private def nextTransactionOf[F[_]: Async](
     wallet: Wallet
-  ): F[(Transaction, Wallet)] =
+  ): F[(IoTransaction, Wallet)] =
     for {
       (inputBoxId, inputBox) <- pickInput[F](wallet)
       unprovenAttestation = Attestation().withPredicate(

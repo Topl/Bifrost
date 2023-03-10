@@ -14,6 +14,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.EligibilityCertificate
 import co.topl.consensus.models.OperationalCertificate
 import co.topl.consensus.models.SlotId
+import co.topl.consensus.models.StakingAddress
 import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519

@@ -31,12 +31,4 @@ package object models {
   @newtype case class RhoNonceHash(sizedBytes: Sized.Strict[Bytes, Lengths.`64`.type])
   type Digest32 = Sized.Strict[Bytes, Lengths.`32`.type]
 
-  // TODO: Delete
-  type BlockBody = co.topl.node.models.BlockBody
-
-  // TODO: Delete
-  type Transaction = co.topl.brambl.models.transaction.IoTransaction
-
-  type StakingAddress = ByteString
-
 }

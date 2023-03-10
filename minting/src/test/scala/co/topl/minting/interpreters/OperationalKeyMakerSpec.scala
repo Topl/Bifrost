@@ -5,27 +5,25 @@ import cats.data.Chain
 import cats.effect.IO.asyncForIO
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
-import co.topl.algebras.SecureStore
+import co.topl.algebras._
 import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
-import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.CryptoConsensusMorphismInstances._
-import co.topl.consensus.models.SlotId
+import co.topl.consensus.algebras._
+import co.topl.consensus.models.CryptoConsensusMorphismInstances.signatureKesProductIsomorphism
+import co.topl.consensus.models.CryptoConsensusMorphismInstances.verificationKeyKesProductIsomorphism
+import co.topl.consensus.models._
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.VrfCalculatorAlgebra
 import co.topl.models.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
-import org.scalacheck.Arbitrary
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.scalatest.OptionValues
@@ -51,8 +49,6 @@ class OperationalKeyMakerSpec
 
   implicit private val kesProduct: KesProduct = new KesProduct
   implicit private val ed25519: Ed25519 = new Ed25519
-
-  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] = Arbitrary(stakingAddressGen)
 
   test("load the initial key from SecureStore and produce (VRF-filtered) linear keys") {
     PropF.forAllF { (eta: Eta, address: StakingAddress) =>

@@ -4,14 +4,15 @@ import cats.Foldable
 import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
 import co.topl.crypto.accumulators.LeafData
 import co.topl.crypto.accumulators.merkle.MerkleTree
+import co.topl.crypto.hash.Blake2b
+import co.topl.crypto.hash.Blake2bHash
 import co.topl.crypto.hash.digest.Digest
 import co.topl.crypto.hash.digest.Digest32
 import co.topl.crypto.hash.digest.InvalidDigestFailure
-import co.topl.crypto.hash.Blake2b
-import co.topl.crypto.hash.Blake2bHash
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -59,7 +60,7 @@ object ContainsTransactionIds {
  * Satisfies that T contains transactions
  */
 @typeclass trait ContainsTransactions[T] {
-  @op("transactions") def transactionsOf(t: T): Seq[Transaction]
+  @op("transactions") def transactionsOf(t: T): Seq[IoTransaction]
 
   @op("bloomFilter") def bloomFilterOf(@annotation.nowarn t: T): BloomFilter =
     // TODO
@@ -72,9 +73,9 @@ object ContainsTransactions {
 
     implicit val fullBlockBodyContainsTransactions: ContainsTransactions[FullBlockBody] = _.transaction
 
-    implicit val transactionsContainsTransactions: ContainsTransactions[Seq[Transaction]] = identity
+    implicit val transactionsContainsTransactions: ContainsTransactions[Seq[IoTransaction]] = identity
 
-    implicit def transactionsFoldableContainsTransactions[G[_]: Foldable]: ContainsTransactions[G[Transaction]] =
+    implicit def transactionsFoldableContainsTransactions[G[_]: Foldable]: ContainsTransactions[G[IoTransaction]] =
       t => t.toIterable.toSeq
 
   }

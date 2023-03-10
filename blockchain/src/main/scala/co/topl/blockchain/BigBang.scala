@@ -3,7 +3,6 @@ package co.topl.blockchain
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
@@ -45,7 +44,7 @@ object BigBang {
    * Constructs a full block using the given Big Bang Configuration
    */
   def block(implicit config: Config): FullBlock = { // TODO move to Block.FullConsensus
-    val transactions: List[Transaction] =
+    val transactions: List[IoTransaction] =
       List(
         IoTransaction(
           inputs = Nil,
@@ -75,7 +74,7 @@ object BigBang {
         eligibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
         metadata = ByteString.EMPTY,
-        address = zeroBytes(Lengths.`32`).data
+        address = StakingAddress(zeroBytes(Lengths.`32`).data)
       )
     FullBlock(header, FullBlockBody(transactions))
   }

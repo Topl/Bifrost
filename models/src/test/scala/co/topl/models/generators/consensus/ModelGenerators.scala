@@ -33,6 +33,9 @@ trait ModelGenerators {
   def signatureEd25519Gen: Gen[ByteString] =
     genSizedStrictByteString[Lengths.`64`.type]().map(_.data)
 
+  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] =
+    Arbitrary(genSizedStrictByteString[Lengths.`32`.type]().map(_.data).map(StakingAddress(_)))
+
   implicit val signatureKesSumArbitrary: Arbitrary[SignatureKesSum] =
     Arbitrary(
       for {
@@ -122,7 +125,7 @@ trait ModelGenerators {
     eligibilityCertificateGen: Gen[EligibilityCertificate] = arbitraryEligibilityCertificate.arbitrary,
     operationalCertificateGen: Gen[OperationalCertificate] = arbitraryOperationalCertificate.arbitrary,
     metadataGen:               Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
-    addressGen:                Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
+    addressGen:                Gen[StakingAddress] = arbitraryStakingAddress.arbitrary
   ): Gen[BlockHeader] =
     for {
       parentHeaderID <- parentHeaderIdGen

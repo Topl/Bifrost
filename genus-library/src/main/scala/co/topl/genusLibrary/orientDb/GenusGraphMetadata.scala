@@ -15,7 +15,6 @@ package co.topl.genusLibrary.orientDb {
   import co.topl.genus.services.TxoState
   import co.topl.genusLibrary.GenusException
   import co.topl.genusLibrary.utils.BlockUtils
-  import co.topl.models._
   import co.topl.node.models.BlockBody
   import com.google.protobuf.ByteString
   import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
@@ -192,10 +191,10 @@ package co.topl.genusLibrary.orientDb {
         v => BlockBody.parseFrom(v("transactionIds"))
       )
 
-    implicit private[genusLibrary] val transactionSchema: VertexSchema[Transaction] =
+    implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
       VertexSchema.create(
         name = "Transaction",
-        GraphDataEncoder[Transaction]
+        GraphDataEncoder[IoTransaction]
           .withProperty(
             "transactionId",
             t => t.id.toByteArray,

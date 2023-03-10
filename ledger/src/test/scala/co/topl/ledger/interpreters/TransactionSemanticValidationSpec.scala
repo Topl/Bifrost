@@ -12,7 +12,6 @@ import co.topl.consensus.models.BlockId
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models._
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
@@ -34,7 +33,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             .update(_.datum.event.schedule.min.set(0))
             .update(_.datum.event.schedule.max.set(4))
           for {
-            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[Transaction]].pure[F]
+            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
             boxState         <- mock[BoxStateAlgebra[F]].pure[F]
             underTest        <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             _ <- underTest

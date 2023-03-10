@@ -14,7 +14,7 @@ case class UnsignedBlockHeader(
   eligibilityCertificate:        EligibilityCertificate,
   partialOperationalCertificate: UnsignedBlockHeader.PartialOperationalCertificate,
   metadata:                      ByteString,
-  address:                       ByteString
+  address:                       StakingAddress
 )
 
 object UnsignedBlockHeader {

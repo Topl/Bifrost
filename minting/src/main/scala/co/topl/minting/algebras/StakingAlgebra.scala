@@ -4,6 +4,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.consensus.models.SlotId
+import co.topl.consensus.models.StakingAddress
 import co.topl.models.utility.Ratio
 
 /**

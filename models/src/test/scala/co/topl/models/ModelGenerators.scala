@@ -2,6 +2,7 @@ package co.topl.models
 
 import cats.data.NonEmptyChain
 import cats.data.NonEmptyList
+import co.topl.consensus.models.StakingAddress
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
@@ -41,9 +42,6 @@ trait ModelGenerators {
   def networkPrefixGen: Gen[NetworkPrefix] =
     byteGen.map(NetworkPrefix(_))
 
-  val stakingAddressGen: Gen[StakingAddress] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
-
   def partialOperationalCertificateGen: Gen[UnsignedBlockHeader.PartialOperationalCertificate] =
     for {
       parentVK <- co.topl.models.generators.consensus.ModelGenerators.arbitraryVerificationKeyKesProduct.arbitrary
@@ -65,7 +63,8 @@ trait ModelGenerators {
     partialOperationalCertificateGen: Gen[UnsignedBlockHeader.PartialOperationalCertificate] =
       partialOperationalCertificateGen,
     metadataGen: Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
-    addressGen:  Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
+    addressGen: Gen[StakingAddress] =
+      co.topl.models.generators.consensus.ModelGenerators.arbitraryStakingAddress.arbitrary
   ): Gen[UnsignedBlockHeader] =
     for {
       parentHeaderID <- parentHeaderIdGen

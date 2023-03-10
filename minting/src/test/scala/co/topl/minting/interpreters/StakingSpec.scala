@@ -36,7 +36,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         val parentSlotId = SlotId.of(slot, blockId)
         val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
         val relativeStake = Ratio.One
-        val address = ByteString.copyFrom(Array.fill[Byte](32)(0))
+        val address = StakingAddress(ByteString.copyFrom(Array.fill[Byte](32)(0)))
 
         val vkVrf = ByteString.copyFrom(Array.fill[Byte](32)(0))
         val proof = ByteString.copyFrom(

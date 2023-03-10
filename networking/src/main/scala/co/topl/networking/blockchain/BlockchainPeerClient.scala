@@ -5,11 +5,10 @@ import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
-import co.topl.{models => legacyModels}
-import legacyModels._
-import legacyModels.utility.Ratio
 import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.models.utility.Ratio
 import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._
@@ -55,7 +54,7 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A lookup to retrieve a remote transaction by ID
    */
-  def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[Transaction]]
+  def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]]
 
   /**
    * A lookup to retrieve the remote node's block ID associated with the given height.

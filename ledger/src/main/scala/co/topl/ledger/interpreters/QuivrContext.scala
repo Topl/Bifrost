@@ -45,7 +45,7 @@ object QuivrContext {
       def heightOf(label: String): F[Option[Long]] =
         Sync[F].delay(
           label match {
-            case "height" => header.height.some
+            case "header" => header.height.some
             case _        => None
           }
         )
@@ -101,7 +101,7 @@ object QuivrContext {
       def heightOf(label: String): F[Option[Long]] =
         Sync[F].delay(
           label match {
-            case "height" => height.some
+            case "header" => height.some
             case _        => None
           }
         )

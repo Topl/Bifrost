@@ -10,16 +10,13 @@ import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.node.models.BlockBody
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.ModelGenerators._
-import co.topl.models.StakingAddress
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import quivr.models.Proposition
@@ -51,13 +48,13 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {
-      val stakingAddress = stakingAddressGen.first
+      val stakingAddress = arbitraryStakingAddress.arbitrary.first
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
       val bigBangBlockTransaction =
         IoTransaction(
           Nil,
-          List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress)))),
+          List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress.some)))),
           defaultDatum
         )
 
@@ -103,8 +100,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
           ),
           List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress))),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress.some))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
           ),
           defaultDatum
         )
@@ -117,8 +114,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
           ),
           List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress))),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress.some))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
           ),
           defaultDatum
         )
@@ -153,8 +150,8 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
           ),
           List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress))),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, ByteString.EMPTY)))
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress.some))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
           ),
           defaultDatum
         )
@@ -186,7 +183,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
   test("Return the registration of an operator at a particular block") {
     withMock {
-      val stakingAddress = stakingAddressGen.first
+      val stakingAddress = arbitraryStakingAddress.arbitrary.first
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
       val registration = signatureKesProductArbitrary.arbitrary.first

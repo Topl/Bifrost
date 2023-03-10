@@ -10,9 +10,9 @@ import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
 import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.StakingAddress
 import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
@@ -82,14 +82,10 @@ object ConsensusDataEventSourcedState {
     private def calculateStakeChanges(transaction: IoTransaction): F[Seq[StakeChange]] =
       for {
         inputStakeChanges <- transaction.inputs
-          .flatMap(_.value.value.topl)
-          .filterNot(_.stakingAddress.isEmpty)
-          .map(v => v.stakingAddress -> -(v.quantity: BigInt))
+          .flatMap(_.value.value.topl.flatMap(t => t.stakingAddress.tupleRight(-(t.quantity: BigInt))))
           .pure[F]
         outputStakeChanges = transaction.outputs
-          .flatMap(_.value.value.topl)
-          .filterNot(_.stakingAddress.isEmpty)
-          .map(v => v.stakingAddress -> (v.quantity: BigInt))
+          .flatMap(_.value.value.topl.flatMap(t => t.stakingAddress.tupleRight(t.quantity: BigInt)))
         result = (inputStakeChanges ++ outputStakeChanges)
           .map { case (address, delta) =>
             StakeChange(address, delta)
@@ -144,12 +140,10 @@ object ConsensusDataEventSourcedState {
     private def calculateStakeChanges(transaction: IoTransaction): F[Seq[StakeChange]] =
       for {
         outputStakeChanges <- transaction.outputs.reverse
-          .flatMap(_.value.value.topl.filterNot(_.stakingAddress.isEmpty))
-          .map(v => v.stakingAddress -> -(v.quantity: BigInt))
+          .flatMap(_.value.value.topl.flatMap(t => t.stakingAddress.tupleRight(-(t.quantity: BigInt))))
           .pure[F]
         inputStakeChanges = transaction.inputs.reverse
-          .flatMap(_.value.value.topl.filterNot(_.stakingAddress.isEmpty))
-          .map(v => v.stakingAddress -> (v.quantity: BigInt))
+          .flatMap(_.value.value.topl.flatMap(t => t.stakingAddress.tupleRight(t.quantity: BigInt)))
         result = (inputStakeChanges ++ outputStakeChanges)
           .map { case (address, delta) =>
             StakeChange(address, delta)

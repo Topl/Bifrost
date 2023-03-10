@@ -1,26 +1,25 @@
 package co.topl.blockchain
 
 import cats.data.Chain
+import cats.implicits._
 import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
-import co.topl.brambl.models.Identifier
-import co.topl.brambl.models.LockAddress
-import co.topl.brambl.models.box.Lock
-import co.topl.brambl.models.box.Value
+import co.topl.brambl.models._
+import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.consensus.models.CryptoConsensusMorphismInstances.signatureKesProductIsomorphism
-import co.topl.consensus.models.SignatureKesProduct
-import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
+import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing.Ed25519
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.crypto.signing.KesProduct
 import co.topl.models._
 import co.topl.models.utility._
+import co.topl.models.utility.Lengths
+import co.topl.models.utility.Sized
 import com.google.protobuf.ByteString
-import quivr.models.Int128
-import quivr.models.Proposition
-import quivr.models.VerificationKey
+import quivr.models._
 
 /**
  * Represents the data required to initialize a new staking.  This includes the necessary secret keys, plus their
@@ -59,8 +58,8 @@ object StakerInitializers {
         .toOption
         .get
 
-    val stakingAddress: ByteString =
-      new Ed25519().getVerificationKey(operatorSK)
+    val stakingAddress: StakingAddress =
+      StakingAddress(new Ed25519().getVerificationKey(operatorSK))
 
     val spendingVK: ByteString =
       new Ed25519().getVerificationKey(spendingSK)
@@ -95,7 +94,7 @@ object StakerInitializers {
      * This staker's initial stake in the network
      */
     def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[UnspentTransactionOutput] = {
-      val toplValue = Value().withTopl(Value.TOPL(stake, stakingAddress))
+      val toplValue = Value().withTopl(Value.TOPL(stake, stakingAddress.some))
       val registrationValue = Value().withRegistration(Value.Registration(registration, stakingAddress))
       Chain(
         UnspentTransactionOutput(lockAddress, toplValue),

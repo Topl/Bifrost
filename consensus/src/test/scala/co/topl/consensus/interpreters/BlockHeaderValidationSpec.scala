@@ -443,7 +443,7 @@ class BlockHeaderValidationSpec
     forAll(
       genValid(u =>
         u.copy(
-          address = ByteString.copyFrom(Array.fill[Byte](32)(0))
+          address = StakingAddress(ByteString.copyFrom(Array.fill[Byte](32)(0)))
         )
       )
     ) { case (parent, child, registration, eta, _: Ratio) =>
@@ -753,14 +753,14 @@ class BlockHeaderValidationSpec
     } yield {
       val (kesSK0, _) = kesProduct.createKeyPair(Random.nextBytes(32), (9, 9), 0L)
       val poolVK = ByteString.copyFrom(Random.nextBytes(32))
+      val stakingAddress = StakingAddress(poolVK)
       val vrfSecret = ByteString.copyFrom(vrfSecretBytes)
 
       val registration = validRegistrationNew(
         ByteString.copyFrom(ed25519Vrf.getVerificationKey(vrfSecretBytes)),
-        poolVK,
+        stakingAddress,
         kesSK0
       )
-      val address = poolVK
 
       val (eligibilityCertificate, slot) =
         validEligibilityCertificate(vrfSecret, leaderElectionInterpreter, eta, relativeStake, parent.slot)
@@ -780,7 +780,7 @@ class BlockHeaderValidationSpec
               eligibilityCertificate = eligibilityCertificate,
               partialOperationalCertificate = partial,
               metadata = ByteString.EMPTY,
-              address = address
+              address = stakingAddress
             ),
           kesSK0
         )
@@ -818,10 +818,10 @@ object BlockHeaderValidationSpec {
   // Note: These methods are in the companion object because `digest.Digest32#value` conflicts with a ScalaTest member
   def validRegistrationNew(
     vkVrf:  ByteString,
-    poolVK: ByteString,
+    poolVK: StakingAddress,
     skKes:  SecretKeyKesProduct
   )(implicit kesProduct: KesProduct): SignatureKesProduct = {
-    val commitmentMessage = new Blake2b256().hash(vkVrf.concat(poolVK))
+    val commitmentMessage = new Blake2b256().hash(vkVrf.concat(poolVK.value))
     val cryptoSignature = kesProduct.sign(skKes, commitmentMessage.toArray)
     CryptoConsensusMorphismInstances
       .signatureKesProductIsomorphism[cats.Id]

@@ -2,11 +2,10 @@ package co.topl.consensus.models
 
 import co.topl.{models => legacyModels}
 import legacyModels.Bytes
-import legacyModels.utility.Ratio
 import legacyModels.Eta
 import legacyModels.Slot
-import legacyModels.StakingAddress
 import legacyModels.Timestamp
+import legacyModels.utility.Ratio
 
 sealed abstract class BlockHeaderValidationFailure
 
@@ -46,7 +45,7 @@ object BlockHeaderValidationFailures {
   case class RegistrationCommitmentMismatch(
     vrfCommitment: SignatureKesProduct,
     vrfVK:         Bytes,
-    poolVK:        Bytes
+    poolVK:        StakingAddress
   ) extends BlockHeaderValidationFailure
 
 }

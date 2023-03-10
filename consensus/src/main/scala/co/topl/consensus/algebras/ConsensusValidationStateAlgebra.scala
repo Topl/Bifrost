@@ -2,6 +2,7 @@ package co.topl.consensus.algebras
 
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
 import co.topl.models._
 import co.topl.models.utility.Ratio
 

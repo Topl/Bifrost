@@ -6,8 +6,10 @@ import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotId
+import co.topl.consensus.models.StakingAddress
 import co.topl.models._
 import co.topl.models.utility._
+import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 
 import java.time.Instant
@@ -31,6 +33,9 @@ trait ShowInstances {
 
   implicit val showRho: Show[Rho] =
     _.sizedBytes.data.show
+
+  implicit val showStakingAddress: Show[StakingAddress] =
+    _.value.show
 
   implicit val showBlockHeader: Show[BlockHeader] =
     header =>

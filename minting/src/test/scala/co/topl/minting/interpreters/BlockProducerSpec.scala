@@ -7,17 +7,16 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.StakingAddress
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
-import co.topl.models.StakingAddress
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.Block
 import fs2._
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
-import org.scalacheck.Arbitrary
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
@@ -28,8 +27,6 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   type F[A] = IO[A]
 
   override val munitTimeout: FiniteDuration = 10.seconds
-
-  implicit private val arbitraryStakingAddress: Arbitrary[StakingAddress] = Arbitrary(stakingAddressGen)
 
   test("Produce a block when eligible") {
     PropF.forAllF { (parentSlotData: SlotData, stakingAddress: StakingAddress, outputHeader: BlockHeader) =>

@@ -8,6 +8,7 @@ import co.topl.algebras._
 import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
 import co.topl.eventtree.EventSourcedState
 import co.topl.models._
 import co.topl.models.utility.Ratio
