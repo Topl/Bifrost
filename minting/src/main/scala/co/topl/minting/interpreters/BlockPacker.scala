@@ -124,7 +124,7 @@ object BlockPacker {
           .map(_.toEither)
       ).leftMap(_.toString)
     )
-      .leftSemiflatTap(error => Logger[F].debug(show"Block packer candidate is invalid.  reason=$error"))
+      .leftSemiflatTap(error => Logger[F].info(show"Block packer candidate is invalid.  reason=$error"))
       .isRight
   }
 }

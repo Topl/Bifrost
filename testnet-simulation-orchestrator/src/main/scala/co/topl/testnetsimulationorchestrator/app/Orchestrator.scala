@@ -230,7 +230,7 @@ object Orchestrator
       client <- MultiToplRpc.make[F, List](nodes.values.toList)
       wallet <- ToplRpcWalletInitializer
         // Parallelism value = 1, because the testnet launches from genesis so this process should be instant
-        .make[F](client, 1, 1, 1)
+        .make[F](client, 1, 1)
         .flatMap(_.initialize)
       _ <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
       // Produce a stream of Transactions from the base wallet

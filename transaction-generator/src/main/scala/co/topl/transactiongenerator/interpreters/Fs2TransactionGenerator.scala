@@ -75,41 +75,31 @@ object Fs2TransactionGenerator {
   ): F[(IoTransaction, Wallet)] =
     for {
       (inputBoxId, inputBox) <- pickInput[F](wallet)
-      unprovenAttestation = Attestation().withPredicate(
-        Attestation.Predicate(
-          wallet.propositions(lockAddressOf(inputBox.lock).getLock32.evidence).getPredicate,
-          Nil
-        )
-      )
+      predicate = Attestation.Predicate(inputBox.lock.getPredicate, Nil)
+      unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
       inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
       outputs   <- createOutputs[F](inputBox)
       timestamp <- Async[F].realTimeInstant
       schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
-      transaction = IoTransaction(
+      unprovenTransaction = IoTransaction(
         inputs,
         outputs,
         Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
       )
-      provenTransaction = transaction.update(
-        _.inputs.modify(
-          _.map(
-            _.update(
-              _.attestation.set(
-                Attestation().withPredicate(
-                  Attestation.Predicate(
-                    wallet.propositions(lockAddressOf(inputBox.lock).getLock32.evidence).getPredicate,
-                    List(
-                      Prover.heightProver[cats.Id].prove((), transaction.signable)
-                    )
-                  )
-                )
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      provenTransaction = unprovenTransaction.copy(
+        inputs = unprovenTransaction.inputs.map(
+          _.copy(attestation =
+            Attestation(
+              Attestation.Value.Predicate(
+                predicate.copy(responses = List(proof))
               )
             )
           )
         )
       )
       updatedWallet = applyTransaction(wallet)(provenTransaction)
-    } yield (transaction, updatedWallet)
+    } yield (provenTransaction, updatedWallet)
 
   /**
    * Selects a spendable box from the wallet

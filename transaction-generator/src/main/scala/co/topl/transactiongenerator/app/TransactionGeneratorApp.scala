@@ -50,7 +50,6 @@ object TransactionGeneratorApp
             wallet <- ToplRpcWalletInitializer
               .make[F](
                 client,
-                appConfig.transactionGenerator.parallelism.fetchHeader,
                 appConfig.transactionGenerator.parallelism.fetchBody,
                 appConfig.transactionGenerator.parallelism.fetchTransaction
               )
