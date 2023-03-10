@@ -11,9 +11,9 @@ object Dependencies {
   val fs2Version = "3.6.1"
   val logback = "1.4.5"
   val orientDbVersion = "3.2.16"
-  val protobufSpecsVersion = "f24c89f5" // scala-steward:off
-  val bramblScVersion = "2.0.3+30-a1bc4882+20230310-1222-SNAPSHOT" // scala-steward:off
-  val quivr4sVersion = "0.1" // scala-steward:off
+  val protobufSpecsVersion = "6343322" // scala-steward:off
+  val bramblScVersion = "c7afb7c" // scala-steward:off
+  val quivr4sVersion = "7280dd5" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -116,15 +116,15 @@ object Dependencies {
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
-  val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
-  val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
-  val quivr4s = "co.topl"        %% "quivr4s"    % quivr4sVersion
+  val bramblScCrypto = "com.github.Topl.BramblSc" %% "crypto"     % bramblScVersion
+  val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
+  val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
-    "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
+    "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
   )
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
