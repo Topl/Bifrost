@@ -21,10 +21,7 @@ trait TetraTransmittableCodecs {
 
       def fromTransmittableBytes(bytes: ByteString): Either[String, T] =
         Try(implicitly[GeneratedMessageCompanion[T]].parseFrom(bytes.toByteArray)).toEither
-          .leftMap(v =>
-            //
-            v.getMessage
-          )
+          .leftMap(_.getMessage)
     }
 
   implicit val ratioTransmittable: Transmittable[Ratio] = Transmittable.instanceFromCodec

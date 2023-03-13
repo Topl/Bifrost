@@ -11,6 +11,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.transaction.Schedule
 import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
@@ -244,10 +245,10 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
       ) =>
         withMock {
           val transactionWithSingleInput = baseTransaction.addInputs(input)
-          // Transaction A and Transaction B are exactly the same, except for the creation timestamp to force a different ID
-          val transactionA = transactionWithSingleInput.update(_.datum.event.schedule.timestamp.set(0))
+          // Transaction A and Transaction B are exactly the same, except for the creation schedule to force a different ID
+          val transactionA = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(0, 100)))
           val transactionAId = transactionA.id
-          val transactionB = transactionWithSingleInput.update(_.datum.event.schedule.timestamp.set(1))
+          val transactionB = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(1, 100)))
           val transactionBId = transactionB.id
           val bodies =
             Map(
