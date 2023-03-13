@@ -8,15 +8,10 @@ import cats.implicits._
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Event
 import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.models.box.Box
-import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.box._
 import co.topl.brambl.common.ContainsSignable._
 import co.topl.brambl.common.ContainsSignable.instances._
-import co.topl.brambl.models.transaction.Attestation
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.models.transaction._
 import co.topl.numerics.implicits._
 import co.topl.quivr.api.Prover
 import co.topl.transactiongenerator.algebras.TransactionGenerator

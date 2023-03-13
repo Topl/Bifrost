@@ -5,6 +5,7 @@ import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.box.Challenge
 import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
@@ -71,11 +72,14 @@ object PrivateTestnet {
       )
     )
 
+  val HeightLockOneChallenge: Challenge =
+    Challenge().withRevealed(HeightLockOneProposition)
+
   val HeightLockOneLock: Lock =
     Lock(
       Lock.Value.Predicate(
         Lock.Predicate(
-          List(HeightLockOneProposition),
+          List(HeightLockOneChallenge),
           1
         )
       )

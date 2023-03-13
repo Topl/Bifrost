@@ -13,7 +13,7 @@ import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Event
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.models.transaction.Attestation
+import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.Schedule
 import co.topl.brambl.models.transaction.SpentTransactionOutput

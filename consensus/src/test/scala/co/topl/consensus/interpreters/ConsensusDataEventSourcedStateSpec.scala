@@ -19,7 +19,6 @@ import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import quivr.models.Proposition
 import quivr.models.SmallData
 
 class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -33,7 +32,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         SmallData.defaultInstance
       )
     )
-  val lock: Lock = Lock().withPredicate(Lock.Predicate(List(Proposition().withLocked(Proposition.Locked())), 1))
+  val lock: Lock = Lock().withPredicate(Lock.Predicate())
 
   val lockAddress: LockAddress =
     LockAddress(

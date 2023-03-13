@@ -2,11 +2,8 @@ package co.topl.transactiongenerator
 
 import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
-import co.topl.brambl.models.Identifier
-import co.topl.brambl.models.LockAddress
-import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.models.box.Box
-import co.topl.brambl.models.box.Lock
+import co.topl.brambl.models._
+import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.transactiongenerator.models.Wallet
@@ -21,11 +18,14 @@ package object interpreters {
       )
     )
 
+  val HeightLockOneChallenge: Challenge =
+    Challenge().withRevealed(HeightLockOneProposition)
+
   val HeightLockOneLock: Lock =
     Lock(
       Lock.Value.Predicate(
         Lock.Predicate(
-          List(HeightLockOneProposition),
+          List(HeightLockOneChallenge),
           1
         )
       )

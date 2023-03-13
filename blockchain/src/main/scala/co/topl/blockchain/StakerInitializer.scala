@@ -75,9 +75,11 @@ object StakerInitializers {
                 Lock.Value.Predicate(
                   Lock.Predicate(
                     List(
-                      Proposition(
-                        Proposition.Value.DigitalSignature(
-                          Proposition.DigitalSignature("ed25519", VerificationKey(spendingVK))
+                      Challenge().withRevealed(
+                        Proposition(
+                          Proposition.Value.DigitalSignature(
+                            Proposition.DigitalSignature("ed25519", VerificationKey(spendingVK))
+                          )
                         )
                       )
                     ),
