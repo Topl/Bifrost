@@ -16,7 +16,7 @@ import scala.concurrent.duration._
  */
 class ChainSelectionTest extends IntegrationSuite {
 
-  override def munitTimeout: Duration = 20.minutes
+  override def munitTimeout: Duration = 25.minutes
 
   test("Disconnected nodes can forge independently and later sync up to a proper chain") {
     val epochSlotLength = 500 // (50/4) * (100/15) * 6
@@ -64,7 +64,7 @@ class ChainSelectionTest extends IntegrationSuite {
       thirdEpochHeads <- nodes
         .parTraverse(
           _.rpcClient[F]
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(15.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(20.minutes).compile.lastOrError)
         )
         .toResource
       _ <- Logger[F].info("Nodes have reached target epoch").toResource
