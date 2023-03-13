@@ -14,9 +14,10 @@ import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.node.models.BlockBody
 import com.typesafe.scalalogging.LazyLogging
 
+import fs2.Stream
 import scala.collection.immutable.ListSet
 
-class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] with LazyLogging {
+class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Stream[F, *]]) extends BlockFetcherAlgebra[F] with LazyLogging {
 
   override def fetch(height: Long): F[Either[Failure, HeightData]] =
     toplRpc

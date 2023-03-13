@@ -627,7 +627,7 @@ lazy val genusServer = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer,
-    dependencyOverrides += Dependencies.protobufSpecs.head // remove if bramble and quivr4s are aligned with latest protobufSpecs
+    dependencyOverrides += Dependencies.protobufSpecsGenus // remove if bramble and quivr4s are aligned with latest protobufSpecs
   )
   .dependsOn(
     genusLibrary,

@@ -3,6 +3,7 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.failure.{Failure, Failures}
+import co.topl.genusLibrary.model.BlockHeaderWrapper
 import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedEdge, WrappedVertex}
 import org.typelevel.log4cats.Logger
 
@@ -35,8 +36,16 @@ class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
     elem: T
   )(implicit
     schema: VertexSchema[T]
-  ): (T, WrappedVertex) =
+  ): (T, WrappedVertex) = {
+    println(s"class:${schema.name}")
+    println(s"class:${schema.properties.map(_.name).mkString(";")}")
+    println(s"elem:${elem.getClass.toString}")
+    println(s"elem:${elem.asInstanceOf[BlockHeaderWrapper].blockId.value.toString}")
+
+    wrappedGraph.addVertex(elem)
+
     updateVertex(elem, wrappedGraph.addVertex(s"class:${schema.name}"))
+  }
 
   /**
    * Vertex updater from an element

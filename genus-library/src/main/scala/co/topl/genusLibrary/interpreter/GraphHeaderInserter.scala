@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.genusLibrary.algebras.HeaderInserter
 import co.topl.genusLibrary.algebras.mediator.HeaderMediatorAlgebra
 import co.topl.genusLibrary.failure.Failure
-import co.topl.genusLibrary.model.BlockData
+import co.topl.genusLibrary.model.{BlockData, BlockHeaderWrapper}
 import co.topl.genusLibrary.orientDb.StoreFacade
 import co.topl.genusLibrary.orientDb.GenusGraphMetadata._
 import org.typelevel.log4cats.Logger
@@ -24,8 +24,8 @@ class GraphHeaderInserter[F[_]: Async](
 
     (for {
       _ <- EitherT(graph.withEffectfulTransaction {
-        graph.createVertex(block.header).asRight[Failure].pure[F]
-      })
+        graph.createVertex(BlockHeaderWrapper(block.header)).asRight[Failure].pure[F]
+      }).semiflatTap(_ => Logger[F].info(s"Graph header inserter block ${block.header.slot}")) // todo log debug, and log id
       mediation <- EitherT(headerMediator.mediate(block))
     } yield mediation).value
   }

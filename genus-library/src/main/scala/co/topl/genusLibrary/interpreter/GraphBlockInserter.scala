@@ -13,9 +13,9 @@ class GraphBlockInserter[F[_]: Async](
 ) extends BlockInserterAlgebra[F] {
 
   override def insert(block: BlockData): F[Either[Failure, Unit]] = for {
-    _                 <- headerInserter.insert(block)
-    _                 <- bodyInserter.insert(block)
-    txInsertionResult <- txInserter.insert(block)
+    txInsertionResult   <- headerInserter.insert(block) // TODO testing header Inserter,
+//    _                 <- bodyInserter.insert(block)
+//    txInsertionResult <- txInserter.insert(block)
   } yield txInsertionResult
 
 }

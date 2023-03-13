@@ -7,7 +7,10 @@ import pureconfig.generic.auto._
 
 case class ApplicationConfig(
   rpcHost: String,
-  rpcPort: Int
+  rpcPort: Int,
+  rpcNodeHost: String,
+  rpcNodePort: Int,
+  rpcNodeTls: Boolean,
 )
 
 object ApplicationConfig {

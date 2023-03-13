@@ -127,6 +127,8 @@ object Dependencies {
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
   )
 
+  val protobufSpecsGenus = "com.github.Topl" % "protobuf-specs" % "5991445" // TODO Remove
+
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
 

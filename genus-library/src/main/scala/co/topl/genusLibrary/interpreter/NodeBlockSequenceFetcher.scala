@@ -13,7 +13,8 @@ class NodeBlockSequenceFetcher[F[_]: Async: Logger](blockFetcher: BlockFetcherAl
     with LazyLogging {
 
   // TODO: TSDK-215 | Implement retry
-  override def fetch(startHeight: Long, endHeight: Long = Long.MaxValue): F[Stream[F, BlockData]] = Async[F].delay {
+//  override def fetch(startHeight: Long, endHeight: Long = Long.MaxValue): F[Stream[F, BlockData]] = Async[F].delay {
+  override def fetch(startHeight: Long, endHeight: Long = 5L): F[Stream[F, BlockData]] = Async[F].delay {
     Stream
       // Range from given start height to either defined max height or "positive infinity".
       // If start height is one, then the range would be [1, 2, 3, ...]

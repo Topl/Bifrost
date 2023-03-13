@@ -5,14 +5,15 @@ import cats.implicits._
 import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedVertex}
 import co.topl.genusLibrary.{Genus, GenusException}
 import co.topl.typeclasses.Log._
+import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB}
 import com.orientechnologies.orient.core.sql.OCommandSQL
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}
+import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphFactoryV2, OrientGraphNoTx}
 import com.typesafe.scalalogging.Logger
-
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.nio.charset.Charset
 import scala.annotation.unused
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.jdk.javaapi.CollectionConverters.asScala
 import scala.util.{Random, Success, Try}
 
@@ -27,11 +28,29 @@ private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends 
   logger.debug("creating graph factory")
   private val factory = new OrientGraphFactory(fileToPlocalUrl(dir), dbUserName, password)
 
+//  val orientDb = new OrientDB("embedded:./databases/", null, null,null)
+//  orientDb.create("test", ODatabaseType.PLOCAL)
+////  val session: Nothing = orientDb.open("test", "admin", "admin")
+//  private val factory = new OrientGraphFactoryV2(orientDb, "test","admin", "admin")
+//  val session = orientDb.open("test", "admin", "admin")
+////  factory.getNoTx.setUseLightweightEdges(true) //..set().me ..setUseLightweightEdges(true)
+
   logger.debug("Embed the Server")
   initializeOServerMain()
 
   @unused
-  private val graphMetadata = initializeDatabase(factory, password)
+  private val graphMetadata =
+    initializeDatabase(factory, password) // TODO this is not graphMetadata, is Genus GraphMetadata
+
+  val a = factory.getDatabase.getMetadata.getSchema.getClass("BlockHeaderWrapper").properties()
+
+  print("aaaaaaaaa<")
+  a.asScala.toList.foreach(a =>
+    println(s"${a.getName} " +
+      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.MANDATORY)}" +
+      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.READONLY)}" +
+      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.NOTNULL)}"
+    ))
 
   override def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F] =
     new GraphTxDAO[F](
@@ -78,11 +97,12 @@ private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends 
     val session: OrientGraphNoTx = factory.getNoTx
     try {
       session.setUseLightweightEdges(true)
-      logger.info("Changing password")
-      session.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
-      logger.info("Configuring Schema")
+//      logger.info("Changing password")
+//      session.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
+//      logger.info("Configuring Schema")
       new GenusGraphMetadata(session)
     } finally
+//      session.commit()
       session.shutdown()
   }
 
@@ -114,10 +134,6 @@ private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends 
     server.startup(getClass.getClassLoader.getResourceAsStream("db.config"))
     server.activate()
   }
-
-//  +"<entry name=\"orientdb.www.path\" value=\"C:/work/dev/orientechnologies/orientdb/releases/1.0rc1-SNAPSHOT/www/\"/>"
-//  +"<entry name=\"orientdb.config.file\" value=\"C:/work/dev/orientechnologies/orientdb/releases/1.0rc1-SNAPSHOT/config/orientdb-server-config.xml\"/>"
-
 
   private def fileToPlocalUrl(dir: File): String =
     "plocal:" + dir.getAbsolutePath
@@ -158,8 +174,9 @@ object OrientDBFacade {
   private[genusLibrary] def setupOrientDBEnvironment(dbDirectory: File): Try[String] = {
     ensureDirectoryExists(dbDirectory)
     System.setProperty("ORIENTDB_HOME", dbDirectory.getAbsolutePath)
-    rootPassword(passwordFile(dbDirectory))
-      .logIfFailure("Failed to read password")
+    scala.util.Try.apply("admin")
+//    rootPassword(passwordFile(dbDirectory))
+//      .logIfFailure("Failed to read password")
   }
 
   private[genusLibrary] def passwordFile(dir: File) = new File(dir, "root_pwd")
@@ -172,43 +189,43 @@ object OrientDBFacade {
    * @return the database password.
    * @throws java.io.IOException if it needs to write the file but cannot
    */
-  private[genusLibrary] def rootPassword(pwdFilePath: File): Try[String] =
-    ensurePasswordFileExistsAndOpenIt(pwdFilePath)
-      .flatMap { inputStream =>
-        try
-          readPassword(inputStream)
-            .logIfFailure(s"Failed to read password from ${pwdFilePath.getAbsolutePath}")
-        finally
-          inputStream.close()
-      }
+//  private[genusLibrary] def rootPassword(pwdFilePath: File): Try[String] =
+//    ensurePasswordFileExistsAndOpenIt(pwdFilePath)
+//      .flatMap { inputStream =>
+//        try
+//          readPassword(inputStream)
+//            .logIfFailure(s"Failed to read password from ${pwdFilePath.getAbsolutePath}")
+//        finally
+//          inputStream.close()
+//      }
 
-  private def ensurePasswordFileExistsAndOpenIt(pwdFilePath: File): Try[FileInputStream] =
-    Try(new FileInputStream(pwdFilePath))
-      .orElse {
-        writePasswordFile(pwdFilePath)
-        Success(new FileInputStream(pwdFilePath))
-      }
-      .logIfFailure(s"Unable to open ${pwdFilePath.getAbsolutePath}")
+//  private def ensurePasswordFileExistsAndOpenIt(pwdFilePath: File): Try[FileInputStream] =
+//    Try(new FileInputStream(pwdFilePath))
+//      .orElse {
+//        writePasswordFile(pwdFilePath)
+//        Success(new FileInputStream(pwdFilePath))
+//      }
+//      .logIfFailure(s"Unable to open ${pwdFilePath.getAbsolutePath}")
 
-  private def readPassword(inputStream: FileInputStream) = {
-    val buffer: Array[Byte] = Array.ofDim(passwdLength * 2)
-    Try {
-      val bytesRead = inputStream.read(buffer)
-      new String(buffer, 0, bytesRead, charsetUtf8)
-    }
-  }
+//  private def readPassword(inputStream: FileInputStream) = {
+//    val buffer: Array[Byte] = Array.ofDim(passwdLength * 2)
+//    Try {
+//      val bytesRead = inputStream.read(buffer)
+//      new String(buffer, 0, bytesRead, charsetUtf8)
+//    }
+//  }
 
-  private def writePasswordFile(file: File): Unit = {
-    val outputStream = new FileOutputStream(file)
-    try {
-      val pwdBuilder = new mutable.StringBuilder
-      1 to passwdLength foreach { _ =>
-        pwdBuilder += Random.nextPrintableChar()
-      }
-      val bytes = pwdBuilder.toString().replaceAll("'", "").getBytes(charsetUtf8)
-      logger.debug("writing {} bytes to password file", bytes.length)
-      outputStream.write(bytes)
-    } finally
-      outputStream.close()
-  }
+//  private def writePasswordFile(file: File): Unit = {
+//    val outputStream = new FileOutputStream(file)
+//    try {
+//      val pwdBuilder = new mutable.StringBuilder
+//      1 to passwdLength foreach { _ =>
+//        pwdBuilder += Random.nextPrintableChar()
+//      }
+//      val bytes = pwdBuilder.toString().replaceAll("'", "").getBytes(charsetUtf8)
+//      logger.debug("writing {} bytes to password file", bytes.length)
+//      outputStream.write(bytes)
+//    } finally
+//      outputStream.close()
+//  }
 }
