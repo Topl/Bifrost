@@ -27,6 +27,15 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _  <- Logger[F].info(s"Successfully started container $containerId on IP $ip")
     } yield ()
 
+  def restartContainer[F[_] : Async]: F[Unit] =
+    for {
+      _ <- Logger[F].info("Restarting")
+      _ <- Sync[F].blocking(dockerClient.restartContainer(containerId))
+      _ <- awaitContainerStart
+      ip <- ipAddress
+      _ <- Logger[F].info(s"Successfully restarted container $containerId on IP $ip")
+    } yield ()
+
   def stop[F[_]: Async]: F[Unit] =
     Logger[F].info("Stopping") >>
     Sync[F].blocking(dockerClient.stopContainer(containerId, 10))
