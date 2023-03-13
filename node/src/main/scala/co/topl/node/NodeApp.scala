@@ -279,11 +279,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         vrfConfig,
         protocol.vrfCacheSize
       )
-      currentSlot <- clock.globalSlot.map(_.max(0L)).toResource
 
       operationalKeys <- OperationalKeyMaker
         .make[F](
-          initialSlot = currentSlot,
           currentHead.slotId,
           operationalPeriodLength = protocol.operationalPeriodLength,
           activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
@@ -296,7 +294,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           kesProductResource,
           ed25519Resource
         )
-        .toResource
 
       staking <- Staking.make(
         initializer.stakingAddress,
