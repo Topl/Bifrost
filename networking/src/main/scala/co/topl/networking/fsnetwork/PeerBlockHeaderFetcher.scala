@@ -133,9 +133,16 @@ object PeerBlockHeaderFetcher {
     client: BlockchainPeerClient[F],
     from:   BlockId
   ): OptionT[F, NonEmptyChain[SlotData]] = {
+    val getSlotData: TypedIdentifier => F[SlotData] =
+      id =>
+        store.get(id).flatMap {
+          case Some(sd) => sd.pure[F]
+          case None     => client.getRemoteSlotDataLogged(id)
+        }
+
     val tine = getFromChainUntil(
       (s: SlotData) => s.pure[F],
-      client.getRemoteSlotDataLogged,
+      getSlotData,
       (sd: SlotData) => store.contains(sd.slotId.blockId)
     )(from)
 

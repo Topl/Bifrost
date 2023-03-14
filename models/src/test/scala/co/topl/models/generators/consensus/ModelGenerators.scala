@@ -1,10 +1,13 @@
 package co.topl.models.generators.consensus
 
+import cats.data.{Chain, NonEmptyChain}
 import co.topl.consensus.models._
 import co.topl.models.generators.common.ModelGenerators._
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility._
 import com.google.protobuf.ByteString
 import org.scalacheck.{Arbitrary, Gen}
+
+import scala.annotation.tailrec
 
 trait ModelGenerators {
 
@@ -174,5 +177,30 @@ trait ModelGenerators {
       } yield SlotData.of(slotId, parentSlotId, rho.data, eta.data, height)
     )
 
+  @tailrec
+  private def addSlotDataToChain(
+    slotData: NonEmptyChain[SlotData],
+    gen:      Gen[SlotData],
+    count:    Long
+  ): NonEmptyChain[SlotData] =
+    count match {
+      case 0 => slotData
+      case _ =>
+        addSlotDataToChain(slotData.append(gen.sample.get.copy(parentSlotId = slotData.last.slotId)), gen, count - 1)
+    }
+
+  implicit val arbitrarySlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =
+    Arbitrary(
+      for {
+        size <- Gen.posNum[Long]
+        root <- arbitrarySlotData.arbitrary
+      } yield addSlotDataToChain(NonEmptyChain.one(root), arbitrarySlotData.arbitrary, size)
+    )
+
+  implicit def chainArbOf[T](implicit a: Arbitrary[T]): Arbitrary[Chain[T]] =
+    Arbitrary(Gen.listOf[T](a.arbitrary).map(Chain.apply))
+
+  implicit def nonEmptyChainArbOf[T](implicit a: Arbitrary[T]): Arbitrary[NonEmptyChain[T]] =
+    Arbitrary(Gen.nonEmptyListOf[T](a.arbitrary).map(NonEmptyChain.fromSeq(_).get))
 }
 object ModelGenerators extends ModelGenerators

@@ -95,7 +95,9 @@ object BlockChecker {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData]
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    bestChain:                   Option[BestChain] = None,
+    bestKnownRemoteSlotDataHost: Option[HostId] = None
   ): Resource[F, BlockCheckerActor[F]] = {
     val initialState =
       State(
@@ -111,8 +113,8 @@ object BlockChecker {
         bodySyntaxValidation,
         bodySemanticValidation,
         bodyAuthorizationValidation,
-        None,
-        None
+        bestChain,
+        bestKnownRemoteSlotDataHost
       )
     Actor.make(initialState, getFsm[F])
   }
@@ -134,9 +136,9 @@ object BlockChecker {
     } yield (newState, newState)
   }
 
-  private def remoteSlotDataBetter[F[_]: Async](state: State[F], remoteSlotData: SlotData): F[Boolean] = {
+  private def remoteSlotDataBetter[F[_]: Async](state: State[F], bestRemoteSlotData: SlotData): F[Boolean] = {
     val localBestSlotData = state.bestKnownRemoteSlotDataOpt.map(_.last.pure[F]).getOrElse(state.localChain.head)
-    localBestSlotData.flatMap(local => state.chainSelection.compare(remoteSlotData, local).map(_ > 0))
+    localBestSlotData.flatMap(local => state.chainSelection.compare(bestRemoteSlotData, local).map(_ > 0))
   }
 
   private def processNewBestSlotData[F[_]: Async: Logger](
@@ -146,17 +148,19 @@ object BlockChecker {
   ): F[State[F]] =
     for {
       fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
-      newState     <- changeLocalSlotData(state, fullSlotData, candidateHostId)
+      fullSlotDataIds = fullSlotData.map(_.slotId.blockId)
+      _        <- Logger[F].debug(show"Extend slot data ${remoteSlotData.map(_.slotId.blockId)} to $fullSlotDataIds")
+      newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
       isChainExtension = state.bestKnownRemoteSlotDataOpt.exists(_.isExtendedBy(remoteSlotData))
-      // we do NOT ask new headers if new slot data is just extension of current best chain
-      _ <- if (isChainExtension) ().pure[F] else requestNextHeaders(newState)
+      // we do NOT ask new headers if new slot data is overlap of current best chain
+      _ <- if (isChainExtension) Logger[F].info("Receive extension for current chain") else requestNextHeaders(newState)
     } yield newState
 
   /**
    * Received remote slot data could be not full, because some of slot data could be already saved in slot storage,
    * thus we build full slot data
    * @param state actor state
-   * @param slotData incomplete store data
+   * @param remoteSlotData incomplete store data
    * @tparam F effect
    * @return if we return chain of slot data A0 -> A1 -> ... -> AN, then:
    *         AN == slotData.last
@@ -164,17 +168,17 @@ object BlockChecker {
    *         Header storage shall contain block header which is parent of block A0
    */
   private def buildFullSlotDataChain[F[_]: Async](
-    state:    State[F],
-    slotData: NonEmptyChain[SlotData]
+    state:          State[F],
+    remoteSlotData: NonEmptyChain[SlotData]
   ): F[NonEmptyChain[SlotData]] = {
-    val from = slotData.head.parentSlotId.blockId
+    val from = remoteSlotData.head.parentSlotId.blockId
     val missedSlotDataF = getFromChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
       getT = state.slotDataStore.getOrRaise,
       terminateOn = sd => state.headerStore.contains(sd.slotId.blockId)
     )(from)
 
-    missedSlotDataF.map(sd => slotData.prependChain(Chain.fromSeq(sd)))
+    missedSlotDataF.map(sd => remoteSlotData.prependChain(Chain.fromSeq(sd)))
   }
 
   private def changeLocalSlotData[F[_]: Async: Logger](
