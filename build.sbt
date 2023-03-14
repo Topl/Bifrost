@@ -489,7 +489,8 @@ lazy val networking = project
     catsAkka,
     eventTree,
     ledger,
-    actor
+    actor,
+    munitScalamock     % "test->test"
   )
 
 lazy val transactionGenerator = project
