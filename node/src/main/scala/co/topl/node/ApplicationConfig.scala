@@ -66,6 +66,7 @@ object ApplicationConfig {
       case class Private(
         timestamp:        Long = System.currentTimeMillis() + 5_000L,
         stakerCount:      Int,
+        relativeStakes:   Option[List[Ratio]],
         localStakerIndex: Option[Int]
       ) extends BigBang
     }
@@ -149,9 +150,9 @@ object ApplicationConfig {
         simpleArgApplications.bifrost.bigBang match {
           case p: Bifrost.BigBangs.Private =>
             p.copy(
-              cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
-              cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
-              cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
+              timestamp = cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
+              stakerCount = cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
+              localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
             )
         }
       genLens(_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)

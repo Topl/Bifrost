@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import cats.data.Chain
 import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
 import co.topl.brambl.models.Identifier
@@ -30,16 +29,14 @@ object PrivateTestnet {
    *                    but the subsequent blockchain will be practically useless.  Without any initial operators,
    *                    the 2nd block of the chain can never be produced
    */
-  def stakerInitializers(timestamp: Timestamp, stakerCount: Int): Chain[StakerInitializers.Operator] = {
+  def stakerInitializers(timestamp: Timestamp, stakerCount: Int): List[StakerInitializers.Operator] = {
     require(stakerCount >= 0)
     val blake2b256 = new Blake2b256()
-    Chain
-      .fromSeq(
-        List.tabulate(stakerCount)(index =>
-          // This staker's "seed" is concatenation of timestamp bytes + index bytes
-          blake2b256.hash(
-            ByteString.copyFrom(BigInt(timestamp).toByteArray).concat(ByteString.copyFrom(BigInt(index).toByteArray))
-          )
+    List
+      .tabulate(stakerCount)(index =>
+        // This staker's "seed" is concatenation of timestamp bytes + index bytes
+        blake2b256.hash(
+          ByteString.copyFrom(BigInt(timestamp).toByteArray).concat(ByteString.copyFrom(BigInt(index).toByteArray))
         )
       )
       .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9)))
@@ -49,21 +46,25 @@ object PrivateTestnet {
    * Constructs a BigBang Config containing registrations of the given Stakers.  In addition, a single Poly box is
    * produced and is publicly spendable.
    */
-  def config(timestamp: Timestamp, stakers: Chain[StakerInitializers.Operator])(implicit
-    networkPrefix: NetworkPrefix
-  ): BigBang.Config =
+  def config(timestamp: Timestamp, stakers: List[StakerInitializers.Operator], relativeStakes: Option[List[Ratio]])(
+    implicit networkPrefix: NetworkPrefix
+  ): BigBang.Config = {
+    require(relativeStakes.forall(_.length == stakers.length), "relativeStakes must be the same length as stakers")
     BigBang.Config(
       timestamp,
       stakers
-        .flatMap(_.bigBangOutputs(Ratio(TotalStake, stakers.length).round))
-        .append(
+        .zip(relativeStakes.getOrElse(List.fill(stakers.length)(Ratio(1, stakers.length))))
+        .flatMap { case (staker, relativeStake) =>
+          staker.bigBangOutputs((relativeStake * (TotalStake: BigInt): Ratio).round)
+        }
+        .appended(
           UnspentTransactionOutput(
             HeightLockOneSpendingAddress,
             Value().withLvl(Value.LVL(10_000_000L))
           )
         )
-        .toList
     )
+  }
 
   val HeightLockOneProposition: Proposition =
     Proposition(
