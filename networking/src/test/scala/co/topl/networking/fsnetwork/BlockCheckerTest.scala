@@ -17,7 +17,7 @@ import co.topl.models.generators.node.ModelGenerators
 import co.topl.networking.fsnetwork.BlockCheckerTest.F
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
-import co.topl.networking.fsnetwork.TestImplicits._
+import co.topl.networking.fsnetwork.TestHelper._
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.quivr.runtime.DynamicContext
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -40,7 +40,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
   test("RemoteSlotData: Request no headers if new slot data is worse") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size < maxChainSize).sample.get
+        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size < maxChainSize).sample.get
 
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
@@ -51,22 +51,15 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (localChain.head _).expects().once().onCall(() => currentSlotDataHead.pure[F])
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
-
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
-
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
-
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
-
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
-
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
       (chainSelectionAlgebra.compare _).expects(slotData.last, currentSlotDataHead).onCall { case (_, _) =>
         (-1).pure[F]
       }
@@ -112,7 +105,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val slotData: NonEmptyChain[SlotData] =
-        arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 2 && c.size < maxChainSize).sample.get
+        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 2 && c.size < maxChainSize).sample.get
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
       // local is known data which are stored in stores
@@ -175,7 +168,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val slotData: NonEmptyChain[SlotData] =
-        arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 2 && c.size < maxChainSize).sample.get
+        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 2 && c.size < maxChainSize).sample.get
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
       // local is known data which are stored in stores
@@ -241,7 +234,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val slotData: NonEmptyChain[SlotData] =
-        arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 2 && c.size < maxChainSize).sample.get
+        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 2 && c.size < maxChainSize).sample.get
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
       // local is known data which are stored in stores
@@ -324,7 +317,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val slotData: NonEmptyChain[SlotData] =
-        arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 3 && c.size < maxChainSize).sample.get
+        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 3 && c.size < maxChainSize).sample.get
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
       // local is known data which are stored in stores
@@ -438,7 +431,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
   test("RemoteBlockHeader: Do not verify already known headers, stop processing if all headers are known") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        arbitraryBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary.sample.get
+        arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary.sample.get
       val idAndHeaders = headers.map(h => (h.id, h))
 
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
@@ -498,7 +491,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val headers: NonEmptyChain[BlockHeader] =
-        arbitraryBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary.sample.get
+        arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary.sample.get
       val idAndHeaders = headers.map(h => (h.id, h))
 
       val knownHeadersSize = Gen.choose[Int](1, headers.size.toInt - 1).sample.get
@@ -575,7 +568,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val headers: NonEmptyChain[BlockHeader] =
-        arbitraryBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary.sample.get
+        arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary.sample.get
       val idAndHeaders = headers.map(h => (h.id, h))
 
       val knownHeadersSize = Gen.choose[Int](1, headers.size.toInt - 1).sample.get
@@ -617,7 +610,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         }
 
       val newSlotData: Chain[SlotData] = {
-        val arSlot = arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < 10).sample.get
+        val arSlot = arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < 10).sample.get
         arSlot.head.copy(parentSlotId = bestChainForKnownAndNewIds.last.slotId) +: arSlot.tail
       }
 
@@ -773,7 +766,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       }
 
       (bodySyntaxValidation.validate _).expects(*).rep(newBodiesSize).onCall { b: BlockBody =>
-        Validated.condNec[BodySyntaxError, BlockBody](test = true, b, null).pure[F]
+        Validated.validNec[BodySyntaxError, BlockBody](b).pure[F]
       }
 
       (bodySemanticValidation
@@ -781,7 +774,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .expects(*, *)
         .rep(newBodiesSize)
         .onCall { case (_: BodyValidationContext, b: BlockBody) =>
-          Validated.condNec[BodySemanticError, BlockBody](test = true, b, null).pure[F]
+          Validated.validNec[BodySemanticError, BlockBody](b).pure[F]
         }
 
       type AuthContext = IoTransaction => DynamicContext[F, String, Datum]
@@ -790,7 +783,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .expects(*, *)
         .rep(newBodiesSize)
         .onCall { case (_: AuthContext, b: BlockBody) =>
-          Validated.condNec[BodyAuthorizationError, BlockBody](test = true, b, null).pure[F]
+          Validated.validNec[BodyAuthorizationError, BlockBody](b).pure[F]
         }
 
       val storedBodies = mutable.Map.empty[BlockId, BlockBody]
@@ -886,7 +879,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       }
 
       (bodySyntaxValidation.validate _).expects(*).rep(newBodiesSize).onCall { b: BlockBody =>
-        Validated.condNec[BodySyntaxError, BlockBody](test = true, b, null).pure[F]
+        Validated.validNec[BodySyntaxError, BlockBody](b).pure[F]
       }
 
       (bodySemanticValidation
@@ -894,7 +887,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .expects(*, *)
         .rep(newBodiesSize)
         .onCall { case (_: BodyValidationContext, b: BlockBody) =>
-          Validated.condNec[BodySemanticError, BlockBody](test = true, b, null).pure[F]
+          Validated.validNec[BodySemanticError, BlockBody](b).pure[F]
         }
 
       type AuthContext = IoTransaction => DynamicContext[F, String, Datum]
@@ -903,7 +896,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .expects(*, *)
         .rep(newBodiesSize)
         .onCall { case (_: AuthContext, b: BlockBody) =>
-          Validated.condNec[BodyAuthorizationError, BlockBody](test = true, b, null).pure[F]
+          Validated.validNec[BodyAuthorizationError, BlockBody](b).pure[F]
         }
 
       val storedBodies = mutable.Map.empty[BlockId, BlockBody]

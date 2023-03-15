@@ -1,15 +1,18 @@
 package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
+import co.topl.brambl.generators.TransactionGenerator
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.models.generators.consensus.ModelGenerators
+import co.topl.node.models.BlockBody
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
 
 import scala.annotation.tailrec
 
-object TestImplicits {
+object TestHelper extends TransactionGenerator {
 
   implicit class CallHandler1Ops[T1, R](ch: CallHandler1[T1, R]) {
     def rep(count: Int): CallHandler1[T1, R] = ch.repeated(count to count)
@@ -36,11 +39,20 @@ object TestImplicits {
         addHeaderToChain(headers.append(gen.sample.get.copy(parentHeaderId = parentId)), gen, count - 1)
     }
 
-  def arbitraryBlockHeaderChain(sizeGen: Gen[Long]): Arbitrary[NonEmptyChain[BlockHeader]] =
+  def arbitraryLinkedBlockHeaderChain(sizeGen: Gen[Long]): Arbitrary[NonEmptyChain[BlockHeader]] =
     Arbitrary(
       for {
         size <- sizeGen
         root <- ModelGenerators.arbitraryHeader.arbitrary
       } yield addHeaderToChain(NonEmptyChain.one(root), ModelGenerators.arbitraryHeader.arbitrary, size)
+    )
+
+  val maxTxsCount = 5
+
+  implicit val arbitraryTxsAndBlock: Arbitrary[(Seq[IoTransaction], BlockBody)] =
+    Arbitrary(
+      for {
+        txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary)
+      } yield (txs, BlockBody.of(txs.map(tx => tx.id)))
     )
 }

@@ -189,7 +189,7 @@ trait ModelGenerators {
         addSlotDataToChain(slotData.append(gen.sample.get.copy(parentSlotId = slotData.last.slotId)), gen, count - 1)
     }
 
-  implicit val arbitrarySlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =
+  implicit val arbitraryLinkedSlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =
     Arbitrary(
       for {
         size <- Gen.posNum[Long]
