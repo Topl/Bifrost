@@ -2,10 +2,15 @@ package co.topl.tetra.it
 
 import cats.effect.implicits._
 import cats.implicits._
+import co.topl.models.utility.Ratio
 import co.topl.tetra.it.util._
 import com.spotify.docker.client.DockerClient
+
+import fs2._
+
 import java.time.Instant
 import org.typelevel.log4cats.Logger
+
 import scala.concurrent.duration._
 
 /**
@@ -16,29 +21,33 @@ import scala.concurrent.duration._
  */
 class ChainSelectionTest extends IntegrationSuite {
 
-  override def munitTimeout: Duration = 25.minutes
+  override def munitTimeout: Duration = 12.minutes
 
   test("Disconnected nodes can forge independently and later sync up to a proper chain") {
     val epochSlotLength = 500 // (50/4) * (100/15) * 6
     val bigBang = Instant.now().plusSeconds(30)
-    val config0 = DefaultConfig(bigBang, stakerCount = 3, localStakerIndex = 0, knownPeers = Nil)
-    val config1 = DefaultConfig(bigBang, stakerCount = 3, localStakerIndex = 1, knownPeers = Nil)
-    val config2 = DefaultConfig(bigBang, stakerCount = 3, localStakerIndex = 2, knownPeers = Nil)
+    val relativeStakes = List(Ratio(3, 6), Ratio(2, 6), Ratio(1, 6)).some
+    val config0 =
+      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 0, knownPeers = Nil, relativeStakes = relativeStakes)
+    val config1 =
+      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 1, knownPeers = Nil, relativeStakes = relativeStakes)
+    val config2 =
+      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 2, knownPeers = Nil, relativeStakes = relativeStakes)
 
     val nodesWithknownPeers = List(
-      DefaultConfig(bigBang, stakerCount = 3, localStakerIndex = 0, knownPeers = Nil),
-      DefaultConfig(bigBang, stakerCount = 3, localStakerIndex = 1, knownPeers = List("ChainSelectionTest-node0")),
-      DefaultConfig(bigBang, stakerCount = 3, localStakerIndex = 2, knownPeers = List("ChainSelectionTest-node1"))
+      config0,
+      config1.copy(knownPeers = List("ChainSelectionTest-node0")),
+      config2.copy(knownPeers = List("ChainSelectionTest-node1"))
     )
 
     val resource = for {
       (dockerSupport, _dockerClient) <- DockerSupport.make[F]
       implicit0(dockerClient: DockerClient) = _dockerClient
-      node1 <- dockerSupport.createNode("ChainSelectionTest-node0", "ChainSelectionTest", config0)
-      node2 <- dockerSupport.createNode("ChainSelectionTest-node1", "ChainSelectionTest", config1)
-      node3 <- dockerSupport.createNode("ChainSelectionTest-node2", "ChainSelectionTest", config2)
-      
-      nodes = List(node1, node2, node3)
+      node0 <- dockerSupport.createNode("ChainSelectionTest-node0", "ChainSelectionTest", config0.yaml)
+      node1 <- dockerSupport.createNode("ChainSelectionTest-node1", "ChainSelectionTest", config1.yaml)
+      node2 <- dockerSupport.createNode("ChainSelectionTest-node2", "ChainSelectionTest", config2.yaml)
+
+      nodes = List(node0, node1, node2)
       _ <- nodes.parTraverse(_.startContainer[F]).toResource
       _ <- nodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
       _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
@@ -46,7 +55,7 @@ class ChainSelectionTest extends IntegrationSuite {
         .parTraverse(node =>
           node
             .rpcClient[F]
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(15.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(5.minutes).compile.lastOrError)
         )
         .toResource
 
@@ -55,14 +64,25 @@ class ChainSelectionTest extends IntegrationSuite {
 
       // Stop, configure with KnownPeers, restart containers and run again
       _ <- nodes.parTraverse(_.stop[F]).toResource
-      _ <- nodes.zip(nodesWithknownPeers).parTraverse { case (node, config) => node.configure[F](config) }.toResource
-      _ <- nodes.parTraverse(_.restartContainer[F]).toResource
-      _ <- nodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
-      _ <- Logger[F].info("ChainSelectionTest Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
+      _ <- nodes
+        .zip(nodesWithknownPeers)
+        .parTraverse { case (node, config) => node.configure[F](config.yaml) }
+        .toResource
+      // Note: Launch nodes in-order so that the P2P connections properly initialize.  Once proper peer management and
+      // retry logic is implemented, the relaunches can happen in parallel.
+      _ <- Stream
+        .iterable(nodes)
+        .evalMap(node => node.restartContainer[F] >> node.rpcClient[F].use(_.waitForRpcStartUp))
+        .compile
+        .drain
+        .toResource
+      _ <- Logger[F]
+        .info("ChainSelectionTest Waiting for nodes to reach target epoch.  This may take several minutes.")
+        .toResource
       thirdEpochHeads <- nodes
         .parTraverse(
           _.rpcClient[F]
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(20.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(10.minutes).compile.lastOrError)
         )
         .toResource
       _ <- Logger[F].info("Nodes have reached target epoch").toResource
