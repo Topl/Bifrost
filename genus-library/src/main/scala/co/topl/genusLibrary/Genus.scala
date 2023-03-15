@@ -45,7 +45,7 @@ object Genus {
     }
 
   def shutDown(): Try[Unit] = {
-    logger.info("shutDown() called")
+    logger.info("getGenus shutDown() called")
     synchronized {
       val result = instance.map(_.shutDown()).getOrElse(Success(()))
       instance = None

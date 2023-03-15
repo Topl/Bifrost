@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.orientDb {
 
+<<<<<<< HEAD
   import co.topl.brambl.models.Evidence
   import co.topl.brambl.models.Identifier
   import co.topl.brambl.models.LockAddress
@@ -14,6 +15,10 @@ package co.topl.genusLibrary.orientDb {
   import co.topl.genus.services.Txo
   import co.topl.genus.services.TxoState
   import co.topl.genusLibrary.GenusException
+=======
+  import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
+  import co.topl.consensus.models.{BlockHeader, BlockId, EligibilityCertificate, OperationalCertificate}
+>>>>>>> 98b1d62cb (wip, headers are being inserted sucessfully)
   import co.topl.genusLibrary.utils.BlockUtils
   import co.topl.node.models.BlockBody
   import com.google.protobuf.ByteString
@@ -135,6 +140,7 @@ package co.topl.genusLibrary.orientDb {
         GraphDataEncoder[BlockHeader]
           .withProperty(
             "blockId",
+<<<<<<< HEAD
             b => getBlockId(b),
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
@@ -143,6 +149,19 @@ package co.topl.genusLibrary.orientDb {
             p => p.parentHeaderId.value.toByteArray,
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
+=======
+            b =>  getBlockId(b),
+//            _.setNotNull(true)
+            _.setMandatory(true)
+          )(byteArrayOrientDbTypes)
+          .withProperty(
+            "parentHeaderId",
+            p => typedBytesToByteArray(p.parentHeaderId),
+            _.setNotNull(true)
+          )(
+            byteArrayOrientDbTypes
+          )
+>>>>>>> 98b1d62cb (wip, headers are being inserted sucessfully)
           .withProperty("parentSlot", l => java.lang.Long.valueOf(l.parentSlot), _.setMandatory(false))(
             longOrientDbTyped
           )

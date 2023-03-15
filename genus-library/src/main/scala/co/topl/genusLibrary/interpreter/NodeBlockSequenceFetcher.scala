@@ -4,17 +4,14 @@ import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockSequenceFetcherAlgebra}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import com.typesafe.scalalogging.LazyLogging
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 class NodeBlockSequenceFetcher[F[_]: Async: Logger](blockFetcher: BlockFetcherAlgebra[F])
-    extends BlockSequenceFetcherAlgebra[F, Stream[F, *]]
-    with LazyLogging {
+    extends BlockSequenceFetcherAlgebra[F, Stream[F, *]] {
 
   // TODO: TSDK-215 | Implement retry
-//  override def fetch(startHeight: Long, endHeight: Long = Long.MaxValue): F[Stream[F, BlockData]] = Async[F].delay {
-  override def fetch(startHeight: Long, endHeight: Long = 5L): F[Stream[F, BlockData]] = Async[F].delay {
+  override def fetch(startHeight: Long, endHeight: Long = Long.MaxValue): F[Stream[F, BlockData]] = Async[F].delay {
     Stream
       // Range from given start height to either defined max height or "positive infinity".
       // If start height is one, then the range would be [1, 2, 3, ...]

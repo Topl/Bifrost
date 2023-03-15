@@ -40,17 +40,17 @@ private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends 
 
   @unused
   private val graphMetadata =
-    initializeDatabase(factory, password) // TODO this is not graphMetadata, is Genus GraphMetadata
+    initializeDatabase(factory, password) // TODO this is not graphMetadata, is GenusGraphMetadata
 
-  val a = factory.getDatabase.getMetadata.getSchema.getClass("BlockHeaderWrapper").properties()
+//  val a = factory.getDatabase.getMetadata.getSchema.getClass("BlockHeaderWrapper").properties()
 
-  print("aaaaaaaaa<")
-  a.asScala.toList.foreach(a =>
-    println(s"${a.getName} " +
-      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.MANDATORY)}" +
-      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.READONLY)}" +
-      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.NOTNULL)}"
-    ))
+//  print("aaaaaaaaa<")
+//  a.asScala.toList.foreach(a =>
+//    println(s"${a.getName} " +
+//      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.MANDATORY)}" +
+//      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.READONLY)}" +
+//      s"${a.get(com.orientechnologies.orient.core.metadata.schema.OProperty.ATTRIBUTES.NOTNULL)}"
+//    ))
 
   override def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F] =
     new GraphTxDAO[F](
@@ -95,15 +95,15 @@ private[genusLibrary] class OrientDBFacade(dir: File, password: String) extends 
 
   private def initializeDatabase(factory: OrientGraphFactory, password: String) = {
     val session: OrientGraphNoTx = factory.getNoTx
-    try {
+//    try {
       session.setUseLightweightEdges(true)
 //      logger.info("Changing password")
 //      session.command(new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='$dbUserName'")).execute()
 //      logger.info("Configuring Schema")
       new GenusGraphMetadata(session)
-    } finally
+//    } finally
 //      session.commit()
-      session.shutdown()
+//      session.shutdown()
   }
 
   private def initializeOServerMain() = {

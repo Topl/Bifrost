@@ -10,7 +10,9 @@ import com.tinkerpop.blueprints.impls.orient.OrientGraph
  */
 class GraphTxWrapper(graph: OrientGraph) {
 
-  def addVertex(id: AnyRef): WrappedVertex = new WrappedVertex(graph.addVertex(id))
+  def addVertex(id: AnyRef, prop: java.util.Map[String, Object]): WrappedVertex =
+    new WrappedVertex(graph.addVertex(id, prop))
+
 
   def addEdge(id: AnyRef, outVertex: WrappedVertex, inVertex: WrappedVertex, label: String): WrappedEdge =
     new WrappedEdge(graph.addEdge(id, outVertex.get, inVertex.get, label))

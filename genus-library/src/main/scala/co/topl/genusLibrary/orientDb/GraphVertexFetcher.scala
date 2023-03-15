@@ -25,8 +25,8 @@ class GraphVertexFetcher[F[_]: Async: Logger](
         blockId
       )
       .map(
-        _.toRight(
-          Failures.NoCurrentHeaderVertexFailure(ByteVector(blockId)).asInstanceOf[Failure]
+        _.toRight[Failure](
+          Failures.NoCurrentHeaderVertexFailure(ByteVector(blockId))
         )
       )
       .flatTap {
@@ -46,8 +46,8 @@ class GraphVertexFetcher[F[_]: Async: Logger](
         blockId
       )
       .map(
-        _.toRight(
-          Failures.NoPreviousHeaderVertexFailure(ByteVector(blockId)).asInstanceOf[Failure]
+        _.toRight[Failure](
+          Failures.NoPreviousHeaderVertexFailure(ByteVector(blockId))
         )
       )
       .flatTap {
@@ -67,8 +67,8 @@ class GraphVertexFetcher[F[_]: Async: Logger](
         transactions
       )
       .map(
-        _.toRight(
-          Failures.NoCurrentBodyVertexFailure(ByteVector(transactions)).asInstanceOf[Failure]
+        _.toRight[Failure](
+          Failures.NoCurrentBodyVertexFailure(ByteVector(transactions))
         )
       )
       .flatTap {

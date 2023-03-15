@@ -57,6 +57,7 @@ object GenusServerApp
       blockSequenceFetcher <- Resource.pure(new NodeBlockSequenceFetcher[F](blockFetcher))
 
       genusTry <- Resource.make(Async[F].delay(Genus.getGenus))(_ => Async[F].delay(Genus.shutDown()))
+//      genusTry <- Resource.pure(Genus.getGenus)
       genus    <- OptionT(genusTry.toOption.pure[F]).getOrRaise(new RuntimeException("ERROR!")).toResource
 
       vertexFetcher  <- Resource.pure(new GraphVertexFetcher[F](genus.orientDB, GenusGraphMetadata))
@@ -67,8 +68,12 @@ object GenusServerApp
 //      txInserter <-  Resource.pure(new GraphTxInserter[F])) // TODO, this is not implemented
       graphBlockInserter <- Resource.pure(new GraphBlockInserter[F](headerInserter, null, null))
 
-      inserter <- blockSequenceFetcher.fetch(1).map(_.evalMap(graphBlockInserter.insert)).toResource
-      _ <- inserter.take(3).compile.toVector.map(_.map(res => println(res.leftMap(_.toString).swap.getOrElse("OK")))).toResource
+      inserter <- blockSequenceFetcher.fetch(1)
+        .map(_.evalMap(graphBlockInserter.insert)
+        .evalTap(res => Logger[F].info(res.leftMap(_.toString).swap.getOrElse("OK")))
+        ).toResource
+      _ <- inserter.take(5).compile.drain.toResource
+
 //      _ <- inserter.take(3).map(res => println(res.leftMap(_.toString).swap.getOrElse("OK"))).compile.toList.toResource
 
       _ <- GenusFullBlockGrpc.Server

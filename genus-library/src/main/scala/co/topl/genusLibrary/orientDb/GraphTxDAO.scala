@@ -3,7 +3,6 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.genusLibrary.model.BlockHeaderWrapper
 import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedEdge, WrappedVertex}
 import org.typelevel.log4cats.Logger
 
@@ -37,39 +36,38 @@ class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
   )(implicit
     schema: VertexSchema[T]
   ): (T, WrappedVertex) = {
-    println(s"class:${schema.name}")
-    println(s"class:${schema.properties.map(_.name).mkString(";")}")
-    println(s"elem:${elem.getClass.toString}")
-    println(s"elem:${elem.asInstanceOf[BlockHeaderWrapper].blockId.value.toString}")
 
-    wrappedGraph.addVertex(elem)
+    import scala.jdk.CollectionConverters._
+    val prop:java.util.Map[String, Object] = schema.encode(elem).asJava
+    println(s"size ${prop.size}")
 
-    updateVertex(elem, wrappedGraph.addVertex(s"class:${schema.name}"))
+//    updateVertex(elem, wrappedGraph.addVertex(s"class:${schema.name}", prop))
+    (elem, wrappedGraph.addVertex(s"class:${schema.name}", prop))
   }
 
-  /**
-   * Vertex updater from an element
-   *
-   * @param elem element to update
-   * @param vertex vertex to update
-   * @param schema schema for given element to be updated
-   * @tparam T abstract type of the given element and type parameter of given schema
-   * @return element and updated vertex
-   */
-  def updateVertex[T](
-    elem:   T,
-    vertex: WrappedVertex
-  )(implicit
-    schema: VertexSchema[T]
-  ): (T, WrappedVertex) = {
-    schema
-      .encode(elem)
-      .foreach { case (key, value) =>
-        vertex.setProperty(key, value)
-      }
-
-    (elem, vertex)
-  }
+//  /**
+//   * Vertex updater from an element
+//   *
+//   * @param elem element to update
+//   * @param vertex vertex to update
+//   * @param schema schema for given element to be updated
+//   * @tparam T abstract type of the given element and type parameter of given schema
+//   * @return element and updated vertex
+//   */
+//  def updateVertex[T](
+//    elem:   T,
+//    vertex: WrappedVertex
+//  )(implicit
+//    schema: VertexSchema[T]
+//  ): (T, WrappedVertex) = {
+//    schema
+//      .encode(elem)
+//      .foreach { case (key, value) =>
+//        vertex.setProperty(key, value)
+//      }
+//
+//    (elem, vertex)
+//  }
 
   /**
    * Edge creator. Creates edge from outVertex to inVertex.
