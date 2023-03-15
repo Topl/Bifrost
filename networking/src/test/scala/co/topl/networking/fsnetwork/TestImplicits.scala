@@ -2,11 +2,8 @@ package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.consensus.models.BlockHeader
 import co.topl.models.generators.consensus.ModelGenerators
-import co.topl.models.utility._
-import co.topl.typeclasses.implicits._
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
 
@@ -35,7 +32,7 @@ object TestImplicits {
     count match {
       case 0 => headers
       case _ =>
-        val parentId = BlockId(headers.last.id.asTypedBytes.dataBytes)
+        val parentId = headers.last.id
         addHeaderToChain(headers.append(gen.sample.get.copy(parentHeaderId = parentId)), gen, count - 1)
     }
 

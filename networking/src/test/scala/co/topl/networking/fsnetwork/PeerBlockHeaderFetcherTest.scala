@@ -6,12 +6,10 @@ import cats.implicits._
 import co.topl.actor.Actor
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.models.{IdentifierTypes, TypedBytes, TypedIdentifier}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.typeclasses.implicits._
@@ -20,7 +18,6 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import scodec.bits.ByteVector
 import co.topl.networking.fsnetwork.TestImplicits._
 
 import scala.collection.mutable
@@ -39,13 +36,13 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
         nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).sample.get
-      val idAndHeader: NonEmptyChain[(TypedIdentifier, BlockHeader)] =
-        headers.map(h => (h.id.asTypedBytes: TypedIdentifier, h))
-      val idToHeader: Map[TypedIdentifier, BlockHeader] = idAndHeader.toList.toMap
+      val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
+        headers.map(h => (h.id, h))
+      val idToHeader: Map[BlockId, BlockHeader] = idAndHeader.toList.toMap
       val blocksCount = idToHeader.size
 
       val client = mock[BlockchainPeerClient[F]]
-      (client.getRemoteHeader _).expects(*).rep(blocksCount).onCall { id: TypedIdentifier =>
+      (client.getRemoteHeader _).expects(*).rep(blocksCount).onCall { id: BlockId =>
         idToHeader.get(id).pure[F]
       }
 
@@ -55,9 +52,9 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = mock[LocalChainAlgebra[F]]
 
-      val slotDataStore = mock[Store[F, TypedIdentifier, SlotData]]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
 
-      val blockIdTree = mock[ParentChildTree[F, TypedIdentifier]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
 
       for {
         (actor, shutdown) <-
@@ -76,22 +73,20 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
     withMock {
       val slotData: NonEmptyChain[SlotData] =
         arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < maxChainSize).sample.get
-      val idAndSlotData: NonEmptyChain[(TypedIdentifier, SlotData)] = slotData.map { s =>
-        (TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(s.slotId.blockId.value.toByteArray)): TypedIdentifier, s)
-      }
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map { s =>(s.slotId.blockId, s)}
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
 
       val (bestSlotId, bestSlotData) = remoteSlotData.last
-      val remoteIdToSlotData: Map[TypedIdentifier, SlotData] = remoteSlotData.toList.toMap
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
       val remoteSlotDataCount = remoteIdToSlotData.size
 
       val client = mock[BlockchainPeerClient[F]]
-      (client.getRemoteSlotData _).expects(*).rep(remoteSlotDataCount).onCall { id: TypedIdentifier =>
+      (client.getRemoteSlotData _).expects(*).rep(remoteSlotDataCount).onCall { id: BlockId =>
         remoteIdToSlotData.get(id).pure[F]
       }
       (client.remotePeerAdoptions _).expects().once().onCall { () =>
-        Stream.eval[F, TypedIdentifier](bestSlotId.pure[F]).pure[F]
+        Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
 
       val blockChecker = mock[Actor[F, BlockChecker.Message, BlockChecker.Response[F]]]
@@ -101,19 +96,19 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val localChain = mock[LocalChainAlgebra[F]]
       (localChain.isWorseThan _).expects(bestSlotData).once().onCall { _: SlotData => true.pure[F] }
 
-      val slotDataStoreMap = mutable.Map.empty[TypedIdentifier, SlotData]
-      val slotDataStore = mock[Store[F, TypedIdentifier, SlotData]]
-      (slotDataStore.get _).expects(*).rep(remoteSlotDataCount + 1).onCall { id: TypedIdentifier =>
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).rep(remoteSlotDataCount + 1).onCall { id: BlockId =>
         { if (id === knownId) Option(knownSlotData) else None }.pure[F]
       }
-      (slotDataStore.contains _).expects(*).rep(remoteSlotDataCount + 2).onCall { id: TypedIdentifier =>
+      (slotDataStore.contains _).expects(*).rep(remoteSlotDataCount + 2).onCall { id: BlockId =>
         (!remoteIdToSlotData.contains(id)).pure[F]
       }
       (slotDataStore.put _).expects(*, *).rep(remoteSlotDataCount).onCall {
-        case (id: TypedIdentifier, slotData: SlotData) => slotDataStoreMap.put(id, slotData).pure[F].void
+        case (id: BlockId, slotData: SlotData) => slotDataStoreMap.put(id, slotData).pure[F].void
       }
 
-      val blockIdTree = mock[ParentChildTree[F, TypedIdentifier]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount).onCall(_ => ().pure[F])
 
       for {
@@ -132,22 +127,20 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
     withMock {
       val slotData: NonEmptyChain[SlotData] =
         arbitrarySlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < maxChainSize).sample.get
-      val idAndSlotData: NonEmptyChain[(TypedIdentifier, SlotData)] = slotData.map { s =>
-        (TypedBytes(IdentifierTypes.Block.HeaderV2, ByteVector(s.slotId.blockId.value.toByteArray)): TypedIdentifier, s)
-      }
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map { s =>(s.slotId.blockId, s)}
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
 
       val (bestSlotId, bestSlotData) = remoteSlotData.last
-      val remoteIdToSlotData: Map[TypedIdentifier, SlotData] = remoteSlotData.toList.toMap
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
       val remoteSlotDataCount = remoteIdToSlotData.size
 
       val client = mock[BlockchainPeerClient[F]]
-      (client.getRemoteSlotData _).expects(*).rep(remoteSlotDataCount).onCall { id: TypedIdentifier =>
+      (client.getRemoteSlotData _).expects(*).rep(remoteSlotDataCount).onCall { id: BlockId =>
         remoteIdToSlotData.get(id).pure[F]
       }
       (client.remotePeerAdoptions _).expects().once().onCall { () =>
-        Stream.eval[F, TypedIdentifier](bestSlotId.pure[F]).pure[F]
+        Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
 
       val blockChecker = mock[Actor[F, BlockChecker.Message, BlockChecker.Response[F]]]
@@ -157,21 +150,21 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val localChain = mock[LocalChainAlgebra[F]]
       (localChain.isWorseThan _).expects(bestSlotData).once().onCall { _: SlotData => false.pure[F] }
 
-      val slotDataStoreMap = mutable.Map.empty[TypedIdentifier, SlotData]
-      val slotDataStore = mock[Store[F, TypedIdentifier, SlotData]]
-      (slotDataStore.get _).expects(*).rep(remoteSlotDataCount + 1).onCall { id: TypedIdentifier =>
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).rep(remoteSlotDataCount + 1).onCall { id: BlockId =>
         {
           if (id === knownId) Option(knownSlotData) else None
         }.pure[F]
       }
-      (slotDataStore.contains _).expects(*).rep(remoteSlotDataCount + 2).onCall { id: TypedIdentifier =>
+      (slotDataStore.contains _).expects(*).rep(remoteSlotDataCount + 2).onCall { id: BlockId =>
         (!remoteIdToSlotData.contains(id)).pure[F]
       }
       (slotDataStore.put _).expects(*, *).rep(remoteSlotDataCount).onCall {
-        case (id: TypedIdentifier, slotData: SlotData) => slotDataStoreMap.put(id, slotData).pure[F].void
+        case (id: BlockId, slotData: SlotData) => slotDataStoreMap.put(id, slotData).pure[F].void
       }
 
-      val blockIdTree = mock[ParentChildTree[F, TypedIdentifier]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount).onCall(_ => ().pure[F])
 
       for {
