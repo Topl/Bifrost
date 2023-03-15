@@ -1,15 +1,27 @@
 package co.topl.genusLibrary.orientDb {
 
-  import co.topl.codecs.bytes.tetra.{TetraIdentifiableInstances, TetraScodecCodecs}
-  import co.topl.consensus.models.{BlockHeader, BlockId, EligibilityCertificate, OperationalCertificate}
+  import co.topl.brambl.models.Evidence
+  import co.topl.brambl.models.Identifier
+  import co.topl.brambl.models.LockAddress
+  import co.topl.brambl.models.TransactionOutputAddress
+  import co.topl.brambl.models.box.Box
+  import co.topl.brambl.models.transaction.IoTransaction
+  import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+  import co.topl.consensus.models.BlockHeader
+  import co.topl.consensus.models.BlockId
+  import co.topl.consensus.models.EligibilityCertificate
+  import co.topl.consensus.models.OperationalCertificate
+  import co.topl.genus.services.Txo
+  import co.topl.genus.services.TxoState
+  import co.topl.genusLibrary.GenusException
   import co.topl.genusLibrary.utils.BlockUtils
-  import co.topl.genusLibrary.{GenusException, Txo, TxoState}
-  import co.topl.models._
-  import co.topl.models.utility._
   import co.topl.node.models.BlockBody
   import com.google.protobuf.ByteString
   import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
-  import com.tinkerpop.blueprints.impls.orient.{OrientEdgeType, OrientGraphNoTx, OrientVertexType}
+  import com.tinkerpop.blueprints.impls.orient.OrientEdgeType
+  import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
+  import com.tinkerpop.blueprints.impls.orient.OrientVertexType
+  import quivr.models.Digest
   import scodec.Codec
   import scodec.bits.BitVector
 
@@ -81,20 +93,28 @@ package co.topl.genusLibrary.orientDb {
     /**
      * Schema for Address nodes
      */
-    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[TypedEvidence] =
+    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[LockAddress] =
       VertexSchema.create(
-        "Address",
-        GraphDataEncoder[TypedEvidence]
+        "LockAddress",
+        GraphDataEncoder[LockAddress]
+          .withProperty("network", v => java.lang.Integer.valueOf(v.network), _.setNotNull(true))
+          .withProperty("ledger", v => java.lang.Integer.valueOf(v.ledger), _.setNotNull(true))
           .withProperty(
-            "typePrefix",
-            p => java.lang.Byte.valueOf(p.typePrefix),
-            _.setMandatory(true).setReadonly(true).setNotNull(true)
-          )
-          .withProperty("evidence", _.evidence.data.toArray, _.setMandatory(true).setReadonly(true).setNotNull(true))(
-            byteArrayOrientDbTypes
-          )
-          .withIndex("addressIndex", INDEX_TYPE.UNIQUE, "typePrefix", "evidence"),
-        v => TypedEvidence(v("typePrefix"), v("evidence"))
+            "id",
+            _.id match {
+              case v: LockAddress.Id.Lock32 => Array[Byte](0) ++ v.value.toByteArray
+              case v: LockAddress.Id.Lock64 => Array[Byte](1) ++ v.value.toByteArray
+            },
+            _.setNotNull(true)
+          ),
+        v => {
+          val idData: Array[Byte] = v("id")
+          val id = idData(0) match {
+            case 0 => LockAddress.Id.Lock32(Identifier.Lock32.parseFrom(idData.tail))
+            case 1 => LockAddress.Id.Lock64(Identifier.Lock64.parseFrom(idData.tail))
+          }
+          LockAddress(v("network"), v("ledger"), id)
+        }
       )
 
     /**
@@ -120,11 +140,9 @@ package co.topl.genusLibrary.orientDb {
           )(byteArrayOrientDbTypes)
           .withProperty(
             "parentHeaderId",
-            p => typedBytesToByteArray(p.parentHeaderId),
+            p => p.parentHeaderId.value.toByteArray,
             _.setNotNull(true)
-          )(
-            byteArrayOrientDbTypes
-          )
+          )(byteArrayOrientDbTypes)
           .withProperty("parentSlot", l => java.lang.Long.valueOf(l.parentSlot), _.setMandatory(false))(
             longOrientDbTyped
           )
@@ -170,84 +188,65 @@ package co.topl.genusLibrary.orientDb {
         GraphDataEncoder[BlockBody]
           .withProperty("transactionIds", t => blockBodyToByteArray(t), _ => {})(byteArrayOrientDbTypes),
         // There is no index needed for block bodies. They are accessed thru links from block headers and transactions
-        v => byteArrayToBlockBody(v("transactionIds"))
+        v => BlockBody.parseFrom(v("transactionIds"))
       )
 
-    implicit private[genusLibrary] val transactionSchema: VertexSchema[Transaction] =
+    implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
       VertexSchema.create(
         name = "Transaction",
-        GraphDataEncoder[Transaction]
+        GraphDataEncoder[IoTransaction]
           .withProperty(
             "transactionId",
-            t => {
-              val (typePrefix, bytes) = TetraIdentifiableInstances.transactionIdentifiable.idOf(t)
-              typedBytesTupleToByteArray((typePrefix, bytes.toArray))
-            },
+            t => t.id.toByteArray,
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
-          .withProperty("transaction", transactionToByteArray, _.setNotNull(true))(byteArrayOrientDbTypes)
+          .withProperty("transaction", _.toByteArray, _.setNotNull(true))(byteArrayOrientDbTypes)
           .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"),
         // transactionID is not stored in a transaction, but computed
-        v => byteArrayToTransaction(v("transaction"))
+        v => IoTransaction.parseFrom(v("transaction"))
       )
 
     implicit private[genusLibrary] val txoSchema: VertexSchema[Txo] =
       VertexSchema.create(
         "TxoState",
         GraphDataEncoder[Txo]
-          .withProperty("transactionId", _.id.transactionId.dataBytes.toArray, _.setNotNull(true))(
+          .withProperty(
+            "transactionId",
+            _.outputAddress.get.getIoTransaction32.evidence.digest.value.toByteArray,
+            _.setNotNull(true)
+          )(
             byteArrayOrientDbTypes
           )
           .withProperty(
             "transactionOutputIndex",
-            txo => java.lang.Short.valueOf(txo.id.transactionOutputIndex),
+            txo => java.lang.Short.valueOf(txo.outputAddress.get.index.toShort),
             _.setNotNull(true)
           )(shortOrientDbTyped)
-          .withProperty("assetLabel", _.assetLabel, _.setNotNull(true))(stringOrientDbTyped)
-          .withProperty("box", txo => boxToByteArray(txo.box))(byteArrayOrientDbTypes)
+          // TODO
+//          .withProperty("assetLabel", _.assetLabel, _.setNotNull(true))(stringOrientDbTyped)
+          .withProperty("box", txo => txo.box.toByteArray)(byteArrayOrientDbTypes)
           .withProperty("state", _.state.toString)(stringOrientDbTyped)
           .withProperty(
-            "spendingAddress",
-            _.address.map(address => address.typedEvidence.allBytes.toArray).orNull,
+            "address",
+            _.lockAddress.map(_.getLock32.evidence.digest.value.toByteArray).orNull,
             _.setNotNull(false)
           )(byteArrayOrientDbTypes)
           .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex")
           .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel"),
         v => {
           val transactionIdBytes: Array[Byte] = v("transactionId")
+          val transactionId = TransactionOutputAddress.Id.IoTransaction32(
+            Identifier.IoTransaction32(Evidence.Sized32(Digest.Digest32(ByteString.copyFrom(transactionIdBytes))))
+          )
+          val txoAddress = TransactionOutputAddress(0, 0, v("transactionOutputIndex"), transactionId)
           Txo(
-            byteArrayToBox(v("box")),
-            TxoState.withName(v("state")),
-            Box.Id(TypedBytes(Bytes(transactionIdBytes)), v("transactionOutputIndex").asInstanceOf[Short]),
-            Option(SpendingAddress(TypedEvidence.fromAllBytes(Bytes(v("spendingAddress").asInstanceOf[Array[Byte]]))))
+            Box.parseFrom(v("box")),
+            TxoState.values.find(_.name == v("state")).get,
+            Some(txoAddress),
+            None // TODO
           )
         }
       )
-
-    // TODO this needs to change when we switch to models from proto-buffers
-    def boxToByteArray(box: Box): Array[Byte] =
-      encodeToByteArray(box, TetraScodecCodecs.boxCodec, "Box")
-
-    def byteArrayToBox(a: Array[Byte]): Box =
-      decodeFromByteArray(a, TetraScodecCodecs.boxCodec, "Box")
-
-    def transactionToByteArray(transaction: Transaction): Array[Byte] =
-      encodeToByteArray(transaction, TetraScodecCodecs.transactionCodec, "Transaction")
-
-    def byteArrayToTransaction(a: Array[Byte]): Transaction =
-      decodeFromByteArray(a, TetraScodecCodecs.transactionCodec, "Transaction")
-
-    def byteArrayToBlockBody(a: Array[Byte]): BlockBody = BlockBody.parseFrom(a)
-
-    def typedBytesToByteArray(t: TypedIdentifier): Array[Byte] =
-      typedBytesTupleToByteArray((t.typePrefix, t.dataBytes.toArray))
-
-    def byteArrayToTypedBytes(a: Array[Byte]): TypedBytes = {
-      val tuple = byteArrayToTypedBytesTuple(a)
-      TypedBytes(tuple._1, Bytes(tuple._2))
-    }
-
-    def byteArrayToTypedBytesTuple(a: Array[Byte]): (TypePrefix, Array[TypePrefix]) = (a(0), a.drop(1))
 
     private def decodeFromByteArray[T <: java.io.Serializable](a: Array[Byte], codec: Codec[T], typeName: String): T =
       codec

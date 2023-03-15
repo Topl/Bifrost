@@ -1,37 +1,30 @@
 package co.topl.grpc
 
 import cats.Applicative
-import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.node.services._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
+import co.topl.brambl.generators.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.models.generators.node.ModelGenerators._
 import co.topl.node.models.BlockBody
-import co.topl.proto.models.Transaction
-import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels.ModelGenerators._
-import legacyModels.{IdentifierTypes, TypedBytes, TypedIdentifier}
-import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
-import co.topl.models.generators.models.ModelGenerators.arbitraryTransaction
-import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
-import co.topl.typeclasses.implicits._
+import co.topl.node.services._
+import fs2.Stream
 import io.grpc.Metadata
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import fs2.Stream
 
 class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("A transaction can be broadcast") {
-    PropF.forAllF { (transaction: Transaction) =>
+    PropF.forAllF { (transaction: IoTransaction) =>
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -51,7 +44,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
   test("A block header can be retrieved") {
     PropF.forAllF { (header: BlockHeader) =>
-      val headerId = header.id.asTypedBytes
+      val headerId = header.id
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -62,8 +55,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(header.some.pure[F])
 
         for {
-          protoId <- EitherT(headerId.toF[F, BlockId]).getOrElse(???)
-          res     <- underTest.fetchBlockHeader(FetchBlockHeaderReq(protoId), new Metadata())
+          res <- underTest.fetchBlockHeader(FetchBlockHeaderReq(headerId), new Metadata())
           _ = assert(res.header.get == header)
         } yield ()
       }
@@ -71,8 +63,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A block body can be retrieved") {
-    PropF.forAllF { (_id: TypedIdentifier, body: BlockBody) =>
-      val id = TypedBytes(IdentifierTypes.Block.HeaderV2, _id.dataBytes)
+    PropF.forAllF { (id: BlockId, body: BlockBody) =>
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -83,8 +74,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(body.some.pure[F])
 
         for {
-          protoId <- EitherT(id.toF[F, BlockId]).getOrElse(???)
-          res     <- underTest.fetchBlockBody(FetchBlockBodyReq(protoId), new Metadata())
+          res <- underTest.fetchBlockBody(FetchBlockBodyReq(id), new Metadata())
 
           protoBody = res.body.get
           _ = assert(protoBody == body)
@@ -94,8 +84,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   }
 
   test("A transaction can be retrieved") {
-    PropF.forAllF { (transaction: Transaction) =>
-      val transactionId = transaction.id.asTypedBytes
+    PropF.forAllF { (transaction: IoTransaction) =>
+      val transactionId = transaction.id
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -106,9 +96,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           .returning(transaction.some.pure[F])
 
         for {
-
-          ioTx32 <- EitherT(transactionId.toF[F, IoTransaction32]).getOrElse(???)
-          res    <- underTest.fetchTransaction(FetchTransactionReq(ioTx32), new Metadata())
+          res <- underTest.fetchTransaction(FetchTransactionReq(transactionId), new Metadata())
           _ = assert(transaction == res.transaction.get)
         } yield ()
       }
@@ -117,7 +105,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
   test("The block ID at a height can be retrieved") {
     PropF.forAllF { (height: Long, header: BlockHeader) =>
-      val blockId = header.id.asTypedBytes
+      val blockId = header.id
       withMock {
         val interpreter = mock[ToplRpc[F, Stream[F, *]]]
         val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
@@ -129,7 +117,7 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
 
         for {
           res <- underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
-          proto = res.blockId.get: TypedIdentifier
+          proto = res.blockId.get
           _ = assert(blockId == proto)
         } yield ()
       }

@@ -28,18 +28,16 @@ trait CryptoConsensusMorphismInstances {
     Isomorphism[F, consensusModels.SignatureKesSum, cryptoModels.SignatureKesSum](
       _.map(kesSum =>
         for {
-          verificationKey <- EitherT.pure[F, String](kesSum.verificationKey.value.toByteArray)
-          signature       <- EitherT.pure[F, String](kesSum.signature.value.toByteArray)
+          verificationKey <- EitherT.pure[F, String](kesSum.verificationKey.toByteArray)
+          signature       <- EitherT.pure[F, String](kesSum.signature.toByteArray)
           witness         <- EitherT.pure[F, String](kesSum.witness.map(_.toByteArray))
         } yield cryptoModels.SignatureKesSum(verificationKey, signature, witness)
       ).flatMap(_.value),
       _.map(kesSum =>
         for {
-          verificationKey <- EitherT.pure[F, String](
-            consensusModels.VerificationKeyEd25519.of(ByteString.copyFrom(kesSum.verificationKey))
-          )
-          signature <- EitherT.pure[F, String](consensusModels.SignatureEd25519(ByteString.copyFrom(kesSum.signature)))
-          witness   <- EitherT.pure[F, String](kesSum.witness.map(ByteString.copyFrom))
+          verificationKey <- EitherT.pure[F, String](ByteString.copyFrom(kesSum.verificationKey))
+          signature       <- EitherT.pure[F, String](ByteString.copyFrom(kesSum.signature))
+          witness         <- EitherT.pure[F, String](kesSum.witness.map(ByteString.copyFrom))
         } yield consensusModels.SignatureKesSum(verificationKey, signature, witness)
       ).flatMap(_.value)
     )

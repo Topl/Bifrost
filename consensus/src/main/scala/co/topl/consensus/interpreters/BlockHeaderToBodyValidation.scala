@@ -5,7 +5,7 @@ import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEq}
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
-import co.topl.models.Block
+import co.topl.node.models.Block
 import co.topl.typeclasses.implicits._
 import co.topl.models.utility._
 import co.topl.models.utility.HasLength.instances._

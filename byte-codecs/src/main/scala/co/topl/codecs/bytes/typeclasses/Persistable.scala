@@ -1,8 +1,10 @@
 package co.topl.codecs.bytes.typeclasses
 
 import cats.implicits._
-import scodec.bits.ByteVector
-import scodec.{Attempt, Codec}
+import com.google.protobuf.ByteString
+import scodec.bits.BitVector
+import scodec.Attempt
+import scodec.Codec
 import simulacrum.typeclass
 
 import scala.language.implicitConversions
@@ -22,7 +24,7 @@ import scala.language.implicitConversions
    * @param value the value to convert into bytes
    * @return an array of bytes representing the value which should then be persisted as-is
    */
-  def persistedBytes(value: T): ByteVector
+  def persistedBytes(value: T): ByteString
 
   /**
    * Attempts to decode a value of type `T` from a given array of bytes.
@@ -30,7 +32,7 @@ import scala.language.implicitConversions
    * @param bytes the persisted bytes to attempt to decode into a value of `T`
    * @return if successful, a value of type `T` represented by the input bytes, otherwise a failure message
    */
-  def fromPersistedBytes(bytes: ByteVector): Either[String, T]
+  def fromPersistedBytes(bytes: ByteString): Either[String, T]
 }
 
 object Persistable {
@@ -42,21 +44,21 @@ object Persistable {
    */
   def instanceFromCodec[T: Codec]: Persistable[T] = new Persistable[T] {
 
-    override def persistedBytes(value: T): ByteVector =
+    override def persistedBytes(value: T): ByteString =
       Codec[T].encode(value) match {
-        case Attempt.Successful(value) => value.toByteVector
+        case Attempt.Successful(value) => ByteString.copyFrom(value.toByteBuffer)
         case Attempt.Failure(cause)    => throw new IllegalArgumentException(cause.messageWithContext)
       }
 
-    override def fromPersistedBytes(byteVector: ByteVector): Either[String, T] =
-      Codec[T].decodeValue(byteVector.toBitVector).toEither.leftMap(_.message)
+    override def fromPersistedBytes(byteString: ByteString): Either[String, T] =
+      Codec[T].decodeValue(BitVector(byteString.asReadOnlyByteBuffer())).toEither.leftMap(_.message)
   }
 
   /**
    * Extension operations for working with persisted byte data.
    * @param bytes the persisted byte data to operate on
    */
-  class BytesPersistableOps(private val byteVector: ByteVector) extends AnyVal {
+  class BytesPersistableOps(private val byteString: ByteString) extends AnyVal {
 
     /**
      * Attempts to decode persisted byte data into a value of type `T`.
@@ -66,12 +68,12 @@ object Persistable {
      * @return if successful, the value of type `T` that the data represents, otherwise a failure message
      */
     def decodePersisted[T: Persistable]: Either[String, T] =
-      Persistable[T].fromPersistedBytes(byteVector)
+      Persistable[T].fromPersistedBytes(byteString)
   }
 
   trait ToExtensionOps {
 
-    implicit def persistableFromBytes(value: ByteVector): BytesPersistableOps =
+    implicit def persistableFromBytes(value: ByteString): BytesPersistableOps =
       new BytesPersistableOps(value)
   }
 }

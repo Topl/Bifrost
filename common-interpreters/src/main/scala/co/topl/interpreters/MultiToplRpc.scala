@@ -5,11 +5,11 @@ import cats.effect.Async
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
-import co.topl.{models => legacyModels}
-import legacyModels.TypedIdentifier
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.node.models.BlockBody
-import co.topl.proto.models.Transaction
 import fs2.Stream
 
 object MultiToplRpc {
@@ -35,25 +35,25 @@ object MultiToplRpc {
           .nextIntBounded(delegatesArray.length)
           .map(delegatesArray(_))
 
-      def broadcastTransaction(transaction: Transaction): F[Unit] =
+      def broadcastTransaction(transaction: IoTransaction): F[Unit] =
         randomDelegate.flatMap(_.broadcastTransaction(transaction))
 
-      def currentMempool(): F[Set[TypedIdentifier]] =
+      def currentMempool(): F[Set[Identifier.IoTransaction32]] =
         randomDelegate.flatMap(_.currentMempool())
 
-      def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]] =
+      def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
         randomDelegate.flatMap(_.fetchBlockHeader(blockId))
 
-      def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]] =
+      def fetchBlockBody(blockId: BlockId): F[Option[BlockBody]] =
         randomDelegate.flatMap(_.fetchBlockBody(blockId))
 
-      def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]] =
+      def fetchTransaction(transactionId: Identifier.IoTransaction32): F[Option[IoTransaction]] =
         randomDelegate.flatMap(_.fetchTransaction(transactionId))
 
-      def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
+      def blockIdAtHeight(height: Long): F[Option[BlockId]] =
         randomDelegate.flatMap(_.blockIdAtHeight(height))
 
-      def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]] =
+      def blockIdAtDepth(depth: Long): F[Option[BlockId]] =
         randomDelegate.flatMap(_.blockIdAtDepth(depth))
 
       override def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =

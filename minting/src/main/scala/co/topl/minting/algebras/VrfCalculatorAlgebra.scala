@@ -1,15 +1,15 @@
 package co.topl.minting.algebras
 
-import co.topl.consensus.models.SignatureVrfEd25519
 import co.topl.models._
 import co.topl.models.utility.Ratio
+
 import scala.collection.immutable.NumericRange
 
 trait VrfCalculatorAlgebra[F[_]] {
 
   def rhoForSlot(slot: Slot, eta: Eta): F[Rho]
 
-  def proofForSlot(slot: Slot, eta: Eta): F[SignatureVrfEd25519]
+  def proofForSlot(slot: Slot, eta: Eta): F[Bytes]
 
   /**
    * Determine which slots will be guaranteed to be ineligible in the provided epoch

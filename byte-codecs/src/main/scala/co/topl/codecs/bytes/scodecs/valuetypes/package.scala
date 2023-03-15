@@ -11,7 +11,6 @@ package object valuetypes extends ValuetypesCodecs {
     type UShort = Int
 
     type IntString = String
-    type ByteString = String
   }
 
   object Constants {

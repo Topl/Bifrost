@@ -1,105 +1,110 @@
 package co.topl.node
 
-import cats.{Applicative, Monad, MonadThrow}
 import cats.data.NonEmptySet
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import cats.implicits._
+import cats.Applicative
+import cats.Monad
+import cats.MonadThrow
 import co.topl.algebras.Store
-import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.BlockHeaderOps
+import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.SlotData
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
-import co.topl.{models => legacyModels}
-import legacyModels._
-import legacyModels.utility.ReplaceModelUtil
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.BlockBody
-import co.topl.numerics.implicits._
-import co.topl.typeclasses.implicits._
 import co.topl.interpreters.CacheStore
-import fs2.io.file.{Files, Path}
-import scala.collection.immutable.ListSet
+import co.topl.node.models.BlockBody
+import co.topl.node.models.FullBlock
+import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
+import fs2.io.file.Files
+import fs2.io.file.Path
 import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](
-  parentChildTree: Store[F, TypedIdentifier, (Long, TypedIdentifier)],
-  currentEventIds: Store[F, Byte, TypedIdentifier],
-  slotData:        Store[F, TypedIdentifier, SlotData],
-  headers:         Store[F, TypedIdentifier, BlockHeader],
-  bodies:          Store[F, TypedIdentifier, BlockBody],
-  transactions:    Store[F, TypedIdentifier, Transaction], // TODO replace old Transaction model
-  spendableBoxIds: Store[F, TypedIdentifier, NonEmptySet[Short]],
-  epochBoundaries: Store[F, Long, TypedIdentifier],
-  operatorStakes:  Store[F, StakingAddresses.Operator, Int128],
-  activeStake:     Store[F, Unit, Int128],
-  registrations:   Store[F, StakingAddresses.Operator, Box.Values.Registrations.Operator],
-  blockHeightTree: Store[F, Long, TypedIdentifier]
+  parentChildTree: Store[F, BlockId, (Long, BlockId)],
+  currentEventIds: Store[F, Byte, BlockId],
+  slotData:        Store[F, BlockId, SlotData],
+  headers:         Store[F, BlockId, BlockHeader],
+  bodies:          Store[F, BlockId, BlockBody],
+  transactions:    Store[F, Identifier.IoTransaction32, IoTransaction], // TODO replace old Transaction model
+  spendableBoxIds: Store[F, Identifier.IoTransaction32, NonEmptySet[Short]],
+  epochBoundaries: Store[F, Long, BlockId],
+  operatorStakes:  Store[F, StakingAddress, BigInt],
+  activeStake:     Store[F, Unit, BigInt],
+  registrations:   Store[F, StakingAddress, SignatureKesProduct],
+  blockHeightTree: Store[F, Long, BlockId]
 )
 
 object DataStores {
 
-  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: Block.Full): Resource[F, DataStores[F]] =
+  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
     for {
       dataDir <- Resource.pure[F, Path](
-        Path(appConfig.bifrost.data.directory) / bigBangBlock.header.id.asTypedBytes.show
+        Path(appConfig.bifrost.data.directory) / bigBangBlock.header.id.show
       )
       _ <- Resource.eval(Files[F].createDirectories(dataDir))
       _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
-      parentChildTree <- makeCachedDb[F, TypedIdentifier, Bytes, (Long, TypedIdentifier)](dataDir)(
+      parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir)(
         "parent-child-tree",
         appConfig.bifrost.cache.parentChildTree,
-        _.allBytes
+        _.value
       )
-      currentEventIds <- makeDb[F, Byte, TypedIdentifier](dataDir)("current-event-ids")
-      slotDataStore <- makeCachedDb[F, TypedIdentifier, Bytes, SlotData](dataDir)(
+      currentEventIds <- makeDb[F, Byte, BlockId](dataDir)("current-event-ids")
+      slotDataStore <- makeCachedDb[F, BlockId, ByteString, SlotData](dataDir)(
         "slot-data",
         appConfig.bifrost.cache.slotData,
-        _.allBytes
+        _.value
       )
-      blockHeaderStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockHeader](dataDir)(
+      blockHeaderStore <- makeCachedDb[F, BlockId, ByteString, BlockHeader](dataDir)(
         "block-headers",
         appConfig.bifrost.cache.headers,
-        _.allBytes
+        _.value
       )
-      blockBodyStore <- makeCachedDb[F, TypedIdentifier, Bytes, BlockBody](dataDir)(
+      blockBodyStore <- makeCachedDb[F, BlockId, ByteString, BlockBody](dataDir)(
         "block-bodies",
         appConfig.bifrost.cache.bodies,
-        _.allBytes
+        _.value
       )
-      transactionStore <- makeCachedDb[F, TypedIdentifier, Bytes, Transaction](dataDir)(
+      transactionStore <- makeCachedDb[F, Identifier.IoTransaction32, ByteString, IoTransaction](dataDir)(
         "transactions",
         appConfig.bifrost.cache.transactions,
-        _.allBytes
+        _.evidence.digest.value
       )
-      spendableBoxIdsStore <- makeCachedDb[F, TypedIdentifier, Bytes, NonEmptySet[Short]](dataDir)(
+      spendableBoxIdsStore <- makeCachedDb[F, Identifier.IoTransaction32, ByteString, NonEmptySet[Short]](dataDir)(
         "spendable-box-ids",
         appConfig.bifrost.cache.spendableBoxIds,
-        _.allBytes
+        _.evidence.digest.value
       )
-      epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, TypedIdentifier](dataDir)(
+      epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir)(
         "epoch-boundaries",
         appConfig.bifrost.cache.epochBoundaries,
         Long.box
       )
-      operatorStakesStore <- makeCachedDb[F, StakingAddresses.Operator, StakingAddresses.Operator, Int128](dataDir)(
+      operatorStakesStore <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir)(
         "operator-stakes",
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
-      activeStakeStore <- makeDb[F, Unit, Int128](dataDir)("active-stake")
+      activeStakeStore <- makeDb[F, Unit, BigInt](dataDir)("active-stake")
       registrationsStore <- makeCachedDb[
         F,
-        StakingAddresses.Operator,
-        StakingAddresses.Operator,
-        Box.Values.Registrations.Operator
+        StakingAddress,
+        StakingAddress,
+        SignatureKesProduct
       ](dataDir)(
         "registrations",
         appConfig.bifrost.cache.registrations,
         identity
       )
-      blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, TypedIdentifier](dataDir)(
+      blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir)(
         "block-heights",
         appConfig.bifrost.cache.blockHeightTree,
         Long.box
@@ -142,7 +147,7 @@ object DataStores {
         )
       )
 
-  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: Block.Full): F[Unit] =
+  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: FullBlock): F[Unit] =
     for {
       // Store the big bang data
       _ <- dataStores.currentEventIds
@@ -161,21 +166,14 @@ object DataStores {
         )
       _ <- dataStores.slotData.put(
         bigBangBlock.header.id,
-        ReplaceModelUtil.slotDataFromLegacy(
-          bigBangBlock.header.slotData(Ed25519VRF.precomputed())
-        ) // TODO bigBangBlock should be Block.FullConsensus, then remove replace model util
+        bigBangBlock.header.slotData(Ed25519VRF.precomputed())
       )
-      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.toFullConsensus.header)
+      _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        BlockBody(
-          (ListSet.empty ++ bigBangBlock.transactions
-            .map(_.id.asTypedBytes)
-            .toList
-            .map(ReplaceModelUtil.ioTransaction32)).toSeq
-        )
+        BlockBody(bigBangBlock.fullBody.transaction.map(_.id))
       )
-      _ <- bigBangBlock.transactions.traverseTap(transaction =>
+      _ <- bigBangBlock.fullBody.transaction.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)
       )
       _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)
@@ -184,7 +182,7 @@ object DataStores {
 
 }
 
-class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, TypedIdentifier]) {
+class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {
   import CurrentEventIdGetterSetters.Indices
 
   val canonicalHead: CurrentEventIdGetterSetters.GetterSetter[F] =
@@ -214,11 +212,11 @@ object CurrentEventIdGetterSetters {
    * @param get a function which retrieves the current value/ID
    * @param set a function which sets the current value/ID
    */
-  case class GetterSetter[F[_]](get: () => F[TypedIdentifier], set: TypedIdentifier => F[Unit])
+  case class GetterSetter[F[_]](get: () => F[BlockId], set: BlockId => F[Unit])
 
   object GetterSetter {
 
-    def forByte[F[_]: MonadThrow](store: Store[F, Byte, TypedIdentifier])(byte: Byte): GetterSetter[F] =
+    def forByte[F[_]: MonadThrow](store: Store[F, Byte, BlockId])(byte: Byte): GetterSetter[F] =
       CurrentEventIdGetterSetters.GetterSetter(() => store.getOrRaise(byte), store.put(byte, _))
   }
 

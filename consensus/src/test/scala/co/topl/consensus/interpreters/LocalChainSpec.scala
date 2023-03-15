@@ -6,7 +6,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.consensus.algebras.ChainSelectionAlgebra
-import co.topl.models._
 import co.topl.models.utility.Lengths
 import co.topl.consensus.models.{BlockId, SlotData, SlotId}
 import org.scalamock.scalatest.MockFactory
@@ -28,12 +27,16 @@ class LocalChainSpec
 
   type F[A] = IO[A]
 
+  private val blockId0 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))
+  private val blockId1 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(1)))
+  private val blockId2 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(2)))
+
   it should "store the head of the local canonical tine" in {
     forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(
-          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(1).toArray))),
-          SlotId.of(0, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          SlotId.of(1, blockId1),
+          SlotId.of(0, blockId0),
           rho.data,
           eta.data,
           0
@@ -51,8 +54,8 @@ class LocalChainSpec
     forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(
-          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(1).toArray))),
-          SlotId.of(0, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          SlotId.of(1, blockId1),
+          SlotId.of(0, blockId0),
           rho.data,
           eta.data,
           0
@@ -64,8 +67,8 @@ class LocalChainSpec
 
       val newHead =
         SlotData(
-          SlotId.of(2, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(2).toArray))),
-          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          SlotId.of(2, blockId2),
+          SlotId.of(1, blockId1),
           rho.data,
           eta.data,
           1
@@ -79,8 +82,8 @@ class LocalChainSpec
     forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(
-          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(1).toArray))),
-          SlotId.of(0, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          SlotId.of(1, blockId1),
+          SlotId.of(0, blockId0),
           rho.data,
           eta.data,
           0
@@ -92,8 +95,8 @@ class LocalChainSpec
 
       val newHead =
         SlotData(
-          SlotId.of(2, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(2).toArray))),
-          SlotId.of(1, BlockId.of(ByteString.copyFrom(Bytes.fill(32)(0).toArray))),
+          SlotId.of(2, blockId2),
+          SlotId.of(1, blockId0),
           rho.data,
           eta.data,
           1

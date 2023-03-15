@@ -39,7 +39,7 @@ object ApplicationConfig {
     case class Mempool(period: FiniteDuration)
 
     @Lenses
-    case class Parallelism(fetchHeader: Int, fetchBody: Int, fetchTransaction: Int, generateTx: Int)
+    case class Parallelism(fetchBody: Int, fetchTransaction: Int, generateTx: Int)
   }
 
   def unsafe(args: Args, config: Config): ApplicationConfig =

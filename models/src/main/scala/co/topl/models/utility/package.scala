@@ -5,7 +5,7 @@ import scodec.bits.ByteVector
 
 import scala.language.implicitConversions
 
-package object utility extends Isomorphism.Ops with BifrostMorphismInstances {
+package object utility extends Isomorphism.Ops {
 
   implicit def byteStringToByteVector(byteString: ByteString): ByteVector =
     ByteVector(byteString.asReadOnlyByteBuffer())
@@ -13,9 +13,4 @@ package object utility extends Isomorphism.Ops with BifrostMorphismInstances {
   implicit def byteVectorToByteString(byteVector: ByteVector): ByteString =
     ByteString.copyFrom(byteVector.toByteBuffer)
 
-  implicit def blockIdAsTypedBytes(blockId: co.topl.consensus.models.BlockId): TypedIdentifier =
-    TypedBytes(IdentifierTypes.Block.HeaderV2, blockId.value)
-
-  implicit def ioTx32IdAsTypedBytes(id: co.topl.brambl.models.Identifier.IoTransaction32): TypedIdentifier =
-    TypedBytes(IdentifierTypes.Transaction, id.evidence.digest.value)
 }

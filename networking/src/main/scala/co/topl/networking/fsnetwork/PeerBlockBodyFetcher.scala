@@ -6,15 +6,15 @@ import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.models.{Transaction, TypedIdentifier}
+import co.topl.consensus.models.BlockId
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 
 object PeerBlockBodyFetcher {
@@ -30,7 +30,7 @@ object PeerBlockBodyFetcher {
      *
      * @param blockIds bodies block id to download
      */
-    case class DownloadBlocks(blockIds: NonEmptyChain[TypedIdentifier]) extends Message
+    case class DownloadBlocks(blockIds: NonEmptyChain[BlockId]) extends Message
 
   }
 
@@ -38,7 +38,7 @@ object PeerBlockBodyFetcher {
     hostId:           HostId,
     client:           BlockchainPeerClient[F],
     blockChecker:     BlockCheckerActor[F],
-    transactionStore: Store[F, TypedIdentifier, Transaction]
+    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction]
   )
 
   type Response[F[_]] = State[F]
@@ -54,7 +54,7 @@ object PeerBlockBodyFetcher {
     hostId:           HostId,
     client:           BlockchainPeerClient[F],
     blockChecker:     BlockCheckerActor[F],
-    transactionStore: Store[F, TypedIdentifier, Transaction]
+    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
     val initialState = State(hostId, client, blockChecker, transactionStore)
     Actor.make(initialState, getFsm[F])
@@ -62,7 +62,7 @@ object PeerBlockBodyFetcher {
 
   private def downloadBodies[F[_]: Async: Logger](
     state:            State[F],
-    blocksToDownload: NonEmptyChain[TypedIdentifier]
+    blocksToDownload: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     for {
       idToBody <- Stream.foldable(blocksToDownload).evalMap(downloadBlockBody(state)).compile.toList
@@ -70,7 +70,7 @@ object PeerBlockBodyFetcher {
       _ <- state.blockChecker.sendNoWait(messageToSend)
     } yield (state, state)
 
-  private def downloadBlockBody[F[_]: Async: Logger](state: State[F])(blockId: TypedIdentifier) =
+  private def downloadBlockBody[F[_]: Async: Logger](state: State[F])(blockId: BlockId) =
     for {
       _               <- Logger[F].info(show"Fetching remote body id=$blockId")
       body: BlockBody <- OptionT(state.client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
@@ -80,21 +80,21 @@ object PeerBlockBodyFetcher {
 
   private def downloadMissingTransactions[F[_]: Async: Logger](state: State[F], blockBody: BlockBody): Stream[F, Unit] =
     Stream
-      .iterable[F, co.topl.brambl.models.Identifier.IoTransaction32](blockBody.transactionIds)
+      .iterable[F, Identifier.IoTransaction32](blockBody.transactionIds)
       .evalMap(transactionId =>
         state.transactionStore
           .contains(transactionId)
           .ifM(ifTrue = Applicative[F].unit, ifFalse = downloadTransaction(state, transactionId))
       )
 
-  private def downloadTransaction[F[_]: Async: Logger](state: State[F], transactionId: TypedIdentifier) = {
+  private def downloadTransaction[F[_]: Async: Logger](state: State[F], transactionId: Identifier.IoTransaction32) = {
     val InconsistentTransactionId =
       new IllegalArgumentException("Claimed transaction ID did not match provided header")
 
     for {
       _           <- Logger[F].debug(show"Fetching remote transaction id=$transactionId")
       transaction <- OptionT(state.client.getRemoteTransaction(transactionId)).getOrNoSuchElement(transactionId.show)
-      _           <- MonadThrow[F].raiseWhen(transaction.id.asTypedBytes =!= transactionId)(InconsistentTransactionId)
+      _           <- MonadThrow[F].raiseWhen(transaction.id =!= transactionId)(InconsistentTransactionId)
       _           <- Logger[F].debug(show"Saving transaction id=$transactionId")
       _           <- state.transactionStore.put(transactionId, transaction)
     } yield ()

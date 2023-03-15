@@ -3,16 +3,10 @@ package co.topl
 package object typeclasses {
 
   object implicits
-      extends ContainsEvidence.Instances
-      with ContainsEvidence.ToContainsEvidenceOps
-      with ContainsTransactions.Instances
+      extends ContainsTransactions.Instances
       with ContainsTransactions.ToContainsTransactionsOps
       with ContainsTransactionIds.Instances
       with ContainsTransactionIds.ToContainsTransactionIdsOps
       with ShowInstances
       with EqInstances
-      with SpendingAddressable.Instances
-      with SpendingAddressable.ToSpendingAddressableOps
-      with TransactionOps.Instances
-      with IdentityOps
 }

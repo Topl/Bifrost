@@ -7,16 +7,16 @@ import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.BlockHeaderOps
+import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.{BlockId, SlotData, SlotId, VrfArgument}
 import co.topl.consensus.rhoToRhoNonceHash
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models.ModelGenerators._
-import co.topl.models.Proofs.Knowledge
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{ReplaceModelUtil, Sized}
+import co.topl.models.utility.HasLength.instances.byteStringLength
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import org.scalacheck.Gen
@@ -51,28 +51,28 @@ class EtaCalculationSpec
       .anyNumberOfTimes()
       .returning(15L.pure[F])
 
-    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
+    val fetchSlotData = mockFunction[BlockId, F[SlotData]]
 
     val underTest =
       EtaCalculation
         .make[F](
           fetchSlotData,
           clock,
-          bigBangHeader.eligibilityCertificate.eta,
+          Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
           blake2b256Resource,
           blake2b512Resource
         )
         .unsafeRunSync()
     val epoch = 0L
     val (skVrf, _) = ed25519Vrf.generateRandom
-    val args: List[(Slot, Knowledge.VrfEd25519)] = List.tabulate(8) { offset =>
+    val args: List[(Slot, ByteString)] = List.tabulate(8) { offset =>
       val slot = offset.toLong + 1
       val signature =
         ed25519Vrf.sign(
           skVrf,
-          VrfArgument(bigBangHeader.eligibilityCertificate.eta, slot).signableBytes
+          VrfArgument(Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta), slot).signableBytes.toByteArray
         )
-      slot -> Proofs.Knowledge.VrfEd25519(Sized.strictUnsafe(signature))
+      slot -> ByteString.copyFrom(signature)
     }
 
     val blocks: List[BlockHeader] =
@@ -85,7 +85,7 @@ class EtaCalculationSpec
             val nextHeader = headerGen(
               slotGen = Gen.const[Long](slot),
               parentSlotGen = Gen.const(items.last.slot),
-              eligibilityCertificateGen = eligibilityCertificateGen.map(c =>
+              eligibilityCertificateGen = arbitraryEligibilityCertificate.arbitrary.map(c =>
                 c.copy(vrfSig = signature, eta = bigBangHeader.eligibilityCertificate.eta)
               ),
               parentHeaderIdGen = Gen.const(items.last.id)
@@ -96,11 +96,11 @@ class EtaCalculationSpec
 
     fetchSlotData
       .expects(*)
-      .onCall((id: TypedIdentifier) =>
-        ReplaceModelUtil
-          .slotDataFromLegacy(
-            blocks.find(b => byteByteVectorTupleAsTypedBytes(b.id) eqv id).get.slotData
-          )
+      .onCall((id: BlockId) =>
+        blocks
+          .find(b => b.id eqv id)
+          .get
+          .slotData
           .pure[F]
       )
       .anyNumberOfTimes()
@@ -119,16 +119,17 @@ class EtaCalculationSpec
 
     val actual =
       underTest
-        .etaToBe(SlotId(blocks.last.slot, BlockId.of(ByteString.copyFrom(blocks.last.id._2.toArray))), 16L)
+        .etaToBe(SlotId(blocks.last.slot, blocks.last.id), 16L)
         .unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(
-        bigBangHeader.eligibilityCertificate.eta,
+        Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
         epoch + 1,
         blocks
-          .map(_.eligibilityCertificate.vrfSig.bytes.data)
+          .map(_.eligibilityCertificate.vrfSig.toByteArray)
           .map(ed25519Vrf.proofToHash)
+          .map(ByteString.copyFrom)
           .map(bytes => Rho(Sized.strictUnsafe(bytes)))
       )
 
@@ -139,7 +140,7 @@ class EtaCalculationSpec
     val clock = mock[ClockAlgebra[F]]
     val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
     val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
-    val fetchSlotData = mockFunction[TypedIdentifier, F[SlotData]]
+    val fetchSlotData = mockFunction[BlockId, F[SlotData]]
     val bigBangHeader = arbitraryHeader.arbitrary.first.copy(slot = 0L, parentSlot = -1L)
 
     (() => clock.slotsPerEpoch)
@@ -152,7 +153,7 @@ class EtaCalculationSpec
         .make[F](
           fetchSlotData,
           clock,
-          bigBangHeader.eligibilityCertificate.eta,
+          Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
           blake2b256Resource,
           blake2b512Resource
         )
@@ -160,9 +161,9 @@ class EtaCalculationSpec
     val epoch = 0L
 
     fetchSlotData
-      .expects(byteByteVectorTupleAsTypedBytes(bigBangHeader.id))
+      .expects(bigBangHeader.id)
       .once()
-      .returning(ReplaceModelUtil.slotDataFromLegacy(bigBangHeader.slotData).pure[F])
+      .returning(bigBangHeader.slotData.pure[F])
 
     (blake2b256Resource
       .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
@@ -178,14 +179,20 @@ class EtaCalculationSpec
 
     val actual =
       underTest
-        .etaToBe(SlotId(bigBangHeader.slot, BlockId.of(ByteString.copyFrom(bigBangHeader.id._2.toArray))), 16L)
+        .etaToBe(SlotId(bigBangHeader.slot, bigBangHeader.id), 16L)
         .unsafeRunSync()
 
     val expected =
       EtaCalculationSpec.expectedEta(
-        bigBangHeader.eligibilityCertificate.eta,
+        Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
         epoch + 1,
-        List(Rho(Sized.strictUnsafe(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig.bytes.data))))
+        List(
+          Rho(
+            Sized.strictUnsafe(
+              ByteString.copyFrom(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig.toByteArray))
+            )
+          )
+        )
       )
 
     actual shouldBe expected
@@ -198,9 +205,9 @@ object EtaCalculationSpec {
     implicit val blake2b256: Blake2b256 = new Blake2b256
     implicit val blake2b512: Blake2b512 = new Blake2b512
     val messages: List[Bytes] =
-      List(previousEta.data) ++ List(Bytes(BigInt(epoch).toByteArray)) ++ rhoValues
+      List(previousEta.data) ++ List(ByteString.copyFrom(BigInt(epoch).toByteArray)) ++ rhoValues
         .map(_.sizedBytes.data)
         .map(rhoToRhoNonceHash)
-    Sized.strictUnsafe(blake2b256.hash(Bytes.concat(messages)))
+    Sized.strictUnsafe(blake2b256.hash(messages.foldLeft(ByteString.EMPTY)(_ concat _)))
   }
 }

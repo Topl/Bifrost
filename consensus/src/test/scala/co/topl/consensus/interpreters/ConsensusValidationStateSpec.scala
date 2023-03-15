@@ -5,14 +5,17 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
 import co.topl.eventtree.EventSourcedState
+import co.topl.models._
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.utility.Ratio
-import co.topl.models.{Box, Epoch, Int128, StakingAddresses, TypedIdentifier}
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.numerics.implicits._
-import co.topl.models.ModelGenerators._
 
 class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -21,40 +24,40 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
   test("Retrieve relative stakes at epoch N-2 of the requested block for epoch N > 1") {
     PropF.forAllF {
       (
-        genesisId: TypedIdentifier,
-        n2Id:      TypedIdentifier,
-        nId:       TypedIdentifier,
-        address:   StakingAddresses.Operator
+        genesisId: BlockId,
+        n2Id:      BlockId,
+        nId:       BlockId,
+        address:   StakingAddress
       ) =>
         withMock {
           val slot = 5
           for {
-            boundaryStore <- TestStore.make[F, Epoch, TypedIdentifier]
+            boundaryStore <- TestStore.make[F, Epoch, BlockId]
             consensusData <- (
-              TestStore.make[F, StakingAddresses.Operator, Int128],
-              TestStore.make[F, Unit, Int128],
-              TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
+              TestStore.make[F, StakingAddress, BigInt],
+              TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- boundaryStore.put(3L, n2Id)
             _ <- consensusData.operatorStakes.put(address, 1)
             _ <- consensusData.totalActiveStake.put((), 5)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[EpochBoundaries[F]] = ???
 
-              def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
+              def useStateAt[U](eventId: BlockId)(f: EpochBoundaries[F] => F[U]): F[U] = {
                 assert(eventId == nId)
                 f(boundaryStore)
               }
             }
             consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
-                eventId: TypedIdentifier
+                eventId: BlockId
               )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == n2Id)
                 f(consensusData)
@@ -81,41 +84,41 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
   test("Retrieve registrations at epoch N-2 of the requested block for epoch N > 1") {
     PropF.forAllF {
       (
-        genesisId:    TypedIdentifier,
-        n2Id:         TypedIdentifier,
-        nId:          TypedIdentifier,
-        address:      StakingAddresses.Operator,
-        registration: Box.Values.Registrations.Operator
+        genesisId:    BlockId,
+        n2Id:         BlockId,
+        nId:          BlockId,
+        address:      StakingAddress,
+        registration: SignatureKesProduct
       ) =>
         withMock {
           val slot = 5
           for {
-            boundaryStore <- TestStore.make[F, Epoch, TypedIdentifier]
+            boundaryStore <- TestStore.make[F, Epoch, BlockId]
             consensusData <- (
-              TestStore.make[F, StakingAddresses.Operator, Int128],
-              TestStore.make[F, Unit, Int128],
-              TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
+              TestStore.make[F, StakingAddress, BigInt],
+              TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- boundaryStore.put(3L, n2Id)
             _ <- consensusData.operatorStakes.put(address, 1)
             _ <- consensusData.registrations.put(address, registration)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[EpochBoundaries[F]] = ???
 
-              def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
+              def useStateAt[U](eventId: BlockId)(f: EpochBoundaries[F] => F[U]): F[U] = {
                 assert(eventId == nId)
                 f(boundaryStore)
               }
             }
             consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
-                eventId: TypedIdentifier
+                eventId: BlockId
               )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == n2Id)
                 f(consensusData)
@@ -142,38 +145,38 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
   test("Retrieve relative stakes at the big bang block for epoch N <= 1") {
     PropF.forAllF {
       (
-        bigBangId: TypedIdentifier,
-        nId:       TypedIdentifier,
-        address:   StakingAddresses.Operator
+        bigBangId: BlockId,
+        nId:       BlockId,
+        address:   StakingAddress
       ) =>
         withMock {
           val slot = 3
           for {
-            boundaryStore <- TestStore.make[F, Epoch, TypedIdentifier]
+            boundaryStore <- TestStore.make[F, Epoch, BlockId]
             consensusData <- (
-              TestStore.make[F, StakingAddresses.Operator, Int128],
-              TestStore.make[F, Unit, Int128],
-              TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
+              TestStore.make[F, StakingAddress, BigInt],
+              TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- consensusData.operatorStakes.put(address, 1)
             _ <- consensusData.totalActiveStake.put((), 5)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[EpochBoundaries[F]] = ???
 
-              def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
+              def useStateAt[U](eventId: BlockId)(f: EpochBoundaries[F] => F[U]): F[U] = {
                 assert(eventId == nId)
                 f(boundaryStore)
               }
             }
             consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
-                eventId: TypedIdentifier
+                eventId: BlockId
               )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == bigBangId)
                 f(consensusData)
@@ -200,38 +203,38 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
   test("Retrieve registrations at the genesis block for epoch N <= 1") {
     PropF.forAllF {
       (
-        bigBangId:    TypedIdentifier,
-        nId:          TypedIdentifier,
-        address:      StakingAddresses.Operator,
-        registration: Box.Values.Registrations.Operator
+        bigBangId:    BlockId,
+        nId:          BlockId,
+        address:      StakingAddress,
+        registration: SignatureKesProduct
       ) =>
         withMock {
           val slot = 3
           for {
-            boundaryStore <- TestStore.make[F, Epoch, TypedIdentifier]
+            boundaryStore <- TestStore.make[F, Epoch, BlockId]
             consensusData <- (
-              TestStore.make[F, StakingAddresses.Operator, Int128],
-              TestStore.make[F, Unit, Int128],
-              TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
+              TestStore.make[F, StakingAddress, BigInt],
+              TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- consensusData.registrations.put(address, registration)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[EpochBoundaries[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[EpochBoundaries[F]] = ???
 
-              def useStateAt[U](eventId: TypedIdentifier)(f: EpochBoundaries[F] => F[U]): F[U] = {
+              def useStateAt[U](eventId: BlockId)(f: EpochBoundaries[F] => F[U]): F[U] = {
                 assert(eventId == nId)
                 f(boundaryStore)
               }
             }
             consensusDataEventSourcedState = new EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
               F
-            ], TypedIdentifier] {
-              def stateAt(eventId: TypedIdentifier): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
+            ], BlockId] {
+              def stateAt(eventId: BlockId): F[ConsensusDataEventSourcedState.ConsensusData[F]] = ???
 
               def useStateAt[U](
-                eventId: TypedIdentifier
+                eventId: BlockId
               )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[U]): F[U] = {
                 assert(eventId == bigBangId)
                 f(consensusData)

@@ -1,16 +1,24 @@
 package co.topl.networking
 
-import cats.data.{EitherT, NonEmptyChain, OptionT}
+import cats.data.EitherT
+import cats.data.NonEmptyChain
+import cats.data.OptionT
 import cats.implicits._
-import cats.{Applicative, Monad, MonadThrow, Show}
+import cats.Applicative
+import cats.Monad
+import cats.MonadThrow
+import cats.Show
 import co.topl.algebras.Store
-import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure, SlotData}
-import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
-import co.topl.models.TypedIdentifier
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
+import co.topl.consensus.models.BlockHeaderValidationFailure
+import co.topl.consensus.models.SlotData
+import co.topl.ledger.models.BodyAuthorizationError
+import co.topl.ledger.models.BodySemanticError
+import co.topl.ledger.models.BodySyntaxError
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
-import co.topl.models.utility._
 
 package object fsnetwork {
 
@@ -29,7 +37,7 @@ package object fsnetwork {
 
   implicit class BlockchainPeerClientOps[F[_]: MonadThrow: Logger](client: BlockchainPeerClient[F]) {
 
-    def getRemoteSlotDataLogged(id: TypedIdentifier): F[SlotData] =
+    def getRemoteSlotDataLogged(id: BlockId): F[SlotData] =
       Logger[F].info(show"Fetching remote SlotData id=$id") >>
       OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
   }
@@ -92,15 +100,15 @@ package object fsnetwork {
    */
   def getFromChainUntil[F[_]: Monad, T](
     getSlotDataFromT: T => F[SlotData],
-    getT:             TypedIdentifier => F[T],
+    getT:             BlockId => F[T],
     terminateOn:      T => F[Boolean]
-  )(from: TypedIdentifier): F[List[T]] = {
-    def iteration(acc: List[T], blockId: TypedIdentifier): F[List[T]] =
+  )(from: BlockId): F[List[T]] = {
+    def iteration(acc: List[T], blockId: BlockId): F[List[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
           acc.pure[F],
           getSlotDataFromT(t).flatMap { slotData =>
-            iteration(acc.appended(t), slotData.parentSlotId.blockId: TypedIdentifier)
+            iteration(acc.appended(t), slotData.parentSlotId.blockId)
           }
         )
       }
@@ -119,11 +127,11 @@ package object fsnetwork {
    * @return missed ids for "store"
    */
   def getFirstNMissedInStore[F[_]: MonadThrow, T](
-    store:     Store[F, TypedIdentifier, T],
-    slotStore: Store[F, TypedIdentifier, SlotData],
+    store:     Store[F, BlockId, T],
+    slotStore: Store[F, BlockId, SlotData],
     from:      SlotData,
     size:      Int
-  ): OptionT[F, NonEmptyChain[TypedIdentifier]] =
+  ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
       getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from.slotId.blockId)
         .map(_.take(size))

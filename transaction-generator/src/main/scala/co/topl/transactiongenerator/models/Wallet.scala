@@ -1,8 +1,11 @@
 package co.topl.transactiongenerator.models
 
-import co.topl.models.{Box, Proposition, TypedEvidence}
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.box.Box
+import co.topl.brambl.models.box.Lock
 
 case class Wallet(
-  spendableBoxes: Map[Box.Id, Box],
-  propositions:   Map[TypedEvidence, Proposition]
+  spendableBoxes: Map[TransactionOutputAddress, Box],
+  propositions:   Map[LockAddress, Lock]
 )

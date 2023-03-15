@@ -6,11 +6,11 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
 import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.models._
-import co.topl.models.utility._
 import co.topl.consensus.models.SlotData
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -43,13 +43,12 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
       for {
         clock <- mock[ClockAlgebra[F]].pure[F]
         currentBlockId = slotData.head.parentSlotId.blockId
-        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
-        initialState    <- TestStore.make[F, Epoch, TypedIdentifier]
-        fetchSlotData = (id: TypedIdentifier) =>
-          slotData.find(slotData => (slotData.slotId.blockId: TypedIdentifier) === id).get.pure[F]
+        parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
+        initialState    <- TestStore.make[F, Epoch, BlockId]
+        fetchSlotData = (id: BlockId) => slotData.find(slotData => slotData.slotId.blockId === id).get.pure[F]
 
         _ <- slotData.traverse(slotDatum =>
-          parentChildTree.associate(slotDatum.slotId.blockId: TypedIdentifier, slotDatum.parentSlotId.blockId)
+          parentChildTree.associate(slotDatum.slotId.blockId, slotDatum.parentSlotId.blockId)
         )
 
         _ = (() => clock.slotsPerEpoch).expects().anyNumberOfTimes().returning(2L.pure[F])
@@ -57,7 +56,7 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
         underTest <- EpochBoundariesEventSourcedState
           .make[F](
             clock,
-            (currentBlockId: TypedIdentifier).pure[F],
+            currentBlockId.pure[F],
             parentChildTree,
             _ => Applicative[F].unit,
             initialState.pure[F],
@@ -65,11 +64,11 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
           )
 
         _ <- underTest.useStateAt(slotData.last.slotId.blockId)(state =>
-          state.getOrRaise(0).assertEquals(slotData(1).slotId.blockId: TypedIdentifier) >>
-          state.getOrRaise(1).assertEquals(slotData(3).slotId.blockId: TypedIdentifier) >>
-          state.getOrRaise(2).assertEquals(slotData(5).slotId.blockId: TypedIdentifier) >>
-          state.getOrRaise(3).assertEquals(slotData(7).slotId.blockId: TypedIdentifier) >>
-          state.getOrRaise(4).assertEquals(slotData(9).slotId.blockId: TypedIdentifier)
+          state.getOrRaise(0).assertEquals(slotData(1).slotId.blockId) >>
+          state.getOrRaise(1).assertEquals(slotData(3).slotId.blockId) >>
+          state.getOrRaise(2).assertEquals(slotData(5).slotId.blockId) >>
+          state.getOrRaise(3).assertEquals(slotData(7).slotId.blockId) >>
+          state.getOrRaise(4).assertEquals(slotData(9).slotId.blockId)
         )
 
       } yield ()
@@ -83,11 +82,10 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
 
       for {
         clock <- mock[ClockAlgebra[F]].pure[F]
-        currentBlockId = slotData.head.parentSlotId.blockId: TypedIdentifier
-        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
-        initialState    <- TestStore.make[F, Epoch, TypedIdentifier]
-        fetchSlotData = (id: TypedIdentifier) =>
-          slotData.find(slotData => (slotData.slotId.blockId: TypedIdentifier) === id).get.pure[F]
+        currentBlockId = slotData.head.parentSlotId.blockId
+        parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
+        initialState    <- TestStore.make[F, Epoch, BlockId]
+        fetchSlotData = (id: BlockId) => slotData.find(slotData => slotData.slotId.blockId === id).get.pure[F]
 
         _ <- slotData.traverse(slotDatum =>
           parentChildTree.associate(slotDatum.slotId.blockId, slotDatum.parentSlotId.blockId)

@@ -1,8 +1,9 @@
 package co.topl.algebras
 
-import co.topl.models.TypedIdentifier
-import co.topl.proto.models.Transaction
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.node.models.BlockBody
 
 /**
@@ -12,19 +13,19 @@ import co.topl.node.models.BlockBody
  * @tparam S Canonical head changes Synchronization Traversal Container, Ex: Stream, Seq
  */
 trait ToplRpc[F[_], S[_]] {
-  def broadcastTransaction(transaction: Transaction): F[Unit]
+  def broadcastTransaction(transaction: IoTransaction): F[Unit]
 
-  def currentMempool(): F[Set[TypedIdentifier]]
+  def currentMempool(): F[Set[Identifier.IoTransaction32]]
 
-  def fetchBlockHeader(blockId: TypedIdentifier): F[Option[BlockHeader]]
+  def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]]
 
-  def fetchBlockBody(blockId: TypedIdentifier): F[Option[BlockBody]]
+  def fetchBlockBody(blockId: BlockId): F[Option[BlockBody]]
 
-  def fetchTransaction(transactionId: TypedIdentifier): F[Option[Transaction]]
+  def fetchTransaction(transactionId: Identifier.IoTransaction32): F[Option[IoTransaction]]
 
-  def blockIdAtHeight(height: Long): F[Option[TypedIdentifier]]
+  def blockIdAtHeight(height: Long): F[Option[BlockId]]
 
-  def blockIdAtDepth(depth: Long): F[Option[TypedIdentifier]]
+  def blockIdAtDepth(depth: Long): F[Option[BlockId]]
 
   def synchronizationTraversal(): F[S[SynchronizationTraversalStep]]
 }
