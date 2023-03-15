@@ -6,20 +6,21 @@ import cats.effect.kernel.Spawn
 import cats.effect.{Async, Deferred, Fiber, Ref, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels._
+import co.topl.models.Slot
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
 // TODO: Non-minting nodes?
 object Mempool {
-  private case class MempoolEntry[F[_]](expirationFiber: Fiber[F, _, _], inputBoxIds: Set[Box.Id])
-  private type State[F[_]] = Ref[F, Map[TypedIdentifier, MempoolEntry[F]]]
+  private case class MempoolEntry[F[_]](expirationFiber: Fiber[F, _, _], inputBoxIds: Set[TransactionOutputAddress])
+  private type State[F[_]] = Ref[F, Map[Identifier.IoTransaction32, MempoolEntry[F]]]
 
   /**
    * @param defaultExpirationLimit The maximum number of slots in the future allowed by a transaction expiration
@@ -28,22 +29,22 @@ object Mempool {
    * @return
    */
   def make[F[_]: Async](
-    currentBlockId:               F[TypedIdentifier],
-    fetchBlockBody:               TypedIdentifier => F[BlockBody],
-    fetchTransaction:             TypedIdentifier => F[Transaction],
-    parentChildTree:              ParentChildTree[F, TypedIdentifier],
-    currentEventChanged:          TypedIdentifier => F[Unit],
+    currentBlockId:               F[BlockId],
+    fetchBlockBody:               BlockId => F[BlockBody],
+    fetchTransaction:             Identifier.IoTransaction32 => F[IoTransaction],
+    parentChildTree:              ParentChildTree[F, BlockId],
+    currentEventChanged:          BlockId => F[Unit],
     clock:                        ClockAlgebra[F],
-    onExpiration:                 TypedIdentifier => F[Unit],
+    onExpiration:                 Identifier.IoTransaction32 => F[Unit],
     defaultExpirationLimit:       Long,
     duplicateSpenderSlotLifetime: Long
   ): Resource[F, MempoolAlgebra[F]] =
     for {
-      state <- Resource.make(Ref.of(Map.empty[TypedIdentifier, MempoolEntry[F]]))(
+      state <- Resource.make(Ref.of(Map.empty[Identifier.IoTransaction32, MempoolEntry[F]]))(
         _.get.flatMap(_.values.toList.traverse(_.expirationFiber.cancel).void)
       )
       // A function which inserts a transaction into the mempool and schedules its expiration using a Fiber
-      addTransaction = (transaction: Transaction, expirationSlot: Slot) =>
+      addTransaction = (transaction: IoTransaction, expirationSlot: Slot) =>
         for {
           expirationTask <- Async[F].delay(
             clock.delayedUntilSlot(expirationSlot) >> Sync[F].defer(
@@ -54,21 +55,21 @@ object Mempool {
             )
           )
           expirationFiber <- Spawn[F].start(expirationTask)
-          entry = MempoolEntry(expirationFiber, transaction.inputs.map(_.boxId).toList.toSet)
+          entry = MempoolEntry(expirationFiber, transaction.inputs.map(_.address).toSet)
           _ <- state.update(_.updated(transaction.id, entry))
         } yield ()
       // A function which inserts a transaction into the mempool using the limit specified in the transaction
-      addTransactionWithDefaultExpiration = (transaction: Transaction) =>
+      addTransactionWithDefaultExpiration = (transaction: IoTransaction) =>
         for {
           currentSlot <- clock.globalSlot
-          targetSlot = transaction.schedule.maximumSlot.min(currentSlot + defaultExpirationLimit)
+          targetSlot = transaction.datum.event.schedule.max.min(currentSlot + defaultExpirationLimit)
           _ <- addTransaction(transaction, targetSlot)
         } yield ()
-      applyBlock = (state: State[F], blockId: TypedIdentifier) =>
+      applyBlock = (state: State[F], blockId: BlockId) =>
         for {
-          blockBody         <- fetchBlockBody(blockId).map(_.transactionIds.map(t => t: TypedIdentifier).toList)
+          blockBody         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
           blockTransactions <- blockBody.traverse(fetchTransaction)
-          blockInputIds = blockTransactions.flatMap(_.inputs.map(_.boxId).toList).toSet
+          blockInputIds = blockTransactions.flatMap(_.inputs.map(_.address)).toSet
           currentEntries <- state.get
           // First, cancel the scheduled expirations for the transactions associated with the block
           expirationsToCancel = blockBody.flatMap(currentEntries.get)
@@ -90,13 +91,13 @@ object Mempool {
           }
           _ <- state.update(_ -- blockBody)
         } yield state
-      unapplyBlock = (state: State[F], blockId: TypedIdentifier) =>
+      unapplyBlock = (state: State[F], blockId: BlockId) =>
         fetchBlockBody(blockId)
-          .map(_.transactionIds.map(t => t: TypedIdentifier).toList)
+          .map(_.transactionIds.toList)
           .flatMap(_.traverse(fetchTransaction(_).flatMap(addTransactionWithDefaultExpiration)))
           .as(state)
       eventSourcedState <- Resource.eval(
-        EventSourcedState.OfTree.make[F, State[F], TypedIdentifier](
+        EventSourcedState.OfTree.make[F, State[F], BlockId](
           state.pure[F],
           currentBlockId,
           applyEvent = applyBlock,
@@ -108,18 +109,18 @@ object Mempool {
       finalizing <- Resource.make(Deferred[F, Unit])(_.complete(()).void)
     } yield new MempoolAlgebra[F] {
 
-      def read(blockId: TypedIdentifier): F[Set[TypedIdentifier]] =
+      def read(blockId: BlockId): F[Set[Identifier.IoTransaction32]] =
         whenNotTerminated(
           eventSourcedState.stateAt(blockId).flatMap(_.get).map(_.keySet)
         )
 
       // TODO: Check for double-spends along current canonical chain?
-      def add(transactionId: TypedIdentifier): F[Unit] =
+      def add(transactionId: Identifier.IoTransaction32): F[Unit] =
         whenNotTerminated(
           fetchTransaction(transactionId).flatMap(addTransactionWithDefaultExpiration)
         )
 
-      def remove(transactionId: TypedIdentifier): F[Unit] =
+      def remove(transactionId: Identifier.IoTransaction32): F[Unit] =
         whenNotTerminated(
           state
             .getAndUpdate(_ - transactionId)

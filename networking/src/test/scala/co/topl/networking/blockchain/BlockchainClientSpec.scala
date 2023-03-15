@@ -3,11 +3,13 @@ package co.topl.networking.blockchain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.{models => legacyModels}
-import legacyModels.{Bytes, Transaction, TypedBytes, TypedIdentifier}
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
+import com.google.protobuf.ByteString
 import fs2._
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
@@ -39,22 +41,22 @@ class BlockchainClientSpec
         val client = new BlockchainPeerClient[F] {
           def remotePeer: F[ConnectedPeer] = ???
 
-          def remotePeerAdoptions: F[Stream[F, TypedIdentifier]] = ???
+          def remotePeerAdoptions: F[Stream[F, BlockId]] = ???
 
-          def remoteTransactionNotifications: F[Stream[F, TypedIdentifier]] = ???
+          def remoteTransactionNotifications: F[Stream[F, Identifier.IoTransaction32]] = ???
 
-          def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]] = ???
+          def getRemoteSlotData(id: BlockId): F[Option[SlotData]] = ???
 
-          def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]] = ???
+          def getRemoteHeader(id: BlockId): F[Option[BlockHeader]] = ???
 
-          def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]] = ???
+          def getRemoteBody(id: BlockId): F[Option[BlockBody]] = ???
 
-          def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = ???
+          def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]] = ???
 
           def getRemoteBlockIdAtHeight(
             height:       Long,
-            localBlockId: Option[TypedIdentifier]
-          ): F[Option[TypedIdentifier]] =
+            localBlockId: Option[BlockId]
+          ): F[Option[BlockId]] =
             (height.toString + (if (height > ancestorHeight) "remote" else "")).typedId.some
               .pure[F]
         }
@@ -72,7 +74,7 @@ class BlockchainClientSpec
   }
 
   implicit private class StringToBlockId(string: String) {
-    def typedId: TypedIdentifier = TypedBytes(1: Byte, Bytes.encodeUtf8(string).value)
+    def typedId: BlockId = BlockId(ByteString.copyFromUtf8(string))
   }
 
 }

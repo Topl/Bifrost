@@ -6,12 +6,12 @@ import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.ToplRpc
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application._
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters._
-import co.topl.models._
 import co.topl.transactiongenerator.interpreters._
 import co.topl.typeclasses.implicits._
 import fs2._
@@ -50,7 +50,6 @@ object TransactionGeneratorApp
             wallet <- ToplRpcWalletInitializer
               .make[F](
                 client,
-                appConfig.transactionGenerator.parallelism.fetchHeader,
                 appConfig.transactionGenerator.parallelism.fetchBody,
                 appConfig.transactionGenerator.parallelism.fetchTransaction
               )
@@ -63,8 +62,7 @@ object TransactionGeneratorApp
               .make[F](
                 wallet,
                 appConfig.transactionGenerator.parallelism.generateTx,
-                appConfig.transactionGenerator.generator.maxWalletSize,
-                appConfig.transactionGenerator.generator.dataLength
+                appConfig.transactionGenerator.generator.maxWalletSize
               )
               .flatMap(_.generateTransactions)
             // Broadcast the transactions and run the background mempool stream
@@ -105,23 +103,18 @@ object TransactionGeneratorApp
    * Broadcasts each transaction from the input stream
    */
   private def runBroadcastStream(
-    transactionStream: Stream[F, Transaction],
+    transactionStream: Stream[F, IoTransaction],
     client:            ToplRpc[F, Stream[F, *]],
     targetTps:         Double
   ) =
     transactionStream
       // Send 1 transaction per _this_ duration
       .metered((1_000_000_000d / targetTps).nanos)
-      // TODO model should change to new protobuf specs and not use Isomorphism
-      .evalMap(transaction =>
-        EitherT(co.topl.models.utility.transactionIsomorphism[F].abMorphism.aToB(transaction.pure[F]))
-          .getOrRaise(new RuntimeException("transactionIsomorphism"))
-      )
       // Broadcast+log the transaction
       .evalTap(transaction =>
-        Logger[F].debug(show"Broadcasting transaction id=${transaction.id.asTypedBytes}") >>
+        Logger[F].debug(show"Broadcasting transaction id=${transaction.id}") >>
         client.broadcastTransaction(transaction) >>
-        Logger[F].info(show"Broadcasted transaction id=${transaction.id.asTypedBytes}")
+        Logger[F].info(show"Broadcasted transaction id=${transaction.id}")
       )
       .onError { case e =>
         Stream.eval(Logger[F].error(e)("Stream failed"))
@@ -129,8 +122,8 @@ object TransactionGeneratorApp
       .compile
       .drain
 
-  implicit private val showMempool: Show[Set[TypedIdentifier]] =
-    catsStdShowForSet(showTypedIdentifier)
+  implicit private val showMempool: Show[Set[Identifier.IoTransaction32]] =
+    catsStdShowForSet(showIoTransaction32Id)
 
   /**
    * Periodically poll and log the state of the mempool.

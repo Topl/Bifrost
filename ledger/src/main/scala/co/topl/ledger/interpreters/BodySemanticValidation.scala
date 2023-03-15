@@ -1,19 +1,18 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{Chain, NonEmptyChain, Validated, ValidatedNec}
+import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import co.topl.models.utility._
-import co.topl.{models => legacyModels}
-import legacyModels.{Transaction, TypedIdentifier}
 import co.topl.node.models.BlockBody
 
 object BodySemanticValidation {
 
   def make[F[_]: Sync](
-    fetchTransaction:              TypedIdentifier => F[Transaction],
+    fetchTransaction:              Identifier.IoTransaction32 => F[IoTransaction],
     transactionSemanticValidation: TransactionSemanticValidationAlgebra[F]
   ): F[BodySemanticValidationAlgebra[F]] =
     Sync[F].delay {
@@ -25,11 +24,9 @@ object BodySemanticValidation {
          */
         def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
           body.transactionIds
-            .map(t => t: TypedIdentifier)
-            .toList
-            .foldLeftM(Chain.empty[Transaction].validNec[BodySemanticError]) {
+            .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>
-                validateTransaction(context, prefix)(transactionId).map(_.map(prefix.append))
+                validateTransaction(context, prefix)(transactionId).map(_.map(prefix :+ _))
               case (invalid, _) => invalid.pure[F]
             }
             .map(_.as(body))
@@ -42,8 +39,8 @@ object BodySemanticValidation {
          */
         private def validateTransaction(
           context: BodyValidationContext,
-          prefix:  Chain[Transaction]
-        )(transactionId: TypedIdentifier) =
+          prefix:  Seq[IoTransaction]
+        )(transactionId: Identifier.IoTransaction32) =
           for {
             transaction <- fetchTransaction(transactionId)
             transactionValidationContext = StaticTransactionValidationContext(

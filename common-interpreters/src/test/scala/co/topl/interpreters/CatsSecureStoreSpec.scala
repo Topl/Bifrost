@@ -1,15 +1,16 @@
 package co.topl.interpreters
 
+import cats.effect.IO
+import cats.effect.Sync
 import cats.implicits._
-import cats.effect.{IO, Sync}
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.models.Bytes
-import munit.CatsEffectSuite
+import com.google.protobuf.ByteString
 import fs2.io.{file => fs2file}
-import scodec.bits.ByteVector
+import munit.CatsEffectSuite
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 
 class CatsSecureStoreSpec extends CatsEffectSuite {
 
@@ -104,8 +105,8 @@ object CatsSecureStoreSpec {
 
   implicit val persistableTestData: Persistable[TestData] =
     new Persistable[TestData] {
-      def persistedBytes(value: TestData): ByteVector = Bytes(value.value)
+      def persistedBytes(value: TestData): ByteString = ByteString.copyFrom(value.value)
 
-      def fromPersistedBytes(bytes: ByteVector): Either[String, TestData] = Right(TestData(bytes.toArray))
+      def fromPersistedBytes(bytes: ByteString): Either[String, TestData] = Right(TestData(bytes.toByteArray))
     }
 }

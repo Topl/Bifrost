@@ -11,7 +11,9 @@ object Dependencies {
   val fs2Version = "3.6.1"
   val logback = "1.4.5"
   val orientDbVersion = "3.2.16"
-  val protobufSpecsVersion = "c226e4c" // scala-steward:off
+  val protobufSpecsVersion = "76af295" // scala-steward:off
+  val bramblScVersion = "7a4db31" // scala-steward:off
+  val quivr4sVersion = "ad5d05e" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
@@ -114,12 +116,12 @@ object Dependencies {
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
-  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "v2.0.3"
-  val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "652cdaa7a7" // scala-steward:off
-  val quivr4s = "com.github.Topl"               % "quivr4s"    % "3bcc730" // scala-steward:off
+  val bramblScCrypto = "com.github.Topl.BramblSc" %% "crypto"     % bramblScVersion
+  val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
+  val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
@@ -184,7 +186,7 @@ object Dependencies {
     externalCrypto ++
     cats ++
     test ++
-    Seq(bramblScCrypto) ++
+    Seq(bramblScCrypto, bramblScCrypto.classifier("tests") % Test) ++
     circe.map(_ % Test)
 
   lazy val eventTree: Seq[ModuleID] =
@@ -197,8 +199,8 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
-    Seq(bramblScSdk).map(_ classifier ("tests")).map(_ % Test) ++
-    Seq(quivr4s).map(_ classifier ("tests")).map(_ % Test)
+    Seq(bramblScSdk, bramblScSdk.classifier("tests") % Test) ++
+    Seq(quivr4s, quivr4s.classifier("tests") % Test)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
@@ -216,7 +218,8 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
 
   lazy val ledger: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++
+    Seq(Dependencies.bramblScSdk, Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(

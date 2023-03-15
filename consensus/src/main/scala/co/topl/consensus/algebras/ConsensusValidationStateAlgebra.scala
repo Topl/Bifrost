@@ -1,7 +1,10 @@
 package co.topl.consensus.algebras
 
-import co.topl.models.utility.Ratio
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.SignatureKesProduct
+import co.topl.consensus.models.StakingAddress
 import co.topl.models._
+import co.topl.models.utility.Ratio
 
 // TODO: Maybe collapse into a single method returning (Relative Stake, Registration)?
 trait ConsensusValidationStateAlgebra[F[_]] {
@@ -17,9 +20,7 @@ trait ConsensusValidationStateAlgebra[F[_]] {
    * @param address The address of the operator that produced the block
    * @return a ratio, if one exists and is greater than 0.  None otherwise.
    */
-  def operatorRelativeStake(currentBlockId: TypedIdentifier, slot: Slot)(
-    address: StakingAddresses.Operator
-  ): F[Option[Ratio]]
+  def operatorRelativeStake(currentBlockId: BlockId, slot: Slot)(address: StakingAddress): F[Option[Ratio]]
 
   /**
    * Retrieves the Registration associated with the given operator address
@@ -32,8 +33,6 @@ trait ConsensusValidationStateAlgebra[F[_]] {
    * @param address        The address of the operator that produced the block
    * @return a ratio, if one exists and is greater than 0.  None otherwise.
    */
-  def operatorRegistration(currentBlockId: TypedIdentifier, slot: Slot)(
-    address: StakingAddresses.Operator
-  ): F[Option[Box.Values.Registrations.Operator]] // TODO this algebra should return new OperatorNewModel
+  def operatorRegistration(currentBlockId: BlockId, slot: Slot)(address: StakingAddress): F[Option[SignatureKesProduct]]
 
 }

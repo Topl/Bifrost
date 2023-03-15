@@ -1,6 +1,7 @@
 package co.topl.ledger.models
 
-import co.topl.models.{Slot, TypedIdentifier}
+import co.topl.consensus.models.BlockId
+import co.topl.models.Slot
 
 /**
  * The context to use when validating the semantics of a Transaction
@@ -10,7 +11,7 @@ trait BodyValidationContext {
   /**
    * The ID of the ancestor of the block being validated (i.e. if validating a transaction in block B, pass in block A)
    */
-  def parentHeaderId: TypedIdentifier
+  def parentHeaderId: BlockId
 
   /**
    * The height of the chain for validation purposes
@@ -24,7 +25,7 @@ trait BodyValidationContext {
 }
 
 case class StaticBodyValidationContext(
-  parentHeaderId: TypedIdentifier,
+  parentHeaderId: BlockId,
   height:         Long,
   slot:           Slot
 ) extends BodyValidationContext

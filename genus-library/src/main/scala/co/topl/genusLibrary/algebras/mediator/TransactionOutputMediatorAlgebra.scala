@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras.mediator
 
-import co.topl.genusLibrary.Txo
+import co.topl.genus.services.Txo
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
 

@@ -1,8 +1,8 @@
 package co.topl.interpreters
 
-import cats.effect.{IO, Sync}
+import cats.effect.IO
+import cats.effect.Sync
 import cats.implicits._
-import co.topl.models.Bytes
 import munit.CatsEffectSuite
 
 class CatsUnsafeResourceSpec extends CatsEffectSuite {
@@ -18,8 +18,8 @@ class CatsUnsafeResourceSpec extends CatsEffectSuite {
         underTest.use(d => Sync[F].delay { d.setBytesSlowly(a1); d.getArrayCopy }),
         underTest.use(d => Sync[F].delay { d.setBytesSlowly(a2); d.getArrayCopy })
       ).parTupled
-      _ = assert(Bytes(r1) == Bytes(a1))
-      _ = assert(Bytes(r2) == Bytes(a2))
+      _ = assert(r1 sameElements a1)
+      _ = assert(r2 sameElements a2)
     } yield ()
   }
 

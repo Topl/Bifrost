@@ -2,10 +2,9 @@ package co.topl.blockchain
 
 import cats.effect.IO
 import co.topl.algebras.SynchronizationTraversalSteps.{Applied, Unapplied}
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.models.TypedIdentifier
-import co.topl.models.utility._
 import co.topl.consensus.models.SlotData
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -21,7 +20,7 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
     PropF.forAllF {
       (slot_A: SlotData, slot_B: SlotData, slot_C: SlotData, slot_D: SlotData, slot_E: SlotData, slot_F: SlotData) =>
         for {
-          parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
+          parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
 
           /**
            * Parent Tree
@@ -37,7 +36,7 @@ class LocalChainSynchronizationTraversalSpec extends CatsEffectSuite with ScalaC
           _ <- parentChildTree.associate(slot_F.slotId.blockId, slot_E.slotId.blockId)
 
           adoptions = Stream.chunk(
-            Chunk(slot_C.slotId.blockId: TypedIdentifier, slot_F.slotId.blockId: TypedIdentifier)
+            Chunk(slot_C.slotId.blockId: BlockId, slot_F.slotId.blockId: BlockId)
           )
 
           stream <- LocalChainSynchronizationTraversal
