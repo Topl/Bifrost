@@ -21,8 +21,8 @@ object NtpClockSkewer {
    */
   def make[F[_]: Async](
     ntpServer:       String,
-    refreshInterval: FiniteDuration = 30.seconds,
-    timeout:         FiniteDuration = 1.second
+    refreshInterval: FiniteDuration,
+    timeout:         FiniteDuration
   ): Resource[F, () => F[Long]] =
     for {
       ntpClient <- Resource.make(Sync[F].blocking(new NTPUDPClient()))(client => Sync[F].blocking(client.close()))
