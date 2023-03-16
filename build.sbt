@@ -671,6 +671,6 @@ lazy val byzantineTests = project
   .configs(IntegrationTest)
   .dependsOn(node)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; it:compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; it:compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; it:compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; IntegrationTest/compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; IntegrationTest/compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; IntegrationTest/compile")

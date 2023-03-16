@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import cats.data.Chain
 import cats.implicits._
 import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
@@ -95,10 +94,10 @@ object StakerInitializers {
     /**
      * This staker's initial stake in the network
      */
-    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[UnspentTransactionOutput] = {
+    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): List[UnspentTransactionOutput] = {
       val toplValue = Value().withTopl(Value.TOPL(stake, stakingAddress.some))
       val registrationValue = Value().withRegistration(Value.Registration(registration, stakingAddress))
-      Chain(
+      List(
         UnspentTransactionOutput(lockAddress, toplValue),
         UnspentTransactionOutput(lockAddress, registrationValue)
       )
