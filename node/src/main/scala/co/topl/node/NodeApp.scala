@@ -135,11 +135,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         bigBangProtocol.vrfBaselineDifficulty,
         bigBangProtocol.vrfAmplitude
       )
-      clock = SchedulerClock.Eval.make[F](
+      ntpClockSkewer <- NtpClockSkewer
+        .make[F](appConfig.bifrost.ntp.server, appConfig.bifrost.ntp.refreshInterval, appConfig.bifrost.ntp.timeout)
+      clock <- SchedulerClock.make[F](
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
         Instant.ofEpochMilli(bigBangBlock.header.timestamp),
-        bigBangProtocol.forwardBiasedSlotWindow
+        bigBangProtocol.forwardBiasedSlotWindow,
+        ntpClockSkewer
       )
       _ <- Resource.eval(
         clock.globalSlot.flatMap(globalSlot =>
