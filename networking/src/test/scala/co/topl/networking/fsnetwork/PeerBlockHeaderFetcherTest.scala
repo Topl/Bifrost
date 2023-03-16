@@ -22,7 +22,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.networking.fsnetwork.TestHelper._
 
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
 
 object PeerBlockHeaderFetcherTest {
   type F[A] = IO[A]
@@ -116,8 +115,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
-            _ <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
-            _ <- state.fetchingFiber.get.join
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
+            _     <- state.fetchingFiber.get.join
           } yield ()
         }
     }
@@ -172,8 +171,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
-            _ <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
-            _ <- state.fetchingFiber.get.join
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
+            _     <- state.fetchingFiber.get.join
           } yield ()
         }
 
