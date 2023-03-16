@@ -8,6 +8,7 @@ import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
 import co.topl.consensus.models.BlockId
+import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
@@ -48,7 +49,7 @@ class PeerBlockBodyFetcherTest
           .unzip
 
       val blockIdsAndBodies =
-        bodies.map(b => (co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary.sample.get, b))
+        bodies.map(b => (co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary.first, b))
 
       val blockIds = blockIdsAndBodies.unzip._1
 
@@ -78,7 +79,7 @@ class PeerBlockBodyFetcherTest
       }
 
       val expectedMessage = BlockChecker.Message.RemoteBlockBodies(hostId, blockIdsAndBodies)
-      (blockChecker.sendNoWait _).expects(expectedMessage).once().onCall { _: BlockChecker.Message => ().pure[F] }
+      (blockChecker.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
       for {
         (actor, shutdown) <-
