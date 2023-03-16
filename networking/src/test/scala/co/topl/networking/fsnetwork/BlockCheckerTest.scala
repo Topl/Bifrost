@@ -63,28 +63,26 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       (chainSelectionAlgebra.compare _).expects(slotData.last, currentSlotDataHead).returning((-1).pure[F])
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        _             <- actor.sendNoWait(BlockChecker.Message.RemoteSlotData(hostId, slotData))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            _ <- actor.sendNoWait(BlockChecker.Message.RemoteSlotData(hostId, slotData))
+          } yield ()
+        }
     }
   }
 
@@ -122,30 +120,28 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       (chainSelectionAlgebra.compare _).expects(slotData.last, localSlotData).returning(1.pure[F])
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra,
-              Option(BestChain(NonEmptyChain.one(localSlotData)))
-            )
-            .allocated
-        updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
-        _ = assert(updatedState.bestKnownRemoteSlotDataOpt == Option(BestChain(remoteSlotData)))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(NonEmptyChain.one(localSlotData)))
+        )
+        .use { actor =>
+          for {
+            updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
+            _ = assert(updatedState.bestKnownRemoteSlotDataOpt == Option(BestChain(remoteSlotData)))
+          } yield ()
+        }
     }
   }
 
@@ -186,30 +182,28 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       (chainSelectionAlgebra.compare _).expects(slotData.last, knownSlotData.last).returning(1.pure[F])
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra,
-              Option(BestChain(NonEmptyChain.one(remoteSlotData.head)))
-            )
-            .allocated
-        updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
-        _ = assert(updatedState.bestKnownRemoteSlotDataOpt == Option(BestChain(remoteSlotData)))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(NonEmptyChain.one(remoteSlotData.head)))
+        )
+        .use { actor =>
+          for {
+            updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
+            _ = assert(updatedState.bestKnownRemoteSlotDataOpt == Option(BestChain(remoteSlotData)))
+          } yield ()
+        }
     }
   }
 
@@ -268,29 +262,27 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       val expectedBestChain = Option(BestChain(NonEmptyChain.fromChain(slotData.tail).get))
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
-        _ = assert(updatedState.bestKnownRemoteSlotDataOpt == expectedBestChain)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
+            _ = assert(updatedState.bestKnownRemoteSlotDataOpt == expectedBestChain)
+          } yield ()
+        }
     }
   }
 
@@ -345,30 +337,30 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       val expectedBestChain = Option(BestChain(NonEmptyChain.fromChain(slotData.tail).get))
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra,
-              Option(BestChain(currentBestChain))
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(currentBestChain))
+        )
+        .use { actor =>
+          for {
+            updatedState <- actor.send(
+              BlockChecker.Message.RemoteSlotData(hostId, NonEmptyChain.fromSeq(peerSlotData).get)
             )
-            .allocated
-        updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, NonEmptyChain.fromSeq(peerSlotData).get))
-        _ = assert(updatedState.bestKnownRemoteSlotDataOpt == expectedBestChain)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+            _ = assert(updatedState.bestKnownRemoteSlotDataOpt == expectedBestChain)
+          } yield ()
+        }
     }
   }
 
@@ -394,28 +386,26 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
       (headerValidation.validate _).expects(*, *).never()
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        _             <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            _ <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
+          } yield ()
+        }
     }
   }
 
@@ -441,28 +431,26 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
       (headerValidation.validate _).expects(*, *).never()
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        _             <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            _ <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
+          } yield ()
+        }
     }
   }
 
@@ -517,29 +505,27 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       (peersManager.sendNoWait _).expects(*).never() // no other requests
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        _ <- actor.send(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
-        _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
+            _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
+          } yield ()
+        }
     }
   }
 
@@ -623,31 +609,29 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         PeersManager.Message.BlockHeadersRequest(hostId, NonEmptyChain.fromSeq(nextHeaders).get)
       (peersManager.sendNoWait _).expects(nextHeaderMessage).once().returning(().pure[F])
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra,
-              Option(BestChain(bestChain)),
-              Option(hostId)
-            )
-            .allocated
-        _ <- actor.send(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
-        _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(bestChain)),
+          Option(hostId)
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(BlockChecker.Message.RemoteBlockHeader(hostId, idAndHeaders))
+            _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
+          } yield ()
+        }
     }
   }
 
@@ -680,28 +664,26 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (bodyStore.contains _).expects(*).rep(bodies.size.toInt).returning(true.pure[F])
       (peersManager.sendNoWait _).expects(*).never()
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        _             <- actor.send(message)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(message)
+          } yield ()
+        }
     }
   }
 
@@ -791,28 +773,26 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       (peersManager.sendNoWait _).expects(*).never()
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra
-            )
-            .allocated
-        _             <- actor.send(message)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(message)
+          } yield ()
+        }
     }
   }
 
@@ -903,30 +883,28 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       (peersManager.sendNoWait _).expects(*).never()
 
-      for {
-        (actor, shutdown) <-
-          BlockChecker
-            .makeActor(
-              reputationAggregator,
-              peersManager,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              headerToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra,
-              Option(BestChain(NonEmptyChain.one(lastBlockSlotData)))
-            )
-            .allocated
-        newState <- actor.send(message)
-        _ = assert(newState.bestKnownRemoteSlotDataOpt.isEmpty)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(NonEmptyChain.one(lastBlockSlotData)))
+        )
+        .use { actor =>
+          for {
+            newState <- actor.send(message)
+            _ = assert(newState.bestKnownRemoteSlotDataOpt.isEmpty)
+          } yield ()
+        }
     }
   }
 

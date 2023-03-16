@@ -81,16 +81,14 @@ class PeerBlockBodyFetcherTest
       val expectedMessage = BlockChecker.Message.RemoteBlockBodies(hostId, blockIdsAndBodies)
       (blockChecker.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
-      for {
-        (actor, shutdown) <-
-          PeerBlockBodyFetcher
-            .makeActor(hostId, client, blockChecker, transactionStore)
-            .allocated
-        _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(blockIds))
-        _ = assert(downloadedTxs == missedTxs.toMap)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      PeerBlockBodyFetcher
+        .makeActor(hostId, client, blockChecker, transactionStore)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(blockIds))
+            _ = assert(downloadedTxs == missedTxs.toMap)
+          } yield ()
+        }
     }
   }
 

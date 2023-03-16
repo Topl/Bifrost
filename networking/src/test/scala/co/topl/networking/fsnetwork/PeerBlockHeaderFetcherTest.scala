@@ -22,6 +22,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.networking.fsnetwork.TestHelper._
 
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 
 object PeerBlockHeaderFetcherTest {
   type F[A] = IO[A]
@@ -57,15 +58,13 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
 
-      for {
-        (actor, shutdown) <-
-          PeerBlockHeaderFetcher
-            .makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
-            .allocated
-        _             <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(idAndHeader.map(_._1)))
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(idAndHeader.map(_._1)))
+          } yield ()
+        }
 
     }
   }
@@ -112,15 +111,15 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
       (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount).returning(().pure[F])
 
-      for {
-        (actor, shutdown) <- PeerBlockHeaderFetcher
-          .makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
-          .allocated
-        _             <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
-
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _ <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
+            _ <- state.fetchingFiber.get.join
+          } yield ()
+        }
     }
   }
 
@@ -168,14 +167,15 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
       (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount).returning(().pure[F])
 
-      for {
-        (actor, shutdown) <- PeerBlockHeaderFetcher
-          .makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
-          .allocated
-        _             <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
-        shutdownFiber <- actor.gracefulShutdown(shutdown)
-        _             <- shutdownFiber.join
-      } yield ()
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _ <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
+            _ <- state.fetchingFiber.get.join
+          } yield ()
+        }
 
     }
   }
