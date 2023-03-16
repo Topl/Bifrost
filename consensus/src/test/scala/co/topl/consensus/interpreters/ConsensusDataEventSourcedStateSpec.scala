@@ -1,193 +1,180 @@
 package co.topl.consensus.interpreters
 
 import cats.Applicative
-import cats.data.Chain
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
+import co.topl.brambl.common.ContainsEvidence
+import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
+import co.topl.brambl.models._
+import co.topl.brambl.models.box._
+import co.topl.brambl.models.transaction._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
-import co.topl.{models => legacyModels}
-import legacyModels._
-import legacyModels.ModelGenerators._
-import legacyModels.utility.ReplaceModelUtil
 import co.topl.node.models.BlockBody
+import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.models.ModelGenerators._
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import scala.collection.immutable.ListSet
+import quivr.models.SmallData
 
 class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
+  val defaultDatum =
+    Datum.IoTransaction(
+      Event.IoTransaction(
+        Schedule(0, Long.MaxValue, Long.MaxValue),
+        SmallData.defaultInstance
+      )
+    )
+  val lock: Lock = Lock().withPredicate(Lock.Predicate())
+
+  val lockAddress: LockAddress =
+    LockAddress(
+      0,
+      0,
+      LockAddress.Id.Lock32(
+        Identifier.Lock32(
+          ContainsEvidence[Lock].sized32Evidence(lock)
+        )
+      )
+    )
+
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {
-      val address = arbitraryFullAddress.arbitrary.first.copy(
-        stakingAddress = arbitraryOperatorStakingAddress.arbitrary.first
-      )
-      val nonStakingFullAddress = arbitraryFullAddress.arbitrary.first.copy(
-        stakingAddress = StakingAddresses.NonStaking
-      )
-      val bigBangParentId = arbitraryTypedIdentifier.arbitrary.first
-      val bigBangId = arbitraryTypedIdentifier.arbitrary.first
+      val stakingAddress = arbitraryStakingAddress.arbitrary.first
+      val bigBangParentId = arbitraryBlockId.arbitrary.first
+      val bigBangId = arbitraryBlockId.arbitrary.first
       val bigBangBlockTransaction =
-        Transaction(
-          Chain.empty,
-          Chain(
-            Transaction.Output(address, Box.Values.Arbit(5), minting = true)
-          ),
-          Transaction.Schedule(0, 0, Long.MaxValue),
-          None
+        IoTransaction(
+          Nil,
+          List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress.some)))),
+          defaultDatum
         )
 
       for {
-        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
+        parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
         initialState <- (
-          TestStore.make[F, StakingAddresses.Operator, Int128],
-          TestStore.make[F, Unit, Int128],
-          TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
+          TestStore.make[F, StakingAddress, BigInt],
+          TestStore.make[F, Unit, BigInt],
+          TestStore.make[F, StakingAddress, SignatureKesProduct]
         ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
-        transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
-        fetchTransactionOutput = (boxId: Box.Id) =>
-          transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)
+        bodyStore        <- TestStore.make[F, BlockId, BlockBody]
+        transactionStore <- TestStore.make[F, Identifier.IoTransaction32, IoTransaction]
         underTest <- ConsensusDataEventSourcedState.make[F](
           bigBangParentId.pure[F],
           parentChildTree,
           _ => Applicative[F].unit,
           initialState.pure[F],
           bodyStore.getOrRaise,
-          transactionStore.getOrRaise,
-          fetchTransactionOutput
+          transactionStore.getOrRaise
         )
 
         _ <- parentChildTree.associate(bigBangId, bigBangParentId)
-        _ <- bodyStore.put(
-          bigBangId,
-          BlockBody(ListSet(bigBangBlockTransaction.id.asTypedBytes).toSeq.map(ReplaceModelUtil.ioTransaction32))
-        )
+        _ <- bodyStore.put(bigBangId, BlockBody(List(bigBangBlockTransaction.id)))
         _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
 
         // Start from 0 Arbits
         // Move 5 Arbits to the Operator
 
         _ <- underTest.useStateAt(bigBangId)(state =>
-          state.totalActiveStake.getOrRaise(()).assertEquals(5: Int128) >>
-          state.operatorStakes
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
-            .assertEquals(5: Int128)
+          state.totalActiveStake.getOrRaise(()).assertEquals(5: BigInt) >>
+          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(5: BigInt)
         )
 
         // Now spend those 5 arbits from the Operator
         // And create 3 arbits for the Operator and 2 arbits for a non-operator
-        transaction2 = Transaction(
-          Chain(
-            Transaction.Input(
-              Box.Id(bigBangBlockTransaction.id, 0),
-              Propositions.Contextual.HeightLock(0),
-              Proofs.Undefined,
-              Box.Values.Arbit(5)
+        transaction2 = IoTransaction(
+          List(
+            SpentTransactionOutput(
+              txOutputAddressFrom(bigBangBlockTransaction.id, 0),
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+              bigBangBlockTransaction.outputs(0).value
             )
           ),
-          Chain(
-            Transaction.Output(address, Box.Values.Arbit(4), minting = false),
-            Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(1), minting = false)
+          List(
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress.some))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
           ),
-          Transaction.Schedule(0, 0, Long.MaxValue),
-          None
+          defaultDatum
         )
-        transaction3 = Transaction(
-          Chain(
-            Transaction.Input(
-              Box.Id(transaction2.id, 0),
-              Propositions.Contextual.HeightLock(0),
-              Proofs.Undefined,
-              Box.Values.Arbit(4)
+        transaction3 = IoTransaction(
+          List(
+            SpentTransactionOutput(
+              txOutputAddressFrom(transaction2.id, 0),
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+              transaction2.outputs(0).value
             )
           ),
-          Chain(
-            Transaction.Output(address, Box.Values.Arbit(3), minting = false),
-            Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(1), minting = false)
+          List(
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress.some))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
           ),
-          Transaction.Schedule(0, 0, Long.MaxValue),
-          None
+          defaultDatum
         )
 
-        blockId2 = arbitraryTypedIdentifier.arbitrary.first
+        blockId2 = arbitraryBlockId.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)
         _ <- bodyStore.put(
           blockId2,
-          BlockBody(
-            ListSet(transaction2.id.asTypedBytes, transaction3.id.asTypedBytes)
-              .map(ReplaceModelUtil.ioTransaction32)
-              .toSeq
-          )
+          BlockBody(List(transaction2.id, transaction3.id))
         )
         _ <- transactionStore.put(transaction2.id, transaction2)
         _ <- transactionStore.put(transaction3.id, transaction3)
 
         _ <- underTest.useStateAt(blockId2)(state =>
-          state.totalActiveStake.getOrRaise(()).assertEquals(3: Int128) >>
-          state.operatorStakes
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
-            .assertEquals(3: Int128)
+          state.totalActiveStake.getOrRaise(()).assertEquals(3: BigInt) >>
+          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(3: BigInt)
         )
 
         // Spend the 2 Arbits from the non-operator
         // And create 1 Arbit for the operator and 1 Arbit for the non-operator
-        transaction4 = Transaction(
-          Chain(
-            Transaction.Input(
-              Box.Id(transaction2.id, 1),
-              Propositions.Contextual.HeightLock(0),
-              Proofs.Undefined,
-              Box.Values.Arbit(1)
+        transaction4 = IoTransaction(
+          List(
+            SpentTransactionOutput(
+              txOutputAddressFrom(transaction2.id, 1),
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+              transaction2.outputs(1).value
             ),
-            Transaction.Input(
-              Box.Id(transaction3.id, 1),
-              Propositions.Contextual.HeightLock(0),
-              Proofs.Undefined,
-              Box.Values.Arbit(1)
+            SpentTransactionOutput(
+              txOutputAddressFrom(transaction3.id, 1),
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+              transaction3.outputs(1).value
             )
           ),
-          Chain(
-            Transaction.Output(address, Box.Values.Arbit(1), minting = false),
-            Transaction.Output(nonStakingFullAddress, Box.Values.Arbit(1), minting = false)
+          List(
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress.some))),
+            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
           ),
-          Transaction.Schedule(0, 0, Long.MaxValue),
-          None
+          defaultDatum
         )
 
-        blockId3 = arbitraryTypedIdentifier.arbitrary.first
+        blockId3 = arbitraryBlockId.arbitrary.first
         _ <- parentChildTree.associate(blockId3, blockId2)
         _ <- bodyStore.put(
           blockId3,
-          BlockBody(ListSet(transaction4.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+          BlockBody(List(transaction4.id))
         )
         _ <- transactionStore.put(transaction4.id, transaction4)
 
         _ <- underTest.useStateAt(blockId3)(state =>
-          state.totalActiveStake.getOrRaise(()).assertEquals(4: Int128) >>
-          state.operatorStakes
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
-            .assertEquals(4: Int128)
+          state.totalActiveStake.getOrRaise(()).assertEquals(4: BigInt) >>
+          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(4: BigInt)
         )
         // Double check that UnapplyBlock works
         _ <- underTest.useStateAt(blockId2)(state =>
-          state.totalActiveStake.getOrRaise(()).assertEquals(3: Int128) >>
-          state.operatorStakes
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
-            .assertEquals(3: Int128)
+          state.totalActiveStake.getOrRaise(()).assertEquals(3: BigInt) >>
+          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(3: BigInt)
         )
         _ <- underTest.useStateAt(bigBangId)(state =>
-          state.totalActiveStake.getOrRaise(()).assertEquals(5: Int128) >>
-          state.operatorStakes
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
-            .assertEquals(5: Int128)
+          state.totalActiveStake.getOrRaise(()).assertEquals(5: BigInt) >>
+          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(5: BigInt)
         )
       } yield ()
     }
@@ -195,99 +182,95 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
   test("Return the registration of an operator at a particular block") {
     withMock {
-      val address = arbitraryFullAddress.arbitrary.first.copy(
-        stakingAddress = arbitraryOperatorStakingAddress.arbitrary.first
-      )
-      val bigBangParentId = arbitraryTypedIdentifier.arbitrary.first
-      val bigBangId = arbitraryTypedIdentifier.arbitrary.first
+      val stakingAddress = arbitraryStakingAddress.arbitrary.first
+      val bigBangParentId = arbitraryBlockId.arbitrary.first
+      val bigBangId = arbitraryBlockId.arbitrary.first
+      val registration = signatureKesProductArbitrary.arbitrary.first
       val bigBangBlockTransaction =
-        Transaction(
-          Chain.empty,
-          Chain(
-            Transaction.Output(
-              address,
-              Box.Values.Registrations.Operator(arbitraryProofsKnowledgeKesProduct.arbitrary.first),
-              minting = true
+        IoTransaction(
+          Nil,
+          List(
+            UnspentTransactionOutput(
+              lockAddress,
+              Value().withRegistration(Value.Registration(registration, stakingAddress))
             )
           ),
-          Transaction.Schedule(0, 0, Long.MaxValue),
-          None
+          defaultDatum
         )
 
       for {
-        parentChildTree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
+        parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
         initialState <- (
-          TestStore.make[F, StakingAddresses.Operator, Int128],
-          TestStore.make[F, Unit, Int128],
-          TestStore.make[F, StakingAddresses.Operator, Box.Values.Registrations.Operator]
+          TestStore.make[F, StakingAddress, BigInt],
+          TestStore.make[F, Unit, BigInt],
+          TestStore.make[F, StakingAddress, SignatureKesProduct]
         ).mapN((operatorStakes, totalActiveStake, registrations) =>
           ConsensusDataEventSourcedState.ConsensusData[F](operatorStakes, totalActiveStake, registrations)
         )
         _                <- initialState.totalActiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, TypedIdentifier, BlockBody]
-        transactionStore <- TestStore.make[F, TypedIdentifier, Transaction]
-        fetchTransactionOutput = (boxId: Box.Id) =>
-          transactionStore.getOrRaise(boxId.transactionId).map(_.outputs.get(boxId.transactionOutputIndex).get)
+        bodyStore        <- TestStore.make[F, BlockId, BlockBody]
+        transactionStore <- TestStore.make[F, Identifier.IoTransaction32, IoTransaction]
         underTest <- ConsensusDataEventSourcedState.make[F](
           bigBangParentId.pure[F],
           parentChildTree,
           _ => Applicative[F].unit,
           initialState.pure[F],
           bodyStore.getOrRaise,
-          transactionStore.getOrRaise,
-          fetchTransactionOutput
+          transactionStore.getOrRaise
         )
 
         _ <- parentChildTree.associate(bigBangId, bigBangParentId)
-        _ <- bodyStore.put(
-          bigBangId,
-          BlockBody(ListSet(bigBangBlockTransaction.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
-        )
+        _ <- bodyStore.put(bigBangId, BlockBody(List(bigBangBlockTransaction.id)))
         _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
 
         _ <- underTest.useStateAt(bigBangId)(state =>
           state.registrations
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
+            .getOrRaise(stakingAddress)
             .assertEquals(
-              bigBangBlockTransaction.outputs.headOption.get.value.asInstanceOf[Box.Values.Registrations.Operator]
+              bigBangBlockTransaction.outputs.headOption.get.value.getRegistration.registration
             )
         )
 
-        transaction2 = Transaction(
-          Chain(
-            Transaction.Input(
-              Box.Id(bigBangBlockTransaction.id, 0),
-              Propositions.Contextual.HeightLock(0),
-              Proofs.Undefined,
-              bigBangBlockTransaction.outputs.headOption.get.value
+        transaction2 = IoTransaction(
+          List(
+            SpentTransactionOutput(
+              txOutputAddressFrom(bigBangBlockTransaction.id, 0),
+              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+              bigBangBlockTransaction.outputs(0).value
             )
           ),
-          Chain.empty,
-          Transaction.Schedule(0, 0, Long.MaxValue),
-          None
+          Nil,
+          defaultDatum
         )
 
-        blockId2 = arbitraryTypedIdentifier.arbitrary.first
+        blockId2 = arbitraryBlockId.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)
         _ <- bodyStore.put(
           blockId2,
-          BlockBody(ListSet(transaction2.id.asTypedBytes).map(ReplaceModelUtil.ioTransaction32).toSeq)
+          BlockBody(List(transaction2.id))
         )
         _ <- transactionStore.put(transaction2.id, transaction2)
 
-        _ <- underTest.useStateAt(blockId2)(state =>
-          state.registrations.get(address.stakingAddress.asInstanceOf[StakingAddresses.Operator]).assertEquals(None)
-        )
+        _ <- underTest.useStateAt(blockId2)(state => state.registrations.get(stakingAddress).assertEquals(None))
 
         // Double check that UnapplyBlock works
         _ <- underTest.useStateAt(bigBangId)(state =>
           state.registrations
-            .getOrRaise(address.stakingAddress.asInstanceOf[StakingAddresses.Operator])
+            .getOrRaise(stakingAddress)
             .assertEquals(
-              bigBangBlockTransaction.outputs.headOption.get.value.asInstanceOf[Box.Values.Registrations.Operator]
+              bigBangBlockTransaction.outputs(0).value.getRegistration.registration
             )
         )
       } yield ()
     }
   }
+
+  private def txOutputAddressFrom(id: Identifier.IoTransaction32, index: Int) =
+    TransactionOutputAddress(
+      0,
+      0,
+      index,
+      TransactionOutputAddress.Id.IoTransaction32(id)
+    )
+
 }

@@ -1,8 +1,8 @@
 package co.topl.models.utility
 
-import co.topl.models.Bytes
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
+import com.google.protobuf.ByteString
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -19,33 +19,33 @@ class SizedSpec
   behavior of "Sized"
 
   it should "enforce a strict size limit on correctly sized data" in {
-    val data = Bytes(Array.fill[Byte](4)(0))
+    val data = ByteString.copyFrom(Array.fill[Byte](4)(0))
 
-    val sized = Sized.strict[Bytes, Lengths.`4`.type](data).value
+    val sized = Sized.strict[ByteString, Lengths.`4`.type](data).value
 
     sized.data shouldBe data
   }
 
   it should "enforce a max size limit on correctly sized data" in {
-    val data = Bytes(Array.fill[Byte](3)(0))
+    val data = ByteString.copyFrom(Array.fill[Byte](3)(0))
 
-    val sized = Sized.max[Bytes, Lengths.`4`.type](data).value
+    val sized = Sized.max[ByteString, Lengths.`4`.type](data).value
 
     sized.data shouldBe data
   }
 
   it should "reject strict incorrectly sized data" in {
-    val data = Bytes(Array.fill[Byte](5)(0))
+    val data = ByteString.copyFrom(Array.fill[Byte](5)(0))
 
-    val error = Sized.strict[Bytes, Lengths.`4`.type](data).left.value
+    val error = Sized.strict[ByteString, Lengths.`4`.type](data).left.value
 
     error shouldBe Sized.InvalidLength(5)
   }
 
   it should "reject max incorrectly sized data" in {
-    val data = Bytes(Array.fill[Byte](5)(0))
+    val data = ByteString.copyFrom(Array.fill[Byte](5)(0))
 
-    val error = Sized.max[Bytes, Lengths.`4`.type](data).left.value
+    val error = Sized.max[ByteString, Lengths.`4`.type](data).left.value
 
     error shouldBe Sized.InvalidLength(5)
   }

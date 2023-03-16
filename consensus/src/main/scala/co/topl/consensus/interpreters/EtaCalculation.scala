@@ -7,19 +7,22 @@ import cats.{MonadThrow, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, UnsafeResource}
 import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{EtaCalculationArgs, SlotData, SlotId}
 import co.topl.consensus.rhoToRhoNonceHash
 import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Caffeine
+import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
+import scodec.bits.ByteVector
 
 object EtaCalculation {
 
@@ -30,7 +33,7 @@ object EtaCalculation {
   private val caffeineCacheBuilder = Caffeine.newBuilder.maximumSize(32)
 
   def make[F[_]: Sync: Parallel](
-    fetchSlotData:      TypedIdentifier => F[SlotData],
+    fetchSlotData:      BlockId => F[SlotData],
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,
     blake2b256Resource: UnsafeResource[F, Blake2b256],
@@ -45,7 +48,7 @@ object EtaCalculation {
     } yield impl
 
   private class Impl[F[_]: Sync: Parallel](
-    fetchSlotData:      TypedIdentifier => F[SlotData],
+    fetchSlotData:      BlockId => F[SlotData],
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,
     slotsPerEpoch:      Long,
@@ -88,7 +91,7 @@ object EtaCalculation {
      * @param twoThirdsBest The latest block header in some tine, but within the first 2/3 of the epoch
      */
     private def calculate(twoThirdsBest: SlotData): F[Eta] =
-      cache.cachingF((twoThirdsBest.slotId.blockId: TypedIdentifier).allBytes)(ttl = None)(
+      cache.cachingF(twoThirdsBest.slotId.blockId.value)(ttl = None)(
         Sync[F].defer(
           for {
             epoch      <- clock.epochOf(twoThirdsBest.slotId.slot)
@@ -148,7 +151,8 @@ object EtaCalculation {
     ): F[Eta] =
       Sync[F]
         .delay(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
-        .flatMap(bytes => blake2b256Resource.use(b2b => Sync[F].delay(b2b.hash(bytes: _*))))
+        .flatMap(bytes => blake2b256Resource.use(b2b => Sync[F].delay(b2b.hash(bytes.map(v => v: ByteVector): _*))))
+        .map(v => v: ByteString)
         .map(Sized.strictUnsafe(_): Eta)
 
     private def emptyEpochDetected(epoch: Epoch) =

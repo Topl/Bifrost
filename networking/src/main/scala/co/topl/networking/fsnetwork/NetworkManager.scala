@@ -2,11 +2,14 @@ package co.topl.networking.fsnetwork
 
 import cats.effect.kernel.Resource
 import co.topl.algebras.Store
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.models.{Transaction, TypedIdentifier}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
@@ -21,11 +24,11 @@ object NetworkManager {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
-    transactionStore:            Store[F, TypedIdentifier, Transaction],
-    blockIdTree:                 ParentChildTree[F, TypedIdentifier],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    headerStore:                 Store[F, BlockId, BlockHeader],
+    bodyStore:                   Store[F, BlockId, BlockBody],
+    transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
+    blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                List[HostId]
   ): Resource[F, PeersManagerActor[F]] =

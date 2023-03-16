@@ -2,14 +2,18 @@ package co.topl.db.leveldb
 
 import cats.Applicative
 import cats.data.OptionT
-import cats.effect.{Async, Resource, Sync}
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.Sync
 import cats.implicits._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.codecs.bytes.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import fs2.io.file._
-import org.iq80.leveldb.{CompressionType, DB, Options}
-import scodec.bits.ByteVector
+import org.iq80.leveldb.CompressionType
+import org.iq80.leveldb.DB
+import org.iq80.leveldb.Options
 
 import java.util.InputMismatchException
 
@@ -23,15 +27,16 @@ object LevelDbStore {
     Sync[F].delay {
       new Store[F, Key, Value] {
         def put(id: Key, t: Value): F[Unit] =
-          useDb(_.put(id.persistedBytes.toArray, t.persistedBytes.toArray))
+          useDb(_.put(id.persistedBytes.toByteArray, t.persistedBytes.toByteArray))
 
         def remove(id: Key): F[Unit] =
-          useDb(_.delete(id.persistedBytes.toArray))
+          useDb(_.delete(id.persistedBytes.toByteArray))
 
         def get(id: Key): F[Option[Value]] =
-          OptionT(useDb(db => Option(db.get(id.persistedBytes.toArray))))
+          OptionT(useDb(db => Option(db.get(id.persistedBytes.toByteArray))))
             .semiflatMap(array =>
-              ByteVector(array)
+              ByteString
+                .copyFrom(array)
                 .decodePersisted[Value]
                 .leftMap(new InputMismatchException(_))
                 .toEitherT[F]
@@ -40,7 +45,7 @@ object LevelDbStore {
             .value
 
         def contains(id: Key): F[Boolean] =
-          OptionT(useDb(db => Option(db.get(id.persistedBytes.toArray)))).isDefined
+          OptionT(useDb(db => Option(db.get(id.persistedBytes.toByteArray)))).isDefined
 
         /**
          * Use the instance of the DB within a blocking F context

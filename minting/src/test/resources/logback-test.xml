@@ -13,7 +13,7 @@
     </appender>
 
     <logger name="co.topl" level="INFO" />
-    <logger name="co.topl.minting.interpreters" level="WARN" />
+    <logger name="Bifrost.BlockProducer" level="WARN" />
 
 
     <root level="INFO">

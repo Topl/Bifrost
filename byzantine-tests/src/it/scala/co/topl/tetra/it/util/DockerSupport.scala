@@ -3,8 +3,12 @@ package co.topl.tetra.it.util
 import cats.effect._
 import cats.implicits._
 import co.topl.buildinfo.node.BuildInfo
-import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
-import com.spotify.docker.client.{DefaultDockerClient, DockerClient}
+import com.spotify.docker.client.messages.ContainerConfig
+import com.spotify.docker.client.messages.HostConfig
+import com.spotify.docker.client.messages.NetworkConfig
+import com.spotify.docker.client.messages.NetworkCreation
+import com.spotify.docker.client.DefaultDockerClient
+import com.spotify.docker.client.DockerClient
 
 import java.time.Instant
 import scala.jdk.CollectionConverters._
@@ -117,14 +121,18 @@ object DockerSupport {
   val exposedPorts: Seq[String] = List(rpcPort, p2pPort, jmxRemotePort)
 }
 
-object DefaultConfig {
+case class TestNodeConfig(
+  bigBangTimestamp: Instant = Instant.now().plusSeconds(5),
+  stakerCount:      Int = 1,
+  localStakerIndex: Int = 0,
+  knownPeers:       List[String] = Nil,
+  stakes:           Option[List[BigInt]] = None
+) {
 
-  def apply(
-    bigBangTimestamp: Instant = Instant.now().plusSeconds(5),
-    stakerCount:      Int = 1,
-    localStakerIndex: Int = 0,
-    knownPeers:       List[String] = Nil
-  ): String =
+  def yaml: String = {
+    val stakesStr = stakes.fold("")(
+      _.map(v => s"\"$v\"").mkString("stakes: [", ",", "]")
+    )
     s"""
        |bifrost:
        |  rpc:
@@ -138,5 +146,8 @@ object DefaultConfig {
        |    staker-count: $stakerCount
        |    local-staker-index: $localStakerIndex
        |    timestamp: ${bigBangTimestamp.toEpochMilli}
+       |    $stakesStr
        |""".stripMargin
+  }
+
 }

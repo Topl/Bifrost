@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import co.topl.models.TypedIdentifier
+import co.topl.consensus.models.BlockId
 
 /**
  * Emits a stream of canonical head traversal steps. As blocks are adopted by the node, the steps taken to reach it from
@@ -14,7 +14,7 @@ trait SynchronizationTraversal[F[_], G[_]] {
  * A forward or backward step along the head of the chain
  */
 sealed abstract class SynchronizationTraversalStep extends Product with Serializable {
-  def blockId: TypedIdentifier
+  def blockId: BlockId
 }
 
 object SynchronizationTraversalSteps {
@@ -24,12 +24,12 @@ object SynchronizationTraversalSteps {
    *
    * @param blockId The block ID that was appended.
    */
-  case class Applied(blockId: TypedIdentifier) extends SynchronizationTraversalStep
+  case class Applied(blockId: BlockId) extends SynchronizationTraversalStep
 
   /**
    * A block was popped from the chain
    *
    * @param blockId The block ID that was rolled back.
    */
-  case class Unapplied(blockId: TypedIdentifier) extends SynchronizationTraversalStep
+  case class Unapplied(blockId: BlockId) extends SynchronizationTraversalStep
 }

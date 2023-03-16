@@ -5,28 +5,34 @@ import cats.data.Chain
 import cats.effect.IO.asyncForIO
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
+import co.topl.algebras._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.algebras.{ClockAlgebra, SecureStore}
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
-import co.topl.consensus.models.{BlockId, SlotId}
-import co.topl.consensus.models.CryptoConsensusMorphismInstances._
+import co.topl.consensus.algebras._
+import co.topl.consensus.models.CryptoConsensusMorphismInstances.signatureKesProductIsomorphism
+import co.topl.consensus.models.CryptoConsensusMorphismInstances.verificationKeyKesProductIsomorphism
+import co.topl.consensus.models._
+import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.VrfCalculatorAlgebra
 import co.topl.models.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models._
 import co.topl.models.utility._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
-import java.util.concurrent.TimeUnit
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.scalatest.OptionValues
 import org.typelevel.log4cats.Logger
+
+import java.util.concurrent.TimeUnit
 import scala.collection.immutable.NumericRange
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Random
 
 class OperationalKeyMakerSpec
@@ -45,7 +51,7 @@ class OperationalKeyMakerSpec
   implicit private val ed25519: Ed25519 = new Ed25519
 
   test("load the initial key from SecureStore and produce (VRF-filtered) linear keys") {
-    PropF.forAllF { (eta: Eta, address: StakingAddresses.Operator) =>
+    PropF.forAllF { (eta: Eta, address: StakingAddress) =>
       withMock {
         val secureStore = mock[SecureStore[F]]
         val clock = mock[ClockAlgebra[F]]
@@ -55,7 +61,7 @@ class OperationalKeyMakerSpec
         val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
         val operationalPeriodLength = 30L
         val activationOperationalPeriod = 0L
-        val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
+        val (sk, vk) = kesProduct.createKeyPair(Random.nextBytes(32), (2, 2), 0L)
 
         val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
 
@@ -75,13 +81,13 @@ class OperationalKeyMakerSpec
           .returning(Chain("a").pure[F])
 
         (secureStore
-          .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
+          .consume[SecretKeyKesProduct](_: String)(_: Persistable[SecretKeyKesProduct]))
           .expects("a", *)
           .once()
           .returning(sk.some.pure[F])
 
         (secureStore
-          .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
+          .write[SecretKeyKesProduct](_: String, _: SecretKeyKesProduct)(_: Persistable[SecretKeyKesProduct]))
           .expects(*, *, *)
           .once()
           .returning(Applicative[F].unit)
@@ -99,7 +105,7 @@ class OperationalKeyMakerSpec
           .returning(ineligibilities.pure[F])
 
         (consensusState
-          .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+          .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
           .expects(*, *, *)
           .once()
           .returning(Ratio.One.some.pure[F])
@@ -151,7 +157,7 @@ class OperationalKeyMakerSpec
                   kesProduct
                     .verify(
                       parentSignature,
-                      ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
+                      ed25519.getVerificationKey(out.childSK: Bytes).toArray ++ Longs.toByteArray(i),
                       vk
                     )
                     .pure[F],
@@ -167,7 +173,7 @@ class OperationalKeyMakerSpec
   }
 
   test("update the initial key at the turn of an operational period") {
-    PropF.forAllF { (eta: Eta, address: StakingAddresses.Operator) =>
+    PropF.forAllF { (eta: Eta, address: StakingAddress) =>
       withMock {
         val secureStore = mock[SecureStore[F]]
         val clock = mock[ClockAlgebra[F]]
@@ -177,7 +183,7 @@ class OperationalKeyMakerSpec
         val parentSlotId = SlotId(10L, BlockId.of(ByteString.copyFrom(Array.fill(32)(0: Byte))))
         val operationalPeriodLength = 30L
         val activationOperationalPeriod = 0L
-        val (sk, vk) = kesProduct.createKeyPair(Bytes(Random.nextBytes(32)), (2, 2), 0L)
+        val (sk, vk) = kesProduct.createKeyPair(Random.nextBytes(32), (2, 2), 0L)
 
         (() => clock.globalSlot)
           .expects()
@@ -195,13 +201,13 @@ class OperationalKeyMakerSpec
           .returning(Chain("a").pure[F])
 
         (secureStore
-          .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
+          .consume[SecretKeyKesProduct](_: String)(_: Persistable[SecretKeyKesProduct]))
           .expects("a", *)
           .once()
           .returning(sk.some.pure[F])
 
         (secureStore
-          .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
+          .write[SecretKeyKesProduct](_: String, _: SecretKeyKesProduct)(_: Persistable[SecretKeyKesProduct]))
           .expects(*, *, *)
           .once()
           .returning(Applicative[F].unit)
@@ -219,7 +225,7 @@ class OperationalKeyMakerSpec
           .returning(Vector.empty[Slot].pure[F])
 
         (consensusState
-          .operatorRelativeStake(_: TypedIdentifier, _: Slot)(_: StakingAddresses.Operator))
+          .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
           .expects(*, *, *)
           .twice()
           .returning(Ratio.One.some.pure[F])
@@ -250,13 +256,13 @@ class OperationalKeyMakerSpec
           .returning(Chain("b").pure[F])
 
         (secureStore
-          .consume[SecretKeys.KesProduct](_: String)(_: Persistable[SecretKeys.KesProduct]))
+          .consume[SecretKeyKesProduct](_: String)(_: Persistable[SecretKeyKesProduct]))
           .expects("b", *)
           .once()
           .returning(kesProduct.update(sk, 1).some.pure[F])
 
         (secureStore
-          .write[SecretKeys.KesProduct](_: String, _: SecretKeys.KesProduct)(_: Persistable[SecretKeys.KesProduct]))
+          .write[SecretKeyKesProduct](_: String, _: SecretKeyKesProduct)(_: Persistable[SecretKeyKesProduct]))
           .expects(*, *, *)
           .once()
           .returning(Applicative[F].unit)
@@ -282,7 +288,7 @@ class OperationalKeyMakerSpec
                   kesProduct
                     .verify(
                       parentSignature,
-                      ed25519.getVerificationKey(out.childSK.value: Bytes) ++ Bytes(Longs.toByteArray(i)),
+                      ed25519.getVerificationKey(out.childSK: Bytes).toArray ++ Longs.toByteArray(i),
                       expectedVK
                     )
                     .pure[F],

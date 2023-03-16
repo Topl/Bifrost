@@ -4,16 +4,16 @@ import cats.data.{Chain, EitherT}
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
+import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.failure.{Failure, Failures}
 import co.topl.genusLibrary.model.{BlockData, HeightData}
-import co.topl.genusLibrary.utils.ReplaceModelUtil.replaceTransactionLegacyModel
-import co.topl.models.TypedIdentifier
-import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import com.typesafe.scalalogging.LazyLogging
+
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetcherAlgebra[F] with LazyLogging {
@@ -34,7 +34,7 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
       }
 
   // TODO: TSDK-186 | Do calls concurrently.
-  def fetch(blockId: TypedIdentifier): F[Either[Failure, BlockData]] = (
+  def fetch(blockId: BlockId): F[Either[Failure, BlockData]] = (
     for {
       header       <- EitherT(fetchBlockHeader(blockId))
       body         <- EitherT(fetchBlockBody(blockId))
@@ -42,12 +42,12 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
     } yield BlockData(header, body, transactions)
   ).value
 
-  private def fetchBlockHeader(blockId: TypedIdentifier): F[Either[Failure, BlockHeader]] =
+  private def fetchBlockHeader(blockId: BlockId): F[Either[Failure, BlockHeader]] =
     toplRpc
       .fetchBlockHeader(blockId)
       .map(_.toRight[Failure](Failures.NoBlockHeaderFoundOnNodeFailure(blockId)))
 
-  private def fetchBlockBody(blockId: TypedIdentifier): F[Either[Failure, BlockBody]] =
+  private def fetchBlockBody(blockId: BlockId): F[Either[Failure, BlockBody]] =
     toplRpc
       .fetchBlockBody(blockId)
       .map(_.toRight[Failure](Failures.NoBlockBodyFoundOnNodeFailure(blockId)))
@@ -60,12 +60,11 @@ class NodeBlockFetcher[F[_]: Async](toplRpc: ToplRpc[F, Any]) extends BlockFetch
     body.transactionIds.toList.traverse(ioTx32 =>
       toplRpc
         .fetchTransaction(ioTx32)
-        .map(_.map(replaceTransactionLegacyModel))
         .map(maybeTransaction => (ioTx32, maybeTransaction))
     ) map { e =>
-      e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[TypedIdentifier]]) {
+      e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[Identifier.IoTransaction32]]) {
         case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
-        case (Right(_), (ioTx32, None))                        => ListSet((ioTx32: TypedIdentifier)).asLeft
+        case (Right(_), (ioTx32, None))                        => ListSet(ioTx32).asLeft
         case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
         case (Left(nonExistentTransactions), (ioTx32, None)) =>
           Left(nonExistentTransactions + ioTx32)

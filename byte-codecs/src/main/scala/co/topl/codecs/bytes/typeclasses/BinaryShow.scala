@@ -1,8 +1,10 @@
 package co.topl.codecs.bytes.typeclasses
 
-import scodec.bits.ByteVector
-import scodec.{Attempt, Encoder}
-import simulacrum.{op, typeclass}
+import com.google.protobuf.ByteString
+import scodec.Attempt
+import scodec.Encoder
+import simulacrum.op
+import simulacrum.typeclass
 
 /**
  * Typeclass for encoding a value into its bytes representation for use with presenting to user or for debugging.
@@ -27,7 +29,7 @@ import simulacrum.{op, typeclass}
    * @param value the value to encode into bytes
    * @return the bytes-representation of the value.
    */
-  @op("showBytes") def encodeAsBytes(value: T): ByteVector
+  @op("showBytes") def encodeAsBytes(value: T): ByteString
 
   def map[A](transform: A => T): BinaryShow[A] = (value: A) => encodeAsBytes(transform(value))
 }
@@ -41,7 +43,7 @@ object BinaryShow {
    * @return an instance of `BinaryShow` for type `T`
    */
   def instanceFromEncoder[T: Encoder]: BinaryShow[T] = Encoder[T].encode(_) match {
-    case Attempt.Successful(value) => value.toByteVector
+    case Attempt.Successful(value) => ByteString.copyFrom(value.toByteBuffer)
     case Attempt.Failure(cause)    => throw new IllegalArgumentException(cause.messageWithContext)
   }
 }

@@ -1,8 +1,7 @@
 package co.topl.models.utility
 
-import co.topl.models.{Bytes, TypedBytes}
-import co.topl.models.utility.StringDataTypes.Latin1Data
 import com.google.protobuf.ByteString
+import scodec.bits.ByteVector
 
 object Sized {
 
@@ -81,11 +80,11 @@ object HasLength {
 
   trait Instances {
 
-    implicit def byteStringLength: HasLength[ByteString] =
-      _.size()
-
-    implicit def bytesLength: HasLength[Bytes] =
+    implicit val byteVectorLength: HasLength[ByteVector] =
       _.length.toInt
+
+    implicit val byteStringLength: HasLength[ByteString] =
+      _.size()
 
     implicit def arrayLength[T]: HasLength[Array[T]] =
       _.length
@@ -95,12 +94,6 @@ object HasLength {
 
     implicit val bigIntLength: HasLength[BigInt] =
       _.bitLength
-
-    implicit val latin1DataLength: HasLength[Latin1Data] =
-      _.value.length
-
-    implicit val typedDataLength: HasLength[TypedBytes] =
-      _.allBytes.length.toInt
   }
 
   object instances extends Instances

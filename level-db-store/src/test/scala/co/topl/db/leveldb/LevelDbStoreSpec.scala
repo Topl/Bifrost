@@ -23,9 +23,9 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         for {
           underTest <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
           key = SpecKey("test1")
-          keyArray = key.persistedBytes.toArray
+          keyArray = key.persistedBytes.toByteArray
           value = SpecValue("foo", 6458)
-          valueArray = value.persistedBytes.toArray
+          valueArray = value.persistedBytes.toByteArray
           // The entry should not yet exist
           _ <- underTest.contains(key).assertEquals(false)
           // The entry should still be null
@@ -54,7 +54,7 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         for {
           underTest <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
           key = SpecKey("test1")
-          keyArray = key.persistedBytes.toArray
+          keyArray = key.persistedBytes.toByteArray
           _ <- IO.blocking(dbUnderTest.put(keyArray, Array[Byte](1, 2, 3, 4)))
           _ <- underTest.contains(key).assertEquals(true)
           _ <- interceptIO[InputMismatchException](underTest.get(key))

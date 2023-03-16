@@ -1,11 +1,10 @@
 package co.topl.genusLibrary.utils
 
-import co.topl.codecs.bytes.tetra.TetraIdentifiableInstances
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genusLibrary.GenusException
 import co.topl.consensus.models.BlockHeader
 import co.topl.node.models.BlockBody
-import co.topl.{models => legacyModels}
-import legacyModels.TypePrefix
+import co.topl.models.TypePrefix
 import scodec.Codec
 
 trait BlockUtils {
@@ -13,10 +12,8 @@ trait BlockUtils {
   def getParentBlockId(header: BlockHeader): Array[Byte] =
     header.parentHeaderId.value.toByteArray
 
-  def getBlockId(header: BlockHeader): Array[Byte] = {
-    val (typePrefix, bytes) = TetraIdentifiableInstances.identifiableConsensusBlockHeader.idOf(header)
-    typedBytesTupleToByteArray((typePrefix, bytes.toArray))
-  }
+  def getBlockId(header: BlockHeader): Array[Byte] =
+    header.id.toByteArray
 
   def blockBodyToByteArray(blockBody: BlockBody): Array[Byte] = blockBody.toByteArray
 

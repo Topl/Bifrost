@@ -6,6 +6,7 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.ChainSelectionAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b512
 import co.topl.models._
 import co.topl.models.utility._
@@ -47,7 +48,7 @@ object ChainSelection {
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
   def make[F[_]: Sync](
-    fetchSlotData:      TypedIdentifier => F[SlotData],
+    fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
@@ -58,7 +59,7 @@ object ChainSelection {
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
   private class ChainSelectionImpl[F[_]: Sync](
-    fetchSlotData:      TypedIdentifier => F[SlotData],
+    fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
