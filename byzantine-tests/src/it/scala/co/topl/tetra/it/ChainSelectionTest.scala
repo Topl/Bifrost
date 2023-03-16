@@ -55,7 +55,7 @@ class ChainSelectionTest extends IntegrationSuite {
         .parTraverse(node =>
           node
             .rpcClient[F]
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(5.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(4.minutes).compile.lastOrError)
         )
         .toResource
 
@@ -82,7 +82,7 @@ class ChainSelectionTest extends IntegrationSuite {
       thirdEpochHeads <- nodes
         .parTraverse(
           _.rpcClient[F]
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(10.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(6.minutes).compile.lastOrError)
         )
         .toResource
       _ <- Logger[F].info("Nodes have reached target epoch").toResource
