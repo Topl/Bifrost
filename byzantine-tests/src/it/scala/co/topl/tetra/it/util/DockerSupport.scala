@@ -3,9 +3,12 @@ package co.topl.tetra.it.util
 import cats.effect._
 import cats.implicits._
 import co.topl.buildinfo.node.BuildInfo
-import co.topl.models.utility.Ratio
-import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, NetworkConfig, NetworkCreation}
-import com.spotify.docker.client.{DefaultDockerClient, DockerClient}
+import com.spotify.docker.client.messages.ContainerConfig
+import com.spotify.docker.client.messages.HostConfig
+import com.spotify.docker.client.messages.NetworkConfig
+import com.spotify.docker.client.messages.NetworkCreation
+import com.spotify.docker.client.DefaultDockerClient
+import com.spotify.docker.client.DockerClient
 
 import java.time.Instant
 import scala.jdk.CollectionConverters._
@@ -123,12 +126,12 @@ case class TestNodeConfig(
   stakerCount:      Int = 1,
   localStakerIndex: Int = 0,
   knownPeers:       List[String] = Nil,
-  relativeStakes:   Option[List[Ratio]] = None
+  stakes:           Option[List[BigInt]] = None
 ) {
 
   def yaml: String = {
-    val relativeStakesStr = relativeStakes.fold("")(
-      _.map(ratio => s"\"${ratio.numerator}/${ratio.denominator}\"").mkString("relative-stakes: [", ",", "]")
+    val stakesStr = stakes.fold("")(
+      _.map(v => s"\"$v\"").mkString("stakes: [", ",", "]")
     )
     s"""
        |bifrost:
@@ -139,11 +142,11 @@ case class TestNodeConfig(
        |    bind-host: 0.0.0.0
        |    port: 9085
        |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
-       |    $relativeStakesStr
        |  big-bang:
        |    staker-count: $stakerCount
        |    local-staker-index: $localStakerIndex
        |    timestamp: ${bigBangTimestamp.toEpochMilli}
+       |    $stakesStr
        |""".stripMargin
   }
 

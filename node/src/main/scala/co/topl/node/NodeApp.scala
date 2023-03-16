@@ -86,7 +86,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           PrivateTestnet.config(
             privateBigBang.timestamp,
             stakerInitializers,
-            privateBigBang.relativeStakes
+            privateBigBang.stakes
           )
         )
         .toResource

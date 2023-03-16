@@ -19,7 +19,7 @@ import quivr.models.Proposition
 
 object PrivateTestnet {
 
-  val TotalStake: Int128 = 10_000_000L
+  val DefaultTotalStake: Int128 = 10_000_000L
 
   /**
    * Constructs several Operator StakerInitializers.  A Staker is initialized using the concatenation of the timestamp (bytes)
@@ -46,17 +46,21 @@ object PrivateTestnet {
    * Constructs a BigBang Config containing registrations of the given Stakers.  In addition, a single Poly box is
    * produced and is publicly spendable.
    */
-  def config(timestamp: Timestamp, stakers: List[StakerInitializers.Operator], relativeStakes: Option[List[Ratio]])(
-    implicit networkPrefix: NetworkPrefix
+  def config(timestamp: Timestamp, stakers: List[StakerInitializers.Operator], stakes: Option[List[BigInt]])(implicit
+    networkPrefix: NetworkPrefix
   ): BigBang.Config = {
-    require(relativeStakes.forall(_.length == stakers.length), "relativeStakes must be the same length as stakers")
+    require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
     BigBang.Config(
       timestamp,
       stakers
-        .zip(relativeStakes.getOrElse(List.fill(stakers.length)(Ratio(1, stakers.length))))
-        .flatMap { case (staker, relativeStake) =>
-          staker.bigBangOutputs((relativeStake * (TotalStake: BigInt): Ratio).round)
-        }
+        .zip(
+          stakes.getOrElse(
+            List.fill(stakers.length)(
+              Ratio(DefaultTotalStake, stakers.length).round
+            )
+          )
+        )
+        .flatMap { case (staker, stake) => staker.bigBangOutputs(stake) }
         .appended(
           UnspentTransactionOutput(
             HeightLockOneSpendingAddress,

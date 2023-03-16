@@ -2,7 +2,6 @@ package co.topl.tetra.it
 
 import cats.effect.implicits._
 import cats.implicits._
-import co.topl.models.utility.Ratio
 import co.topl.tetra.it.util._
 import com.spotify.docker.client.DockerClient
 
@@ -26,13 +25,13 @@ class ChainSelectionTest extends IntegrationSuite {
   test("Disconnected nodes can forge independently and later sync up to a proper chain") {
     val epochSlotLength = 500 // (50/4) * (100/15) * 6
     val bigBang = Instant.now().plusSeconds(30)
-    val relativeStakes = List(Ratio(3, 6), Ratio(2, 6), Ratio(1, 6)).some
+    val stakes = List(BigInt(500), BigInt(400), BigInt(300)).some
     val config0 =
-      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 0, knownPeers = Nil, relativeStakes = relativeStakes)
+      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 0, knownPeers = Nil, stakes = stakes)
     val config1 =
-      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 1, knownPeers = Nil, relativeStakes = relativeStakes)
+      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 1, knownPeers = Nil, stakes = stakes)
     val config2 =
-      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 2, knownPeers = Nil, relativeStakes = relativeStakes)
+      TestNodeConfig(bigBang, stakerCount = 3, localStakerIndex = 2, knownPeers = Nil, stakes = stakes)
 
     val nodesWithknownPeers = List(
       config0,

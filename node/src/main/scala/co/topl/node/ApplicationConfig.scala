@@ -66,7 +66,7 @@ object ApplicationConfig {
       case class Private(
         timestamp:        Long = System.currentTimeMillis() + 5_000L,
         stakerCount:      Int,
-        relativeStakes:   Option[List[Ratio]],
+        stakes:           Option[List[BigInt]],
         localStakerIndex: Option[Int]
       ) extends BigBang
     }
@@ -160,6 +160,9 @@ object ApplicationConfig {
       simpleArgApplications
     }
   }
+
+  implicit val bigIntConfigReader: ConfigReader[BigInt] =
+    ConfigReader.fromNonEmptyStringTry(str => Try(BigInt(str)))
 
   implicit val ratioConfigReader: ConfigReader[Ratio] =
     ConfigReader.fromNonEmptyStringTry { str =>
