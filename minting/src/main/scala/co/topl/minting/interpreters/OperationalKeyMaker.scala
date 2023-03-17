@@ -15,7 +15,6 @@ import co.topl.minting.algebras._
 import co.topl.minting.models.OperationalKeyOut
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.consensus.models._
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.typeclasses.implicits._
@@ -225,25 +224,19 @@ object OperationalKeyMaker {
               slots
                 .zip(children)
                 .parTraverse { case (slot, (childSK, childVK)) =>
-                  kesProductResource.use(kesProductScheme =>
-                    Sync[F]
-                      .delay {
-                        kesProductScheme.sign(
-                          kesParent,
-                          childVK.concat(ByteString.copyFrom(Longs.toByteArray(slot))).toByteArray
-                        )
-                      }
-                      .flatMap(parentSignature =>
-                        (for {
-                          signature       <- EitherT(parentSignature.toF[F, SignatureKesProduct])
-                          verificationKey <- EitherT(parentVK.toF[F, VerificationKeyKesProduct])
-                        } yield (signature, verificationKey))
-                          .getOrRaise(new IllegalStateException("Invalid model conversion"))
-                      )
-                      .map { case (parentSignature, parentVK) =>
-                        OperationalKeyOut(slot, childVK, childSK, parentSignature, parentVK)
-                      }
-                  )
+                  kesProductResource
+                    .use(kesProductScheme =>
+                      Sync[F]
+                        .delay {
+                          kesProductScheme.sign(
+                            kesParent,
+                            childVK.concat(ByteString.copyFrom(Longs.toByteArray(slot))).toByteArray
+                          )
+                        }
+                    )
+                    .map { parentSignature =>
+                      OperationalKeyOut(slot, childVK, childSK, parentSignature, parentVK)
+                    }
                 }
             )
         )
