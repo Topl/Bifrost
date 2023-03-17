@@ -55,52 +55,64 @@ object BlockProducer {
       Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockProducer")
 
     val blocks: F[Stream[F, Block]] =
-      Sync[F].delay(
-        parentHeaders
-          .through(AbandonerPipe(makeChild))
-          .collect { case Some(block) => block }
-      )
+      Sync[F].delay(parentHeaders.through(AbandonerPipe(makeChild)))
 
     /**
      * Construct a new child Block of the given parent
      */
-    private def makeChild(parentSlotData: SlotData): F[Option[Block]] =
+    private def makeChild(parentSlotData: SlotData): F[Block] =
       Async[F].onCancel(
-        for {
-          // From the given parent block, when are we next eligible to produce a new block?
-          nextHit <- nextEligibility(parentSlotData.slotId)
-          _ <- Logger[F].debug(
-            show"Packing block for" +
-            show" parentId=${parentSlotData.slotId.blockId}" +
-            show" parentSlot=${parentSlotData.slotId.slot}" +
-            show" eligibilitySlot=${nextHit.slot}"
-          )
-          // Assemble the transactions to be placed in our new block
-          fullBody  <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
-          timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
-          blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
-          // Despite being eligible, there may not have a corresponding linear KES key if, for example, the node
-          // restarts in the middle of an operational period.  The node must wait until the next operational period
-          // to have a set of corresponding linear keys to work with
-          maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
-          body = BlockBody(fullBody.transaction.map(_.id))
-          _ <- OptionT
-            .fromOption[F](maybeHeader)
-            .semiflatTap(block => Logger[F].info(show"Minted header=$block body=$body"))
-            .value
-        } yield maybeHeader.map(Block(_, body)),
+        clock.globalSlot >>= attemptUntilCertified(parentSlotData),
         Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
       )
 
     /**
+     * Attempts to produce a new block.  If the staker is eligible but no operational key is available, the attempt
+     * will be retried starting in the next operational period.
+     */
+    private def attemptUntilCertified(parentSlotData: SlotData)(fromSlot: Slot): F[Block] =
+      for {
+        nextHit <- nextEligibility(parentSlotData.slotId)(fromSlot)
+        _ <- Logger[F].debug(
+          show"Packing block for" +
+          show" parentId=${parentSlotData.slotId.blockId}" +
+          show" parentSlot=${parentSlotData.slotId.slot}" +
+          show" eligibilitySlot=${nextHit.slot}"
+        )
+        // Assemble the transactions to be placed in our new block
+        fullBody  <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+        timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
+        blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
+        maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+        result <- OptionT
+          .fromOption[F](maybeHeader)
+          .map(Block(_, BlockBody(fullBody.transaction.map(_.id))))
+          .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
+          // Despite being eligible, there may not be a corresponding linear KES key if the node restarted in the middle
+          // of an operational period.  The node must wait until the next operational period
+          // to have a set of corresponding linear keys use.
+          .getOrElseF(
+            for {
+              operationalPeriodLength <- clock.slotsPerOperationalPeriod
+              nextOperationalPeriodSlot <- Sync[F]
+                .delay((nextHit.slot / operationalPeriodLength + 1) * operationalPeriodLength)
+              _ <- Logger[F]
+                .warn(
+                  show"Operational key unavailable.  Skipping eligibility at slot=${nextHit.slot}" +
+                  show" plus any remaining eligibilities until next operational period at slot=$nextOperationalPeriodSlot"
+                )
+              res <- attemptUntilCertified(parentSlotData)(nextOperationalPeriodSlot)
+            } yield res
+          )
+      } yield result
+
+    /**
      * Determine the staker's next eligibility based on the given parent
      */
-    private def nextEligibility(parentSlotId: SlotId): F[VrfHit] =
-      clock.globalSlot
-        .map(_.max(parentSlotId.slot + 1))
-        .flatMap(
-          _.tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
-        )
+    private def nextEligibility(parentSlotId: SlotId)(fromSlot: Slot): F[VrfHit] =
+      (fromSlot
+        .max(parentSlotId.slot + 1))
+        .tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
 
     /**
      * Launch the block packer function, then delay the clock, then stop the block packer function and
