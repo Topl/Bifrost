@@ -127,6 +127,9 @@ object Dependencies {
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
   )
 
+  // For NTP-UDP
+  val commonsNet = "commons-net" % "commons-net" % "3.8.0"
+
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
 
@@ -229,12 +232,13 @@ object Dependencies {
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++
-    Seq(
-      catsSlf4j % "test"
-    ) ++
     cats ++
     catsEffect ++
-    scalacache
+    scalacache ++
+    Seq(
+      commonsNet,
+      catsSlf4j % Test
+    )
 
   lazy val byteCodecs: Seq[sbt.ModuleID] =
     test ++

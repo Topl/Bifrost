@@ -32,7 +32,8 @@ object ApplicationConfig {
     mempool:   Bifrost.Mempool,
     bigBang:   Bifrost.BigBang,
     protocols: Map[Slot, Bifrost.Protocol],
-    cache:     Bifrost.Cache
+    cache:     Bifrost.Cache,
+    ntp:       Bifrost.Ntp
   )
 
   object Bifrost {
@@ -118,6 +119,9 @@ object ApplicationConfig {
       @Lenses
       case class CacheConfig(maximumEntries: Long, ttl: Option[FiniteDuration])
     }
+
+    @Lenses
+    case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
   }
 
   /**
