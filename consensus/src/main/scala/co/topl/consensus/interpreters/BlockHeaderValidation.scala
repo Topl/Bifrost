@@ -9,7 +9,6 @@ import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models._
-import co.topl.consensus.models.CryptoConsensusMorphismInstances._
 import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.signing.{Ed25519VRF, KesProduct}
 import co.topl.crypto.hash.Blake2b256
@@ -165,71 +164,55 @@ object BlockHeaderValidation {
       header: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT(
-        header.operationalCertificate.parentSignature
-          .toF[F, co.topl.crypto.models.SignatureKesProduct]
-      ).leftMap(_ =>
-        BlockHeaderValidationFailures.InvalidOperationalParentSignature(
-          header.operationalCertificate
-        ): BlockHeaderValidationFailure
-      ).flatMap(parentSignature =>
-        EitherT(header.operationalCertificate.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct])
-          .leftMap(_ =>
-            BlockHeaderValidationFailures
-              .InvalidOperationalParentSignature(header.operationalCertificate): BlockHeaderValidationFailure
-          )
-          .tupleLeft(parentSignature)
-      ).flatMap { case (parentSignature, parentVK) =>
-        EitherT(
-          kesProductResource
-            .use(kesProduct =>
-              kesProduct
-                .verify(
-                  parentSignature,
-                  header.operationalCertificate.childVK
-                    .concat(ByteString.copyFrom(Longs.toByteArray(header.slot)))
-                    .toByteArray,
-                  parentVK
-                )
-                .pure[F]
-            )
-            .map(
-              Either.cond(
-                _,
-                header,
-                BlockHeaderValidationFailures.InvalidOperationalParentSignature(
-                  header.operationalCertificate
-                ): BlockHeaderValidationFailure
+        kesProductResource
+          .use(kesProduct =>
+            kesProduct
+              .verify(
+                header.operationalCertificate.parentSignature,
+                header.operationalCertificate.childVK
+                  .concat(ByteString.copyFrom(Longs.toByteArray(header.slot)))
+                  .toByteArray,
+                header.operationalCertificate.parentVK
               )
-            )
-        )
-          .flatMap(_ =>
-            EitherT(
-              ed25519Resource
-                .use(ed25519 =>
-                  // Use the ed25519 instance to verify the childSignature against the header's bytes
-                  ed25519
-                    .verify(
-                      header.operationalCertificate.childSignature,
-                      header.unsigned.signableBytes,
-                      header.operationalCertificate.childVK
-                    )
-                    .pure[F]
-                )
-                .map(isValid =>
-                  // Verification from the previous step returns a boolean, so now check the boolean verification result
-                  if (isValid) {
-                    // If the verification was valid, just return Right(header)
-                    header.asRight[BlockHeaderValidationFailure]
-                  } else {
-                    // Otherwise, return a Left(InvalidBlockProof)
-                    (BlockHeaderValidationFailures.InvalidBlockProof(
-                      header.operationalCertificate
-                    ): BlockHeaderValidationFailure).asLeft[BlockHeader]
-                  }
-                )
+              .pure[F]
+          )
+          .map(
+            Either.cond(
+              _,
+              header,
+              BlockHeaderValidationFailures.InvalidOperationalParentSignature(
+                header.operationalCertificate
+              ): BlockHeaderValidationFailure
             )
           )
-      }
+      )
+        .flatMap(_ =>
+          EitherT(
+            ed25519Resource
+              .use(ed25519 =>
+                // Use the ed25519 instance to verify the childSignature against the header's bytes
+                ed25519
+                  .verify(
+                    header.operationalCertificate.childSignature,
+                    header.unsigned.signableBytes,
+                    header.operationalCertificate.childVK
+                  )
+                  .pure[F]
+              )
+              .map(isValid =>
+                // Verification from the previous step returns a boolean, so now check the boolean verification result
+                if (isValid) {
+                  // If the verification was valid, just return Right(header)
+                  header.asRight[BlockHeaderValidationFailure]
+                } else {
+                  // Otherwise, return a Left(InvalidBlockProof)
+                  (BlockHeaderValidationFailures.InvalidBlockProof(
+                    header.operationalCertificate
+                  ): BlockHeaderValidationFailure).asLeft[BlockHeader]
+                }
+              )
+          )
+        )
 
     /**
      * Determines the VRF threshold for the given child
@@ -302,36 +285,16 @@ object BlockHeaderValidation {
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       OptionT(consensusValidationState.operatorRegistration(header.id, header.slot)(header.address))
         .toRight(BlockHeaderValidationFailures.Unregistered(header.address): BlockHeaderValidationFailure)
-        .flatMap(commitment =>
-          EitherT(commitment.toF[F, co.topl.crypto.models.SignatureKesProduct])
-            .tupleLeft(commitment)
-            .leftMap(_ =>
-              BlockHeaderValidationFailures.RegistrationCommitmentMismatch(
-                commitment,
-                header.eligibilityCertificate.vrfVK,
-                header.address
-              ): BlockHeaderValidationFailure
-            )
-        )
-        .flatMap { case (commitment, commitmentCrypto) =>
-          EitherT(header.operationalCertificate.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct])
-            .tupleLeft(commitment, commitmentCrypto)
-            .leftMap(_ =>
-              BlockHeaderValidationFailures.RegistrationCommitmentMismatch(
-                commitment,
-                header.eligibilityCertificate.vrfVK,
-                header.address
-              ): BlockHeaderValidationFailure
-            )
-        }
-        .flatMapF { case ((commitment, commitmentCrypto), parentVK) =>
+        .flatMapF { commitment =>
           for {
             message <- blake2b256Resource
               .use(
                 _.hash(header.eligibilityCertificate.vrfVK, header.address.value).pure[F]
               )
             isValid <- kesProductResource
-              .use(p => p.verify(commitmentCrypto, message.toArray, parentVK.copy(step = 0)).pure[F])
+              .use(p =>
+                p.verify(commitment, message.toArray, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
+              )
           } yield Either.cond(
             isValid,
             header,

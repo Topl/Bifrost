@@ -5,7 +5,7 @@ import scodec.bits.ByteVector
 
 import scala.language.implicitConversions
 
-package object utility extends Isomorphism.Ops {
+package object utility {
 
   implicit def byteStringToByteVector(byteString: ByteString): ByteVector =
     ByteVector(byteString.asReadOnlyByteBuffer())

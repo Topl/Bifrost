@@ -9,8 +9,6 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.SlotId
 import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.hash.Blake2b256
@@ -722,18 +720,8 @@ class BlockHeaderValidationSpec
     val parentSignature = kesProduct.sign(parentSK, message)
     val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK)
     val partialCertificate = UnsignedBlockHeader.PartialOperationalCertificate(
-      CryptoConsensusMorphismInstances
-        .verificationKeyKesProductIsomorphism[cats.Id]
-        .baMorphism
-        .aToB(kesProductVerificationKey)
-        .toOption
-        .get,
-      CryptoConsensusMorphismInstances
-        .signatureKesProductIsomorphism[cats.Id]
-        .baMorphism
-        .aToB(parentSignature)
-        .toOption
-        .get,
+      kesProductVerificationKey,
+      parentSignature,
       ByteString.copyFrom(linearVKBytes.toArray)
     )
     unsignedF(partialCertificate) -> linearSKBytes
@@ -822,12 +810,6 @@ object BlockHeaderValidationSpec {
     skKes:  SecretKeyKesProduct
   )(implicit kesProduct: KesProduct): SignatureKesProduct = {
     val commitmentMessage = new Blake2b256().hash(vkVrf.concat(poolVK.value))
-    val cryptoSignature = kesProduct.sign(skKes, commitmentMessage.toArray)
-    CryptoConsensusMorphismInstances
-      .signatureKesProductIsomorphism[cats.Id]
-      .baMorphism
-      .aToB(cryptoSignature)
-      .toOption
-      .get
+    kesProduct.sign(skKes, commitmentMessage.toArray)
   }
 }

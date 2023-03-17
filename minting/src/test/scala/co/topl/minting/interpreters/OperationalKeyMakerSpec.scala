@@ -9,8 +9,6 @@ import co.topl.algebras._
 import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.CryptoConsensusMorphismInstances.signatureKesProductIsomorphism
-import co.topl.consensus.models.CryptoConsensusMorphismInstances.verificationKeyKesProductIsomorphism
 import co.topl.consensus.models._
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
@@ -146,17 +144,11 @@ class OperationalKeyMakerSpec
               for {
                 out <- underTest.operationalKeyForSlot(i, parentSlotId).map(_.value)
                 _   <- assertIO(out.slot.pure[F], i)
-                _ <- assertIO(
-                  out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].map(_.toOption.value),
-                  vk
-                )
-                parentSignature <- out.parentSignature
-                  .toF[F, co.topl.crypto.models.SignatureKesProduct]
-                  .map(_.toOption.value)
+                _   <- assertIO(out.parentVK.pure[F], vk: VerificationKeyKesProduct)
                 _ <- assertIO(
                   kesProduct
                     .verify(
-                      parentSignature,
+                      out.parentSignature,
                       ed25519.getVerificationKey(out.childSK: Bytes).toArray ++ Longs.toByteArray(i),
                       vk
                     )
@@ -277,17 +269,11 @@ class OperationalKeyMakerSpec
                 out <- underTest.operationalKeyForSlot(i, parentSlotId).map(_.value)
                 _   <- assertIO(out.slot.pure[F], i)
                 expectedVK = vk.copy(step = 1)
-                _ <- assertIO(
-                  out.parentVK.toF[F, co.topl.crypto.models.VerificationKeyKesProduct].map(_.toOption.value),
-                  expectedVK
-                )
-                parentSignature <- out.parentSignature
-                  .toF[F, co.topl.crypto.models.SignatureKesProduct]
-                  .map(_.toOption.value)
+                _ <- assertIO(out.parentVK.pure[F], expectedVK: VerificationKeyKesProduct)
                 _ <- assertIO(
                   kesProduct
                     .verify(
-                      parentSignature,
+                      out.parentSignature,
                       ed25519.getVerificationKey(out.childSK: Bytes).toArray ++ Longs.toByteArray(i),
                       expectedVK
                     )
