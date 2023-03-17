@@ -19,16 +19,18 @@ object SchedulerClock {
    * interpretations combine the skewed clock with the given configurations.
    * @param _slotLength The duration of a single slot
    * @param _slotsPerEpoch The number of slots in a single epoch
+   * @param _slotsPerOperationalPeriod The number of slots in a single operational period
    * @param genesisTime The timestamp of the big-bang block
    * @param _forwardBiasedSlotWindow The allowable number of slots in the future for which we can accept remote peer data (like a block header)
    * @param timeSkew A lookup function which returns the number of milliseconds by which the local time should be adjusted
    */
   def make[F[_]: Async](
-    _slotLength:              FiniteDuration,
-    _slotsPerEpoch:           Long,
-    genesisTime:              Instant,
-    _forwardBiasedSlotWindow: Slot,
-    timeSkew:                 () => F[Long]
+    _slotLength:                FiniteDuration,
+    _slotsPerEpoch:             Long,
+    _slotsPerOperationalPeriod: Long,
+    genesisTime:                Instant,
+    _forwardBiasedSlotWindow:   Slot,
+    timeSkew:                   () => F[Long]
   ): Resource[F, ClockAlgebra[F]] =
     Resource.pure(
       new ClockAlgebra[F] {
@@ -36,7 +38,9 @@ object SchedulerClock {
 
         override val slotLength: F[FiniteDuration] = _slotLength.pure[F]
 
-        override val slotsPerEpoch: F[Epoch] = _slotsPerEpoch.pure[F]
+        override val slotsPerEpoch: F[Long] = _slotsPerEpoch.pure[F]
+
+        override val slotsPerOperationalPeriod: F[Long] = _slotsPerOperationalPeriod.pure[F]
 
         override def currentTimestamp: F[Timestamp] =
           (Sync[F].delay(System.currentTimeMillis()), timeSkew()).mapN(_ + _)

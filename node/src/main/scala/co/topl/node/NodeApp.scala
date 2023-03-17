@@ -140,6 +140,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
       clock <- SchedulerClock.make[F](
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
+        bigBangProtocol.operationalPeriodLength,
         Instant.ofEpochMilli(bigBangBlock.header.timestamp),
         bigBangProtocol.forwardBiasedSlotWindow,
         ntpClockSkewer
