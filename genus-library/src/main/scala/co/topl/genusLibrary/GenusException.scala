@@ -8,6 +8,7 @@ package co.topl.genusLibrary
  * @param cause the cause (which is saved for later retrieval by the getCause() method). (A null value is permitted,
  *              and indicates that the cause is nonexistent or unknown.)
  */
+// TODO: refactor: Either use Genus Exception, or Failure defined on model failure
 class GenusException(message: String, cause: Throwable) extends RuntimeException(message, cause) {}
 
 object GenusException {

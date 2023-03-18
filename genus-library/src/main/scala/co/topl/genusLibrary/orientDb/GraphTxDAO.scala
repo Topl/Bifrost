@@ -3,15 +3,20 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.failure.{Failure, Failures}
+import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedEdge, WrappedVertex}
 import org.typelevel.log4cats.Logger
+import scala.jdk.CollectionConverters._
+import scala.util.{Success, Try}
 
 /**
  * Even though Tinkerpop's API is very high level and great in design for a Java application,
  * there are some use cases that feel a bit low level on our end, may induce duplicate code and/or bad practices.
  * @param wrappedGraph Wrapped Tinkerpop's implementation of an TX Orient Graph.
  */
-class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
+class GraphTxDAO[F[_]: Async: Logger](wrappedGraphWrapper: GraphTxWrapper) {
+
+  def wrappedGraph: GraphTxWrapper = this.wrappedGraphWrapper
 
   /**
    * Commits graph at the end of a function process if it ran successfully
@@ -36,38 +41,9 @@ class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
   )(implicit
     schema: VertexSchema[T]
   ): (T, WrappedVertex) = {
-
-    import scala.jdk.CollectionConverters._
-    val prop:java.util.Map[String, Object] = schema.encode(elem).asJava
-    println(s"size ${prop.size}")
-
-//    updateVertex(elem, wrappedGraph.addVertex(s"class:${schema.name}", prop))
+    val prop: java.util.Map[String, Object] = schema.encode(elem).asJava
     (elem, wrappedGraph.addVertex(s"class:${schema.name}", prop))
   }
-
-//  /**
-//   * Vertex updater from an element
-//   *
-//   * @param elem element to update
-//   * @param vertex vertex to update
-//   * @param schema schema for given element to be updated
-//   * @tparam T abstract type of the given element and type parameter of given schema
-//   * @return element and updated vertex
-//   */
-//  def updateVertex[T](
-//    elem:   T,
-//    vertex: WrappedVertex
-//  )(implicit
-//    schema: VertexSchema[T]
-//  ): (T, WrappedVertex) = {
-//    schema
-//      .encode(elem)
-//      .foreach { case (key, value) =>
-//        vertex.setProperty(key, value)
-//      }
-//
-//    (elem, vertex)
-//  }
 
   /**
    * Edge creator. Creates edge from outVertex to inVertex.
@@ -79,11 +55,19 @@ class GraphTxDAO[F[_]: Async: Logger](wrappedGraph: GraphTxWrapper) {
    * @return created edge
    */
   def addEdge(
+    id:        AnyRef,
     outVertex: WrappedVertex,
     inVertex:  WrappedVertex,
-    label:     Option[String] = None
-  ): WrappedEdge =
-    wrappedGraph.addEdge(null, outVertex, inVertex, label.orNull)
+    label:     Option[String]
+  ): F[Either[Failure, WrappedEdge]] =
+    Async[F].delay {
+      Try(wrappedGraph.addEdge(id, outVertex, inVertex, label.orNull)) match {
+        case util.Failure(ex) =>
+          Left(Failures.FailureMessage(s"Add Edge error ${ex.getMessage}"): Failure).rightCast[WrappedEdge]
+        case Success(value) =>
+          Right(value).leftCast[Failure]
+      }
+    }
 
   private def withTransaction[T <: Any](transactionalFun: Either[Failure, T]): F[Either[Failure, T]] =
     transactionalFun match {

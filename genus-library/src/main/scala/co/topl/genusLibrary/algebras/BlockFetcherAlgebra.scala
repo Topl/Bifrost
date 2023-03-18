@@ -14,7 +14,6 @@ trait BlockFetcherAlgebra[F[_]] {
    * @param height The height to lookup
    * @return the full block
    */
-  // TODO: TSDK-216 | Create protobuf files
   def fetch(height: Long): F[Either[Failure, HeightData]]
 
 }

@@ -6,11 +6,14 @@ import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 
 case class ApplicationConfig(
-  rpcHost: String,
-  rpcPort: Int,
-  rpcNodeHost: String,
-  rpcNodePort: Int,
-  rpcNodeTls: Boolean,
+  rpcHost:           String,
+  rpcPort:           Int,
+  rpcNodeHost:       String,
+  rpcNodePort:       Int,
+  rpcNodeTls:        Boolean,
+  orientDbDirectory: String,
+  orientDbUser:      String,
+  orientDbPassword:  String
 )
 
 object ApplicationConfig {

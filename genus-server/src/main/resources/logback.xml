@@ -8,7 +8,9 @@
         </encoder>
     </appender>
 
-    <root level="INFO">
+    <logger name="io.grpc.netty.shaded" level="WARN"/>
+
+    <root level="DEBUG">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>

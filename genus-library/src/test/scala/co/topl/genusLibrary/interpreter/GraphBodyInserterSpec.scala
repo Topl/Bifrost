@@ -6,10 +6,11 @@ import cats.implicits._
 import co.topl.genusLibrary.algebras.mediator.BodyMediatorAlgebra
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockBodySchema
+import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
-import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade, VertexSchema}
+import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade}
 import co.topl.node.models.BlockBody
+import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances.blockBodySchema
 import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF

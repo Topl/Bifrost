@@ -2,6 +2,7 @@ package co.topl.genusLibrary.interpreter
 
 import cats.data.Chain
 import cats.effect.IO
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.generators.ModelGenerators._
@@ -21,16 +22,16 @@ import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-
+import fs2._
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
-  val toplRpc: ToplRpc[F, Any] = mock[ToplRpc[F, Any]]
+  private val toplRpc: ToplRpc[F, Stream[F, *]] = mock[ToplRpc[F, Stream[F, *]]]
 
-  val nodeBlockFetcher = new NodeBlockFetcher(toplRpc)
+  private val nodeBlockFetcher = NodeBlockFetcher.make[F](toplRpc)
 
   test("On no block at given height, a None should be returned") {
     PropF.forAllF { height: Long =>
@@ -41,10 +42,15 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[BlockId].pure[F])
           .once()
 
-        assertIO(
-          nodeBlockFetcher fetch height,
-          HeightData(height = height, blockData = None).asRight
-        )
+        val res = for {
+          fetcher <- nodeBlockFetcher
+          _ <- assertIO(
+            fetcher fetch height,
+            HeightData(height = height, blockData = None).asRight
+          ).toResource
+
+        } yield ()
+        res.use_
 
       }
     }
@@ -66,10 +72,15 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[BlockHeader].pure[F])
           .once()
 
-        assertIO(
-          nodeBlockFetcher fetch height,
-          NoBlockHeaderFoundOnNodeFailure(blockId).asLeft
-        )
+        val res = for {
+          fetcher <- nodeBlockFetcher
+          _ <- assertIO(
+            fetcher fetch height,
+            NoBlockHeaderFoundOnNodeFailure(blockId).asLeft
+          ).toResource
+
+        } yield ()
+        res.use_
 
       }
     }
@@ -96,10 +107,15 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[BlockBody].pure[F])
           .once()
 
-        assertIO(
-          nodeBlockFetcher fetch height,
-          NoBlockBodyFoundOnNodeFailure(blockId).asLeft
-        )
+        val res = for {
+          fetcher <- nodeBlockFetcher
+          _ <- assertIO(
+            fetcher fetch height,
+            NoBlockBodyFoundOnNodeFailure(blockId).asLeft
+          ).toResource
+
+        } yield ()
+        res.use_
 
       }
     }
@@ -140,10 +156,15 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
-          assertIO(
-            nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(ListSet(transactionId)).asLeft
-          )
+          val res = for {
+            fetcher <- nodeBlockFetcher
+            _ <- assertIO(
+              fetcher fetch height,
+              NonExistentTransactionsFailure(ListSet(transactionId)).asLeft
+            ).toResource
+
+          } yield ()
+          res.use_
 
         }
     }
@@ -203,15 +224,20 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
-          assertIO(
-            nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(
-              ListSet(
-                transactionId_02,
-                transactionId_03
-              )
-            ).asLeft
-          )
+          val res = for {
+            fetcher <- nodeBlockFetcher
+            _ <- assertIO(
+              fetcher fetch height,
+              NonExistentTransactionsFailure(
+                ListSet(
+                  transactionId_02,
+                  transactionId_03
+                )
+              ).asLeft
+            ).toResource
+
+          } yield ()
+          res.use_
 
         }
     }
@@ -270,16 +296,21 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
-          assertIO(
-            nodeBlockFetcher fetch height,
-            NonExistentTransactionsFailure(
-              ListSet(
-                transactionId_01,
-                transactionId_02,
-                transactionId_03
-              )
-            ).asLeft
-          )
+          val res = for {
+            fetcher <- nodeBlockFetcher
+            _ <- assertIO(
+              fetcher fetch height,
+              NonExistentTransactionsFailure(
+                ListSet(
+                  transactionId_01,
+                  transactionId_02,
+                  transactionId_03
+                )
+              ).asLeft
+            ).toResource
+
+          } yield ()
+          res.use_
 
         }
     }
@@ -341,17 +372,22 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             .returning(transaction_03.some.pure[F])
             .once()
 
-          assertIO(
-            nodeBlockFetcher fetch height,
-            HeightData(
-              height = height,
-              blockData = BlockData(
-                header = blockHeader,
-                body = blockBody,
-                transactions = Chain(transaction_01, transaction_02, transaction_03)
-              ).some
-            ).asRight
-          )
+          val res = for {
+            fetcher <- nodeBlockFetcher
+            _ <- assertIO(
+              fetcher fetch height,
+              HeightData(
+                height = height,
+                blockData = BlockData(
+                  header = blockHeader,
+                  body = blockBody,
+                  transactions = Chain(transaction_01, transaction_02, transaction_03)
+                ).some
+              ).asRight
+            ).toResource
+
+          } yield ()
+          res.use_
 
         }
     }

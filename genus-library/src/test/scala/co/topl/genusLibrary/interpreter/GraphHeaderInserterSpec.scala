@@ -1,154 +1,144 @@
 package co.topl.genusLibrary.interpreter
 
-import cats.effect.IO
-import cats.effect.kernel.Async
+import cats.effect.{IO, Resource}
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
-import co.topl.genusLibrary.algebras.mediator.HeaderMediatorAlgebra
-import co.topl.genusLibrary.failure.Failure
-import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.orientDb.GenusGraphMetadata.blockHeaderSchema
-import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
-import co.topl.genusLibrary.orientDb.{GraphTxDAO, StoreFacade, VertexSchema}
 import co.topl.consensus.models.BlockHeader
+import co.topl.genusLibrary.failure.{Failure, Failures}
+import co.topl.genusLibrary.model.BlockData
 import co.topl.models.generators.consensus.ModelGenerators._
+import com.tinkerpop.blueprints.Vertex
+import com.tinkerpop.blueprints.impls.orient.{OrientEdge, OrientGraph, OrientVertex}
+import java.lang
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import scala.jdk.CollectionConverters._
 
 class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
-  private trait HeaderMediatorMock extends HeaderMediatorAlgebra[F]
-
-  private class GraphTxDAOMock extends GraphTxDAO[F](null)
-
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  private val orientDB = mock[StoreFacade]
-  private val mediator = mock[HeaderMediatorMock]
-
-  val graphHeaderInserter = new GraphHeaderInserter[F](orientDB, mediator)
-
-  test("On failure to effect transaction, the mediator is not called and the DAO response is returned") {
-    PropF.forAllF { blockHeader: BlockHeader =>
-      withMock {
-        val blockData = BlockData(blockHeader, null, null)
-        val graphTxDao = mock[GraphTxDAOMock]
-        val wrappedVertex = mock[WrappedVertex]
-        val failureLeft = mock[Failure].asLeft[Unit]
-
-        (graphTxDao
-          .createVertex(_: BlockHeader)(_: VertexSchema[BlockHeader]))
-          .expects(blockHeader, blockHeaderSchema)
-          .returns((blockHeader, wrappedVertex))
-          .once()
-
-        (orientDB
-          .getGraph[F](_: Async[F], _: Logger[F]))
-          .expects(*, *)
-          .returns(graphTxDao)
-          .once()
-
-        (graphTxDao.withEffectfulTransaction[Unit] _)
-          .expects(*)
-          .returns(failureLeft.pure[F])
-          .once()
-
-        val response = graphHeaderInserter.insert(blockData)
-
-        assertIO(
-          response,
-          failureLeft
-        )
-      }
+  test("Insert genesis block, should fail, if we can not add the vertex") {
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = throw new IllegalStateException("boom!")
     }
+
+    PropF.forAllF { blockHeader: BlockHeader =>
+      val res = for {
+        blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
+        graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+        _ <- assertIO(
+          graphHeaderInserter.insert(blockData),
+          (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
+        ).toResource
+      } yield ()
+      res.use_
+    }
+    orientGraph.shutdown()
   }
 
-  test("On success to effect transaction and successful mediator call, the successful mediator response is returned") {
+  test("Insert genesis block, should work, if we add the vertex") {
+
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
+    }
+
+    PropF.forAllF { blockHeader: BlockHeader =>
+      val res = for {
+        blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
+        graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+        _ <- assertIO(
+          graphHeaderInserter.insert(blockData),
+          ().asRight[Failure]
+        ).toResource
+      } yield ()
+
+      res.use_
+
+    }
+    orientGraph.shutdown()
+  }
+
+  test("Insert no genesis block, should fail, if we can not add the vertex") {
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = throw new IllegalStateException("boom!")
+    }
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
-
-        val blockData = BlockData(blockHeader, null, null)
-        val graphTxDao = mock[GraphTxDAOMock]
-        val wrappedVertex = mock[WrappedVertex]
-        val mediatorResponse = ().asRight[Failure]
-
-        (graphTxDao
-          .createVertex(_: BlockHeader)(_: VertexSchema[BlockHeader]))
-          .expects(blockHeader, blockHeaderSchema)
-          .returns((blockHeader, wrappedVertex))
-          .once()
-
-        (orientDB
-          .getGraph[F](_: Async[F], _: Logger[F]))
-          .expects(*, *)
-          .returns(graphTxDao)
-          .once()
-
-        (graphTxDao.withEffectfulTransaction[(BlockHeader, WrappedVertex)] _)
-          .expects(*)
-          .returns((blockHeader, wrappedVertex).asRight[Failure].pure[F])
-          .once()
-
-        (mediator.mediate _)
-          .expects(blockData)
-          .returns(mediatorResponse.pure[F])
-          .once()
-
-        val response = graphHeaderInserter.insert(blockData)
-
-        assertIO(
-          response,
-          mediatorResponse
-        )
+        val res = for {
+          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+          _ <- assertIO(
+            graphHeaderInserter.insert(blockData),
+            (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
+          ).toResource
+        } yield ()
+        res.use_
 
       }
     }
+    orientGraph.shutdown()
   }
 
-  test("On success to effect transaction and failing mediator call, the failing mediator response is returned") {
+  test("Insert no genesis block, should work, if we add the vertex and the edge") {
+
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      override def addVertex(id: Object, prop: AnyRef*): OrientVertex =
+        new OrientVertex()
+
+      override def getVertices(id: String, prop: Object): lang.Iterable[Vertex] =
+        Iterable(new OrientVertex(): Vertex).asJava
+
+      override def addEdge(id: Object, o: Vertex, i: Vertex, l: String): OrientEdge =
+        new OrientEdge()
+    }
+
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
+        val res = for {
+          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+          _ <- assertIO(
+            graphHeaderInserter.insert(blockData),
+            ().asRight[Failure]
+          ).toResource
+        } yield ()
+        res.use_
+      }
+    }
+    orientGraph.shutdown()
+  }
 
-        val blockData = BlockData(blockHeader, null, null)
-        val graphTxDao = mock[GraphTxDAOMock]
-        val wrappedVertex = mock[WrappedVertex]
-        val mediatorResponse = mock[Failure].asLeft[Unit]
+  test("Insert no genesis block, should fail, if we add the vertex but no the edge") {
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
 
-        (graphTxDao
-          .createVertex(_: BlockHeader)(_: VertexSchema[BlockHeader]))
-          .expects(blockHeader, blockHeaderSchema)
-          .returns((blockHeader, wrappedVertex))
-          .once()
+      override def getVertices(id: String, prop: Object): lang.Iterable[Vertex] =
+        Iterable(new OrientVertex(): Vertex).asJava
 
-        (orientDB
-          .getGraph[F](_: Async[F], _: Logger[F]))
-          .expects(*, *)
-          .returns(graphTxDao)
-          .once()
+      override def addEdge(id: Object, o: Vertex, i: Vertex, l: String): OrientEdge =
+        throw new IllegalStateException("boom!")
+    }
 
-        (graphTxDao.withEffectfulTransaction[(BlockHeader, WrappedVertex)] _)
-          .expects(*)
-          .returns((blockHeader, wrappedVertex).asRight[Failure].pure[F])
-          .once()
-
-        (mediator.mediate _)
-          .expects(blockData)
-          .returns(mediatorResponse.pure[F])
-          .once()
-
-        val response = graphHeaderInserter.insert(blockData)
-
-        assertIO(
-          response,
-          mediatorResponse
-        )
+    PropF.forAllF { blockHeader: BlockHeader =>
+      withMock {
+        val res = for {
+          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+          _ <- assertIO(
+            graphHeaderInserter.insert(blockData),
+            (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
+          ).toResource
+        } yield ()
+        res.use_
 
       }
     }
+    orientGraph.shutdown()
   }
-
 }

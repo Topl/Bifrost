@@ -4,7 +4,6 @@ import cats.implicits._
 import co.topl.brambl.models.Identifier
 import co.topl.consensus.models.BlockId
 import scodec.bits.ByteVector
-
 import scala.collection.immutable.ListSet
 
 abstract class Failure(message: String, exception: Option[RuntimeException] = None)
@@ -38,4 +37,5 @@ object Failures {
   case class OrientCommitException(ex: RuntimeException)
       extends Failure("There was an error while committing Orient Transaction", ex.some)
 
+  case class FailureMessage(msg: String) extends Failure(msg)
 }

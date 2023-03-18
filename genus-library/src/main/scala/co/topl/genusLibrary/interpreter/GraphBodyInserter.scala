@@ -7,7 +7,7 @@ import co.topl.genusLibrary.algebras.mediator.BodyMediatorAlgebra
 import co.topl.genusLibrary.algebras.BodyInserter
 import co.topl.genusLibrary.failure.Failure
 import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.orientDb.GenusGraphMetadata._
+import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.StoreFacade
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger

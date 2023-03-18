@@ -8,7 +8,8 @@ import com.tinkerpop.blueprints.Vertex
  * @see https://dev.to/satansdeer/dont-mock-what-you-dont-own-cd6
  * @param orientVertex Tinkerpop's Transactional Orient Vertex Java API
  */
-class WrappedVertex(orientVertex: Vertex) {
+class WrappedVertex(val orientVertex: Vertex) {
+  // TODO remove this class and use com.tinkerpop.blueprints.util.wrappers.wrapped.WrappedVertex in case we need a wrapper
 
   private[wrapper] def get: Vertex = orientVertex
 

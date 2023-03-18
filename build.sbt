@@ -626,8 +626,7 @@ lazy val genusServer = project
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
-    libraryDependencies ++= Dependencies.genusServer,
-    dependencyOverrides += Dependencies.protobufSpecsGenus // remove if bramble and quivr4s are aligned with latest protobufSpecs
+    libraryDependencies ++= Dependencies.genusServer
   )
   .dependsOn(
     genusLibrary,

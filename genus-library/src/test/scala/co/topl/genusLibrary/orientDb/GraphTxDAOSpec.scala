@@ -3,12 +3,12 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.IO
 import cats.implicits._
 import co.topl.genusLibrary.failure.{Failure, Failures}
+import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.genusLibrary.orientDb.wrapper.{GraphTxWrapper, WrappedEdge, WrappedVertex}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.collection.immutable
 
 class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -105,7 +105,7 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         .once()
 
       (wrappedGraph.addVertex _)
-        .expects("class:FooClassName")
+        .expects("class:FooClassName", java.util.Map.of[String, Object]("bar", "john_doe"))
         .returns(fooVertex)
         .once()
 
@@ -114,18 +114,8 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         .returns(immutable.Map[String, AnyRef]("bar" -> "john_doe"))
         .once()
 
-      (fooVertex
-        .setProperty(_: String, _: AnyRef))
-        .expects("bar", "john_doe")
-        .returns(())
-        .once()
-
-      val response = graphTxDao.createVertex(elem)
-
-      IO {
-        assertEquals(response, (elem, fooVertex))
-      }
-
+      val response = graphTxDao.createVertex(elem).pure[IO]
+      assertIO(response, (elem, fooVertex))
     }
 
   }
@@ -142,13 +132,13 @@ class GraphTxDAOSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
 
       (wrappedGraph
         .addEdge(_: AnyRef, _: WrappedVertex, _: WrappedVertex, _: String))
-        .expects(null, outVertex, inVertex, "label")
+        .expects("class:FOO", outVertex, inVertex, "label")
         .returns(edge)
         .once()
 
-      val response = graphTxDao.addEdge(outVertex, inVertex, label)
+      val response = graphTxDao.addEdge("class:FOO", outVertex, inVertex, label)
 
-      IO(assertEquals(response, edge))
+      assertIOBoolean(response.map(_.forall(_ == edge)))
 
     }
 

@@ -1,6 +1,6 @@
 package co.topl.genusServer
 
-import cats.{Eval, MonadThrow, Now}
+import cats.MonadThrow
 import cats.effect.kernel.{Async, Resource}
 import io.grpc.{Metadata, Server}
 import cats.implicits._
@@ -8,7 +8,7 @@ import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import fs2.grpc.syntax.all._
-import io.grpc.netty.shaded.io.grpc.netty.{NettyChannelBuilder, NettyServerBuilder}
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.protobuf.services.ProtoReflectionService
 import java.net.InetSocketAddress
 
@@ -85,7 +85,7 @@ object GenusFullBlockGrpc {
                     BlockResponse.of(
                       FullBlock.of(
                         header = blockData.header,
-                        fullBody =  FullBlockBody.of(blockData.transactions.toList)
+                        fullBody = FullBlockBody.of(blockData.transactions.toList)
                       )
                     )
                   case None => BlockResponse.defaultInstance

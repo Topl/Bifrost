@@ -8,11 +8,10 @@ import com.tinkerpop.blueprints.impls.orient.OrientGraph
  * @see https://dev.to/satansdeer/dont-mock-what-you-dont-own-cd6
  * @param graph Tinkerpop's Transactional Graph Java API
  */
-class GraphTxWrapper(graph: OrientGraph) {
+class GraphTxWrapper(val graph: OrientGraph) {
 
   def addVertex(id: AnyRef, prop: java.util.Map[String, Object]): WrappedVertex =
     new WrappedVertex(graph.addVertex(id, prop))
-
 
   def addEdge(id: AnyRef, outVertex: WrappedVertex, inVertex: WrappedVertex, label: String): WrappedEdge =
     new WrappedEdge(graph.addEdge(id, outVertex.get, inVertex.get, label))

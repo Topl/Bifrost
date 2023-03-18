@@ -2,7 +2,7 @@ package co.topl.genusLibrary.orientDb
 
 import cats.effect.kernel.Async
 import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
-import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
+import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientGraphNoTx}
 
 private[genusLibrary] trait StoreFacade {
 
@@ -18,9 +18,12 @@ private[genusLibrary] trait StoreFacade {
    */
   def shutdown(): Boolean
 
+  // TODO remove this DAO
   def getGraph[F[_]: Async: org.typelevel.log4cats.Logger]: GraphTxDAO[F]
 
   def getGraphNoTx: OrientGraphNoTx
+
+  def getGraphNoWrapper: OrientGraph
 
   // TODO Unify VertexTypeName and PropertyKey with VertexSchema (VertexSchema.BlockHeader.BlockId)
   /**

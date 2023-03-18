@@ -269,7 +269,6 @@ object Dependencies {
       "com.orientechnologies"                  % "orientdb-client"             % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-tools"              % orientDbVersion,
       "com.orientechnologies"                  % "orientdb-graphdb"            % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-studio"             % orientDbVersion,
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna

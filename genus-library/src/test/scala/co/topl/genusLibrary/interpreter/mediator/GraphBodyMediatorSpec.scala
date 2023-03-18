@@ -150,9 +150,9 @@ class GraphBodyMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite w
             .once()
 
           (graphTxDao
-            .addEdge(_: WrappedVertex, _: WrappedVertex, _: Option[String]))
-            .expects(currentHeaderVertex, bodyVertex, None)
-            .returns(headerAndBodyEdge)
+            .addEdge(_: AnyRef, _: WrappedVertex, _: WrappedVertex, _: Option[String]))
+            .expects("class:BlockBodyEdge", currentHeaderVertex, bodyVertex, None)
+            .returns(headerAndBodyEdge.asRight[Failure].pure[F])
             .once()
 
           (graphTxDao.withEffectfulTransaction[Unit] _)
@@ -204,9 +204,9 @@ class GraphBodyMediatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite w
             .once()
 
           (graphTxDao
-            .addEdge(_: WrappedVertex, _: WrappedVertex, _: Option[String]))
-            .expects(currentHeaderVertex, bodyVertex, None)
-            .returns(headerAndBodyEdge)
+            .addEdge(_: AnyRef, _: WrappedVertex, _: WrappedVertex, _: Option[String]))
+            .expects("class:BlockBodyEdge", currentHeaderVertex, bodyVertex, None)
+            .returns(headerAndBodyEdge.asRight[Failure].pure[F])
             .once()
 
           (graphTxDao.withEffectfulTransaction[Unit] _)

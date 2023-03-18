@@ -16,6 +16,7 @@ class GraphBodyMediator[F[_]: Async](
 ) extends BodyMediatorAlgebra[F] {
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+  val id = "class:BlockBodyEdge"
 
   override def mediate(block: BlockData): F[Either[Failure, Unit]] = {
     val graph = storeFacade.getGraph
@@ -25,7 +26,7 @@ class GraphBodyMediator[F[_]: Async](
           headerVertex <- EitherT(vertexFetcher.fetchHeader(block.header))
           bodyVertex   <- EitherT(vertexFetcher.fetchBody(block.body, block.header.height))
           headerAndBodyEdge <- EitherT(
-            graph.addEdge(headerVertex, bodyVertex).asRight[Failure].pure[F]
+            graph.addEdge(id, headerVertex, bodyVertex, label = None).asRight[Failure].pure[F]
           )
         } yield headerAndBodyEdge
       ).value.map(_.map(_ => ()))
