@@ -128,7 +128,7 @@ object Dependencies {
   )
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.8.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.9.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
