@@ -2,13 +2,12 @@ package co.topl.genusLibrary.orientDb {
 
   import cats.effect.{Sync, SyncIO}
   import cats.implicits._
-  import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.blockHeaderEdgeSchema
+  import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{blockHeaderBodyEdgeSchema, blockHeaderEdgeSchema}
   import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
   import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
   import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
   import org.typelevel.log4cats.Logger
   import scala.util.Try
-
 
   object GenusGraphMetadata {
 
@@ -18,14 +17,9 @@ package co.topl.genusLibrary.orientDb {
 
         _ <- initializeVertex(blockHeaderSchema)
         _ <- initializeEdge(blockHeaderEdgeSchema)
+        _ <- initializeVertex(blockBodySchema)
+        _ <- initializeEdge(blockHeaderBodyEdgeSchema)
 
-        // TODO: Begin Not tested
-        // addressVertexSchema
-        // addressStateSchema
-        // blockBodySchema
-        // txoSchema
-        // transactionSchema
-        // TODO End Not Tested
       } yield ()
 
     private def initializeVertex[F[_]: Sync: Logger](
@@ -40,13 +34,16 @@ package co.topl.genusLibrary.orientDb {
           .handleErrorWith(_ =>
             SyncIO
               .fromTry(Try(graphNoTx.createVertexType(vertexSchema.name)))
-              .map(vertexType =>
+              .map { vertexType =>
                 vertexSchema.properties.foreach(property =>
                   property.propertyAttributeSetter(
                     vertexType.createProperty(property.name, property.propertyType)
                   )
                 )
-              )
+                vertexSchema.indices.foreach(index =>
+                  vertexType.createIndex(index.name, index.indexType, index.propertyNames: _*)
+                )
+              }
           )
           .to[F]
           .onError { case e =>
@@ -55,7 +52,9 @@ package co.topl.genusLibrary.orientDb {
           .void
       } yield res
 
-    private def initializeEdge[F[_]: Sync: Logger](edgeSchema: EdgeSchema)(implicit graphNoTx: OrientGraphNoTx): F[Unit] =
+    private def initializeEdge[F[_]: Sync: Logger](
+      edgeSchema: EdgeSchema
+    )(implicit graphNoTx: OrientGraphNoTx): F[Unit] =
       for {
         _ <- Logger[F].debug(s"${edgeSchema.name} schema edge lookup")
         res <- SyncIO

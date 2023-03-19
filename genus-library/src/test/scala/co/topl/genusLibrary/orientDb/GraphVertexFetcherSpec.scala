@@ -1,19 +1,15 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.effect.kernel.Async
 import cats.effect.IO
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances.{blockBodySchema, blockHeaderSchema}
-import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.genusLibrary.orientDb.wrapper.WrappedVertex
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody
-import co.topl.node.models.BlockBody
+import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
-import org.scalamock.matchers.ArgCapture.CaptureOne
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -25,145 +21,50 @@ class GraphVertexFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  private val dbFacade = mock[StoreFacade]
+  test("On fetchHeader no current header vertex, a NoCurrentHeaderVertexFailure should be returned") {
 
-  val graphVertexFetcher = new GraphVertexFetcher[F](dbFacade)
-
-  test("On no current header vertex, a NoCurrentHeaderVertexFailure should be returned") {
-    PropF.forAllF {
-      (
-        header: BlockHeader
-      ) =>
-        withMock {
-          val blockIdValue = CaptureOne[Array[Byte]]()
-          (dbFacade
-            .getVertexByField[F](_: String, _: String, _: AnyRef)(_: Async[F]))
-            .expects(blockHeaderSchema.name, "blockId", capture(blockIdValue), *)
-            .returns(Option.empty[WrappedVertex].pure[F])
-            .once()
-
-          assertIO(
-            graphVertexFetcher.fetchHeader(header),
-            Failures.NoCurrentHeaderVertexFailure(ByteVector(header.id.value.toByteArray)).asLeft[WrappedVertex]
-          )
-          assertIOBoolean(blockIdValue.value.sameElements(header.id.value.toByteArray).pure[F])
-        }
+    val orientGraphNoTx: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
+      override def getVertices(iKey: String, iValue: Object) = throw new IllegalStateException("boom!")
     }
+
+    PropF.forAllF { (header: BlockHeader) =>
+      withMock {
+        val res = for {
+          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          _ <- assertIO(
+            graphVertexFetcher.fetchHeader(header.id),
+            (Failures.NoCurrentHeaderVertexFailure(ByteVector(header.id.value.toByteArray)): Failure)
+              .asLeft[BlockHeader]
+          ).toResource
+        } yield ()
+
+        res.use_
+      }
+    }
+    orientGraphNoTx.shutdown()
   }
 
-  test("On current header vertex, said vertex should be returned") {
-    PropF.forAllF {
-      (
-        header: BlockHeader
-      ) =>
-        withMock {
-          val currentHeaderVertex = mock[WrappedVertex]
-          val blockIdValue = CaptureOne[Array[Byte]]()
-          (dbFacade
-            .getVertexByField[F](_: String, _: String, _: AnyRef)(_: Async[F]))
-            .expects(blockHeaderSchema.name, "blockId", capture(blockIdValue), *)
-            .returns(currentHeaderVertex.some.pure[F])
-            .once()
+  test("On fetchHeaderByHeight no current header vertex, a FailureMessage should be returned") {
 
-          assertIO(
-            graphVertexFetcher.fetchHeader(header),
-            currentHeaderVertex.asRight[Failure]
-          )
-          assertIOBoolean(blockIdValue.value.sameElements(header.id.value.toByteArray).pure[F])
-        }
+    val orientGraphNoTx: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
+      override def getVertices(iKey: String, iValue: Object) = throw new IllegalStateException("boom!")
     }
-  }
 
-  test("On no previous header vertex, a NoPreviousHeaderVertexFailure should be returned") {
-    PropF.forAllF {
-      (
-        header: BlockHeader
-      ) =>
-        withMock {
-          val blockIdValue = CaptureOne[Array[Byte]]()
-          (dbFacade
-            .getVertexByField[F](_: String, _: String, _: AnyRef)(_: Async[F]))
-            .expects(blockHeaderSchema.name, "blockId", capture(blockIdValue), *)
-            .returns(Option.empty[WrappedVertex].pure[F])
-            .once()
+    PropF.forAllF { (header: BlockHeader) =>
+      withMock {
+        val res = for {
+          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          _ <- assertIO(
+            graphVertexFetcher.fetchHeaderByHeight(header.height),
+            (Failures.FailureMessage(s"Block header wasn't found for BlockId.height=[${header.height}]"): Failure)
+              .asLeft[BlockHeader]
+          ).toResource
+        } yield ()
 
-          val parentHeaderId = header.parentHeaderId.value.toByteArray
-          assertIO(
-            graphVertexFetcher.fetchPreviousHeader(header),
-            Failures.NoPreviousHeaderVertexFailure(ByteVector(parentHeaderId)).asLeft[WrappedVertex]
-          )
-          assertIOBoolean(blockIdValue.value.sameElements(parentHeaderId).pure[F])
-        }
+        res.use_
+      }
     }
-  }
-
-  test("On previous header vertex, said vertex should be returned") {
-    PropF.forAllF {
-      (
-        header: BlockHeader
-      ) =>
-        withMock {
-          val previousHeaderVertex = mock[WrappedVertex]
-          val blockIdValue = CaptureOne[Array[Byte]]()
-          (dbFacade
-            .getVertexByField[F](_: String, _: String, _: AnyRef)(_: Async[F]))
-            .expects(blockHeaderSchema.name, "blockId", capture(blockIdValue), *)
-            .returns(previousHeaderVertex.some.pure[F])
-            .once()
-
-          val parentHeaderId = header.parentHeaderId.value.toByteArray
-          assertIO(
-            graphVertexFetcher.fetchPreviousHeader(header),
-            previousHeaderVertex.asRight[Failure]
-          )
-          assertIOBoolean(blockIdValue.value.sameElements(parentHeaderId).pure[F])
-        }
-    }
-  }
-
-  test("On no body vertex, a NoCurrentBodyVertexFailure should be returned") {
-    PropF.forAllF {
-      (
-        body:        BlockBody,
-        blockHeight: Long
-      ) =>
-        withMock {
-          (dbFacade
-            .getVertexByField[F](_: String, _: String, _: AnyRef)(_: Async[F]))
-            .expects(blockBodySchema.name, "transactionIds", *, *)
-            .returns(Option.empty[WrappedVertex].pure[F])
-            .once()
-
-          assertIO(
-            graphVertexFetcher.fetchBody(body, blockHeight),
-            Failures.NoCurrentBodyVertexFailure(ByteVector(body.toByteArray)).asLeft[WrappedVertex]
-          )
-        }
-    }
-  }
-
-  test("On body vertex, said body vertex should be returned") {
-    PropF.forAllF {
-      (
-        body:        BlockBody,
-        blockHeight: Long
-      ) =>
-        withMock {
-
-          val bodyVertex = mock[WrappedVertex]
-
-          (dbFacade
-            .getVertexByField[F](_: String, _: String, _: AnyRef)(_: Async[F]))
-            .expects(blockBodySchema.name, "transactionIds", *, *)
-            .returns(bodyVertex.some.pure[F])
-            .once()
-
-          assertIO(
-            graphVertexFetcher.fetchBody(body, blockHeight),
-            bodyVertex.asRight[Failure]
-          )
-        }
-    }
+    orientGraphNoTx.shutdown()
   }
 
 }

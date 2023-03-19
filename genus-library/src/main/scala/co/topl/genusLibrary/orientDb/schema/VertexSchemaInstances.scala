@@ -3,8 +3,8 @@ package co.topl.genusLibrary.orientDb.schema
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Evidence, Identifier, LockAddress, TransactionOutputAddress}
-import co.topl.codecs.bytes.tetra.instances.{blockHeaderAsBlockHeaderOps, ioTransactionAsIoTransactionOps}
-import co.topl.consensus.models.{BlockHeader, BlockId, EligibilityCertificate, OperationalCertificate}
+import co.topl.codecs.bytes.tetra.instances.{ioTransactionAsIoTransactionOps}
+import co.topl.consensus.models.{BlockHeader}
 import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
 import co.topl.node.models.BlockBody
@@ -19,6 +19,10 @@ object VertexSchemaInstances {
 
   trait Instances {
 
+    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = VertexSchemaBlockHeader.make()
+    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = VertexSchemaBlockBody.make()
+
+    // Note, From here to the end, VertexSchemas not tested
     /**
      * Schema for Address nodes
      */
@@ -58,101 +62,6 @@ object VertexSchemaInstances {
         _ => ()
       )
 
-    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] =
-      VertexSchema.create(
-        "BlockHeader",
-        GraphDataEncoder[BlockHeader]
-          .withProperty(
-            "blockId",
-            _.id.value.toByteArray,
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(byteArrayOrientDbTypes)
-          .withProperty(
-            "parentHeaderId",
-            _.parentHeaderId.value.toByteArray,
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(byteArrayOrientDbTypes)
-          .withProperty(
-            "parentSlot",
-            l => java.lang.Long.valueOf(l.parentSlot),
-            _.setReadonly(true)
-          )(longOrientDbTyped)
-          .withProperty(
-            "txRoot",
-            _.txRoot.toByteArray,
-            _.setReadonly(true)
-          )(byteArrayOrientDbTypes)
-          .withProperty(
-            "bloomFilter",
-            _.bloomFilter.toByteArray,
-            _.setReadonly(true)
-          )(byteArrayOrientDbTypes)
-          .withProperty(
-            "timestamp",
-            ts => java.lang.Long.valueOf(ts.timestamp),
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(longOrientDbTyped)
-          .withProperty(
-            "height",
-            ht => java.lang.Long.valueOf(ht.height),
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(longOrientDbTyped)
-          .withProperty(
-            "slot",
-            s => java.lang.Long.valueOf(s.slot),
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(longOrientDbTyped)
-          .withProperty(
-            "eligibilityCertificate",
-            e => e.eligibilityCertificate.toByteArray,
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(
-            byteArrayOrientDbTypes
-          )
-          .withProperty(
-            "operationalCertificate",
-            _.operationalCertificate.toByteArray,
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(
-            byteArrayOrientDbTypes
-          )
-          .withProperty(
-            "metadata",
-            _.metadata.toByteArray,
-            _.setNotNull(false).setReadonly(true).setMandatory(true)
-          )(byteArrayOrientDbTypes)
-          .withProperty(
-            "StakingAddress",
-            _.address.toByteArray,
-            _.setNotNull(true).setReadonly(true).setMandatory(true)
-          )(
-            byteArrayOrientDbTypes
-          )
-          .withIndex("blockHeaderIndex", INDEX_TYPE.UNIQUE, "blockId"),
-        v =>
-          BlockHeader(
-            BlockId(ByteString.copyFrom(v("parentHeaderId"): Array[Byte])),
-            v("parentSlot"),
-            v("txRoot"),
-            v("bloomFilter"),
-            v("timestamp"),
-            v("height"),
-            v("slot"),
-            EligibilityCertificate.parseFrom((v("eligibilityCertificate"))),
-            OperationalCertificate.parseFrom(v("operationalCertificate")),
-            v("metadata"),
-            v("StakingAddress")
-          )
-      )
-
-    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] =
-      VertexSchema.create(
-        "BlockBody",
-        GraphDataEncoder[BlockBody]
-          .withProperty("transactionIds", blockBody => blockBody.toByteArray, _ => {})(byteArrayOrientDbTypes),
-        // There is no index needed for block bodies. They are accessed thru links from block headers and transactions
-        v => BlockBody.parseFrom(v("transactionIds"))
-      )
 
     implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
       VertexSchema.create(

@@ -14,7 +14,13 @@ trait EdgeSchema {
 
 object EdgeSchemaInstances {
 
+  // Edge: blockHeader <--> blockHeader
   val blockHeaderEdgeSchema: EdgeSchema = new EdgeSchema {
     override def name: String = "BlockHeaderEdge"
+  }
+
+  // Edge: blockHeader <--> blockBody
+  val blockHeaderBodyEdgeSchema: EdgeSchema = new EdgeSchema {
+    override def name: String = "BlockHeaderBodyEdge"
   }
 }

@@ -1,5 +1,8 @@
 package co.topl.genusLibrary.orientDb.schema
 
+import com.tinkerpop.blueprints.Vertex
+import scala.jdk.CollectionConverters._
+
 /**
  * Describe how data from a scala class will be stored in an OrientDB vertex.
  */
@@ -35,6 +38,15 @@ trait VertexSchema[T] {
    * @return The instance of T constructed from the property values.
    */
   def decode(properties: Map[String, AnyRef]): T
+
+
+  /**
+   * Decode a  an OrientDB vertex to an instance of T
+   *
+   * @param v A vertex.
+   * @return The instance of T constructed from the property values.
+   */
+  def decodeVertex(v:Vertex): T = decode(v.getPropertyKeys.asScala.map(k => (k, v.getProperty(k))).toMap)
 }
 
 object VertexSchema {
