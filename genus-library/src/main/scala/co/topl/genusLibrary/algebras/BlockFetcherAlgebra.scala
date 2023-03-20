@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.genusLibrary.failure.Failure
-import co.topl.genusLibrary.model.HeightData
+import co.topl.genusLibrary.model.{GenusException, HeightData}
 
 /**
  * Fetcher of blocks on the chain.
@@ -14,6 +13,6 @@ trait BlockFetcherAlgebra[F[_]] {
    * @param height The height to lookup
    * @return the full block
    */
-  def fetch(height: Long): F[Either[Failure, HeightData]]
+  def fetch(height: Long): F[Either[GenusException, HeightData]]
 
 }

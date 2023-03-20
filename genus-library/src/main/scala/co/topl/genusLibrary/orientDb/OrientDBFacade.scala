@@ -3,7 +3,7 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.{Resource, Sync}
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
-import co.topl.genusLibrary.GenusException
+import co.topl.genusLibrary.model.GenusExceptions
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import java.io.File
 import org.typelevel.log4cats.Logger
@@ -17,7 +17,9 @@ object OrientDBFacade {
         .cond(
           directory.isDirectory || directory.mkdir(),
           Resource.unit[F],
-          GenusException(s"${directory.getAbsolutePath} exists but is not a directory, or it can not be created.")
+          GenusExceptions.FailureMessage(
+            s"${directory.getAbsolutePath} exists but is not a directory, or it can not be created."
+          )
         )
         .leftMap(e => println(e.getMessage))
         .valueOr(_ => Resource.canceled)

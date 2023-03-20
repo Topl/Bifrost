@@ -5,7 +5,7 @@ import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genusLibrary.failure.{Failure, Failures}
+import co.topl.genusLibrary.model.{GenusException, GenusExceptions}
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -33,7 +33,7 @@ class GraphVertexFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeader(header.id),
-            (Failures.NoCurrentHeaderVertexFailure(ByteVector(header.id.value.toByteArray)): Failure)
+            (GenusExceptions.NoCurrentHeaderVertex(ByteVector(header.id.value.toByteArray)): GenusException)
               .asLeft[BlockHeader]
           ).toResource
         } yield ()
@@ -56,7 +56,9 @@ class GraphVertexFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeaderByHeight(header.height),
-            (Failures.FailureMessage(s"Block header wasn't found for BlockId.height=[${header.height}]"): Failure)
+            (GenusExceptions.FailureMessage(
+              s"Block header wasn't found for BlockId.height=[${header.height}]"
+            ): GenusException)
               .asLeft[BlockHeader]
           ).toResource
         } yield ()

@@ -11,11 +11,8 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
-import co.topl.genusLibrary.failure.Failures.NoBlockBodyFoundOnNodeFailure
-import co.topl.genusLibrary.failure.Failures.NoBlockHeaderFoundOnNodeFailure
-import co.topl.genusLibrary.failure.Failures.NonExistentTransactionsFailure
-import co.topl.genusLibrary.model.BlockData
-import co.topl.genusLibrary.model.HeightData
+import co.topl.genusLibrary.model.GenusExceptions._
+import co.topl.genusLibrary.model.{BlockData, HeightData}
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import munit.CatsEffectSuite
@@ -56,9 +53,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
     }
   }
 
-  test(
-    "On a block without a header, a Left of NoBlockHeaderFoundOnNodeFailure should be returned"
-  ) {
+  test("On a block without a header, a Left of NoBlockHeaderFoundOnNode should be returned") {
     PropF.forAllF { (height: Long, blockId: BlockId) =>
       withMock {
 
@@ -76,7 +71,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           fetcher <- nodeBlockFetcher
           _ <- assertIO(
             fetcher fetch height,
-            NoBlockHeaderFoundOnNodeFailure(blockId).asLeft
+            NoBlockHeaderFoundOnNode(blockId).asLeft
           ).toResource
 
         } yield ()
@@ -86,9 +81,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
     }
   }
 
-  test(
-    "On a block without a body, a Left of NoBlockBodyFoundOnNodeFailure should be returned"
-  ) {
+  test("On a block without a body, a Left of NoBlockBodyFoundOnNode should be returned") {
     PropF.forAllF { (height: Long, blockId: BlockId, blockHeader: BlockHeader) =>
       withMock {
 
@@ -111,7 +104,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
           fetcher <- nodeBlockFetcher
           _ <- assertIO(
             fetcher fetch height,
-            NoBlockBodyFoundOnNodeFailure(blockId).asLeft
+            NoBlockBodyFoundOnNode(blockId).asLeft
           ).toResource
 
         } yield ()
@@ -123,7 +116,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
   test(
     "On a block with a transaction and missing it, " +
-    "a Left of NonExistentTransactionsFailure with that txId should be returned"
+    "a Left of NonExistentTransactions with that txId should be returned"
   ) {
     PropF.forAllF {
       (
@@ -160,7 +153,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher fetch height,
-              NonExistentTransactionsFailure(ListSet(transactionId)).asLeft
+              NonExistentTransactions(ListSet(transactionId)).asLeft
             ).toResource
 
           } yield ()
@@ -172,7 +165,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
   test(
     "On a block with three transactions and missing two of them, " +
-    "a Left of NonExistentTransactionsFailure with the missing txIds should be returned"
+    "a Left of NonExistentTransactions with the missing txIds should be returned"
   ) {
     PropF.forAllF {
       (
@@ -228,7 +221,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher fetch height,
-              NonExistentTransactionsFailure(
+              NonExistentTransactions(
                 ListSet(
                   transactionId_02,
                   transactionId_03
@@ -245,7 +238,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
   test(
     "On a block with three transactions and missing all of them, " +
-    "a Left of NonExistentTransactionsFailure with the missing txIds should be returned"
+    "a Left of NonExistentTransactions with the missing txIds should be returned"
   ) {
     PropF.forAllF {
       (
@@ -300,7 +293,7 @@ class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher fetch height,
-              NonExistentTransactionsFailure(
+              NonExistentTransactions(
                 ListSet(
                   transactionId_01,
                   transactionId_02,

@@ -3,8 +3,8 @@ package co.topl.genusLibrary.orientDb.schema
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Evidence, Identifier, LockAddress, TransactionOutputAddress}
-import co.topl.codecs.bytes.tetra.instances.{ioTransactionAsIoTransactionOps}
-import co.topl.consensus.models.{BlockHeader}
+import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
 import co.topl.node.models.BlockBody
@@ -61,7 +61,6 @@ object VertexSchemaInstances {
         GraphDataEncoder[Unit],
         _ => ()
       )
-
 
     implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
       VertexSchema.create(

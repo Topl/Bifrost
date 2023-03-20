@@ -7,11 +7,9 @@ import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction._
-import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
-import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.genusLibrary.model.{BlockData, HeightData}
+import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions, HeightData}
 import co.topl.node.models.BlockBody
 import fs2.Stream
 import scala.collection.immutable.ListSet
@@ -21,7 +19,7 @@ object NodeBlockFetcher {
   def make[F[_]: Async](toplRpc: ToplRpc[F, Stream[F, *]]): Resource[F, BlockFetcherAlgebra[F]] =
     Resource.pure {
       new BlockFetcherAlgebra[F] {
-        override def fetch(height: Long): F[Either[Failure, HeightData]] =
+        override def fetch(height: Long): F[Either[GenusException, HeightData]] =
           toplRpc
             .blockIdAtHeight(height)
             .flatMap {
@@ -33,7 +31,7 @@ object NodeBlockFetcher {
                 HeightData(
                   height = height,
                   blockData = Option.empty[BlockData]
-                ).asRight[Failure].pure[F]
+                ).asRight[GenusException].pure[F]
             }
       }
     }
@@ -42,38 +40,32 @@ object NodeBlockFetcher {
   private def fetchBlock[F[_]: Async](
     blockId: BlockId,
     toplRpc: ToplRpc[F, Stream[F, *]]
-  ): F[Either[Failure, BlockData]] = (
+  ): F[Either[GenusException, BlockData]] = (
     for {
-      header       <- EitherT(fetchBlockHeader(blockId, toplRpc))
-      body         <- EitherT(fetchBlockBody(blockId, toplRpc))
+      header <- EitherT(
+        toplRpc
+          .fetchBlockHeader(blockId)
+          .map(_.toRight[GenusException](GenusExceptions.NoBlockHeaderFoundOnNode(blockId)))
+      )
+
+      body <- EitherT(
+        toplRpc
+          .fetchBlockBody(blockId)
+          .map(_.toRight[GenusException](GenusExceptions.NoBlockBodyFoundOnNode(blockId)))
+      )
+
       transactions <- EitherT(fetchTransactions(body, toplRpc))
     } yield BlockData(header, body, transactions)
   ).value
 
-  private def fetchBlockHeader[F[_]: Async](
-    blockId: BlockId,
-    toplRpc: ToplRpc[F, Stream[F, *]]
-  ): F[Either[Failure, BlockHeader]] =
-    toplRpc
-      .fetchBlockHeader(blockId)
-      .map(_.toRight[Failure](Failures.NoBlockHeaderFoundOnNodeFailure(blockId)))
-
-  private def fetchBlockBody[F[_]: Async](
-    blockId: BlockId,
-    toplRpc: ToplRpc[F, Stream[F, *]]
-  ): F[Either[Failure, BlockBody]] =
-    toplRpc
-      .fetchBlockBody(blockId)
-      .map(_.toRight[Failure](Failures.NoBlockBodyFoundOnNodeFailure(blockId)))
-
   /*
    * If all transactions were retrieved correctly, then all transactions are returned.
-   * If one or more transactions is missing, then a failure listing all missing transactions is returned.
+   * If one or more transactions is missing, then a GenusException listing all missing transactions is returned.
    */
   private def fetchTransactions[F[_]: Async](
     body:    BlockBody,
     toplRpc: ToplRpc[F, Stream[F, *]]
-  ): F[Either[Failure, Chain[IoTransaction]]] =
+  ): F[Either[GenusException, Chain[IoTransaction]]] =
     body.transactionIds.toList.traverse(ioTx32 =>
       toplRpc
         .fetchTransaction(ioTx32)
@@ -86,8 +78,8 @@ object NodeBlockFetcher {
         case (Left(nonExistentTransactions), (ioTx32, None)) =>
           Left(nonExistentTransactions + ioTx32)
       }
-    } map [Either[Failure, Chain[IoTransaction]]] (_.left.map(
-      Failures.NonExistentTransactionsFailure
+    } map [Either[GenusException, Chain[IoTransaction]]] (_.left.map(
+      GenusExceptions.NonExistentTransactions
     ))
 
 }

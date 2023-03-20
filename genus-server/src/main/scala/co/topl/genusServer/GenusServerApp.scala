@@ -28,10 +28,12 @@ object GenusServerApp
       _ <- Logger[F].info("Welcome to Genus").toResource
       orientdb <- OrientDBFacade
         .make[F](appConfig.orientDbDirectory, appConfig.orientDbUser, appConfig.orientDbPassword)
-      dbTx           <- Resource.make(Async[F].delay(orientdb.getTx))(db => Async[F].delay(db.shutdown()))
+
+      dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => Async[F].delay(db.shutdown()))
+      dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => Async[F].delay(db.shutdown()))
 
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
-      vertexFetcher  <- GraphVertexFetcher.make[F](orientdb.getNoTx)
+      vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
 
       rpcInterpreter <- ToplGrpc.Client.make[F](appConfig.rpcNodeHost, appConfig.rpcNodePort, appConfig.rpcNodeTls)
       blockFetcher   <- NodeBlockFetcher.make(rpcInterpreter)

@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.orientDb
 
 import co.topl.consensus.models.{BlockHeader, BlockId}
-import co.topl.genusLibrary.failure.Failure
+import co.topl.genusLibrary.model.GenusException
 
 /**
  * Vertex finder on the stored Ledger
@@ -14,7 +14,7 @@ trait VertexFetcher[F[_]] {
    * @param header actual header to use to find the header vertex on the stored Ledger
    * @return header vertex
    */
-  def fetchHeader(blockId: BlockId): F[Either[Failure, BlockHeader]]
+  def fetchHeader(blockId: BlockId): F[Either[GenusException, BlockHeader]]
 
   /**
    * Fetch header given height on the stored Ledger
@@ -22,6 +22,6 @@ trait VertexFetcher[F[_]] {
    * @param height actual header height value
    * @return previous header vertex
    */
-  def fetchHeaderByHeight(height: Long): F[Either[Failure, BlockHeader]]
+  def fetchHeaderByHeight(height: Long): F[Either[GenusException, BlockHeader]]
 
 }

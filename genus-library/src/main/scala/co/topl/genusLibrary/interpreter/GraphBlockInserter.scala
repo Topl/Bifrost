@@ -2,9 +2,8 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.{Async, Resource}
 import cats.implicits._
-import co.topl.genusLibrary.algebras.HeaderInserter
-import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.genusLibrary.model.BlockData
+import co.topl.genusLibrary.algebras.BlockInserterAlgebra
+import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions}
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
@@ -14,11 +13,11 @@ import scala.util.Try
 
 object GraphBlockInserter {
 
-  def make[F[_]: Async](graph: OrientGraph): Resource[F, HeaderInserter[F]] =
+  def make[F[_]: Async](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
     Resource.pure(
-      new HeaderInserter[F] {
+      new BlockInserterAlgebra[F] {
 
-        override def insert(block: BlockData): F[Either[Failure, Unit]] =
+        override def insert(block: BlockData): F[Either[GenusException, Unit]] =
           Async[F].delay {
 
             // Genesis block
@@ -32,12 +31,11 @@ object GraphBlockInserter {
 
                 graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerVertex, bodyVertex, "body")
 
-
                 graph.commit()
               }.toEither
                 .leftMap { th =>
                   graph.rollback()
-                  Failures.FailureMessage(th.getMessage): Failure
+                  GenusExceptions.FailureMessage(th.getMessage): GenusException
                 }
             } else {
               Try {
@@ -49,7 +47,6 @@ object GraphBlockInserter {
 
                 graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerOutVertex, bodyVertex, "body")
 
-                // Lynk Parent Id
                 val headerInVertex = graph
                   .getVertices(Field.BlockId, block.header.parentHeaderId.value.toByteArray)
                   .iterator()
@@ -61,7 +58,7 @@ object GraphBlockInserter {
               }.toEither
                 .leftMap { th =>
                   graph.rollback()
-                  Failures.FailureMessage(th.getMessage): Failure
+                  GenusExceptions.FailureMessage(th.getMessage): GenusException
                 }
             }
           }

@@ -4,8 +4,7 @@ import cats.effect.{IO, Resource}
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.consensus.models.BlockHeader
-import co.topl.genusLibrary.failure.{Failure, Failures}
-import co.topl.genusLibrary.model.BlockData
+import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions}
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientEdge, OrientGraph, OrientVertex}
@@ -35,7 +34,7 @@ class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
         graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
           graphHeaderInserter.insert(blockData),
-          (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
+          (GenusExceptions.FailureMessage("boom!"): GenusException).asLeft[Unit]
         ).toResource
       } yield ()
       res.use_
@@ -56,7 +55,7 @@ class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
         graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
           graphHeaderInserter.insert(blockData),
-          ().asRight[Failure]
+          ().asRight[GenusException]
         ).toResource
       } yield ()
 
@@ -77,7 +76,7 @@ class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
           graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
-            (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
+            (GenusExceptions.FailureMessage("boom!"): GenusException).asLeft[Unit]
           ).toResource
         } yield ()
         res.use_
@@ -107,7 +106,7 @@ class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
           graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
-            ().asRight[Failure]
+            ().asRight[GenusException]
           ).toResource
         } yield ()
         res.use_
@@ -135,7 +134,7 @@ class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
           graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
-            (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
+            (GenusExceptions.FailureMessage("boom!"): GenusException).asLeft[Unit]
           ).toResource
         } yield ()
         res.use_

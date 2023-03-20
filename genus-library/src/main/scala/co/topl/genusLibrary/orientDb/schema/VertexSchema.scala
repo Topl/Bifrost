@@ -39,14 +39,13 @@ trait VertexSchema[T] {
    */
   def decode(properties: Map[String, AnyRef]): T
 
-
   /**
    * Decode a  an OrientDB vertex to an instance of T
    *
    * @param v A vertex.
    * @return The instance of T constructed from the property values.
    */
-  def decodeVertex(v:Vertex): T = decode(v.getPropertyKeys.asScala.map(k => (k, v.getProperty(k))).toMap)
+  def decodeVertex(v: Vertex): T = decode(v.getPropertyKeys.asScala.map(k => (k, v.getProperty(k))).toMap)
 }
 
 object VertexSchema {
@@ -55,7 +54,7 @@ object VertexSchema {
     def apply[T](name: String): T = properties(name).asInstanceOf[T]
   }
 
-  def create[T](schemaName: String, encoder: GraphDataEncoder[T], decoder: DecodeHelper => T): VertexSchema[T] = {
+  def create[T](schemaName: String, encoder: GraphDataEncoder[T], decoder: DecodeHelper => T): VertexSchema[T] =
     new VertexSchema[T] {
       def name: String = schemaName
 
@@ -67,5 +66,4 @@ object VertexSchema {
 
       val indices: Set[Index] = encoder.indices
     }
-  }
 }
