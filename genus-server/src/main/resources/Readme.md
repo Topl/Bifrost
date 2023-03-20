@@ -8,6 +8,10 @@
 - Genus uses an instance of OrientDB as a database to store its ledger, embedded OrientDB Server [Embedded-Server](https://orientdb.org/docs/3.0.x/internals/Embedded-Server.html)
 - 
 
+### Requirements:
+
+- Genus service depends on Bifrost Node Rpc, settings could be found on RPC/gRPC bifrost-node resources folder.
+
 ### Optional Requirements:
 
 #### OrientDB Studio: 
@@ -49,9 +53,19 @@ orientdb {db=genus_db}> select from BlockHeader order by height limit 40
 
 ### Know issues
 
+- Locked db, Orient db does not allow multiple tools, (console, studio, ..) at the same time
+
+```
 Error: com.orientechnologies.orient.core.exception.OStorageException: Cannot open local storage '/tmp/databases/demo' with mode=rw
 com.orientechnologies.common.concur.lock.OLockException: File '/tmp/databases/demo/default.0.oda' is locked by another process, maybe the database is in use by another process. Use the remote mode with a OrientDB server to allow multiple access to the same database
 Both errors have the same meaning: a "plocal" database can't be opened by multiple JVM at the same time. To fix:
-
 check if there's no process using OrientDB (most of the times a OrientDB Server is running in the background). Just shutdown that server and retry
 if you need multiple access to the same database, don't use "plocal" directly, but rather start a server and access to the database by using "remote" protocol. In this way the server is able to share the same database with multiple clients.
+```
+
+- Admin Password warning
+
+ > IMPORTANT! Using default password is unsafe, please change password for user 'admin' on database 'genus_db' [OrientDBDistributed]
+
+More info  https://orientdb.org/docs/1.7.8/orientdb.wiki/Security.html
+

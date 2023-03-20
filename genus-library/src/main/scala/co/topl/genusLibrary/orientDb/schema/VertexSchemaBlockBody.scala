@@ -16,9 +16,9 @@ object VertexSchemaBlockBody {
   def make(): VertexSchema[BlockBody] = VertexSchema.create(
     "BlockBody",
     GraphDataEncoder[BlockBody]
-      .withProperty(Field.TransactionIds, blockBody => blockBody.toByteArray, _ => {}),
+      .withProperty(Field.TransactionIds, blockBody => blockBody.toByteArray, _ => {})
     // There is no index needed for block bodies. They are accessed thru links from block headers and transactions
-
+    ,
     v => BlockBody.parseFrom(v(Field.TransactionIds): Array[Byte])
   )
 

@@ -15,9 +15,10 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
-class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -31,7 +32,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       val res = for {
         blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+        graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
           graphHeaderInserter.insert(blockData),
           (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
@@ -45,13 +46,14 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
   test("Insert genesis block, should work, if we add the vertex") {
 
     val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      @nowarn
       override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
     }
 
     PropF.forAllF { blockHeader: BlockHeader =>
       val res = for {
         blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+        graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
           graphHeaderInserter.insert(blockData),
           ().asRight[Failure]
@@ -72,7 +74,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       withMock {
         val res = for {
           blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
             (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]
@@ -88,8 +90,8 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
   test("Insert no genesis block, should work, if we add the vertex and the edge") {
 
     val orientGraph: OrientGraph = new OrientGraph("memory:test") {
-      override def addVertex(id: Object, prop: AnyRef*): OrientVertex =
-        new OrientVertex()
+      @nowarn
+      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
 
       override def getVertices(id: String, prop: Object): lang.Iterable[Vertex] =
         Iterable(new OrientVertex(): Vertex).asJava
@@ -102,7 +104,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       withMock {
         val res = for {
           blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
             ().asRight[Failure]
@@ -116,6 +118,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
 
   test("Insert no genesis block, should fail, if we add the vertex but no the edge") {
     val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+      @nowarn
       override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
 
       override def getVertices(id: String, prop: Object): lang.Iterable[Vertex] =
@@ -129,7 +132,7 @@ class GraphHeaderInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       withMock {
         val res = for {
           blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphHeaderInserter.make[F](orientGraph)
+          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
             (Failures.FailureMessage("boom!"): Failure).asLeft[Unit]

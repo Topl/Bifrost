@@ -29,33 +29,29 @@ object GenusServerApp
       orientdb <- OrientDBFacade
         .make[F](appConfig.orientDbDirectory, appConfig.orientDbUser, appConfig.orientDbPassword)
       dbTx           <- Resource.make(Async[F].delay(orientdb.getTx))(db => Async[F].delay(db.shutdown()))
-      headerInserter <- GraphHeaderInserter.make[F](dbTx)
-      vertexFetcher  <- GraphVertexFetcher.make[F](orientdb.getNoTx)
 
-//      bodyInserter <-  Resource.pure(new GraphBodyInserter[F]()) // TODO, this is not implemented
-//      txInserter <-  Resource.pure(new GraphTxInserter[F])) // TODO, this is not implemented
-      graphBlockInserter <- Resource.pure(new GraphBlockInserter[F](headerInserter, null, null))
+      graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
+      vertexFetcher  <- GraphVertexFetcher.make[F](orientdb.getNoTx)
 
       rpcInterpreter <- ToplGrpc.Client.make[F](appConfig.rpcNodeHost, appConfig.rpcNodePort, appConfig.rpcNodeTls)
       blockFetcher   <- NodeBlockFetcher.make(rpcInterpreter)
       blockSequenceFetcher <- NodeBlockSequenceFetcher.make(blockFetcher)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
-//      inserter <- blockSequenceFetcher
-//        .fetch(1, 100)
-//        .map(_.spaced(50 millis))
-//        .map(
-//          _.evalMap(graphBlockInserter.insert)
-//            .evalTap(res => Logger[F].info(res.leftMap(_.toString).swap.getOrElse("OK")))
-//        )
-//        .toResource
-//
-//      _ <- inserter
-//        .take(10)
-//        .map(res => println(res.leftMap(_.toString).swap.getOrElse("OK")))
-//        .compile
-//        .toList
-//        .toResource
+      inserter <- blockSequenceFetcher
+        .fetch(1, 100)
+        .map(_.spaced(50 millis))
+        .map(
+          _.evalMap(graphBlockInserter.insert)
+            .evalTap(res => Logger[F].info(res.leftMap(_.toString).swap.getOrElse("OK")))
+        )
+        .toResource
+
+      _ <- inserter
+        .take(50)
+        .compile
+        .toList
+        .toResource
 
       _ <- GenusFullBlockGrpc.Server
         .serve(appConfig.rpcHost, appConfig.rpcPort, vertexFetcher)
