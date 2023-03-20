@@ -5,7 +5,7 @@ import cats.effect.implicits.effectResourceOps
 import cats.syntax.all._
 import co.topl.common.application.IOBaseApp
 import co.topl.genusLibrary.interpreter._
-import co.topl.genusLibrary.orientDb.{GraphVertexFetcher, OrientDBFacade}
+import co.topl.genusLibrary.orientDb.OrientDBFactory
 import co.topl.grpc.ToplGrpc
 import org.typelevel.log4cats._
 import org.typelevel.log4cats.slf4j._
@@ -26,7 +26,7 @@ object GenusServerApp
   private def applicationResource: Resource[F, Unit] =
     for {
       _ <- Logger[F].info("Welcome to Genus").toResource
-      orientdb <- OrientDBFacade
+      orientdb <- OrientDBFactory
         .make[F](appConfig.orientDbDirectory, appConfig.orientDbUser, appConfig.orientDbPassword)
 
       dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => Async[F].delay(db.shutdown()))

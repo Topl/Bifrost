@@ -1,4 +1,4 @@
-package co.topl.genusLibrary.orientDb
+package co.topl.genusLibrary.algebras
 
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.genusLibrary.model.GenusException
@@ -7,7 +7,7 @@ import co.topl.genusLibrary.model.GenusException
  * Vertex finder on the stored Ledger
  * @tparam F the effect-ful context to retrieve the value in
  */
-trait VertexFetcher[F[_]] {
+trait VertexFetcherAlgebra[F[_]] {
 
   /**
    * Fetch header on the stored Ledger

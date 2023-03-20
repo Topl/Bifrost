@@ -9,9 +9,15 @@ package co.topl.genusLibrary.orientDb {
   import org.typelevel.log4cats.Logger
   import scala.util.Try
 
-  object GenusGraphMetadata {
+  /**
+   * Metadata Factory which has control over the following actions
+   *
+   * - create vertices and edges for all schema
+   * - Accessible on Orientdb scope, but not exposed to other packages of Genus Services
+   */
+  object OrientDBMetadataFactory {
 
-    def make[F[_]: Sync: Logger](graphNoTx: OrientGraphNoTx): F[Unit] =
+    private[orientDb] def make[F[_]: Sync: Logger](graphNoTx: OrientGraphNoTx): F[Unit] =
       for {
         implicit0(g: OrientGraphNoTx) <- graphNoTx.pure[F]
 

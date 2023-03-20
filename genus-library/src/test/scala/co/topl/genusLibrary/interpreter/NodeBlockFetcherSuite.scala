@@ -22,7 +22,7 @@ import org.scalamock.munit.AsyncMockFactory
 import fs2._
 import scala.collection.immutable.ListSet
 
-class NodeBlockFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 

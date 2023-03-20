@@ -8,7 +8,14 @@ import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import java.io.File
 import org.typelevel.log4cats.Logger
 
-object OrientDBFacade {
+/**
+ * DB Factory which has control over the following actions
+ *
+ * - Database file system validation and creation
+ * - Create if not exist database metadata
+ * - Be the entry point for Genus Service
+ */
+object OrientDBFactory {
 
   def make[F[_]: Sync: Logger](directoryPath: String, user: String, password: String): Resource[F, OrientGraphFactory] =
     for {
@@ -32,7 +39,7 @@ object OrientDBFacade {
       )(factory => Sync[F].delay(factory.close()))
 
       // Create if not exits Metadata describing the schema used for the Genus graph in OrientDB
-      _ <- GenusGraphMetadata.make(orientGraphFactory.getNoTx).toResource.void
+      _ <- OrientDBMetadataFactory.make(orientGraphFactory.getNoTx).toResource.void
 
     } yield orientGraphFactory
 }

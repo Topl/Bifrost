@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.model
 
-class GenusExceptionTest extends munit.FunSuite {
+class GenusExceptionSuite extends munit.FunSuite {
   val msg = "eieio"
   val cause = new RuntimeException()
 

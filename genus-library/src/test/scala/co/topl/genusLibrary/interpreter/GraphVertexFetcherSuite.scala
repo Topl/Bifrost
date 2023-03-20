@@ -1,4 +1,4 @@
-package co.topl.genusLibrary.orientDb
+package co.topl.genusLibrary.interpreter
 
 import cats.effect.IO
 import cats.effect.implicits.effectResourceOps
@@ -15,7 +15,7 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scodec.bits.ByteVector
 
-class GraphVertexFetcherSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 

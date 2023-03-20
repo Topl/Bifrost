@@ -1,23 +1,23 @@
-package co.topl.genusLibrary.orientDb
+package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GenusException, GenusExceptions}
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
-import org.typelevel.log4cats.Logger
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 import scodec.bits.ByteVector
 
 object GraphVertexFetcher {
 
-  def make[F[_]: Async: Logger](orientGraph: OrientGraphNoTx): Resource[F, VertexFetcher[F]] =
+  def make[F[_]: Async](orientGraph: OrientGraphNoTx): Resource[F, VertexFetcherAlgebra[F]] =
     Resource.pure {
-      new VertexFetcher[F] {
+      new VertexFetcherAlgebra[F] {
         override def fetchHeader(blockId: BlockId): F[Either[GenusException, BlockHeader]] =
           Async[F].delay(
             Try(orientGraph.getVertices(Field.BlockId, blockId.value.toByteArray).asScala.head).toEither

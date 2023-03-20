@@ -6,7 +6,7 @@ import cats.effect.kernel.Resource
 import cats.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services._
-import co.topl.genusLibrary.orientDb.VertexFetcher
+import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import fs2.grpc.syntax.all._
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
@@ -18,7 +18,7 @@ object GenusFullBlockGrpc {
 
   object Server {
 
-    def serve[F[_]: Async](host: String, port: Int, vertexFetcher: VertexFetcher[F]): Resource[F, Server] =
+    def serve[F[_]: Async](host: String, port: Int, vertexFetcher: VertexFetcherAlgebra[F]): Resource[F, Server] =
       GenusFullBlockServiceFs2Grpc
         .bindServiceResource(
           new GrpcServerImpl(vertexFetcher)
@@ -32,7 +32,7 @@ object GenusFullBlockGrpc {
             .evalMap(server => Async[F].delay(server.start()))
         )
 
-    private class GrpcServerImpl[F[_]: Async](vertexFetcher: VertexFetcher[F])
+    private class GrpcServerImpl[F[_]: Async](vertexFetcher: VertexFetcherAlgebra[F])
         extends GenusFullBlockServiceFs2Grpc[F, Metadata] {
 
       override def getBlockById(request: GetBlockByIdRequest, ctx: Metadata): F[BlockResponse] =

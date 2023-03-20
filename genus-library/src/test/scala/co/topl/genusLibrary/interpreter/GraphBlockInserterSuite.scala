@@ -17,7 +17,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
-class GraphBlockInserterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
