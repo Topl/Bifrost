@@ -22,7 +22,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.4",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.7",
     catsSlf4j
   )
 
@@ -128,7 +128,7 @@ object Dependencies {
   )
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.8.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.9.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
