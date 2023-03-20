@@ -6,7 +6,7 @@ import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.TransactionSyntaxError
 
-trait BodySyntaxError
+sealed trait BodySyntaxError
 
 object BodySyntaxErrors {
 

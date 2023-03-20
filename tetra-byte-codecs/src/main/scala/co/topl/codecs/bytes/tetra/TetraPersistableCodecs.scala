@@ -1,6 +1,5 @@
 package co.topl.codecs.bytes.tetra
 
-import cats.data.NonEmptyChain
 import cats.data.NonEmptySet
 import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
@@ -11,6 +10,7 @@ import com.google.protobuf.ByteString
 import scalapb.GeneratedMessage
 import scalapb.GeneratedMessageCompanion
 
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 trait TetraPersistableCodecs {
@@ -27,7 +27,7 @@ trait TetraPersistableCodecs {
 
   implicit val persistableTransactionOutputIndices: Persistable[NonEmptySet[Short]] =
     Persistable.instanceFromCodec(
-      nonEmptyChainCodec[Short].xmap(_.toNes, s => NonEmptyChain.fromNonEmptyList(s.toNonEmptyList))
+      seqCodec[Short].xmap(s => NonEmptySet.fromSetUnsafe(SortedSet.from(s)), _.toList)
     )
 
   implicit val persistableLong: Persistable[Long] =

@@ -9,8 +9,8 @@ object Dependencies {
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.4.8"
   val fs2Version = "3.6.1"
-  val logback = "1.4.5"
-  val orientDbVersion = "3.2.16"
+  val logback = "1.4.6"
+  val orientDbVersion = "3.2.17"
   val protobufSpecsVersion = "76af295" // scala-steward:off
   val bramblScVersion = "7a4db31" // scala-steward:off
   val quivr4sVersion = "ad5d05e" // scala-steward:off
@@ -127,7 +127,10 @@ object Dependencies {
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
   )
 
-  val protobufSpecsGenus = "com.github.Topl" % "protobuf-specs" % "5991445" // TODO Remove
+  val protobufSpecsGenus = "com.github.Topl" % "protobuf-specs" % "5991445"
+
+  // For NTP-UDP
+  val commonsNet = "commons-net" % "commons-net" % "3.8.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -162,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.20.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.20.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -231,12 +234,13 @@ object Dependencies {
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++
-    Seq(
-      catsSlf4j % "test"
-    ) ++
     cats ++
     catsEffect ++
-    scalacache
+    scalacache ++
+    Seq(
+      commonsNet,
+      catsSlf4j % Test
+    )
 
   lazy val byteCodecs: Seq[sbt.ModuleID] =
     test ++

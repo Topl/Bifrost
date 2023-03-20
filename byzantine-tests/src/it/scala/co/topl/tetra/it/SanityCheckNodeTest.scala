@@ -12,7 +12,7 @@ class SanityCheckNodeTest extends IntegrationSuite {
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]
         implicit0(dockerClient: DockerClient) = _dockerClient
-        node1       <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", DefaultConfig())
+        node1       <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", TestNodeConfig().yaml)
         _           <- node1.startContainer[F].toResource
         node1Client <- node1.rpcClient[F]
         _           <- node1Client.waitForRpcStartUp.toResource

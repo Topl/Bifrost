@@ -32,7 +32,8 @@ object ApplicationConfig {
     mempool:   Bifrost.Mempool,
     bigBang:   Bifrost.BigBang,
     protocols: Map[Slot, Bifrost.Protocol],
-    cache:     Bifrost.Cache
+    cache:     Bifrost.Cache,
+    ntp:       Bifrost.Ntp
   )
 
   object Bifrost {
@@ -66,6 +67,7 @@ object ApplicationConfig {
       case class Private(
         timestamp:        Long = System.currentTimeMillis() + 5_000L,
         stakerCount:      Int,
+        stakes:           Option[List[BigInt]],
         localStakerIndex: Option[Int]
       ) extends BigBang
     }
@@ -117,6 +119,9 @@ object ApplicationConfig {
       @Lenses
       case class CacheConfig(maximumEntries: Long, ttl: Option[FiniteDuration])
     }
+
+    @Lenses
+    case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
   }
 
   /**
@@ -149,9 +154,9 @@ object ApplicationConfig {
         simpleArgApplications.bifrost.bigBang match {
           case p: Bifrost.BigBangs.Private =>
             p.copy(
-              cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
-              cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
-              cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
+              timestamp = cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
+              stakerCount = cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
+              localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
             )
         }
       genLens(_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
@@ -159,6 +164,9 @@ object ApplicationConfig {
       simpleArgApplications
     }
   }
+
+  implicit val bigIntConfigReader: ConfigReader[BigInt] =
+    ConfigReader.fromNonEmptyStringTry(str => Try(BigInt(str)))
 
   implicit val ratioConfigReader: ConfigReader[Ratio] =
     ConfigReader.fromNonEmptyStringTry { str =>

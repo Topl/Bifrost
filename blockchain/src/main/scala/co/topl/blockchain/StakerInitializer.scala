@@ -1,13 +1,11 @@
 package co.topl.blockchain
 
-import cats.data.Chain
 import cats.implicits._
 import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.consensus.models.CryptoConsensusMorphismInstances.signatureKesProductIsomorphism
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
@@ -48,15 +46,8 @@ object StakerInitializers {
     val vrfVK: Bytes = ByteString.copyFrom(Ed25519VRF.precomputed().getVerificationKey(vrfSK.toByteArray))
     val operatorVK: Bytes = new Ed25519().getVerificationKey(operatorSK)
 
-    val registration =
-      new KesProduct()
-        .sign(
-          kesSK,
-          new Blake2b256().hash(vrfVK, operatorVK).toArray
-        )
-        .toF[cats.Id, SignatureKesProduct]
-        .toOption
-        .get
+    val registration: SignatureKesProduct =
+      new KesProduct().sign(kesSK, new Blake2b256().hash(vrfVK, operatorVK).toArray)
 
     val stakingAddress: StakingAddress =
       StakingAddress(new Ed25519().getVerificationKey(operatorSK))
@@ -95,10 +86,10 @@ object StakerInitializers {
     /**
      * This staker's initial stake in the network
      */
-    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): Chain[UnspentTransactionOutput] = {
+    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): List[UnspentTransactionOutput] = {
       val toplValue = Value().withTopl(Value.TOPL(stake, stakingAddress.some))
       val registrationValue = Value().withRegistration(Value.Registration(registration, stakingAddress))
-      Chain(
+      List(
         UnspentTransactionOutput(lockAddress, toplValue),
         UnspentTransactionOutput(lockAddress, registrationValue)
       )

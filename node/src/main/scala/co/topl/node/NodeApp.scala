@@ -10,7 +10,6 @@ import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{SlotData, VrfConfig}
@@ -86,7 +85,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         .delay(
           PrivateTestnet.config(
             privateBigBang.timestamp,
-            stakerInitializers
+            stakerInitializers,
+            privateBigBang.stakes
           )
         )
         .toResource
@@ -135,11 +135,15 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         bigBangProtocol.vrfBaselineDifficulty,
         bigBangProtocol.vrfAmplitude
       )
-      clock = SchedulerClock.Eval.make[F](
+      ntpClockSkewer <- NtpClockSkewer
+        .make[F](appConfig.bifrost.ntp.server, appConfig.bifrost.ntp.refreshInterval, appConfig.bifrost.ntp.timeout)
+      clock <- SchedulerClock.make[F](
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
+        bigBangProtocol.operationalPeriodLength,
         Instant.ofEpochMilli(bigBangBlock.header.timestamp),
-        bigBangProtocol.forwardBiasedSlotWindow
+        bigBangProtocol.forwardBiasedSlotWindow,
+        ntpClockSkewer
       )
       _ <- Resource.eval(
         clock.globalSlot.flatMap(globalSlot =>

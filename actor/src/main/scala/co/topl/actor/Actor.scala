@@ -64,7 +64,7 @@ trait Actor[F[_], I, O] {
    */
   def moveActor[I2, O2](actor: Actor[F, I2, O2]): F[Unit]
 
-  type FinalizeFiber = Fiber[F, Throwable, Unit]
+  type FinalizeFiber[T[_]] = Fiber[T, Throwable, Unit]
 
   /**
    * Try to shutdown child actor by calling finalize function for that actor if incoming messages queue is empty.
@@ -76,7 +76,7 @@ trait Actor[F[_], I, O] {
    * @tparam O2 type of output parameter for child actor
    * @return fin
    */
-  def releaseActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber]
+  def releaseActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber[F]]
 }
 
 case class ActorDeadException(msg: String) extends Exception(msg)
@@ -152,7 +152,7 @@ object Actor {
           } yield finalizer
         }
 
-        override def releaseActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber] =
+        override def releaseActor[I2, O2](actor: Actor[F, I2, O2])(implicit t: Temporal[F]): F[FinalizeFiber[F]] =
           actor.gracefulShutdown(moveActor(actor))
       }
       _ <- actorRef.complete(actor).toResource

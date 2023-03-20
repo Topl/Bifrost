@@ -17,5 +17,5 @@ case class BestChain(slotData: NonEmptyChain[SlotData]) {
   def isLastId(id: BlockId): Boolean = lastId === id
 
   def isExtendedBy(extensionChain: NonEmptyChain[SlotData]): Boolean =
-    extensionChain.contains(last)
+    extensionChain.head.parentSlotId == last.slotId || extensionChain.contains(last)
 }
