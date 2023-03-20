@@ -45,7 +45,7 @@ object Staking {
             for {
               eta           <- OptionT.liftF(etaCalculation.etaToBe(parentSlotId, slot))
               relativeStake <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
-              threshold <- OptionT.liftF(leaderElectionValidation.getThreshold(relativeStake, parentSlotId.slot - slot))
+              threshold <- OptionT.liftF(leaderElectionValidation.getThreshold(relativeStake, slot - parentSlotId.slot))
               testProof <- OptionT.liftF(vrfCalculator.proofForSlot(slot, eta))
               rho       <- OptionT.liftF(vrfCalculator.rhoForSlot(slot, eta))
               isLeader  <- OptionT.liftF(leaderElectionValidation.isSlotLeaderForThreshold(threshold)(rho))
