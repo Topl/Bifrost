@@ -10,7 +10,8 @@
         <appender-ref ref="STDOUT" />
     </appender>
 
-    <logger name="co.topl" level="INFO" />
+    <logger name="co.topl" level="DEBUG" />
+    <logger name="Bifrost" level="DEBUG" />
 
     <root level="INFO">
         <appender-ref ref="STDOUT" />
