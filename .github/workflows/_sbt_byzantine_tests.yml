@@ -67,9 +67,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Scala Integration Test Results (Java ${{ matrix.java }})
+          name: Scala Byzantine Test Results (Java ${{ matrix.java }})
           path: byzantine-tests/target/it-reports/*.xml
-
+      - name: Upload Test Logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Scala Byzantine Test Logs (Java ${{ matrix.java }})
+          path: byzantine-tests/target/logs/*.log
       - name: Cleanup before cache
         shell: bash
         run: |

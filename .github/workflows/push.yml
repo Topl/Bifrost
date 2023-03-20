@@ -22,6 +22,9 @@ jobs:
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true
+  publish-test-results:
+    uses: ./.github/workflows/_publish_test_results.yml
+    needs: [sbt-build, sbt-integration-tests, sbt-byzantine-tests]
   build-jar:
     uses: ./.github/workflows/_sbt_jar.yml
     needs: [sbt-build]
