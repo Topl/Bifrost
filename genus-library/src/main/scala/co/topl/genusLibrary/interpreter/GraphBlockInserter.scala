@@ -1,11 +1,11 @@
 package co.topl.genusLibrary.interpreter
 
-import cats.effect.{Async, Resource}
+import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
 import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions}
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.schema.VertexSchemaBlockHeader.Field
+import co.topl.genusLibrary.orientDb.schema.BlockHeaderVertexSchema.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
 import scala.jdk.CollectionConverters._
@@ -13,12 +13,12 @@ import scala.util.Try
 
 object GraphBlockInserter {
 
-  def make[F[_]: Async](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
+  def make[F[_]: Sync](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
     Resource.pure(
       new BlockInserterAlgebra[F] {
 
         override def insert(block: BlockData): F[Either[GenusException, Unit]] =
-          Async[F].delay {
+          Sync[F].blocking {
 
             // Genesis block
             if (block.header.height == 1) {

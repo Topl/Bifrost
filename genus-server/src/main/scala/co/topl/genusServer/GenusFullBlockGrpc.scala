@@ -38,14 +38,26 @@ object GenusFullBlockGrpc {
       override def getBlockById(request: GetBlockByIdRequest, ctx: Metadata): F[BlockResponse] =
         for {
           header <- EitherT(vertexFetcher.fetchHeader(request.blockId))
-            .fold(_ => BlockHeader.defaultInstance, identity)
+            .fold(
+              _ => BlockHeader.defaultInstance, // TODO return None
+              {
+                case Some(blockHeader) => blockHeader
+                case None              => BlockHeader.defaultInstance // TODO return None
+              }
+            )
           response = BlockResponse.of(FullBlock.of(header, fullBody = FullBlockBody.defaultInstance))
         } yield response
 
       override def getBlockByHeight(request: GetBlockByHeightRequest, ctx: Metadata): F[BlockResponse] =
         for {
           header <- EitherT(vertexFetcher.fetchHeaderByHeight(request.height.value))
-            .fold(_ => BlockHeader.defaultInstance, identity)
+            .fold(
+              _ => BlockHeader.defaultInstance, // TODO return None
+              {
+                case Some(blockHeader) => blockHeader
+                case None              => BlockHeader.defaultInstance // TODO return None
+              }
+            )
           response = BlockResponse.of(FullBlock.of(header, fullBody = FullBlockBody.defaultInstance))
         } yield response
 

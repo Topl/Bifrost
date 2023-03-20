@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
-import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
-import com.orientechnologies.orient.core.metadata.schema.OPropertyAbstractDelegate
+import com.orientechnologies.orient.core.metadata.schema.{OClass, OPropertyAbstractDelegate, OType}
 
 /**
  * Describes how instances of a Scala class will be represented as a type of Vertex or edge with properties
@@ -15,7 +14,8 @@ import com.orientechnologies.orient.core.metadata.schema.OPropertyAbstractDelega
 case class GraphDataEncoder[T] private (
   encode:     T => Map[String, AnyRef],
   properties: Set[Property],
-  indices:    Set[Index]
+  indices:    Set[Index],
+  links:      Set[Link]
 ) {
 
   /**
@@ -33,27 +33,33 @@ case class GraphDataEncoder[T] private (
     propertyAttributeSetter: OPropertyAbstractDelegate => Unit
   ): GraphDataEncoder[T] =
     copy(
-      t => encode(t).updated(name, extract(t)),
-      properties.incl(Property(name, OrientDbTyped[V].oType, propertyAttributeSetter)),
-      this.indices
+      encode = t => encode(t).updated(name, extract(t)),
+      properties = properties.incl(Property(name, OrientDbTyped[V].oType, propertyAttributeSetter))
     )
 
   /**
    * Describe an index on the vertex or edge.
    *
    * @param name The name of the index
-   * @param indexType The type of index (INDEX_TYPE.UNIQUE, INDEX_TYPE.NOTUNIQUE, ...)
    * @param propertyNames the names of the properties whose values will be included in the index.
    * @return the updated GraphDataEncoder
    */
-  def withIndex(name: String, indexType: INDEX_TYPE, propertyNames: String*): GraphDataEncoder[T] =
-    copy(
-      encode,
-      properties,
-      this.indices + Index(name, indexType, propertyNames: _*)
-    )
+
+  def withIndex[V <: AnyRef: OrientDbIndexable](name: String, propertyNames: String*): GraphDataEncoder[T] =
+    copy(indices = indices + Index(name, OrientDbIndexable[V].indexType, propertyNames: _*))
+
+  /**
+   * Describe an Link on the vertex
+   *
+   * @param propertyName Defines the property to link from.
+   * @param linkType Defines the type for the link. In the event of an inverse relationship, (the most common), you can specify LINKSET or LINKLIST for 1-n relationships.
+   * @param linkedClass Defines the class to link to.
+   * @return the updated GraphDataEncoder
+   */
+  def withLink(propertyName: String, linkType: OType, linkedClass: OClass): GraphDataEncoder[T] =
+    copy(links = links + Link(propertyName, linkType, linkedClass))
 }
 
 object GraphDataEncoder {
-  def apply[T]: GraphDataEncoder[T] = GraphDataEncoder(_ => Map.empty, Set.empty, Set.empty)
+  def apply[T]: GraphDataEncoder[T] = GraphDataEncoder(_ => Map.empty, Set.empty, Set.empty, Set.empty)
 }

@@ -2,11 +2,11 @@ package co.topl.genusLibrary.orientDb.schema
 
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models._
+import co.topl.genusLibrary.orientDb.schema.OrientDbIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
 import com.google.protobuf.ByteString
-import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 
-object VertexSchemaBlockHeader {
+object BlockHeaderVertexSchema {
 
   /**
    * Names should be aligned with BlockHeader model fields:
@@ -44,7 +44,7 @@ object VertexSchemaBlockHeader {
       .withProperty(Field.OperationalCertificate,_.operationalCertificate.toByteArray,_.setNotNull(true).setReadonly(true).setMandatory(true))
       .withProperty(Field.Metadata,_.metadata.toByteArray,_.setNotNull(false).setReadonly(true).setMandatory(true))
       .withProperty(Field.Address,_.address.toByteArray,_.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withIndex(Field.BlockHeaderIndex, INDEX_TYPE.UNIQUE, Field.BlockId),
+      .withIndex(Field.BlockHeaderIndex, Field.BlockId),
       // @formatter:on
     v =>
       BlockHeader(

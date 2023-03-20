@@ -49,6 +49,11 @@ package co.topl.genusLibrary.orientDb {
                 vertexSchema.indices.foreach(index =>
                   vertexType.createIndex(index.name, index.indexType, index.propertyNames: _*)
                 )
+
+                // TODO test links
+//                vertexSchema.links.foreach(link =>
+//                  vertexType.createProperty(link.propertyName, link.linkType, link.linkedClass)
+//                )
               }
           )
           .to[F]

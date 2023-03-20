@@ -127,8 +127,6 @@ object Dependencies {
     "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
   )
 
-  val protobufSpecsGenus = "com.github.Topl" % "protobuf-specs" % "5991445"
-
   // For NTP-UDP
   val commonsNet = "commons-net" % "commons-net" % "3.8.0"
 

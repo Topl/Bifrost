@@ -19,16 +19,17 @@ object OrientDBFactory {
 
   def make[F[_]: Sync: Logger](directoryPath: String, user: String, password: String): Resource[F, OrientGraphFactory] =
     for {
-      directory <- Sync[F].blocking(new File(directoryPath)).toResource
+      directory <- Sync[F].delay(new File(directoryPath)).toResource
+      continue  <- Sync[F].blocking(directory.isDirectory || directory.mkdir()).toResource
       _ <- Either
         .cond(
-          directory.isDirectory || directory.mkdir(),
+          continue,
           Resource.unit[F],
           GenusExceptions.FailureMessage(
             s"${directory.getAbsolutePath} exists but is not a directory, or it can not be created."
           )
         )
-        .leftMap(e => println(e.getMessage))
+        .leftMap{e => Logger[F].error(e)("Process will end, change directory path")}
         .valueOr(_ => Resource.canceled)
 
       // Start Orient Db embedded server

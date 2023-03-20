@@ -26,8 +26,8 @@ object GenusServerApp
   private def applicationResource: Resource[F, Unit] =
     for {
       _ <- Logger[F].info("Welcome to Genus").toResource
-      orientdb <- OrientDBFactory
-        .make[F](appConfig.orientDbDirectory, appConfig.orientDbUser, appConfig.orientDbPassword)
+      conf = appConfig.genus
+      orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword)
 
       dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => Async[F].delay(db.shutdown()))
       dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => Async[F].delay(db.shutdown()))
@@ -35,8 +35,8 @@ object GenusServerApp
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
 
-      rpcInterpreter <- ToplGrpc.Client.make[F](appConfig.rpcNodeHost, appConfig.rpcNodePort, appConfig.rpcNodeTls)
-      blockFetcher   <- NodeBlockFetcher.make(rpcInterpreter)
+      rpcInterpreter       <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
+      blockFetcher         <- NodeBlockFetcher.make(rpcInterpreter)
       blockSequenceFetcher <- NodeBlockSequenceFetcher.make(blockFetcher)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
@@ -56,7 +56,7 @@ object GenusServerApp
         .toResource
 
       _ <- GenusFullBlockGrpc.Server
-        .serve(appConfig.rpcHost, appConfig.rpcPort, vertexFetcher)
+        .serve(conf.rpcHost, conf.rpcPort, vertexFetcher)
         .evalTap(grpcServer =>
           Logger[F].info(s"RPC Server bound at ${grpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )

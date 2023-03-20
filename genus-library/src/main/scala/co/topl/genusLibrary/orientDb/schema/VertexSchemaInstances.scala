@@ -9,7 +9,6 @@ import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
-import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 import quivr.models.Digest
 
 /**
@@ -19,8 +18,8 @@ object VertexSchemaInstances {
 
   trait Instances {
 
-    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = VertexSchemaBlockHeader.make()
-    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = VertexSchemaBlockBody.make()
+    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = BlockHeaderVertexSchema.make()
+    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = BlockBodyVertexSchema.make()
 
     // Note, From here to the end, VertexSchemas not tested
     /**
@@ -71,8 +70,8 @@ object VertexSchemaInstances {
             t => t.id.toByteArray,
             _.setNotNull(true)
           )(byteArrayOrientDbTypes)
-          .withProperty("transaction", _.toByteArray, _.setNotNull(true))(byteArrayOrientDbTypes)
-          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"),
+          .withProperty("transaction", _.toByteArray, _.setNotNull(true))(byteArrayOrientDbTypes),
+//          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"), // TODO create index type class instance
         // transactionID is not stored in a transaction, but computed
         v => IoTransaction.parseFrom(v("transaction"))
       )
@@ -102,7 +101,7 @@ object VertexSchemaInstances {
             _.lockAddress.map(_.getLock32.evidence.digest.value.toByteArray).orNull,
             _.setNotNull(false)
           )(byteArrayOrientDbTypes)
-          .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex")
+//          .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex") // TODO create index type class instance
         // TODO assetLabel was disabled on https://github.com/Topl/Bifrost/pull/2850
         // .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel")
         ,
