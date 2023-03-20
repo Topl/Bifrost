@@ -28,7 +28,7 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _  <- Sync[F].blocking(dockerClient.startContainer(containerId))
       _  <- awaitContainerStart
       ip <- ipAddress
-      _  <- Logger[F].info(s"Successfully started container $containerId on IP $ip")
+      _  <- Logger[F].info(s"Successfully started container on IP $ip")
     } yield ()
 
   def restartContainer[F[_]: Async]: F[Unit] =
@@ -37,7 +37,7 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _  <- Sync[F].blocking(dockerClient.restartContainer(containerId))
       _  <- awaitContainerStart
       ip <- ipAddress
-      _  <- Logger[F].info(s"Successfully restarted container $containerId on IP $ip")
+      _  <- Logger[F].info(s"Successfully restarted container on IP $ip")
     } yield ()
 
   def stop[F[_]: Async]: F[Unit] =
@@ -77,25 +77,23 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       )
     } yield ()
 
+  def containerLogs[F[_]: Async]: Stream[F, Byte] =
+    Stream
+      .fromAutoCloseable(
+        Sync[F].blocking(
+          dockerClient.logs(containerId, DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr())
+        )
+      )
+      .map(_.asScala)
+      .flatMap(Stream.fromBlockingIterator[F](_, 1))
+      .map(_.content())
+      .map(Chunk.byteBuffer)
+      .unchunks
+
   def saveContainerLogs[F[_]: Async](file: Path): F[Unit] =
     Sync[F].defer(
       Logger[F].info(s"Writing container logs to $file") >>
-      Stream
-        .fromAutoCloseable(
-          Sync[F].blocking(
-            dockerClient
-              .logs(
-                containerId,
-                DockerClient.LogsParam.stdout(),
-                DockerClient.LogsParam.stderr()
-              )
-          )
-        )
-        .map(_.asScala)
-        .flatMap(Stream.fromBlockingIterator[F](_, 1024))
-        .map(_.content())
-        .map(Chunk.byteBuffer)
-        .unchunks
+      containerLogs[F]
         .through(Files[F].writeAll(file, Flags.Write))
         .compile
         .drain
