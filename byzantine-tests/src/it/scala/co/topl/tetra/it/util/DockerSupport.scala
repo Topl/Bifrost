@@ -29,8 +29,18 @@ trait DockerSupport[F[_]] {
 
 object DockerSupport {
 
+  private def loggingEnabledFromEnvironment: Boolean = {
+    import scala.jdk.CollectionConverters._
+    val env = System.getenv().asScala
+    env
+      .get("ACTIONS_STEP_DEBUG")
+      .orElse(env.get("DEBUG"))
+      .exists(_.toBoolean)
+  }
+
   def make[F[_]: Async](
-    containerLogsDirectory: Option[Path] = Some(Path("byzantine-tests") / "target" / "logs")
+    containerLogsDirectory: Option[Path] = Some(Path("byzantine-tests") / "target" / "logs"),
+    debugLoggingEnabled:    Boolean = loggingEnabledFromEnvironment
   ): Resource[F, (DockerSupport[F], DockerClient)] =
     for {
       implicit0(dockerClient: DockerClient) <- Resource.make(Sync[F].blocking(DefaultDockerClient.fromEnv().build()))(
@@ -55,11 +65,12 @@ object DockerSupport {
         )
       )
       _ <- containerLogsDirectory.fold(Resource.unit[F])(Files[F].createDirectories(_).toResource)
-      dockerSupport = new Impl[F](containerLogsDirectory, nodeCache, networkCache)
+      dockerSupport = new Impl[F](containerLogsDirectory, debugLoggingEnabled, nodeCache, networkCache)
     } yield (dockerSupport, dockerClient)
 
   private class Impl[F[_]: Async](
     containerLogsDirectory: Option[Path],
+    debugLoggingEnabled:    Boolean,
     nodeCache:              Ref[F, Set[BifrostDockerTetraNode]],
     networkCache:           Ref[F, Set[NetworkCreation]]
   )(implicit dockerClient: DockerClient)
@@ -80,8 +91,9 @@ object DockerSupport {
 
     private def createContainer(name: String, nodeGroupName: String): F[BifrostDockerTetraNode] =
       for {
-        networkName       <- (DockerSupport.networkNamePrefix + nodeGroupName).pure[F]
-        containerConfig   <- buildContainerConfig(name, Map.empty).pure[F]
+        networkName <- (DockerSupport.networkNamePrefix + nodeGroupName).pure[F]
+        environment = Map("BIFROST_LOG_LEVEL" -> (if (debugLoggingEnabled) "DEBUG" else "INFO"))
+        containerConfig   <- buildContainerConfig(name, environment).pure[F]
         containerCreation <- Sync[F].blocking(dockerClient.createContainer(containerConfig, name))
         node              <- BifrostDockerTetraNode(containerCreation.id(), name).pure[F]
         _                 <- nodeCache.update(_ + node)
@@ -114,6 +126,8 @@ object DockerSupport {
           "-Dcom.sun.management.jmxremote.authenticate=false",
           "--config",
           "/opt/docker/config/node.yaml",
+          "--logbackFile",
+          "/opt/docker/config/logback.xml",
           "--debug"
         )
 

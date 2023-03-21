@@ -61,9 +61,15 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _ <- Files[F].tempDirectory.use(tmpConfigDir =>
         for {
           tmpConfigFile <- (tmpConfigDir / "node.yaml").pure[F]
+          tmpLogFile    <- (tmpConfigDir / "logback.xml").pure[F]
           _ <- Stream
             .chunk(Chunk.array(configYaml.getBytes(StandardCharsets.UTF_8)))
             .through(Files[F].writeAll(tmpConfigFile))
+            .compile
+            .drain
+          _ <- fs2.io
+            .readClassLoaderResource("logback-container.xml")
+            .through(Files[F].writeAll(tmpLogFile))
             .compile
             .drain
           _ <- Sync[F].blocking(
