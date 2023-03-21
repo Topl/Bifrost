@@ -5,7 +5,7 @@ on:
     inputs:
       debug-logging-enabled:
         description: 'Enable Debug Logging?'
-        required: true
+        required: false
         default: false
         type: boolean
 
