@@ -23,6 +23,10 @@ jobs:
   build-jar:
     uses: ./.github/workflows/_sbt_jar.yml
     needs: [sbt-build]
+  publish-test-results:
+    uses: ./.github/workflows/_publish_test_results.yml
+    needs: [sbt-build, sbt-integration-tests, sbt-byzantine-tests]
+    if: always()
   create-release:
     runs-on: ubuntu-latest
     needs: [sbt-build, sbt-integration-tests, sbt-byzantine-tests, build-jar]
