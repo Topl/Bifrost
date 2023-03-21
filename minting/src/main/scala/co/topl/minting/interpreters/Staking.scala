@@ -7,14 +7,8 @@ import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
-import co.topl.consensus.algebras.EtaCalculationAlgebra
-import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.EligibilityCertificate
-import co.topl.consensus.models.OperationalCertificate
-import co.topl.consensus.models.SlotId
-import co.topl.consensus.models.StakingAddress
+import co.topl.consensus.algebras._
+import co.topl.consensus.models._
 import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
@@ -47,19 +41,36 @@ object Staking {
         val address: F[StakingAddress] = a.pure[F]
 
         def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
-          for {
-            eta <- etaCalculation.etaToBe(parentSlotId, slot)
-            maybeHit <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
-              .flatMapF(relativeStake => getHit(relativeStake, slot, slot - parentSlotId.slot, eta))
-              .value
-            _ <- Logger[F].debug(
+          (
+            for {
+              eta           <- OptionT.liftF(etaCalculation.etaToBe(parentSlotId, slot))
+              relativeStake <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a))
+              threshold <- OptionT.liftF(leaderElectionValidation.getThreshold(relativeStake, slot - parentSlotId.slot))
+              testProof <- OptionT.liftF(vrfCalculator.proofForSlot(slot, eta))
+              rho       <- OptionT.liftF(vrfCalculator.rhoForSlot(slot, eta))
+              isLeader  <- OptionT.liftF(leaderElectionValidation.isSlotLeaderForThreshold(threshold)(rho))
+              vrfHit <- OptionT
+                .whenF[F, VrfHit](isLeader)(
+                  blake2b256Resource
+                    .use(thresholdEvidence(threshold)(_).pure[F])
+                    .map(evidence =>
+                      VrfHit(
+                        EligibilityCertificate(testProof, vkVrf, evidence, eta.data),
+                        slot,
+                        threshold
+                      )
+                    )
+                )
+            } yield vrfHit
+          ).value.flatTap(maybeHit =>
+            Logger[F].debug(
               show"Eligibility at" +
               show" slot=$slot" +
               show" parentId=${parentSlotId.blockId}" +
               show" parentSlot=${parentSlotId.slot}" +
               show" eligible=${maybeHit.nonEmpty}"
             )
-          } yield maybeHit
+          )
 
         def certifyBlock(
           parentSlotId:         SlotId,
@@ -99,28 +110,6 @@ object Staking {
               )
             } yield header
           }.value
-
-        def getHit(relativeStake: Ratio, slot: Slot, slotDiff: Long, eta: Eta): F[Option[VrfHit]] =
-          for {
-            threshold <- leaderElectionValidation.getThreshold(relativeStake, slotDiff)
-            testProof <- vrfCalculator.proofForSlot(slot, eta)
-            rho       <- vrfCalculator.rhoForSlot(slot, eta)
-            isLeader  <- leaderElectionValidation.isSlotLeaderForThreshold(threshold)(rho)
-            vrfHit <- OptionT
-              .whenF[F, VrfHit](isLeader)(
-                blake2b256Resource
-                  .use(thresholdEvidence(threshold)(_).pure[F])
-                  .map(evidence =>
-                    VrfHit(
-                      EligibilityCertificate(testProof, vkVrf, evidence, eta.data),
-                      slot,
-                      threshold
-                    )
-                  )
-              )
-              .value
-          } yield vrfHit
-
       }
     }
 }
