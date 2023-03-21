@@ -44,16 +44,24 @@ object StakerInitializers {
   ) extends StakerInitializer {
 
     val vrfVK: Bytes = ByteString.copyFrom(Ed25519VRF.precomputed().getVerificationKey(vrfSK.toByteArray))
-    val operatorVK: Bytes = new Ed25519().getVerificationKey(operatorSK)
+
+    val operatorVK: Bytes = ByteString.copyFrom(
+      new Ed25519().getVerificationKey(Ed25519.SecretKey(operatorSK.toByteArray)).bytes
+    )
 
     val registration: SignatureKesProduct =
       new KesProduct().sign(kesSK, new Blake2b256().hash(vrfVK, operatorVK).toArray)
 
     val stakingAddress: StakingAddress =
-      StakingAddress(new Ed25519().getVerificationKey(operatorSK))
+      StakingAddress(
+        ByteString.copyFrom(
+          new Ed25519().getVerificationKey(Ed25519.SecretKey(operatorSK.toByteArray)).bytes
+        )
+      )
 
-    val spendingVK: ByteString =
-      new Ed25519().getVerificationKey(spendingSK)
+    val spendingVK: ByteString = ByteString.copyFrom(
+      new Ed25519().getVerificationKey(Ed25519.SecretKey(spendingSK.toByteArray)).bytes
+    )
 
     val lockAddress: LockAddress =
       LockAddress(
@@ -112,15 +120,24 @@ object StakerInitializers {
       // the hash of the given seed appended with a byte suffix
       val blake2b256 = new Blake2b256()
 
-      val (operatorSK, _) = new Ed25519().deriveKeyPairFromSeed(
-        blake2b256.hash(seed.data :+ 1)
-      )
-      val (walletSK, _) = new Ed25519().deriveKeyPairFromSeed(
-        blake2b256.hash(seed.data :+ 2)
-      )
-      val (spendingSK, _) = new Ed25519().deriveKeyPairFromSeed(
-        blake2b256.hash(seed.data :+ 3)
-      )
+      val operatorSK = new Ed25519()
+        .deriveKeyPairFromSeed(
+          blake2b256.hash(seed.data :+ 1).toArray
+        )
+        .signingKey
+        .bytes
+      val walletSK = new Ed25519()
+        .deriveKeyPairFromSeed(
+          blake2b256.hash(seed.data :+ 2).toArray
+        )
+        .signingKey
+        .bytes
+      val spendingSK = new Ed25519()
+        .deriveKeyPairFromSeed(
+          blake2b256.hash(seed.data :+ 3).toArray
+        )
+        .signingKey
+        .bytes
       val (vrfSK, _) =
         Ed25519VRF
           .precomputed()
@@ -133,9 +150,9 @@ object StakerInitializers {
         0
       )
       Operator(
-        operatorSK,
-        walletSK,
-        spendingSK,
+        ByteString.copyFrom(operatorSK),
+        ByteString.copyFrom(walletSK),
+        ByteString.copyFrom(spendingSK),
         ByteString.copyFrom(vrfSK),
         kesSK
       )

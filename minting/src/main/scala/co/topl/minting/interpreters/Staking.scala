@@ -14,7 +14,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras._
 import co.topl.minting.models.VrfHit
-import co.topl.models._
+import co.topl.models._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
