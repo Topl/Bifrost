@@ -59,7 +59,9 @@ object QuivrContext {
         Sync[F].delay(
           Either.cond(
             ed25519.verify(
-              t.signature.toByteArray, t.message.toByteArray, Ed25519.PublicKey(t.verificationKey.toByteArray)
+              t.signature.toByteArray,
+              t.message.toByteArray,
+              Ed25519.PublicKey(t.verificationKey.toByteArray)
             ),
             t,
             QuivrRuntimeErrors.ValidationError.UserProvidedInterfaceFailure // TODO
