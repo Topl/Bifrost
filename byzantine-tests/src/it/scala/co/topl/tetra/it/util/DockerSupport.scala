@@ -33,8 +33,8 @@ object DockerSupport {
     import scala.jdk.CollectionConverters._
     val env = System.getenv().asScala
     env
-      .get("ACTIONS_STEP_DEBUG")
-      .orElse(env.get("DEBUG"))
+      .get("ACTIONS_STEP_DEBUG") // GitHub Actions will set this env variable if "Re-Run with Debug Logging" is selected
+      .orElse(env.get("DEBUG")) // This is just a general-purpose environment variable
       .exists(_.toBoolean)
   }
 
