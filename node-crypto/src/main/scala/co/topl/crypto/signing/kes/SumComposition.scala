@@ -20,9 +20,10 @@ import scala.annotation.tailrec
  *
  * Sum composition is based on underlying signing routine and the number of time steps is configurable by specifying
  * a tree height log(l)/log(2), yielding l time steps.
+ *
+ * Credit to Aaron Schutza
  */
 //noinspection ScalaStyle
-
 class SumComposition extends KesEd25519Blake2b256 {
 
   override type SIG = (Array[Byte], Array[Byte], Vector[Array[Byte]])

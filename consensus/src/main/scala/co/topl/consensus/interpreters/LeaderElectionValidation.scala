@@ -13,6 +13,9 @@ import co.topl.numerics.algebras.{Exp, Log1p}
 import co.topl.numerics.implicits._
 import scalacache.caffeine.CaffeineCache
 
+/**
+ * Credit to Aaron Schutza
+ */
 object LeaderElectionValidation {
 
   /**

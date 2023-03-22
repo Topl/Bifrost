@@ -3,6 +3,9 @@ package co.topl.crypto.signing
 import co.topl.crypto.models._
 import co.topl.crypto.signing.kes.ProductComposition
 
+/**
+ * Credit to Aaron Schutza
+ */
 class KesProduct extends ProductComposition {
 
   def createKeyPair(
