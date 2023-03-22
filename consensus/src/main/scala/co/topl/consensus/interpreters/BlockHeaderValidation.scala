@@ -129,21 +129,21 @@ object BlockHeaderValidation {
             .cond[F](
               eta === expectedEta,
               header,
-              BlockHeaderValidationFailures
-                .InvalidEligibilityCertificateEta(eta, expectedEta)
+              BlockHeaderValidationFailures.InvalidEligibilityCertificateEta(eta, expectedEta)
             )
             .flatMap(_ =>
               EitherT(
                 ed25519VRFResource
-                  .use { implicit ed25519vrf =>
-                    ed25519vrf
-                      .verify(
-                        header.eligibilityCertificate.vrfSig.toByteArray,
-                        VrfArgument(expectedEta, header.slot).signableBytes.toByteArray,
-                        header.eligibilityCertificate.vrfVK.toByteArray
-                      )
-                      .pure[F]
-                  }
+                  .use(ed25519vrf =>
+                    Sync[F].delay(
+                      ed25519vrf
+                        .verify(
+                          header.eligibilityCertificate.vrfSig.toByteArray,
+                          VrfArgument(expectedEta, header.slot).signableBytes.toByteArray,
+                          header.eligibilityCertificate.vrfVK.toByteArray
+                        )
+                    )
+                  )
                   .map(
                     Either.cond(
                       _,
@@ -169,15 +169,16 @@ object BlockHeaderValidation {
       EitherT(
         kesProductResource
           .use(kesProduct =>
-            kesProduct
-              .verify(
-                header.operationalCertificate.parentSignature,
-                header.operationalCertificate.childVK
-                  .concat(ByteString.copyFrom(Longs.toByteArray(header.slot)))
-                  .toByteArray,
-                header.operationalCertificate.parentVK
-              )
-              .pure[F]
+            Sync[F].delay(
+              kesProduct
+                .verify(
+                  header.operationalCertificate.parentSignature,
+                  header.operationalCertificate.childVK
+                    .concat(ByteString.copyFrom(Longs.toByteArray(header.slot)))
+                    .toByteArray,
+                  header.operationalCertificate.parentVK
+                )
+            )
           )
           .map(
             Either.cond(
@@ -194,13 +195,14 @@ object BlockHeaderValidation {
             ed25519Resource
               .use(ed25519 =>
                 // Use the ed25519 instance to verify the childSignature against the header's bytes
-                ed25519
-                  .verify(
-                    header.operationalCertificate.childSignature.toByteArray,
-                    header.unsigned.signableBytes.toByteArray,
-                    Ed25519.PublicKey(header.operationalCertificate.childVK.toByteArray)
-                  )
-                  .pure[F]
+                Sync[F].delay(
+                  ed25519
+                    .verify(
+                      header.operationalCertificate.childSignature,
+                      header.unsigned.signableBytes,
+                      Ed25519.PublicKey(header.operationalCertificate.childVK.toByteArray)
+                    )
+                )
               )
               .map(isValid =>
                 // Verification from the previous step returns a boolean, so now check the boolean verification result
@@ -240,7 +242,7 @@ object BlockHeaderValidation {
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       EitherT
         .liftF[F, BlockHeaderValidationFailure, ByteString](
-          blake2b256Resource.use(thresholdEvidence(threshold)(_).pure[F])
+          blake2b256Resource.use(b => Sync[F].delay(thresholdEvidence(threshold)(b)))
         )
         .flatMap(evidence =>
           EitherT.cond[F](
@@ -260,11 +262,11 @@ object BlockHeaderValidation {
       EitherT
         .liftF(
           ed25519VRFResource
-            .use { implicit ed25519Vrf =>
-              ed25519Vrf
-                .proofToHash(header.eligibilityCertificate.vrfSig.toByteArray)
-                .pure[F]
-            }
+            .use(ed25519Vrf =>
+              Sync[F].delay(
+                ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig.toByteArray)
+              )
+            )
             .map(ByteString.copyFrom)
             .map(rhoBytes => Rho(Sized.strictUnsafe(rhoBytes)))
             .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
@@ -272,10 +274,8 @@ object BlockHeaderValidation {
         .ensure(
           BlockHeaderValidationFailures
             .IneligibleCertificate(threshold, header.eligibilityCertificate): BlockHeaderValidationFailure
-        )(
-          identity
-        )
-        .map(_ => header)
+        )(identity)
+        .as(header)
 
     /**
      * Verifies the staker's registration.  First checks that the staker is registered at all.  Once retrieved,
@@ -291,12 +291,16 @@ object BlockHeaderValidation {
         .flatMapF { commitment =>
           for {
             message <- blake2b256Resource
-              .use(
-                _.hash(header.eligibilityCertificate.vrfVK, header.address.value).pure[F]
+              .use(b =>
+                Sync[F].delay(
+                  b.hash(header.eligibilityCertificate.vrfVK, header.address.value)
+                )
               )
             isValid <- kesProductResource
               .use(p =>
-                p.verify(commitment, message.toArray, header.operationalCertificate.parentVK.copy(step = 0)).pure[F]
+                Sync[F].delay(
+                  p.verify(commitment, message.toArray, header.operationalCertificate.parentVK.copy(step = 0))
+                )
               )
           } yield Either.cond(
             isValid,
@@ -325,7 +329,7 @@ object BlockHeaderValidation {
             if (header.id === bigBangBlockId) header.asRight[BlockHeaderValidationFailure].pure[F]
             else
               cache
-                .cachingF(header.id)(None)(
+                .cachingF(header.id)(ttl = None)(
                   EitherT
                     .liftF(Sync[F].defer(blockHeaderStore.getOrRaise(header.parentHeaderId)))
                     .flatMapF(validate)
@@ -335,9 +339,7 @@ object BlockHeaderValidation {
                     .rethrowT
                 )
                 .as(header.asRight[BlockHeaderValidationFailure])
-                .recover { case w: WrappedFailure =>
-                  w.failure.asLeft[BlockHeader]
-                }
+                .recover { case w: WrappedFailure => w.failure.asLeft[BlockHeader] }
         }
       )
 
