@@ -18,50 +18,53 @@ object GraphBlockInserter {
       new BlockInserterAlgebra[F] {
 
         override def insert(block: BlockData): F[Either[GenusException, Unit]] =
-          Sync[F].blocking {
+          Sync[F]
+            .blocking {
+              // Genesis block
+              if (block.header.height == 1) {
+                Try {
+                  val headerVertex =
+                    graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
 
-            // Genesis block
-            if (block.header.height == 1) {
-              Try {
-                val headerVertex =
-                  graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
+                  val bodyVertex =
+                    graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
 
-                val bodyVertex =
-                  graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
+                  bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
-                graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerVertex, bodyVertex, "body")
+                  graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerVertex, bodyVertex, "body")
 
-                graph.commit()
-              }.toEither
-                .leftMap { th =>
-                  graph.rollback()
-                  GenusExceptions.FailureMessage(th.getMessage): GenusException
+                  graph.commit()
                 }
-            } else {
-              Try {
-                val headerOutVertex =
-                  graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
+              } else {
+                Try {
+                  val headerOutVertex =
+                    graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
 
-                val bodyVertex =
-                  graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
+                  val bodyVertex =
+                    graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
+                  bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerOutVertex.getId)
 
-                graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerOutVertex, bodyVertex, "body")
+                  graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerOutVertex, bodyVertex, "body")
 
-                val headerInVertex = graph
-                  .getVertices(Field.BlockId, block.header.parentHeaderId.value.toByteArray)
-                  .iterator()
-                  .next()
+                  // Evaluate if the this factory could receive the vertex fetcher, and use getVertex method
+                  val headerInVertex = graph
+                    .getVertices(Field.BlockId, block.header.parentHeaderId.value.toByteArray)
+                    .iterator()
+                    .next()
 
-                graph.addEdge(s"class:${blockHeaderEdgeSchema.name}", headerOutVertex, headerInVertex, "parent")
+                  graph.addEdge(s"class:${blockHeaderEdgeSchema.name}", headerOutVertex, headerInVertex, "parent")
 
-                graph.commit()
-              }.toEither
-                .leftMap { th =>
-                  graph.rollback()
-                  GenusExceptions.FailureMessage(th.getMessage): GenusException
+                  graph.commit()
                 }
+              }
             }
-          }
+            .map(
+              _.toEither
+                .leftMap { th =>
+                  graph.rollback()
+                  GenusExceptions.FailureMessage(th.getMessage): GenusException
+                }
+            )
       }
     )
 

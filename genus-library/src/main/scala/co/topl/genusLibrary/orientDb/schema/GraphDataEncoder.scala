@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
-import com.orientechnologies.orient.core.metadata.schema.{OClass, OPropertyAbstractDelegate, OType}
+import com.orientechnologies.orient.core.metadata.schema.OType
 
 /**
  * Describes how instances of a Scala class will be represented as a type of Vertex or edge with properties
@@ -28,13 +28,15 @@ case class GraphDataEncoder[T] private (
    * @return an updated copy of the GraphDataEncoder
    */
   def withProperty[V <: AnyRef: OrientDbTyped](
-    name:                    String,
-    extract:                 T => V,
-    propertyAttributeSetter: OPropertyAbstractDelegate => Unit
+    name:      String,
+    extract:   T => V,
+    mandatory: Boolean,
+    readOnly:  Boolean,
+    notNull:   Boolean
   ): GraphDataEncoder[T] =
     copy(
       encode = t => encode(t).updated(name, extract(t)),
-      properties = properties.incl(Property(name, OrientDbTyped[V].oType, propertyAttributeSetter))
+      properties = properties.incl(Property(name, OrientDbTyped[V].oType, mandatory, readOnly, notNull))
     )
 
   /**
@@ -56,8 +58,10 @@ case class GraphDataEncoder[T] private (
    * @param linkedClass Defines the class to link to.
    * @return the updated GraphDataEncoder
    */
-  def withLink(propertyName: String, linkType: OType, linkedClass: OClass): GraphDataEncoder[T] =
-    copy(links = links + Link(propertyName, linkType, linkedClass))
+  def withLink(propertyName: String, linkType: OType, destClassName: String): GraphDataEncoder[T] =
+    copy(
+      links = links + Link(propertyName, linkType, destClassName)
+    )
 }
 
 object GraphDataEncoder {

@@ -13,6 +13,8 @@ object BlockHeaderVertexSchema {
    * @see https://github.com/Topl/protobuf-specs/blob/main/proto/consensus/models/block_header.proto#L15
    */
   object Field {
+    val SchemaName = "BlockHeader"
+
     val BlockId = "blockId"
     val ParentHeaderId = "parentHeaderId"
     val ParentSlot = "parentSlot"
@@ -29,21 +31,21 @@ object BlockHeaderVertexSchema {
   }
 
   def make(): VertexSchema[BlockHeader] = VertexSchema.create(
-    "BlockHeader",
+    Field.SchemaName,
     GraphDataEncoder[BlockHeader]
       // @formatter:off
-      .withProperty(Field.BlockId, _.id.value.toByteArray, _.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.ParentHeaderId, _.parentHeaderId.value.toByteArray, _.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.ParentSlot, l => java.lang.Long.valueOf(l.parentSlot), _.setReadonly(true))
-      .withProperty(Field.TxRoot, _.txRoot.toByteArray, _.setReadonly(true))
-      .withProperty(Field.BloomFilter, _.bloomFilter.toByteArray, _.setReadonly(true))
-      .withProperty(Field.Timestamp, ts => java.lang.Long.valueOf(ts.timestamp),_.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.Height, ht => java.lang.Long.valueOf(ht.height),_.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.Slot, s => java.lang.Long.valueOf(s.slot),_.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.EligibilityCertificate, e => e.eligibilityCertificate.toByteArray,_.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.OperationalCertificate,_.operationalCertificate.toByteArray,_.setNotNull(true).setReadonly(true).setMandatory(true))
-      .withProperty(Field.Metadata,_.metadata.toByteArray,_.setNotNull(false).setReadonly(true).setMandatory(true))
-      .withProperty(Field.Address,_.address.toByteArray,_.setNotNull(true).setReadonly(true).setMandatory(true))
+      .withProperty(Field.BlockId, _.id.value.toByteArray,  mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.ParentHeaderId, _.parentHeaderId.value.toByteArray,  mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.ParentSlot, l => java.lang.Long.valueOf(l.parentSlot),  mandatory = false, readOnly = true, notNull = false)
+      .withProperty(Field.TxRoot, _.txRoot.toByteArray, mandatory = false, readOnly = true, notNull = false)
+      .withProperty(Field.BloomFilter, _.bloomFilter.toByteArray,   mandatory = false, readOnly = true, notNull = false)
+      .withProperty(Field.Timestamp, ts => java.lang.Long.valueOf(ts.timestamp),mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.Height, ht => java.lang.Long.valueOf(ht.height),mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.Slot, s => java.lang.Long.valueOf(s.slot),mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.EligibilityCertificate, e => e.eligibilityCertificate.toByteArray,mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.OperationalCertificate,_.operationalCertificate.toByteArray,mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.Metadata,_.metadata.toByteArray,mandatory = true, readOnly = true, notNull = false)
+      .withProperty(Field.Address,_.address.toByteArray,mandatory = true, readOnly = true, notNull = true)
       .withIndex(Field.BlockHeaderIndex, Field.BlockId),
       // @formatter:on
     v =>

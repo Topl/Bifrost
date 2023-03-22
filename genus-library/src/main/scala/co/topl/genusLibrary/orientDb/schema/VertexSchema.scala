@@ -23,11 +23,10 @@ trait VertexSchema[T] {
    */
   def indices: Set[Index]
 
-
   /**
    * Descriptions of the links on the vertex class
    */
-  def links:Set[Link]
+  def links: Set[Link]
 
   /**
    * Encode an object of type T as a Map that OrientDb knows how to store as the properties of a vertex.

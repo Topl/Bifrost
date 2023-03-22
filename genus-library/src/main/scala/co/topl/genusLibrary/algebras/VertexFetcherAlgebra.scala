@@ -11,8 +11,8 @@ trait VertexFetcherAlgebra[F[_]] {
 
   /**
    * Fetch header on the stored Ledger
-   * @param header actual header to use to find the header vertex on the stored Ledger
-   * @return header vertex
+   * @param blockId header id used  to find the header vertex on the stored Ledger
+   * @return Optional BlockHeader, None if it was not found
    */
   def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[BlockHeader]]]
 
@@ -20,7 +20,7 @@ trait VertexFetcherAlgebra[F[_]] {
    * Fetch header given height on the stored Ledger
    *
    * @param height actual header height value
-   * @return previous header vertex
+   * @return Optional BlockHeader, None if it was not found
    */
   def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[BlockHeader]]]
 

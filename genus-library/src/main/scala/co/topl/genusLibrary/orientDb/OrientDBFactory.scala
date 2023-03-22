@@ -1,46 +1,57 @@
 package co.topl.genusLibrary.orientDb
 
 import cats.effect.{Resource, Sync}
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.genusLibrary.model.GenusExceptions
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
-import java.io.File
+import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 
 /**
  * DB Factory which has control over the following actions
  *
- * - Database file system validation and creation
+ * - Database file system creation
+ *
  * - Create if not exist database metadata
+ *
  * - Be the entry point for Genus Service
  */
 object OrientDBFactory {
 
-  def make[F[_]: Sync: Logger](directoryPath: String, user: String, password: String): Resource[F, OrientGraphFactory] =
+  def make[F[_]: Sync: Logger: Files](
+    directoryPath: String,
+    user:          String,
+    password:      String
+  ): Resource[F, OrientGraphFactory] =
     for {
-      directory <- Sync[F].delay(new File(directoryPath)).toResource
-      continue  <- Sync[F].blocking(directory.isDirectory || directory.mkdir()).toResource
+      directory   <- Resource.pure(Path(directoryPath))
+      isDirectory <- Resource.eval(Files[F].isDirectory(directory))
+      createDirRes <-
+        if (isDirectory) Resource.pure[F, Boolean](true)
+        else Resource.eval(Files[F].createDirectory(directory)).attempt.map(_.isRight)
+
       _ <- Either
         .cond(
-          continue,
+          createDirRes,
           Resource.unit[F],
-          GenusExceptions.FailureMessage(
-            s"${directory.getAbsolutePath} exists but is not a directory, or it can not be created."
-          )
+          s"${directory.toNioPath} exists but is not a directory, or it can not be created."
         )
-        .leftMap{e => Logger[F].error(e)("Process will end, change directory path")}
-        .valueOr(_ => Resource.canceled)
+        .leftMap(cause =>
+          Resource
+            .eval(Logger[F].error(GenusExceptions.FailureMessage(cause).getMessage))
+            .flatMap(_ => Resource.canceled)
+        )
+        .merge
 
       // Start Orient Db embedded server
       orientGraphFactory <- Resource.make[F, OrientGraphFactory](
         Sync[F].delay(
-          new OrientGraphFactory(s"plocal:${directory.getAbsolutePath}", user, password)
+          new OrientGraphFactory(s"plocal:${directory.toNioPath}", user, password)
         )
       )(factory => Sync[F].delay(factory.close()))
 
-      // Create if not exits Metadata describing the schema used for the Genus graph in OrientDB
-      _ <- OrientDBMetadataFactory.make(orientGraphFactory.getNoTx).toResource.void
+      // If we need to recreate the schema from scratch backup, rename/move the db folder.
+      _ <- OrientDBMetadataFactory.make(orientGraphFactory)
 
     } yield orientGraphFactory
 }

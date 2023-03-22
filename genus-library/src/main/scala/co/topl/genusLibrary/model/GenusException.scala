@@ -26,9 +26,9 @@ object GenusExceptions {
         new IllegalStateException("Undefined cause")
       )
 
-  case class NoCurrentBodyVertex(transactions: ByteVector)
+  case class NoCurrentBodyVertex(blockId: ByteVector)
       extends GenusException(
-        s"Block doesn't have a transactions vertex. transactions=[$transactions]",
+        s"Block doesn't have a body vertex. blockId=[$blockId]",
         new IllegalStateException("Undefined cause")
       )
 

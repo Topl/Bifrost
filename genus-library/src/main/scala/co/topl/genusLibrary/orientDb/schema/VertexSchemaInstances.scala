@@ -18,7 +18,7 @@ object VertexSchemaInstances {
 
   trait Instances {
 
-    implicit private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = BlockHeaderVertexSchema.make()
+    private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = BlockHeaderVertexSchema.make()
     implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = BlockBodyVertexSchema.make()
 
     // Note, From here to the end, VertexSchemas not tested
@@ -29,15 +29,29 @@ object VertexSchemaInstances {
       VertexSchema.create(
         "LockAddress",
         GraphDataEncoder[LockAddress]
-          .withProperty("network", v => java.lang.Integer.valueOf(v.network), _.setNotNull(true))
-          .withProperty("ledger", v => java.lang.Integer.valueOf(v.ledger), _.setNotNull(true))
+          .withProperty(
+            "network",
+            v => java.lang.Integer.valueOf(v.network),
+            mandatory = false,
+            readOnly = false,
+            notNull = true
+          )
+          .withProperty(
+            "ledger",
+            v => java.lang.Integer.valueOf(v.ledger),
+            mandatory = false,
+            readOnly = false,
+            notNull = true
+          )
           .withProperty(
             "id",
             _.id match {
               case v: LockAddress.Id.Lock32 => Array[Byte](0) ++ v.value.toByteArray
               case v: LockAddress.Id.Lock64 => Array[Byte](1) ++ v.value.toByteArray
             },
-            _.setNotNull(true)
+            mandatory = false,
+            readOnly = false,
+            notNull = true
           ),
         v => {
           val idData: Array[Byte] = v("id")
@@ -68,9 +82,13 @@ object VertexSchemaInstances {
           .withProperty(
             "transactionId",
             t => t.id.toByteArray,
-            _.setNotNull(true)
+            mandatory = false,
+            readOnly = false,
+            notNull = true
           )(byteArrayOrientDbTypes)
-          .withProperty("transaction", _.toByteArray, _.setNotNull(true))(byteArrayOrientDbTypes),
+          .withProperty("transaction", _.toByteArray, mandatory = false, readOnly = false, notNull = true)(
+            byteArrayOrientDbTypes
+          ),
 //          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"), // TODO create index type class instance
         // transactionID is not stored in a transaction, but computed
         v => IoTransaction.parseFrom(v("transaction"))
@@ -83,23 +101,33 @@ object VertexSchemaInstances {
           .withProperty(
             "transactionId",
             _.outputAddress.get.getIoTransaction32.evidence.digest.value.toByteArray,
-            _.setNotNull(true)
+            mandatory = false,
+            readOnly = false,
+            notNull = true
           )(
             byteArrayOrientDbTypes
           )
           .withProperty(
             "transactionOutputIndex",
             txo => java.lang.Short.valueOf(txo.outputAddress.get.index.toShort),
-            _.setNotNull(true)
+            mandatory = false,
+            readOnly = false,
+            notNull = true
           )(shortOrientDbTyped)
           // TODO, see the index below
 //          .withProperty("assetLabel", _.assetLabel, _.setNotNull(true))(stringOrientDbTyped)
-          .withProperty("box", txo => txo.box.toByteArray, _ => ())(byteArrayOrientDbTypes)
-          .withProperty("state", _.state.toString, _ => ())(stringOrientDbTyped)
+          .withProperty("box", txo => txo.box.toByteArray, mandatory = false, readOnly = false, notNull = false)(
+            byteArrayOrientDbTypes
+          )
+          .withProperty("state", _.state.toString, mandatory = false, readOnly = false, notNull = false)(
+            stringOrientDbTyped
+          )
           .withProperty(
             "address",
             _.lockAddress.map(_.getLock32.evidence.digest.value.toByteArray).orNull,
-            _.setNotNull(false)
+            mandatory = false,
+            readOnly = false,
+            notNull = false
           )(byteArrayOrientDbTypes)
 //          .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex") // TODO create index type class instance
         // TODO assetLabel was disabled on https://github.com/Topl/Bifrost/pull/2850

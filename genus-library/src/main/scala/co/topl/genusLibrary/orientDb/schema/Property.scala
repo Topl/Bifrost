@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
-import com.orientechnologies.orient.core.metadata.schema.{OPropertyAbstractDelegate, OType}
+import com.orientechnologies.orient.core.metadata.schema.OType
 
 /**
  * Represents an individual piece of data that will be stored in a class of vertices
@@ -9,7 +9,9 @@ import com.orientechnologies.orient.core.metadata.schema.{OPropertyAbstractDeleg
  * @param propertyType The datatype of the property
  */
 case class Property(
-  name:                    String,
-  propertyType:            OType,
-  propertyAttributeSetter: OPropertyAbstractDelegate => Unit = _ => ()
+  name:         String,
+  propertyType: OType,
+  mandatory:    Boolean,
+  readOnly:     Boolean,
+  notNull:      Boolean
 )

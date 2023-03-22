@@ -40,6 +40,7 @@ object GenusServerApp
       blockSequenceFetcher <- NodeBlockSequenceFetcher.make(blockFetcher)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
+      nodeEnabled <- Resource.pure(true) // maybe we can use a config
       inserter <- blockSequenceFetcher
         .fetch(1, 100)
         .map(_.spaced(50 millis))
@@ -49,11 +50,15 @@ object GenusServerApp
         )
         .toResource
 
-      _ <- inserter
-        .take(50)
-        .compile
-        .toList
-        .toResource
+      _ <-
+        if (nodeEnabled)
+          inserter
+            .take(10)
+            .compile
+            .toList
+            .void
+            .toResource
+        else Resource.unit[F]
 
       _ <- GenusFullBlockGrpc.Server
         .serve(conf.rpcHost, conf.rpcPort, vertexFetcher)
