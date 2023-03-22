@@ -19,7 +19,9 @@ object CryptoResources {
 
   def make[F[_]: Async]: F[CryptoResources[F]] =
     Async[F]
-      .delay(Runtime.getRuntime.availableProcessors())
+      // Limit the number of each resource to the number of available processors,
+      // but with a minimum of 4 to avoid scarcity
+      .delay(Runtime.getRuntime.availableProcessors().max(4))
       .flatMap(maxParallelism =>
         (
           CatsUnsafeResource.make[F, Blake2b256](new Blake2b256, maxParallelism),
