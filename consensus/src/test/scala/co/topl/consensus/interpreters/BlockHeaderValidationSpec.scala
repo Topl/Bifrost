@@ -1,9 +1,12 @@
 package co.topl.consensus.interpreters
 
+import cats.MonadThrow
+import cats.Show
 import cats.effect._
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.Store
 import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -15,6 +18,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
+import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models._
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.generators.consensus.ModelGenerators._
@@ -69,6 +73,8 @@ class BlockHeaderValidationSpec
 
   private val log1pCached = Log1pInterpreter.makeCached[F](log1pInterpreter).unsafeRunSync()
 
+  private val bigBangBlockId = arbitraryBlockId.arbitrary.first
+
   private val leaderElectionInterpreter =
     LeaderElectionValidation
       .makeCached[F](
@@ -109,6 +115,7 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val clockAlgebra = mock[ClockAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -121,6 +128,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -128,7 +137,7 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+      underTest.validate(child).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
         .NonForwardSlot(child.slot, parent.slot)
     }
   }
@@ -138,6 +147,7 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val clockAlgebra = mock[ClockAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -149,6 +159,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -156,42 +168,8 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+      underTest.validate(child).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
         .NonForwardTimestamp(child.timestamp, parent.timestamp)
-    }
-  }
-
-  it should "invalidate blocks with parent-header mismatch" in {
-    forAll(
-      genValid(u =>
-        u.copy(
-          parentHeaderId = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))
-        )
-      )
-    ) { case (parent, child, _: SignatureKesProduct, _: Eta, _: Ratio) =>
-      val etaInterpreter = mock[EtaCalculationAlgebra[F]]
-      val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
-      val clockAlgebra = mock[ClockAlgebra[F]]
-      val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
-      val kesProductResource = mock[UnsafeResource[F, KesProduct]]
-      val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
-      val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
-      val underTest =
-        BlockHeaderValidation
-          .make[F](
-            etaInterpreter,
-            consensusValidationState,
-            leaderElectionInterpreter,
-            clockAlgebra,
-            ed25519VRFResource,
-            kesProductResource,
-            ed25519Resource,
-            blake2b256Resource
-          )
-          .unsafeRunSync()
-
-      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
-        .ParentMismatch(child.parentHeaderId, parent.id)
     }
   }
 
@@ -211,6 +189,7 @@ class BlockHeaderValidationSpec
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
 
       val clockAlgebra = mock[ClockAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       (() => clockAlgebra.globalSlot)
         .expects()
         .once()
@@ -234,6 +213,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -241,7 +222,7 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+      underTest.validate(child).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
         .TimestampSlotMismatch(child.slot, child.timestamp)
     }
   }
@@ -270,6 +251,7 @@ class BlockHeaderValidationSpec
       val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
 
       val clockAlgebra = mock[ClockAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       (() => clockAlgebra.globalSlot)
         .expects()
         .once()
@@ -293,6 +275,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -300,7 +284,7 @@ class BlockHeaderValidationSpec
           )
           .unsafeRunSync()
 
-      underTest.validate(child, parent).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
+      underTest.validate(child).unsafeRunSync().left.value shouldBe BlockHeaderValidationFailures
         .SlotBeyondForwardBiasedSlotWindow(globalSlot, child.slot)
     }
   }
@@ -328,6 +312,7 @@ class BlockHeaderValidationSpec
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
       val clockAlgebra = createDummyClockAlgebra(child)
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
       val ed25519Resource = mock[UnsafeResource[F, Ed25519]]
@@ -339,6 +324,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -366,7 +353,7 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Ed25519VRF, F[Rho]] => f(ed25519Vrf) }
 
       underTest
-        .validate(child, parent)
+        .validate(child)
         .unsafeRunSync()
         .left
         .value shouldBe a[BlockHeaderValidationFailures.InvalidEligibilityCertificateEta]
@@ -377,6 +364,7 @@ class BlockHeaderValidationSpec
     forAll(genValid()) { case (parent, child, _: SignatureKesProduct, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
@@ -389,6 +377,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -430,7 +420,7 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Ed25519, F[Boolean]] => f(ed25519) }
 
       underTest
-        .validate(badBlock, parent)
+        .validate(badBlock)
         .unsafeRunSync()
         .left
         .value shouldBe a[BlockHeaderValidationFailures.InvalidBlockProof]
@@ -447,6 +437,7 @@ class BlockHeaderValidationSpec
     ) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
@@ -459,6 +450,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -509,7 +502,7 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Blake2b256, F[ByteVector]] => f(blake2b256) }
 
       underTest
-        .validate(child, parent)
+        .validate(child)
         .unsafeRunSync()
         .left
         .value shouldBe a[BlockHeaderValidationFailures.RegistrationCommitmentMismatch]
@@ -520,6 +513,7 @@ class BlockHeaderValidationSpec
     forAll(genValid()) { case (parent, child, registration, eta, _: Ratio) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
@@ -532,6 +526,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -588,7 +584,7 @@ class BlockHeaderValidationSpec
         .onCall { f: Function1[Blake2b256, F[ByteVector]] => f(blake2b256) }
 
       underTest
-        .validate(child, parent)
+        .validate(child)
         .unsafeRunSync()
         .left
         .value shouldBe a[BlockHeaderValidationFailures.InvalidVrfThreshold]
@@ -600,6 +596,7 @@ class BlockHeaderValidationSpec
     forAll(genValid()) { case (parent, child, registration, eta, relativeStake) =>
       val etaInterpreter = mock[EtaCalculationAlgebra[F]]
       val consensusValidationState = mock[ConsensusValidationStateAlgebra[F]]
+      val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
       val clockAlgebra = createDummyClockAlgebra(child)
       val ed25519VRFResource = mock[UnsafeResource[F, Ed25519VRF]]
       val kesProductResource = mock[UnsafeResource[F, KesProduct]]
@@ -612,6 +609,8 @@ class BlockHeaderValidationSpec
             consensusValidationState,
             leaderElectionInterpreter,
             clockAlgebra,
+            headerStore,
+            bigBangBlockId,
             ed25519VRFResource,
             kesProductResource,
             ed25519Resource,
@@ -667,7 +666,7 @@ class BlockHeaderValidationSpec
         .anyNumberOfTimes()
         .onCall { f: Function1[Blake2b256, F[ByteVector]] => f(blake2b256) }
 
-      underTest.validate(child, parent).unsafeRunSync().value shouldBe child
+      underTest.validate(child).unsafeRunSync().value shouldBe child
     }
   }
 
@@ -802,6 +801,15 @@ class BlockHeaderValidationSpec
 
       (parent, child, registration, eta, relativeStake)
     }
+
+  private def simpleHeaderStore(id: BlockId, header: BlockHeader) = {
+    val store = mock[Store[F, BlockId, BlockHeader]]
+    (store
+      .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+      .expects(id, *, *)
+      .returning(header.pure[F])
+    store
+  }
 }
 
 object BlockHeaderValidationSpec {

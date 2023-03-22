@@ -384,7 +384,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
-      (headerValidation.validate _).expects(*, *).never()
+      (headerValidation.validate _).expects(*).never()
 
       BlockChecker
         .makeActor(
@@ -429,7 +429,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
-      (headerValidation.validate _).expects(*, *).never()
+      (headerValidation.validate _).expects(*).never()
 
       BlockChecker
         .makeActor(
@@ -494,10 +494,10 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         ().pure[F]
       }
 
-      (headerValidation.validate _).expects(*, *).rep(newIdAndHeaders.size).onCall {
-        case (header: BlockHeader, _: BlockHeader) =>
-          Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F]
-      }
+      (headerValidation.validate _)
+        .expects(*)
+        .rep(newIdAndHeaders.size)
+        .onCall((header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F])
 
       val expectedIds = NonEmptyChain.fromSeq(newIdAndHeaders.map(_._1)).get
       val expectedMessage: PeersManager.Message = PeersManager.Message.BlockDownloadRequest(hostId, expectedIds)
@@ -569,10 +569,10 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         ().pure[F]
       }
 
-      (headerValidation.validate _).expects(*, *).rep(newIdAndHeaders.size).onCall {
-        case (header: BlockHeader, _: BlockHeader) =>
-          Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F]
-      }
+      (headerValidation.validate _)
+        .expects(*)
+        .rep(newIdAndHeaders.size)
+        .onCall((header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F])
 
       val expectedIds = NonEmptyChain.fromSeq(newIdAndHeaders.map(_._1)).get
       val expectedMessage: PeersManager.Message = PeersManager.Message.BlockDownloadRequest(hostId, expectedIds)

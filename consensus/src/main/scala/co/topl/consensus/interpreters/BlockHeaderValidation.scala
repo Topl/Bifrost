@@ -32,6 +32,8 @@ object BlockHeaderValidation {
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElection:           LeaderElectionValidationAlgebra[F],
     clockAlgebra:             ClockAlgebra[F],
+    blockHeaderStore:         Store[F, BlockId, BlockHeader],
+    bigBangBlockId:           BlockId,
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
     ed25519Resource:          UnsafeResource[F, Ed25519],
@@ -43,6 +45,8 @@ object BlockHeaderValidation {
         consensusValidationState,
         leaderElection,
         clockAlgebra,
+        blockHeaderStore,
+        bigBangBlockId,
         ed25519VRFResource,
         kesProductResource,
         ed25519Resource,
@@ -55,26 +59,28 @@ object BlockHeaderValidation {
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElection:           LeaderElectionValidationAlgebra[F],
     clockAlgebra:             ClockAlgebra[F],
+    blockHeaderStore:         Store[F, BlockId, BlockHeader],
+    bigBangBlockId:           BlockId,
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
     ed25519Resource:          UnsafeResource[F, Ed25519],
     blake2b256Resource:       UnsafeResource[F, Blake2b256]
   ) extends BlockHeaderValidationAlgebra[F] {
 
-    def validate(
-      child:  BlockHeader,
-      parent: BlockHeader
-    ): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
-      for {
-        _         <- statelessVerification(child, parent)
-        _         <- EitherT(timeSlotVerification(child))
-        _         <- vrfVerification(child)
-        _         <- kesVerification(child)
-        _         <- registrationVerification(child)
-        threshold <- EitherT.liftF(vrfThresholdFor(child, parent))
-        _         <- vrfThresholdVerification(child, threshold, blake2b256Resource)
-        _         <- eligibilityVerification(child, threshold)
-      } yield child
+    def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
+      if (header.id === bigBangBlockId) EitherT.rightT[F, BlockHeaderValidationFailure](header)
+      else
+        for {
+          parent    <- EitherT.liftF(blockHeaderStore.getOrRaise(header.parentHeaderId))
+          _         <- statelessVerification(header, parent)
+          _         <- EitherT(timeSlotVerification(header))
+          _         <- vrfVerification(header)
+          _         <- kesVerification(header)
+          _         <- registrationVerification(header)
+          threshold <- EitherT.liftF(vrfThresholdFor(header, parent))
+          _         <- vrfThresholdVerification(header, threshold, blake2b256Resource)
+          _         <- eligibilityVerification(header, threshold)
+        } yield header
     }.value
 
     private[consensus] def statelessVerification(child: BlockHeader, parent: BlockHeader) =
@@ -85,9 +91,6 @@ object BlockHeaderValidation {
         )
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp))(
           child => child.timestamp > parent.timestamp
-        )
-        .ensureOr(child => BlockHeaderValidationFailures.ParentMismatch(child.parentHeaderId, parent.id))(child =>
-          child.parentHeaderId === parent.id
         )
         .ensureOr(child => BlockHeaderValidationFailures.NonForwardHeight(child.height, parent.height))(
           _.height === parent.height + 1
@@ -312,41 +315,32 @@ object BlockHeaderValidation {
 
     def make[F[_]: Sync](
       underlying:       BlockHeaderValidationAlgebra[F],
-      blockHeaderStore: Store[F, BlockId, BlockHeader]
+      blockHeaderStore: Store[F, BlockId, BlockHeader],
+      bigBangBlockId:   BlockId
     ): F[BlockHeaderValidationAlgebra[F]] =
-      CaffeineCache[F, BlockId, BlockId].map(implicit cache =>
+      CaffeineCache[F, BlockId, Unit].map(implicit cache =>
         new BlockHeaderValidationAlgebra[F] {
 
-          def validate(
-            child:  BlockHeader,
-            parent: BlockHeader
-          ): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
-            OptionT(cache.get(child.id))
-              .map(_ => child.asRight[BlockHeaderValidationFailure])
-              .getOrElseF(
-                validateParent(parent)
-                  .flatMapF(_ => underlying.validate(child, parent))
-                  .semiflatTap(h => cache.put(h.id)(h.id))
-                  .value
-              )
-
-          private def validateParent(
-            parent: BlockHeader
-          ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
-            if (parent.parentSlot < 0)
-              // TODO: Is this a security concern?
-              // Could an adversary just "claim" the parentSlot is -1 to circumvent validation?
-              EitherT.pure[F, BlockHeaderValidationFailure](parent)
+          def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
+            if (header.id === bigBangBlockId) header.asRight[BlockHeaderValidationFailure].pure[F]
             else
-              EitherT(
-                OptionT(blockHeaderStore.get(parent.parentHeaderId))
-                  .getOrElseF(
-                    new IllegalStateException(s"Non-existent block header id=${parent.parentHeaderId}")
-                      .raiseError[F, BlockHeader]
-                  )
-                  .flatMap(grandParent => Sync[F].defer(validate(parent, grandParent)))
-              )
+              cache
+                .cachingF(header.id)(None)(
+                  EitherT
+                    .liftF(Sync[F].defer(blockHeaderStore.getOrRaise(header.parentHeaderId)))
+                    .flatMapF(validate)
+                    .flatMapF(_ => underlying.validate(header))
+                    .void
+                    .leftMap(new WrappedFailure(_))
+                    .rethrowT
+                )
+                .as(header.asRight[BlockHeaderValidationFailure])
+                .recover { case w: WrappedFailure =>
+                  w.failure.asLeft[BlockHeader]
+                }
         }
       )
+
+    private class WrappedFailure(val failure: BlockHeaderValidationFailure) extends Exception
   }
 }
