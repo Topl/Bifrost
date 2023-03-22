@@ -2,7 +2,12 @@
 Bifrost officially supports development on Ubuntu.  Other operating systems may still work, but the Topl team may be unable to support certain questions.
 
 ## Installation
-A [convenience script](./scripts/dev_setup.sh) is provided which will run the following steps automatically.  We highly recommend reading the contents of the script before running it.  The convenience script can be run by typing `./docs/scripts/dev_setup.sh` from the command line (from the repository root).
+A [convenience script](./scripts/dev_setup.sh) is provided which will run the following steps automatically. We highly recommend reading the contents of the script before running it. The convenience script can be run by typing
+```sh
+source ./docs/scripts/dev_setup.sh
+```
+
+from the command line (from the repository root).
 Otherwise, the directions below will suffice.
 
 ### Docker, Java, and SBT
