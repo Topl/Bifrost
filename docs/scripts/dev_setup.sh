@@ -29,3 +29,5 @@ source "$HOME/.sdkman/bin/sdkman-init.sh"
 sdk install java 11.0.17-tem
 
 sdk install sbt 1.7.3
+
+source ~/.bashrc
