@@ -1,13 +1,13 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.genusLibrary.model.BlockData
+import co.topl.genusLibrary.model.{BlockData, GenusException, HeightData}
 
 /**
- * Fetcher of blocks on the chain.
+ * Algebra which defines fetch operations of blocks against the chain in the Node.
  * @tparam F the effect-ful context to retrieve the value in
  * @tparam G sequence container. Ex: Stream, Seq
  */
-trait BlockSequenceFetcherAlgebra[F[_], G[_]] {
+trait NodeBlockFetcherAlgebra[F[_], G[_]] {
 
   /**
    * Fetch sequence of blocks on the chain
@@ -16,5 +16,13 @@ trait BlockSequenceFetcherAlgebra[F[_], G[_]] {
    * @return effect-ful context of a sequence container of block data
    */
   def fetch(startHeight: Long, endHeight: Long): F[G[BlockData]]
+
+  /**
+   * Look-up a block on the chain with a given height
+   *
+   * @param height The height to lookup
+   * @return the full block
+   */
+  def fetch(height: Long): F[Either[GenusException, HeightData]]
 
 }

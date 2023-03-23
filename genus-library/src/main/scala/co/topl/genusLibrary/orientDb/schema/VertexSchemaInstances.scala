@@ -3,7 +3,6 @@ package co.topl.genusLibrary.orientDb.schema
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Evidence, Identifier, LockAddress, TransactionOutputAddress}
-import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
@@ -75,25 +74,6 @@ object VertexSchemaInstances {
         GraphDataEncoder[Unit],
         _ => ()
       )
-
-//    implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
-//      VertexSchema.create(
-//        "Transaction",
-//        GraphDataEncoder[IoTransaction]
-//          .withProperty(
-//            "transactionId",
-//            t => t.id.toByteArray,
-//            mandatory = false,
-//            readOnly = false,
-//            notNull = true
-//          )(byteArrayOrientDbTypes)
-//          .withProperty("transaction", _.toByteArray, mandatory = false, readOnly = false, notNull = true)(
-//            byteArrayOrientDbTypes
-//          ),
-////          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"), // TODO create index type class instance
-//        // transactionID is not stored in a transaction, but computed
-//        v => IoTransaction.parseFrom(v("transaction"))
-//      )
 
     implicit private[genusLibrary] val txoSchema: VertexSchema[Txo] =
       VertexSchema.create(

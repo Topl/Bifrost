@@ -20,12 +20,14 @@ import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import fs2._
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
-
+  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
   private val toplRpc: ToplRpc[F, Stream[F, *]] = mock[ToplRpc[F, Stream[F, *]]]
 
   private val nodeBlockFetcher = NodeBlockFetcher.make[F](toplRpc)

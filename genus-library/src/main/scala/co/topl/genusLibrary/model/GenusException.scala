@@ -55,4 +55,8 @@ object GenusExceptions {
 
   case class Message(msg: String) extends GenusException(msg, new IllegalStateException("Undefined cause"))
   case class MessageWithCause(msg: String, cause: Throwable) extends GenusException(msg, cause)
+
+  case class NotFound(msg: String) extends GenusException(msg, new IllegalStateException("Not found"))
+  case object UnImplemented extends GenusException("UnImplemented", new NotImplementedError("UnImplemented"))
+  case class Internal(e: Throwable) extends GenusException("Internal Error", e)
 }

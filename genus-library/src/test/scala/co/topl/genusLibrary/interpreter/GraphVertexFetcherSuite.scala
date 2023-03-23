@@ -9,7 +9,6 @@ import co.topl.genusLibrary.model.{GenusException, GenusExceptions}
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
-import java.lang
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -34,8 +33,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
           _ <- assertIO(
-            graphVertexFetcher.fetchHeader(header.id),
+            graphBlockFetcher.fetchHeader(header.id),
             (GenusExceptions.MessageWithCause("FetchBodyVertex", expectedTh): GenusException)
               .asLeft[Option[BlockHeader]]
           ).toResource
@@ -56,8 +56,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
           _ <- assertIO(
-            graphVertexFetcher.fetchHeader(header.id),
+            graphBlockFetcher.fetchHeader(header.id),
             Option.empty[BlockHeader].asRight[GenusException]
           ).toResource
         } yield ()
@@ -79,8 +80,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
           _ <- assertIO(
-            graphVertexFetcher.fetchHeaderByHeight(header.height),
+            graphBlockFetcher.fetchHeaderByHeight(header.height),
             (GenusExceptions.MessageWithCause("FetchHeaderByHeight", expectedTh): GenusException)
               .asLeft[Option[BlockHeader]]
           ).toResource
@@ -102,8 +104,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
           _ <- assertIO(
-            graphVertexFetcher.fetchHeaderByHeight(header.height),
+            graphBlockFetcher.fetchHeaderByHeight(header.height),
             Option.empty[BlockHeader].asRight[GenusException]
           ).toResource
         } yield ()

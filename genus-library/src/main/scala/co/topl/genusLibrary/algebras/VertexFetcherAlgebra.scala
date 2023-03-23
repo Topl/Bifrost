@@ -1,8 +1,8 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.consensus.models.{BlockHeader, BlockId}
-import co.topl.genus.services.BlockData
+import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.model.GenusException
+import com.tinkerpop.blueprints.Vertex
 
 /**
  * Vertex finder on the stored Ledger
@@ -11,26 +11,26 @@ import co.topl.genusLibrary.model.GenusException
 trait VertexFetcherAlgebra[F[_]] {
 
   /**
-   * Fetch header on the stored Ledger
-   * @param blockId header id used  to find the header vertex on the stored Ledger
-   * @return Optional BlockHeader, None if it was not found
+   * Fetch a BlockHeader vertex on the stored Ledger
+   * @param blockId  blockId filter by field
+   * @return Optional header vertex, None if it was not found
    */
-  def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[BlockHeader]]]
+  def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[Vertex]]]
 
   /**
-   * Fetch a block given height on the stored Ledger
+   * Fetch a BlockBody Vertex, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
    *
-   * @param height actual header height value
-   * @return Optional BlockHeader, None if it was not found
+   * @param headerVertex filter by field
+   * @return Optional body vertex, None if it was not found
    */
-  def fetchBlockByHeight(height: Long): F[Either[GenusException, Option[BlockData]]]
+  def fetchBody(headerVertex: Vertex): F[Either[GenusException, Option[Vertex]]]
 
   /**
-   * Fetch header given height on the stored Ledger
+   * Fetch Transactions Vertices, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
    *
-   * @param height actual header height value
-   * @return Optional BlockHeader, None if it was not found
+   * @param headerVertex filter by field
+   * @return transactions vertices
    */
-  def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[BlockHeader]]]
+  def fetchTransactions(headerVertex: Vertex): F[Either[GenusException, Iterable[Vertex]]]
 
 }

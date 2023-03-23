@@ -30,14 +30,14 @@ object GraphBlockInserter {
                 bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
                 // Relationship between Header <-> Body
-                graph.addEdge(s"class:${blockHeaderBodyEdge.name}", headerVertex, bodyVertex, "body") // TODO continue debugging here
+                graph.addEdge(s"class:${blockHeaderBodyEdge.name}", headerVertex, bodyVertex, blockHeaderBodyEdge.label)
 
                 // Relationships between Header <-> TxIOs
                 block.transactions.map { ioTx =>
                   val txVertex =
                     graph.addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(ioTx).asJava)
                   txVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
-                  graph.addEdge(s"class:${blockHeaderTransactionIOEdge.name}", headerVertex, txVertex, "txIO") // TODO continue debugging here
+                  graph.addEdge(s"class:${blockHeaderTxIOEdge.name}", headerVertex, txVertex, blockHeaderTxIOEdge.label)
                 }
 
                 // Relationship between Header <-> ParentHeader if Not Genesis block
@@ -47,7 +47,7 @@ object GraphBlockInserter {
                     .iterator()
                     .next()
 
-                  graph.addEdge(s"class:${blockHeaderEdge.name}", headerVertex, headerInVertex, "parent") // TODO continue debugging here
+                  graph.addEdge(s"class:${blockHeaderEdge.name}", headerVertex, headerInVertex, blockHeaderEdge.label)
                 }
                 graph.commit()
               }.toEither

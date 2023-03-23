@@ -34,15 +34,15 @@ object GenusServerApp
 
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
+      blockFetcher       <- GraphBlockFetcher.make(dbNoTx, vertexFetcher)
 
-      rpcInterpreter       <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
-      blockFetcher         <- NodeBlockFetcher.make(rpcInterpreter)
-      blockSequenceFetcher <- NodeBlockSequenceFetcher.make(blockFetcher)
+      rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
+      nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
       nodeEnabled <- Resource.pure(true) // maybe we can use a config
-      inserter <- blockSequenceFetcher
-        .fetch(1, 100)
+      inserter <- nodeBlockFetcher
+        .fetch(startHeight = 1, endHeight = 100)
         .map(_.spaced(50 millis))
         .map(
           _.evalMap(graphBlockInserter.insert)
@@ -53,7 +53,7 @@ object GenusServerApp
       _ <-
         if (nodeEnabled)
           inserter
-            .take(50)
+            .take(10)
             .compile
             .toList
             .void
@@ -61,7 +61,7 @@ object GenusServerApp
         else Resource.unit[F]
 
       _ <- GenusFullBlockGrpc.Server
-        .serve(conf.rpcHost, conf.rpcPort, vertexFetcher)
+        .serve(conf.rpcHost, conf.rpcPort, blockFetcher)
         .evalTap(grpcServer =>
           Logger[F].info(s"RPC Server bound at ${grpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )

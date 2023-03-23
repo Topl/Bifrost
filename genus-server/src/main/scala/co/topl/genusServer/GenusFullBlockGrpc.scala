@@ -6,22 +6,23 @@ import cats.effect.kernel.Resource
 import cats.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services._
-import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
+import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
+import co.topl.genusLibrary.model.GenusExceptions
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import fs2.grpc.syntax.all._
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.protobuf.services.ProtoReflectionService
-import io.grpc.{Metadata, Server, Status}
+import io.grpc.{Metadata, Server}
 import java.net.InetSocketAddress
 
 object GenusFullBlockGrpc {
 
   object Server {
 
-    def serve[F[_]: Async](host: String, port: Int, vertexFetcher: VertexFetcherAlgebra[F]): Resource[F, Server] =
+    def serve[F[_]: Async](host: String, port: Int, blockFetcher: BlockFetcherAlgebra[F]): Resource[F, Server] =
       GenusFullBlockServiceFs2Grpc
         .bindServiceResource(
-          new GrpcServerImpl(vertexFetcher)
+          new GrpcServerImpl(blockFetcher)
         )
         .flatMap(serverServiceDefinition =>
           NettyServerBuilder
@@ -32,63 +33,48 @@ object GenusFullBlockGrpc {
             .evalMap(server => Async[F].delay(server.start()))
         )
 
-    private class GrpcServerImpl[F[_]: Async](vertexFetcher: VertexFetcherAlgebra[F])
+    private class GrpcServerImpl[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
         extends GenusFullBlockServiceFs2Grpc[F, Metadata] {
 
       override def getBlockById(request: GetBlockByIdRequest, ctx: Metadata): F[BlockResponse] =
-        for {
-          header <- EitherT(vertexFetcher.fetchHeader(request.blockId))
+        (for {
+          header <- EitherT(blockFetcher.fetchHeader(request.blockId))
             .foldF(
-              ge =>
-                Async[F].raiseError[BlockHeader](
-                  Status.INTERNAL.augmentDescription(s"${ge.getMessage}").asRuntimeException()
-                ),
+              ge => Async[F].raiseError[BlockHeader](GenusExceptions.Internal(ge)),
               {
                 case Some(blockHeader) =>
                   blockHeader.pure[F]
                 case None =>
-                  // TODO return None when optional response PR is approved
-                  Async[F].raiseError[BlockHeader](
-                    Status.NOT_FOUND.augmentDescription("Block header not found").asRuntimeException()
-                  )
+                  Async[F].raiseError[BlockHeader](GenusExceptions.NotFound("Block not found"))
               }
             )
 
           // TODO populate transaction first, and then implement vertexFetchBody, vertexFetchTransactions
           response = BlockResponse.of(FullBlock.of(header, fullBody = FullBlockBody.defaultInstance))
-        } yield response
+        } yield response).adaptErrorsToGrpc
 
       override def getBlockByHeight(request: GetBlockByHeightRequest, ctx: Metadata): F[BlockResponse] =
-        for {
-          header <- EitherT(vertexFetcher.fetchHeaderByHeight(request.height.value)) // TODO tomorrow , test this fetchBlockByHeight
+        (for {
+          blockData <- EitherT(
+            blockFetcher.fetchBlockByHeight(request.height.value)
+          )
             .foldF(
-              ge =>
-                Async[F].raiseError[BlockHeader](
-                  Status.INTERNAL.augmentDescription(s"${ge.getMessage}").asRuntimeException()
-                ), // TODO return None
+              ge => Async[F].raiseError[BlockData](GenusExceptions.Internal(ge)),
               {
-                case Some(blockHeader) => blockHeader.pure[F]
-                case None              =>
-                  // TODO return None when optional response PR is approved
-                  Async[F].raiseError[BlockHeader](
-                    Status.NOT_FOUND.augmentDescription("Block header not found").asRuntimeException()
-                  )
+                case Some(blockHeader) =>
+                  blockHeader.pure[F]
+                case None =>
+                  Async[F].raiseError[BlockData](GenusExceptions.NotFound("Block not found"))
               }
             )
-          // TODO populate transaction first, and then implement vertexFetchBody, vertexFetchTransactions
-          responseOLd = BlockResponse.of(
-            FullBlock.of(header, fullBody = FullBlockBody.defaultInstance)
-          )
 
           response = BlockResponse.of(
-            FullBlock.of(header, fullBody = FullBlockBody.of(Seq.empty))
+            FullBlock.of(blockData.header, fullBody = FullBlockBody.of(blockData.transactions))
           )
-        } yield response
+        } yield response).adaptErrorsToGrpc
 
       override def getBlockByDepth(request: GetBlockByDepthRequest, ctx: Metadata): F[BlockResponse] =
-        Async[F].raiseError(
-          Status.UNIMPLEMENTED.asException()
-        )
+        Async[F].raiseError[BlockResponse](GenusExceptions.UnImplemented).adaptErrorsToGrpc
 
     }
 
