@@ -713,18 +713,19 @@ class BlockHeaderValidationSpec
     unsignedF: UnsignedBlockHeader.PartialOperationalCertificate => UnsignedBlockHeader,
     parentSK:  SecretKeyKesProduct
   ): (UnsignedBlockHeader, ByteString) = {
-    val (linearSKBytes, linearVKBytes) =
+    val keyPair =
       new Ed25519().deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
-
-    val message = linearVKBytes.toArray ++ Longs.toByteArray(slot)
+    val linearSKBytes = keyPair.signingKey.bytes
+    val linearVKBytes = keyPair.verificationKey.bytes
+    val message = linearVKBytes ++ Longs.toByteArray(slot)
     val parentSignature = kesProduct.sign(parentSK, message)
     val kesProductVerificationKey = kesProduct.getVerificationKey(parentSK)
     val partialCertificate = UnsignedBlockHeader.PartialOperationalCertificate(
       kesProductVerificationKey,
       parentSignature,
-      ByteString.copyFrom(linearVKBytes.toArray)
+      ByteString.copyFrom(linearVKBytes)
     )
-    unsignedF(partialCertificate) -> linearSKBytes
+    unsignedF(partialCertificate) -> ByteString.copyFrom(linearSKBytes)
   }
 
   private def genValid(
@@ -779,7 +780,9 @@ class BlockHeaderValidationSpec
           unsigned.partialOperationalCertificate.parentVK,
           unsigned.partialOperationalCertificate.parentSignature,
           unsigned.partialOperationalCertificate.childVK,
-          ed25519.sign(linearSK, unsigned.signableBytes)
+          ByteString.copyFrom(
+            ed25519.sign(Ed25519.SecretKey(linearSK.toByteArray), unsigned.signableBytes.toByteArray)
+          )
         )
 
       val child =

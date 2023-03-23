@@ -1,7 +1,6 @@
 package co.topl.crypto.utils
 
 import co.topl.crypto.models._
-import scodec.bits.ByteVector
 
 object KesTestHelper {
 
@@ -10,26 +9,26 @@ object KesTestHelper {
     // false-true corresponds to left or right child node with respect to the parent being constructed
     // witness elements and seeds should be provided for each level of the tree in order of highest to lowest
     // sk and vk are the leaf (lowest) level private and public keys
-    type Args = (Boolean, (ByteVector, ByteVector, ByteVector))
+    type Args = (Boolean, (Array[Byte], Array[Byte], Array[Byte]))
 
-    def build(sk: ByteVector, vk: ByteVector, args: Args*): KesBinaryTree =
+    def build(sk: Array[Byte], vk: Array[Byte], args: Args*): KesBinaryTree =
       args.length match {
         case 0 =>
-          KesBinaryTree.SigningLeaf(sk.toArray, vk.toArray)
+          KesBinaryTree.SigningLeaf(sk, vk)
         case _ =>
           if (args.head._1) {
             KesBinaryTree.MerkleNode(
-              args.head._2._1.toArray,
-              args.head._2._2.toArray,
-              args.head._2._3.toArray,
+              args.head._2._1,
+              args.head._2._2,
+              args.head._2._3,
               KesBinaryTree.Empty(),
               this.build(sk, vk, args.tail: _*)
             )
           } else {
             KesBinaryTree.MerkleNode(
-              args.head._2._1.toArray,
-              args.head._2._2.toArray,
-              args.head._2._3.toArray,
+              args.head._2._1,
+              args.head._2._2,
+              args.head._2._3,
               this.build(sk, vk, args.tail: _*),
               KesBinaryTree.Empty()
             )

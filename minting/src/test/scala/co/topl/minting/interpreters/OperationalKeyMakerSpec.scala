@@ -149,7 +149,8 @@ class OperationalKeyMakerSpec
                   kesProduct
                     .verify(
                       out.parentSignature,
-                      ed25519.getVerificationKey(out.childSK: Bytes).toArray ++ Longs.toByteArray(i),
+                      ed25519.getVerificationKey(Ed25519.SecretKey(out.childSK.toByteArray)).bytes ++ Longs
+                        .toByteArray(i),
                       vk
                     )
                     .pure[F],
@@ -274,7 +275,8 @@ class OperationalKeyMakerSpec
                   kesProduct
                     .verify(
                       out.parentSignature,
-                      ed25519.getVerificationKey(out.childSK: Bytes).toArray ++ Longs.toByteArray(i),
+                      ed25519.getVerificationKey(Ed25519.SecretKey(out.childSK.toByteArray)).bytes ++ Longs
+                        .toByteArray(i),
                       expectedVK
                     )
                     .pure[F],

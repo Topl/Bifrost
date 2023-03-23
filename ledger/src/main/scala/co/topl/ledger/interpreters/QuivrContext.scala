@@ -58,7 +58,11 @@ object QuivrContext {
       def validate(t: SignatureVerification): F[Either[QuivrRuntimeError, SignatureVerification]] =
         Sync[F].delay(
           Either.cond(
-            ed25519.verify(t.signature.value, t.message.value, t.verificationKey.value),
+            ed25519.verify(
+              t.signature.toByteArray,
+              t.message.toByteArray,
+              Ed25519.PublicKey(t.verificationKey.toByteArray)
+            ),
             t,
             QuivrRuntimeErrors.ValidationError.UserProvidedInterfaceFailure // TODO
           )

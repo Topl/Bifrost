@@ -214,7 +214,12 @@ object OperationalKeyMaker {
                   ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
                 )
               )
-              .map { case (sk, vk) => (sk: ByteString, vk: ByteString) }
+              .map { keyPair =>
+                (
+                  ByteString.copyFrom(keyPair.signingKey.bytes),
+                  ByteString.copyFrom(keyPair.verificationKey.bytes)
+                )
+              }
           )
         )
         .flatMap(children =>

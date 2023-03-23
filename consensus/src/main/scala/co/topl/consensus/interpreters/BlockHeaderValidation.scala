@@ -193,9 +193,9 @@ object BlockHeaderValidation {
                 // Use the ed25519 instance to verify the childSignature against the header's bytes
                 ed25519
                   .verify(
-                    header.operationalCertificate.childSignature,
-                    header.unsigned.signableBytes,
-                    header.operationalCertificate.childVK
+                    header.operationalCertificate.childSignature.toByteArray,
+                    header.unsigned.signableBytes.toByteArray,
+                    Ed25519.PublicKey(header.operationalCertificate.childVK.toByteArray)
                   )
                   .pure[F]
               )
