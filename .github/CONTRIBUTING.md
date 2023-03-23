@@ -5,8 +5,6 @@ Thank you very much for considering contributing to Bifrost! It is people like y
 
 Before you begin however, please be sure to read our [Contributor Code of Conduct](https://github.com/Topl/Bifrost/blob/main/.github/CODE_OF_CONDUCT.md). We want to ensure a healthy and collaborative environment here and will be enforcing these rules.
 
-**STOP RIGHT NOW AND READ THE CONTRIBUTOR LICENSE AGREEMENT AND CODE OF CONDUCT**
-
 <a name="communication"></a>
 ## Communication channels
 
