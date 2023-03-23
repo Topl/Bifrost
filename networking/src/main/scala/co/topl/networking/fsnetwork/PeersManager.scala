@@ -19,6 +19,7 @@ import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
 /**
@@ -44,6 +45,14 @@ object PeersManager {
      * @tparam F effect
      */
     case class SetupBlockChecker[F[_]](blockChecker: BlockCheckerActor[F]) extends Message
+
+    /**
+     * Set requests proxy actor, can't be done in constructor due cyclic references
+     *
+     * @param requestsProxy block checker
+     * @tparam F effect
+     */
+    case class SetupRequestsProxy[F[_]](requestsProxy: RequestsProxyActor[F]) extends Message
 
     /**
      * Set reputation aggregator actor, can't be done in constructor due cyclic references
@@ -88,6 +97,7 @@ object PeersManager {
     networkAlgebra:       NetworkAlgebra[F],
     reputationAggregator: Option[ReputationAggregatorActor[F]],
     blocksChecker:        Option[BlockCheckerActor[F]],
+    requestsProxy:        Option[RequestsProxyActor[F]],
     peers:                Map[HostId, Peer[F]],
     localChain:           LocalChainAlgebra[F],
     slotDataStore:        Store[F, BlockId, SlotData],
@@ -105,6 +115,8 @@ object PeersManager {
           setupPeer(thisActor, state, newPeer)
         case (state, checker: SetupBlockChecker[F] @unchecked) =>
           setupBlockChecker(state, checker.blockChecker)
+        case (state, checker: SetupRequestsProxy[F] @unchecked) =>
+          setupRequestsProxy(state, checker.requestsProxy)
         case (state, aggregator: SetupReputationAggregator[F] @unchecked) =>
           setupRepAggregator(state, aggregator.aggregator)
         case (state, update: UpdatePeerStatus) =>
@@ -125,8 +137,9 @@ object PeersManager {
     val initialState =
       PeersManager.State[F](
         networkAlgebra,
-        None,
-        None,
+        reputationAggregator = None,
+        blocksChecker = None,
+        requestsProxy = None,
         Map.empty[HostId, Peer[F]],
         localChain,
         slotDataStore,
@@ -146,6 +159,7 @@ object PeersManager {
 
     require(state.blocksChecker.isDefined)
     require(state.reputationAggregator.isDefined)
+    require(state.blocksChecker.isDefined)
 
     val peerActorF: F[PeerActor[F]] =
       thisActor.acquireActor(() =>
@@ -154,6 +168,7 @@ object PeersManager {
           client,
           state.reputationAggregator.get,
           state.blocksChecker.get,
+          state.requestsProxy.get,
           state.localChain,
           state.slotDataStore,
           state.transactionStore,
@@ -173,7 +188,16 @@ object PeersManager {
     blocksChecker: BlockCheckerActor[F]
   ): F[(State[F], Response[F])] = {
     val newState = state.copy(blocksChecker = Option(blocksChecker))
-    Logger[F].info("Setup block checker") >>
+    Logger[F].info("Setup block checker for PeerManager") >>
+    (newState, newState).pure[F]
+  }
+
+  private def setupRequestsProxy[F[_]: Async: Logger](
+    state:         State[F],
+    requestsProxy: RequestsProxyActor[F]
+  ): F[(State[F], Response[F])] = {
+    val newState = state.copy(requestsProxy = Option(requestsProxy))
+    Logger[F].info("Setup requests proxy for PeerManager") >>
     (newState, newState).pure[F]
   }
 

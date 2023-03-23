@@ -11,11 +11,11 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import co.topl.node.models.BlockBody
 
 object PeerBlockBodyFetcher {
   sealed trait Message
@@ -37,7 +37,7 @@ object PeerBlockBodyFetcher {
   case class State[F[_]](
     hostId:           HostId,
     client:           BlockchainPeerClient[F],
-    blockChecker:     BlockCheckerActor[F],
+    requestsProxy:    RequestsProxyActor[F],
     transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction]
   )
 
@@ -53,10 +53,10 @@ object PeerBlockBodyFetcher {
   def makeActor[F[_]: Async: Logger](
     hostId:           HostId,
     client:           BlockchainPeerClient[F],
-    blockChecker:     BlockCheckerActor[F],
+    requestsProxy:    RequestsProxyActor[F],
     transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
-    val initialState = State(hostId, client, blockChecker, transactionStore)
+    val initialState = State(hostId, client, requestsProxy, transactionStore)
     Actor.make(initialState, getFsm[F])
   }
 
@@ -66,8 +66,8 @@ object PeerBlockBodyFetcher {
   ): F[(State[F], Response[F])] =
     for {
       idToBody <- Stream.foldable(blocksToDownload).evalMap(downloadBlockBody(state)).compile.toList
-      messageToSend = BlockChecker.Message.RemoteBlockBodies(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
-      _ <- state.blockChecker.sendNoWait(messageToSend)
+      messageToSend = RequestsProxy.Message.DownloadBlockResponse(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
+      _ <- state.requestsProxy.sendNoWait(messageToSend)
     } yield (state, state)
 
   private def downloadBlockBody[F[_]: Async: Logger](state: State[F])(blockId: BlockId) =
@@ -76,7 +76,7 @@ object PeerBlockBodyFetcher {
       body: BlockBody <- OptionT(state.client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
       _               <- Logger[F].debug(show"Fetched remote body id=$blockId")
       _               <- downloadMissingTransactions(state, body).compile.drain
-    } yield (blockId, body)
+    } yield (blockId, Either.right[BlockBodyDownloadError, BlockBody](body))
 
   private def downloadMissingTransactions[F[_]: Async: Logger](state: State[F], blockBody: BlockBody): Stream[F, Unit] =
     Stream

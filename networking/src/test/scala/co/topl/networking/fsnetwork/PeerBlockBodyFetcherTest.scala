@@ -11,9 +11,10 @@ import co.topl.consensus.models.BlockId
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops}
+import co.topl.node.models.BlockBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -38,7 +39,7 @@ class PeerBlockBodyFetcherTest
   test("Block bodies shall be downloaded by request") {
     withMock {
       val client = mock[BlockchainPeerClient[F]]
-      val blockChecker = mock[BlockCheckerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
       val transactionStore = mock[Store[F, Identifier.IoTransaction32, IoTransaction]]
 
       val (txs, bodies) =
@@ -78,11 +79,13 @@ class PeerBlockBodyFetcherTest
           downloadedTxs.put(id, tx).pure[F].void
       }
 
-      val expectedMessage = BlockChecker.Message.RemoteBlockBodies(hostId, blockIdsAndBodies)
-      (blockChecker.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      val wrappedBodies =
+        blockIdsAndBodies.map { case (id, body) => (id, Either.right[BlockBodyDownloadError, BlockBody](body)) }
+      val expectedMessage = RequestsProxy.Message.DownloadBlockResponse(hostId, wrappedBodies)
+      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, blockChecker, transactionStore)
+        .makeActor(hostId, client, requestsProxy, transactionStore)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(blockIds))

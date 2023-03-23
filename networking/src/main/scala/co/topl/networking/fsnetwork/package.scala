@@ -1,21 +1,11 @@
 package co.topl.networking
 
-import cats.data.EitherT
-import cats.data.NonEmptyChain
-import cats.data.OptionT
+import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.implicits._
-import cats.Applicative
-import cats.Monad
-import cats.MonadThrow
-import cats.Show
+import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.BlockHeaderToBodyValidationFailure
-import co.topl.consensus.models.BlockHeaderValidationFailure
-import co.topl.consensus.models.SlotData
-import co.topl.ledger.models.BodyAuthorizationError
-import co.topl.ledger.models.BodySemanticError
-import co.topl.ledger.models.BodySyntaxError
+import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure, BlockId, SlotData}
+import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
@@ -137,4 +127,7 @@ package object fsnetwork {
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )
+
+  sealed trait BlockBodyDownloadError
+  object BlockBodyDownloadError {}
 }

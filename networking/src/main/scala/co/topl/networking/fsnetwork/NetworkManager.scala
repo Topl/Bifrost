@@ -42,9 +42,11 @@ object NetworkManager {
         blockIdTree
       )
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager)
+      requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)
       blocksChecker <- networkAlgebra.makeBlockChecker(
         reputationAggregator,
         peerManager,
+        requestsProxy,
         localChain,
         slotDataStore,
         headerStore,
@@ -57,6 +59,7 @@ object NetworkManager {
         chainSelectionAlgebra
       )
 
+      _ <- Resource.liftK(requestsProxy.sendNoWait(RequestsProxy.Message.SetupBlockChecker(blocksChecker)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupReputationAggregator(reputationAggregator)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupBlockChecker(blocksChecker)))
       // TODO send initial host list to peer manager
