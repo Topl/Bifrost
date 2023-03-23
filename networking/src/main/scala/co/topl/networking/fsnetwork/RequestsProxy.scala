@@ -5,7 +5,6 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
