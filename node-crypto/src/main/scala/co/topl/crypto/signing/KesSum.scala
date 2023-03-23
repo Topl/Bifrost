@@ -3,6 +3,9 @@ package co.topl.crypto.signing
 import co.topl.crypto.models._
 import co.topl.crypto.signing.kes.SumComposition
 
+/**
+ * Credit to Aaron Schutza
+ */
 class KesSum extends SumComposition {
 
   def createKeyPair(seed: Array[Byte], height: Int, offset: Long): (SecretKeyKesSum, VerificationKeyKesSum) = {

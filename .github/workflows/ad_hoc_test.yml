@@ -2,6 +2,12 @@ name: Ad hoc Test
 
 on:
   workflow_dispatch:
+    inputs:
+      debug-logging-enabled:
+        description: 'Enable Debug Logging?'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   sbt-build:
@@ -18,3 +24,8 @@ jobs:
     needs: [sbt-build]
     with:
       preserve-cache-between-runs: true
+      debug-logging-enabled: ${{ inputs.debug-logging-enabled }}
+  publish-test-results:
+    uses: ./.github/workflows/_publish_test_results.yml
+    needs: [sbt-build, sbt-integration-tests, sbt-byzantine-tests]
+    if: always()

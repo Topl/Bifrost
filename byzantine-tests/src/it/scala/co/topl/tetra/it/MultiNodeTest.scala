@@ -22,7 +22,7 @@ class MultiNodeTest extends IntegrationSuite {
     val config2 = TestNodeConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
     val resource =
       for {
-        (dockerSupport, _dockerClient) <- DockerSupport.make[F]
+        (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
         node1 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0.yaml)
         node2 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1.yaml)

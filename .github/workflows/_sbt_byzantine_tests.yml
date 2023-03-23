@@ -18,6 +18,11 @@ on:
         default: false
         required: false
         type: boolean
+      debug-logging-enabled:
+        description: 'Enable Debug Logging?'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   tests:
@@ -60,6 +65,8 @@ jobs:
 
       - name: Byzantine Tests
         run: sbt ";node/Docker/publishLocal;byzantineTests/IntegrationTest/test"
+        env:
+          DEBUG: ${{ inputs.debug-logging-enabled }}
 
       # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
       # Artifacts can be found on the summary page for each individual workflow run.
@@ -67,9 +74,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: Scala Integration Test Results (Java ${{ matrix.java }})
+          name: Scala Byzantine Test Results (Java ${{ matrix.java }})
           path: byzantine-tests/target/it-reports/*.xml
-
+      - name: Upload Test Logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: Scala Byzantine Test Logs (Java ${{ matrix.java }})
+          path: byzantine-tests/target/logs/*.log
       - name: Cleanup before cache
         shell: bash
         run: |

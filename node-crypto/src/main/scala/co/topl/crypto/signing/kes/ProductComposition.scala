@@ -4,6 +4,9 @@ import co.topl.crypto.models._
 import KesBinaryTree._
 import java.security.SecureRandom
 
+/**
+ * Credit to Aaron Schutza
+ */
 class ProductComposition extends KesEd25519Blake2b256 {
 
   protected val sumComposition = new SumComposition

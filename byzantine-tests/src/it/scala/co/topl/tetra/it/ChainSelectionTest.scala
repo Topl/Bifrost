@@ -4,7 +4,6 @@ import cats.effect.implicits._
 import cats.implicits._
 import co.topl.tetra.it.util._
 import com.spotify.docker.client.DockerClient
-
 import fs2._
 
 import java.time.Instant
@@ -40,7 +39,7 @@ class ChainSelectionTest extends IntegrationSuite {
     )
 
     val resource = for {
-      (dockerSupport, _dockerClient) <- DockerSupport.make[F]
+      (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
       implicit0(dockerClient: DockerClient) = _dockerClient
       node0 <- dockerSupport.createNode("ChainSelectionTest-node0", "ChainSelectionTest", config0.yaml)
       node1 <- dockerSupport.createNode("ChainSelectionTest-node1", "ChainSelectionTest", config1.yaml)
