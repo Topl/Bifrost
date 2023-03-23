@@ -83,11 +83,11 @@ object RequestsProxy {
     blockIds: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     for {
-      _              <- Logger[F].debug(show"Get request for blocks downloads $blockIds")
+      _              <- Logger[F].info(show"Get request for blocks downloads $blockIds")
       idsDownloaded  <- sendAlreadyDownloadedBlocksToBlockChecker(state, hostId, blockIds)
-      _              <- Logger[F].debug(show"Send already downloaded block to block checker $idsDownloaded")
+      _              <- Logger[F].info(show"Send already downloaded block to block checker $idsDownloaded")
       idsForDownload <- sendDownloadRequestForNewBlocks(state, hostId, blockIds)
-      _              <- Logger[F].debug(show"Send request for additional block body download $idsForDownload")
+      _              <- Logger[F].info(show"Send request for additional block body download $idsForDownload")
       bodyReq: Map[BlockId, Option[BlockBody]] = state.bodyRequests -- idsDownloaded ++ idsForDownload.map((_, None))
       newState = state.copy(bodyRequests = bodyReq)
     } yield (newState, newState)
@@ -121,7 +121,7 @@ object RequestsProxy {
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[List[BlockId]] = {
-    val newBlockIds = blockIds.filter(state.bodyRequests.contains)
+    val newBlockIds = blockIds.filterNot(state.bodyRequests.contains)
     NonEmptyChain
       .fromChain(newBlockIds)
       .map { blockIds =>
@@ -140,6 +140,7 @@ object RequestsProxy {
       response.collect { case (id, Right(body)) => (id, Option(body)) }
 
     for {
+      _       <- Logger[F].info(show"Successfully download next blocks: ${successfullyDownloadedBlocks.map(_._1)}")
       _       <- processDownloadErrors(state.reputationAggregator, state.peersManager, hostId, response)
       sentIds <- sendSuccessfulBodiesPrefix(state.headerStore, state.bodyStore, state.blockCheckerOpt, hostId, response)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
@@ -175,7 +176,7 @@ object RequestsProxy {
   }
 
   // If parent of first block in response is already in storage then we send prefix to block checker
-  private def sendSuccessfulBodiesPrefix[F[_]: Async](
+  private def sendSuccessfulBodiesPrefix[F[_]: Async: Logger](
     headerStore:     Store[F, BlockId, BlockHeader],
     bodyStore:       Store[F, BlockId, BlockBody],
     blockCheckerOpt: Option[BlockCheckerActor[F]],
@@ -189,7 +190,8 @@ object RequestsProxy {
     val sendMessage =
       for {
         firstBlockHeader <- OptionT(headerStore.get(firstBlock))
-        _                <- OptionT(bodyStore.get(firstBlockHeader.id))
+        _                <- OptionT(bodyStore.get(firstBlockHeader.parentHeaderId))
+        _                <- OptionT.liftF(Logger[F].debug(show"Parent of block body $firstBlock is already adopted"))
         blockChecker     <- OptionT.fromOption[F](blockCheckerOpt)
         idAndBodies      <- OptionT.fromOption[F](NonEmptyChain.fromSeq(prefix))
       } yield blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockBodies(source, idAndBodies)) >>
