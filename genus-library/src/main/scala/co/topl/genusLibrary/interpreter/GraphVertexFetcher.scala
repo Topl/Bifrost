@@ -5,9 +5,10 @@ import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GenusException, GenusExceptions}
-import co.topl.genusLibrary.orientDb.schema.BlockHeaderVertexSchema.Field
+import co.topl.genusLibrary.orientDb.schema.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.Vertex
@@ -33,8 +34,47 @@ object GraphVertexFetcher {
               orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
             ).toEither
               .map(_.headOption.map(blockHeaderSchema.decodeVertex))
-              .leftMap[GenusException](tx => GenusExceptions.FailureMessageWithCause("FetchHeaderByHeight", tx))
+              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchHeaderByHeight", tx))
           )
+
+        def fetchBlockByHeight(height: Long): F[Either[GenusException, Option[BlockData]]] =
+          (for {
+            maybeHeaderVertex <-
+              EitherT(
+                Async[F].delay(
+                  Try(
+                    orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
+                  ).toEither
+                    .map(_.headOption)
+                    .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchHeaderByHeight", tx))
+                )
+              )
+            headerVertex <- EitherT.fromOption[F](
+              maybeHeaderVertex,
+              GenusExceptions.Message(s"No Header Found at height $height"): GenusException
+            )
+
+            blockBody <- EitherT(fetchBodyVertex(headerVertex)).flatMap(
+              EitherT
+                .fromOption[F](
+                  _,
+                  GenusExceptions.Message(
+                    s"No Body Found at height $height for header ${headerVertex.getId}"
+                  ): GenusException
+                )
+                .map(blockBodySchema.decodeVertex)
+            )
+
+            iterableIoTransaction <- EitherT(fetchTransactionVertex(headerVertex))
+              .map(_.map(ioTransactionSchema.decodeVertex))
+
+            res = BlockData.of(
+              header = blockHeaderSchema.decodeVertex(headerVertex),
+              body = blockBody,
+              transactions = iterableIoTransaction.toList
+            )
+
+          } yield res.some).value // TODO solve this some
 
         /**
          * Fetch blockHeader using the index defined in the schema
@@ -47,11 +87,11 @@ object GraphVertexFetcher {
             // Using BlockHeader index
             Try(orientGraph.getVertices(Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
-              .leftMap[GenusException](tx => GenusExceptions.FailureMessageWithCause("FetchBodyVertex", tx))
+              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchBodyVertex", tx))
           )
 
         /**
-         * Fetch blockBody using the BlockBody link to BlockHeader defined in the schema
+         * Fetch blockBody using the link to BlockHeader defined in the schema
          *
          * @param headerVertex header db id will be used to fetch the body
          * @return a body vertex
@@ -64,11 +104,27 @@ object GraphVertexFetcher {
                 .asScala
             ).toEither
               .map(_.headOption)
-              .leftMap[GenusException](tx => GenusExceptions.FailureMessageWithCause("FetchBodyVertex", tx))
+              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchBodyVertex", tx))
           )
 
         /**
-         *  this method will be moved to the algebra
+         * Fetch Transaction using the link to BlockHeader defined in the schema
+         *
+         * @param headerVertex header db id will be used to fetch the body
+         * @return a body vertex
+         */
+        def fetchTransactionVertex(headerVertex: Vertex): F[Either[GenusException, Iterable[Vertex]]] =
+          Async[F].delay(
+            Try(
+              orientGraph
+                .getVertices(s"class:${ioTransactionSchema.name}", Array(Field.BlockId), Array(headerVertex.getId))
+                .asScala
+            ).toEither
+              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("fetchTransactionVertex", tx))
+          )
+
+        /**
+         *  Fetch blockBody (TODO move to the algebra in case if needed)
          * @param blockId
          * @return
          */

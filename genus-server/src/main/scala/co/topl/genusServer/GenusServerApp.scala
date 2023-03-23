@@ -53,7 +53,7 @@ object GenusServerApp
       _ <-
         if (nodeEnabled)
           inserter
-            .take(10)
+            .take(50)
             .compile
             .toList
             .void

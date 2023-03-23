@@ -18,8 +18,9 @@ object VertexSchemaInstances {
 
   trait Instances {
 
-    private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = BlockHeaderVertexSchema.make()
-    implicit private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = BlockBodyVertexSchema.make()
+    private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
+    private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
+    private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
 
     // Note, From here to the end, VertexSchemas not tested
     /**
@@ -75,24 +76,24 @@ object VertexSchemaInstances {
         _ => ()
       )
 
-    implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
-      VertexSchema.create(
-        "Transaction",
-        GraphDataEncoder[IoTransaction]
-          .withProperty(
-            "transactionId",
-            t => t.id.toByteArray,
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )(byteArrayOrientDbTypes)
-          .withProperty("transaction", _.toByteArray, mandatory = false, readOnly = false, notNull = true)(
-            byteArrayOrientDbTypes
-          ),
-//          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"), // TODO create index type class instance
-        // transactionID is not stored in a transaction, but computed
-        v => IoTransaction.parseFrom(v("transaction"))
-      )
+//    implicit private[genusLibrary] val transactionSchema: VertexSchema[IoTransaction] =
+//      VertexSchema.create(
+//        "Transaction",
+//        GraphDataEncoder[IoTransaction]
+//          .withProperty(
+//            "transactionId",
+//            t => t.id.toByteArray,
+//            mandatory = false,
+//            readOnly = false,
+//            notNull = true
+//          )(byteArrayOrientDbTypes)
+//          .withProperty("transaction", _.toByteArray, mandatory = false, readOnly = false, notNull = true)(
+//            byteArrayOrientDbTypes
+//          ),
+////          .withIndex("transactionIdIndex", INDEX_TYPE.UNIQUE, "transactionId"), // TODO create index type class instance
+//        // transactionID is not stored in a transaction, but computed
+//        v => IoTransaction.parseFrom(v("transaction"))
+//      )
 
     implicit private[genusLibrary] val txoSchema: VertexSchema[Txo] =
       VertexSchema.create(

@@ -36,7 +36,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeader(header.id),
-            (GenusExceptions.FailureMessageWithCause("FetchBodyVertex", expectedTh): GenusException)
+            (GenusExceptions.MessageWithCause("FetchBodyVertex", expectedTh): GenusException)
               .asLeft[Option[BlockHeader]]
           ).toResource
         } yield ()
@@ -81,7 +81,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeaderByHeight(header.height),
-            (GenusExceptions.FailureMessageWithCause("FetchHeaderByHeight", expectedTh): GenusException)
+            (GenusExceptions.MessageWithCause("FetchHeaderByHeight", expectedTh): GenusException)
               .asLeft[Option[BlockHeader]]
           ).toResource
         } yield ()

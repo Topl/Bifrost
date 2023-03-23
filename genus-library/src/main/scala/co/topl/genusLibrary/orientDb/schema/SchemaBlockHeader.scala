@@ -6,11 +6,11 @@ import co.topl.genusLibrary.orientDb.schema.OrientDbIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
 import com.google.protobuf.ByteString
 
-object BlockHeaderVertexSchema {
+object SchemaBlockHeader {
 
   /**
-   * Names should be aligned with BlockHeader model fields:
-   * @see https://github.com/Topl/protobuf-specs/blob/main/proto/consensus/models/block_header.proto#L15
+   * BlockHeader model fields:
+   * @see https://github.com/Topl/protobuf-specs/blob/main/proto/consensus/models/block_header.proto
    */
   object Field {
     val SchemaName = "BlockHeader"
@@ -46,7 +46,7 @@ object BlockHeaderVertexSchema {
       .withProperty(Field.OperationalCertificate,_.operationalCertificate.toByteArray,mandatory = true, readOnly = true, notNull = true)
       .withProperty(Field.Metadata,_.metadata.toByteArray,mandatory = true, readOnly = true, notNull = false)
       .withProperty(Field.Address,_.address.toByteArray,mandatory = true, readOnly = true, notNull = true)
-      .withIndex(Field.BlockHeaderIndex, Field.BlockId),
+      .withIndex[BlockHeader](Field.BlockHeaderIndex, Field.BlockId),
       // @formatter:on
     v =>
       BlockHeader(

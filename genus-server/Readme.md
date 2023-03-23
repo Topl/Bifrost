@@ -69,3 +69,9 @@ if you need multiple access to the same database, don't use "plocal" directly, b
 
 More info  https://orientdb.org/docs/1.7.8/orientdb.wiki/Security.html
 
+### Examples
+
+- Queries and visualization of data, in Examples folder. (OrientDb Studio is required) 
+
+
+![title](./Examples/example_3.png)

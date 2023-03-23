@@ -60,7 +60,7 @@ object GenusFullBlockGrpc {
 
       override def getBlockByHeight(request: GetBlockByHeightRequest, ctx: Metadata): F[BlockResponse] =
         for {
-          header <- EitherT(vertexFetcher.fetchHeaderByHeight(request.height.value))
+          header <- EitherT(vertexFetcher.fetchHeaderByHeight(request.height.value)) // TODO tomorrow , test this fetchBlockByHeight
             .foldF(
               ge =>
                 Async[F].raiseError[BlockHeader](
@@ -76,7 +76,13 @@ object GenusFullBlockGrpc {
               }
             )
           // TODO populate transaction first, and then implement vertexFetchBody, vertexFetchTransactions
-          response = BlockResponse.of(FullBlock.of(header, fullBody = FullBlockBody.defaultInstance))
+          responseOLd = BlockResponse.of(
+            FullBlock.of(header, fullBody = FullBlockBody.defaultInstance)
+          )
+
+          response = BlockResponse.of(
+            FullBlock.of(header, fullBody = FullBlockBody.of(Seq.empty))
+          )
         } yield response
 
       override def getBlockByDepth(request: GetBlockByDepthRequest, ctx: Metadata): F[BlockResponse] =

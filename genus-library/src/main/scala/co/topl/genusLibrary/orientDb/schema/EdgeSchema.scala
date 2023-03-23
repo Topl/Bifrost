@@ -15,12 +15,18 @@ trait EdgeSchema {
 object EdgeSchemaInstances {
 
   // Edge: blockHeader <--> blockHeader
-  val blockHeaderEdgeSchema: EdgeSchema = new EdgeSchema {
+  val blockHeaderEdge: EdgeSchema = new EdgeSchema {
     override def name: String = "BlockHeaderEdge"
   }
 
   // Edge: blockHeader <--> blockBody
-  val blockHeaderBodyEdgeSchema: EdgeSchema = new EdgeSchema {
+  val blockHeaderBodyEdge: EdgeSchema = new EdgeSchema {
     override def name: String = "BlockHeaderBodyEdge"
   }
+
+  // Edge: blockHeader <--> transactionIO
+  val blockHeaderTransactionIOEdge: EdgeSchema = new EdgeSchema {
+    override def name: String = "BlockHeaderTransactionIOEdge"
+  }
+
 }

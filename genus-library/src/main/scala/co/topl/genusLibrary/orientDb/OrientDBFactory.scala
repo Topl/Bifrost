@@ -38,7 +38,7 @@ object OrientDBFactory {
         )
         .leftMap(cause =>
           Resource
-            .eval(Logger[F].error(GenusExceptions.FailureMessage(cause).getMessage))
+            .eval(Logger[F].error(GenusExceptions.Message(cause).getMessage))
             .flatMap(_ => Resource.canceled)
         )
         .merge

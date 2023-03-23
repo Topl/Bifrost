@@ -53,6 +53,6 @@ object GenusExceptions {
   case class OrientCommitException(ex: RuntimeException)
       extends GenusException("There was an error while committing Orient Transaction", ex)
 
-  case class FailureMessage(msg: String) extends GenusException(msg, new IllegalStateException("Undefined cause"))
-  case class FailureMessageWithCause(msg: String, cause: Throwable) extends GenusException(msg, cause)
+  case class Message(msg: String) extends GenusException(msg, new IllegalStateException("Undefined cause"))
+  case class MessageWithCause(msg: String, cause: Throwable) extends GenusException(msg, cause)
 }

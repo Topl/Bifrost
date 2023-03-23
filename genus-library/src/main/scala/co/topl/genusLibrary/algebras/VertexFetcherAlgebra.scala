@@ -1,6 +1,7 @@
 package co.topl.genusLibrary.algebras
 
 import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.model.GenusException
 
 /**
@@ -15,6 +16,14 @@ trait VertexFetcherAlgebra[F[_]] {
    * @return Optional BlockHeader, None if it was not found
    */
   def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[BlockHeader]]]
+
+  /**
+   * Fetch a block given height on the stored Ledger
+   *
+   * @param height actual header height value
+   * @return Optional BlockHeader, None if it was not found
+   */
+  def fetchBlockByHeight(height: Long): F[Either[GenusException, Option[BlockData]]]
 
   /**
    * Fetch header given height on the stored Ledger

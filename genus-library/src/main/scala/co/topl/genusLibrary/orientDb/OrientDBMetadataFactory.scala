@@ -25,6 +25,7 @@ package co.topl.genusLibrary.orientDb {
 
         _ <- createVertex(db, blockHeaderSchema)
         _ <- createVertex(db, blockBodySchema)
+        _ <- createVertex(db, ioTransactionSchema)
 
       } yield ()
 

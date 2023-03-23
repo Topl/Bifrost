@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
 import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions}
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.schema.BlockHeaderVertexSchema.Field
+import co.topl.genusLibrary.orientDb.schema.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
 import scala.jdk.CollectionConverters._
@@ -20,51 +20,43 @@ object GraphBlockInserter {
         override def insert(block: BlockData): F[Either[GenusException, Unit]] =
           Sync[F]
             .blocking {
-              // Genesis block
-              if (block.header.height == 1) {
-                Try {
-                  val headerVertex =
-                    graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
 
-                  val bodyVertex =
-                    graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
+              Try {
+                val headerVertex =
+                  graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
 
-                  bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
+                val bodyVertex =
+                  graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
+                bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
-                  graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerVertex, bodyVertex, "body")
+                // Relationship between Header <-> Body
+                graph.addEdge(s"class:${blockHeaderBodyEdge.name}", headerVertex, bodyVertex, "body") // TODO continue debugging here
 
-                  graph.commit()
+                // Relationships between Header <-> TxIOs
+                block.transactions.map { ioTx =>
+                  val txVertex =
+                    graph.addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(ioTx).asJava)
+                  txVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
+                  graph.addEdge(s"class:${blockHeaderTransactionIOEdge.name}", headerVertex, txVertex, "txIO") // TODO continue debugging here
                 }
-              } else {
-                Try {
-                  val headerOutVertex =
-                    graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
 
-                  val bodyVertex =
-                    graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
-                  bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerOutVertex.getId)
-
-                  graph.addEdge(s"class:${blockHeaderBodyEdgeSchema.name}", headerOutVertex, bodyVertex, "body")
-
-                  // Evaluate if the this factory could receive the vertex fetcher, and use getVertex method
+                // Relationship between Header <-> ParentHeader if Not Genesis block
+                if (block.header.height != 1) {
                   val headerInVertex = graph
                     .getVertices(Field.BlockId, block.header.parentHeaderId.value.toByteArray)
                     .iterator()
                     .next()
 
-                  graph.addEdge(s"class:${blockHeaderEdgeSchema.name}", headerOutVertex, headerInVertex, "parent")
-
-                  graph.commit()
+                  graph.addEdge(s"class:${blockHeaderEdge.name}", headerVertex, headerInVertex, "parent") // TODO continue debugging here
                 }
-              }
-            }
-            .map(
-              _.toEither
+                graph.commit()
+              }.toEither
                 .leftMap { th =>
                   graph.rollback()
-                  GenusExceptions.FailureMessage(th.getMessage): GenusException
+                  GenusExceptions.Message(th.getMessage): GenusException
                 }
-            )
+            }
+
       }
     )
 
