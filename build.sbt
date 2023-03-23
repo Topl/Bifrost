@@ -623,12 +623,16 @@ lazy val genusServer = project
   .settings(
     name := "genus-server",
     commonSettings,
+    fork := true,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
     libraryDependencies ++= Dependencies.genusServer
   )
-  .dependsOn(genusLibrary)
+  .dependsOn(
+    genusLibrary,
+    commonApplication
+  )
 
 lazy val genusLibrary = project
   .in(file("genus-library"))
