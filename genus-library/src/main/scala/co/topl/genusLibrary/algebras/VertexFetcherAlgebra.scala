@@ -18,6 +18,14 @@ trait VertexFetcherAlgebra[F[_]] {
   def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[Vertex]]]
 
   /**
+   * Fetch a BlockHeader vertex on the stored Ledger
+   *
+   * @param height filter by field
+   * @return Optional header vertex, None if it was not found
+   */
+  def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[Vertex]]]
+
+  /**
    * Fetch a BlockBody Vertex, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
    *
    * @param headerVertex filter by field

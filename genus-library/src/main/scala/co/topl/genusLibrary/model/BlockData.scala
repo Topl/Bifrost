@@ -21,7 +21,7 @@ case class HeightData(
  * @param body block body. TypedIdentifiers of the block transactions.
  * @param transactions block transactions
  */
-case class BlockData(
+case class BlockData( // TODO remove
   header:       BlockHeader,
   body:         BlockBody,
   transactions: Chain[IoTransaction]

@@ -4,30 +4,29 @@ import cats.data.EitherT
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.typeclasses.implicits._
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, VertexFetcherAlgebra}
 import co.topl.genusLibrary.model.{GenusException, GenusExceptions}
-import co.topl.genusLibrary.orientDb.schema.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import co.topl.node.models.BlockBody
-import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
-import scala.jdk.CollectionConverters._
-import scala.util.Try
+import com.tinkerpop.blueprints.Vertex
 import scodec.bits.ByteVector
 
 object GraphBlockFetcher {
 
-  def make[F[_]: Async](
-    orientGraph:   OrientGraphNoTx,
-    vertexFetcher: VertexFetcherAlgebra[F]
-  ): Resource[F, BlockFetcherAlgebra[F]] =
+  def make[F[_]: Async](vertexFetcher: VertexFetcherAlgebra[F]): Resource[F, BlockFetcherAlgebra[F]] =
     Resource.pure {
       new BlockFetcherAlgebra[F] {
 
         override def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeader(blockId))
+            .map(_.map(blockHeaderSchema.decodeVertex))
+            .value
+
+        override def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[BlockHeader]]] =
+          EitherT(vertexFetcher.fetchHeaderByHeight(height))
             .map(_.map(blockHeaderSchema.decodeVertex))
             .value
 
@@ -46,82 +45,56 @@ object GraphBlockFetcher {
             blockBody <- EitherT.pure[F, GenusException](blockBodySchema.decodeVertex(bodyVertex).some)
           } yield blockBody).value
 
-        override def fetchBlock(blockId: BlockId): F[Either[GenusException, Option[BlockData]]] =
-          (for {
-            maybeHeaderVertex <- EitherT(vertexFetcher.fetchHeader(blockId))
+        /**
+         * Auxiliary def used by fetch BlockById and BlockByHeight
+         * @param f a function that returns a Header Vertex
+         * @return
+         */
+        private def fetchBlockFromVertex(
+          f: () => F[Either[GenusException, Option[Vertex]]]
+        ): F[Either[GenusException, Option[BlockData]]] =
+          EitherT(f())
+            .flatMap {
+              case Some(headerVertex) =>
+                val header = blockHeaderSchema.decodeVertex(headerVertex)
 
-            headerVertex <- EitherT.fromOption[F](
-              maybeHeaderVertex,
-              GenusExceptions.Message(show"Vertex Header not Found ${blockId.value.show}"): GenusException
-            )
+                EitherT(vertexFetcher.fetchBody(headerVertex))
+                  .flatMap {
+                    case Some(bodyVertex) =>
+                      val body = blockBodySchema.decodeVertex(bodyVertex)
+                      EitherT.pure[F, GenusException]((header.some, body, Seq.empty[IoTransaction]))
+                    case None =>
+                      EitherT.pure[F, GenusException](
+                        (header.some, BlockBody(Seq.empty), Seq.empty[IoTransaction])
+                      )
+                  }
+                  .flatMap { case (bh, bb, _) =>
+                    EitherT(vertexFetcher.fetchTransactions(headerVertex))
+                      .map(_.map(ioTransactionSchema.decodeVertex))
+                      .map(ioTxs => (bh, bb, ioTxs.toSeq))
+                  }
 
-            blockBody <- EitherT(vertexFetcher.fetchBody(headerVertex)).flatMap(
-              EitherT
-                .fromOption[F](
-                  _,
-                  GenusExceptions.Message(show"Vertex Body not Found ${blockId.value.show}"): GenusException
+              case None =>
+                EitherT.pure[F, GenusException](
+                  (Option.empty[BlockHeader], BlockBody(Seq.empty), Seq.empty[IoTransaction])
                 )
-                .map(blockBodySchema.decodeVertex)
-            )
-
-            iterableIoTransaction <- EitherT(vertexFetcher.fetchTransactions(headerVertex))
-              .map(_.map(ioTransactionSchema.decodeVertex))
-
-            res = BlockData.of(
-              header = blockHeaderSchema.decodeVertex(headerVertex),
-              body = blockBody,
-              transactions = iterableIoTransaction.toList
-            )
-
-          } yield res.some).value
-
-        override def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[BlockHeader]]] =
-          Async[F].delay(
-            Try(
-              orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
-            ).toEither
-              .map(_.headOption.map(blockHeaderSchema.decodeVertex))
-              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchHeaderByHeight", tx))
-          )
-
-        def fetchBlockByHeight(height: Long): F[Either[GenusException, Option[BlockData]]] =
-          (for {
-            maybeHeaderVertex <-
-              EitherT(
-                Async[F].delay(
-                  Try(
-                    orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
-                  ).toEither
-                    .map(_.headOption)
-                    .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchHeaderByHeight", tx))
+            }
+            .map { case (header, blockBody, ioTransaction) =>
+              header.map(header =>
+                BlockData.of(
+                  header = header,
+                  body = blockBody,
+                  transactions = ioTransaction
                 )
               )
-            headerVertex <- EitherT.fromOption[F](
-              maybeHeaderVertex,
-              GenusExceptions.Message(s"No Header Found at height $height"): GenusException
-            )
+            }
+            .value
 
-            blockBody <- EitherT(vertexFetcher.fetchBody(headerVertex)).flatMap(
-              EitherT
-                .fromOption[F](
-                  _,
-                  GenusExceptions.Message(
-                    s"No Body Found at height $height for header ${headerVertex.getId}"
-                  ): GenusException
-                )
-                .map(blockBodySchema.decodeVertex)
-            )
+        override def fetchBlock(blockId: BlockId): F[Either[GenusException, Option[BlockData]]] =
+          fetchBlockFromVertex(() => vertexFetcher.fetchHeader(blockId))
 
-            iterableIoTransaction <- EitherT(vertexFetcher.fetchTransactions(headerVertex))
-              .map(_.map(ioTransactionSchema.decodeVertex))
-
-            res = BlockData.of(
-              header = blockHeaderSchema.decodeVertex(headerVertex),
-              body = blockBody,
-              transactions = iterableIoTransaction.toList
-            )
-
-          } yield res.some).value
+        override def fetchBlockByHeight(height: Long): F[Either[GenusException, Option[BlockData]]] =
+          fetchBlockFromVertex(() => vertexFetcher.fetchHeaderByHeight(height))
 
       }
     }

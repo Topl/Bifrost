@@ -44,7 +44,16 @@ object GraphVertexFetcher {
                 .getVertices(ioTransactionSchema.name, Array(Field.BlockId), Array(headerVertex.getId))
                 .asScala
             ).toEither
-              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("fetchTransactionVertex", tx))
+              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchTransactionVertex", tx))
+          )
+
+        def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[Vertex]]] =
+          Async[F].delay(
+            Try(
+              orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GenusException](tx => GenusExceptions.MessageWithCause("FetchHeaderByHeightVertex", tx))
           )
 
       }

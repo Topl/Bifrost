@@ -33,7 +33,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeader(header.id),
             (GenusExceptions.MessageWithCause("FetchBodyVertex", expectedTh): GenusException)
@@ -56,7 +56,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeader(header.id),
             Option.empty[BlockHeader].asRight[GenusException]
@@ -68,7 +68,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     }
   }
 
-  test("On fetchHeaderByHeight with throwable response, a FailureMessageWithCause should be returned") {
+  test("On fetchHeaderByHeight with throwable response, a MessageWithCause should be returned") {
 
     val expectedTh = new IllegalStateException("boom!")
     val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
@@ -80,10 +80,10 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeaderByHeight(header.height),
-            (GenusExceptions.MessageWithCause("FetchHeaderByHeight", expectedTh): GenusException)
+            (GenusExceptions.MessageWithCause("FetchHeaderByHeightVertex", expectedTh): GenusException)
               .asLeft[Option[BlockHeader]]
           ).toResource
         } yield ()
@@ -104,7 +104,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-          graphBlockFetcher  <- GraphBlockFetcher.make[F](orientGraphNoTx, graphVertexFetcher)
+          graphBlockFetcher  <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeaderByHeight(header.height),
             Option.empty[BlockHeader].asRight[GenusException]
