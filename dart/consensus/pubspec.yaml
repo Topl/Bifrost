@@ -12,6 +12,8 @@ environment:
 
 dependencies:
   fpdart: ^0.3.0
+  rational: ^2.2.2
+  hashlib: ^1.8.1
   topl_protobuf:
     path: ../../../protobuf-specs/build/dart
   bifrost_codecs:

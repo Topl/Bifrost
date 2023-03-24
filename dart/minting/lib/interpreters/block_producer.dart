@@ -1,9 +1,10 @@
 import 'dart:async';
 
 import 'package:bifrost_codecs/codecs.dart';
+import 'package:bifrost_common/models/unsigned.dart';
 import 'package:bifrost_minting/algebras/block_packer_algebra.dart';
 import 'package:bifrost_minting/algebras/block_producer_algebra.dart';
-import 'package:bifrost_common/algebras/ClockAlgebra.dart';
+import 'package:bifrost_common/algebras/clock_algebra.dart';
 import 'package:bifrost_minting/algebras/staking_algebra.dart';
 import 'package:async/async.dart';
 import 'package:bifrost_minting/models/vrf_hit.dart';
@@ -114,21 +115,18 @@ class BlockProducer extends BlockProducerAlgebra {
 
   _prepareUnsignedBlock(SlotData parentSlotData, FullBlockBody fullBody,
           Int64 timestamp, VrfHit nextHit) =>
-      (PartialOperationalCertificate partialOperationalCertificate) {
-        final unsignedHeader = UnsignedBlockHeader(
-            parentHeaderId: parentSlotData.slotId.blockId,
-            parentSlot: parentSlotData.slotId.slot,
-            txRoot: [], // TODO
-            bloomFilter: [], // TODO
-            timestamp: timestamp,
-            height: parentSlotData.height + 1,
-            slot: nextHit.slot,
-            eligibilityCertificate: nextHit.eligibilityCertificate,
-            partialOperationalCertificate: partialOperationalCertificate,
-            metadata: [],
-            address: staker.address);
-        final body =
-            BlockBody(transactionIds: fullBody.transaction.map((t) => t.id));
-        return UnsignedBlock(unsignedHeader: unsignedHeader, body: body);
-      };
+      (PartialOperationalCertificate partialOperationalCertificate) =>
+          UnsignedBlockHeader(
+            parentSlotData.slotId.blockId,
+            parentSlotData.slotId.slot,
+            [], // TODO
+            [], // TODO
+            timestamp,
+            parentSlotData.height + 1,
+            nextHit.slot,
+            nextHit.cert,
+            partialOperationalCertificate,
+            [],
+            staker.address,
+          );
 }
