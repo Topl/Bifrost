@@ -859,7 +859,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     }
   }
 
-  test("RemoteBlockBodies: Verify and save new blocks, and apply to local chain because it better") {
+  test("RemoteBlockBodies: Verify and save blocks, apply to local chain, send no new request") {
     withMock {
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val peersManager = mock[PeersManagerActor[F]]
@@ -945,6 +945,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (localChain.isWorseThan _).expects(lastBlockSlotData).once().returning(true.pure[F])
       (localChain.adopt _).expects(Validated.Valid(lastBlockSlotData)).once().returning(().pure[F])
 
+      (bodyStore.contains _).expects(*).once().returning(true.pure[F])
+
+      (requestsProxy.sendNoWait _).expects(*).never()
       (peersManager.sendNoWait _).expects(*).never()
 
       BlockChecker
@@ -968,6 +971,136 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           for {
             newState <- actor.send(message)
             _ = assert(newState.bestKnownRemoteSlotDataOpt.isEmpty)
+          } yield ()
+        }
+    }
+  }
+
+  test("RemoteBlockBodies: Verify and save blocks, apply to local chain, send new request") {
+    withMock {
+      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
+      val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
+      val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
+      val allIdSlotDataHeaderBlock =
+        arbitraryLinkedSlotDataHeaderBlockNoTx(Gen.choose(3, maxChainSize)).arbitrary.first
+
+      val knownIdSlotDataHeaderBlock = allIdSlotDataHeaderBlock.head
+
+      val requestIdSlotDataHeaderBlockSplit = Gen.choose[Int](2, allIdSlotDataHeaderBlock.size.toInt - 1).first
+      val (requestIdSlotDataHeaderBlock, expectedNewRequest) =
+        allIdSlotDataHeaderBlock.tail.toList.splitAt(requestIdSlotDataHeaderBlockSplit)
+      val requestIdSlotDataHeaderBlockSize = requestIdSlotDataHeaderBlock.size
+
+      val messageData =
+        NonEmptyChain.fromSeq(requestIdSlotDataHeaderBlock.map(d => (d._1, d._4))).get
+
+      val message =
+        BlockChecker.Message.RemoteBlockBodies(hostId, messageData)
+
+      val knownBodyStorageData: mutable.Map[BlockId, BlockBody] =
+        mutable.Map.empty[BlockId, BlockBody] ++ Map(knownIdSlotDataHeaderBlock._1 -> knownIdSlotDataHeaderBlock._4)
+      (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        knownBodyStorageData.contains(id).pure[F]
+      }
+      (bodyStore.put _).expects(*, *).rep(requestIdSlotDataHeaderBlockSize).onCall {
+        case (id: BlockId, block: BlockBody) =>
+          knownBodyStorageData.put(id, block).pure[F].void
+      }
+
+      val headerStorageData = allIdSlotDataHeaderBlock.map(d => (d._1, d._3)).toList.toMap
+      (headerStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F], _: Show[BlockId]) =>
+          headerStorageData(id).pure[F]
+        }
+
+      (headerToBodyValidation.validate _).expects(*).rep(requestIdSlotDataHeaderBlockSize).onCall { b: Block =>
+        Either.right[BlockHeaderToBodyValidationFailure, Block](b).pure[F]
+      }
+
+      (bodySyntaxValidation.validate _).expects(*).rep(requestIdSlotDataHeaderBlockSize).onCall { b: BlockBody =>
+        Validated.validNec[BodySyntaxError, BlockBody](b).pure[F]
+      }
+
+      (bodySemanticValidation
+        .validate(_: BodyValidationContext)(_: BlockBody))
+        .expects(*, *)
+        .rep(requestIdSlotDataHeaderBlockSize)
+        .onCall { case (_: BodyValidationContext, b: BlockBody) =>
+          Validated.validNec[BodySemanticError, BlockBody](b).pure[F]
+        }
+
+      type AuthContext = IoTransaction => DynamicContext[F, String, Datum]
+      (bodyAuthorizationValidation
+        .validate(_: AuthContext)(_: BlockBody))
+        .expects(*, *)
+        .rep(requestIdSlotDataHeaderBlockSize)
+        .onCall { case (_: AuthContext, b: BlockBody) =>
+          Validated.validNec[BodyAuthorizationError, BlockBody](b).pure[F]
+        }
+
+      val slotDataStoreData = allIdSlotDataHeaderBlock.map(d => (d._1, d._2)).toList.toMap
+      (slotDataStore.get _).expects(*).onCall { id: BlockId => slotDataStoreData.get(id).pure[F] }
+      (slotDataStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F], _: Show[BlockId]) =>
+          slotDataStoreData(id).pure[F]
+        }
+
+      val lastRequestBlockSlotData = requestIdSlotDataHeaderBlock.last._2
+      (localChain.isWorseThan _).expects(lastRequestBlockSlotData).once().returning(true.pure[F])
+      (localChain.adopt _).expects(Validated.Valid(lastRequestBlockSlotData)).once().returning(().pure[F])
+
+      val expectedNewRequestMessage: RequestsProxy.Message =
+        RequestsProxy.Message.DownloadBlocksRequest(
+          hostId,
+          NonEmptyChain.fromSeq(expectedNewRequest.map(_._1).take(chunkSize)).get
+        )
+      (requestsProxy.sendNoWait _).expects(expectedNewRequestMessage).once().returning(().pure[F])
+
+      (peersManager.sendNoWait _).expects(*).never()
+
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          peersManager,
+          requestsProxy,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          headerToBodyValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(NonEmptyChain.one(allIdSlotDataHeaderBlock.last._2))),
+          Option(hostId)
+        )
+        .use { actor =>
+          for {
+            newState <- actor.send(message)
+            _ = assert(
+              newState.bestKnownRemoteSlotDataOpt == Option(
+                BestChain(NonEmptyChain.one(allIdSlotDataHeaderBlock.last._2))
+              )
+            )
           } yield ()
         }
     }

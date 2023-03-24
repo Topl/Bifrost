@@ -286,6 +286,7 @@ object BlockChecker {
         newBlockBodies      <- EitherT.fromOptionF(newBodiesOpt, "Skip validation of known bodies")
         verifiedFullBlocks  <- verifyAndSaveBodies(state, newBlockBodies)
         appliedNewHeadBlock <- tryToApplyBestBlock(state, verifiedFullBlocks.last.header.id)
+        _                   <- EitherT.liftF(requestNextBodyBlocks(state))
         newState = updateState(state, appliedNewHeadBlock)
       } yield (newState, appliedNewHeadBlock)
 
@@ -369,6 +370,17 @@ object BlockChecker {
           ifFalse = show"Ignoring weaker (or equal) block header id=$newTopBlock".pure[F]
         )
     } yield appliedBlock
+  }
+
+  private def requestNextBodyBlocks[F[_]: Async](state: State[F]): F[Unit] = {
+    val sendMessageCommand =
+      for {
+        bestTip      <- OptionT.fromOption[F](state.bestKnownRemoteSlotDataOpt.map(_.last))
+        missedBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestTip, chunkSize)
+        host = state.bestKnownRemoteSlotDataHost.get
+      } yield state.requestsProxy.sendNoWait(RequestsProxy.Message.DownloadBlocksRequest(host, missedBodies))
+
+    sendMessageCommand.getOrElse(().pure[F]).flatten
   }
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
