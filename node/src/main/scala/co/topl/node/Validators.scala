@@ -39,6 +39,7 @@ object Validators {
   def make[F[_]: Async](
     cryptoResources:             CryptoResources[F],
     dataStores:                  DataStores[F],
+    bigBangBlockId:              BlockId,
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
     blockIdTree:                 ParentChildTree[F, BlockId],
     etaCalculation:              EtaCalculationAlgebra[F],
@@ -53,12 +54,14 @@ object Validators {
           consensusValidationState,
           leaderElectionThreshold,
           clockAlgebra,
+          dataStores.headers,
+          bigBangBlockId,
           cryptoResources.ed25519VRF,
           cryptoResources.kesProduct,
           cryptoResources.ed25519,
           cryptoResources.blake2b256
         )
-        .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers))
+        .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers, bigBangBlockId))
       headerToBody <- BlockHeaderToBodyValidation.make()
       boxState <- BoxState.make(
         currentEventIdGetterSetters.boxState.get(),

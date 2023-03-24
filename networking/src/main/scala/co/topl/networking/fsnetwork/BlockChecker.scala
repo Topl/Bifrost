@@ -233,8 +233,7 @@ object BlockChecker {
     def verifyAndSaveHeader(headerId: BlockId, header: BlockHeader) =
       for {
         _ <- Logger[F].debug(show"Validating remote header id=$headerId")
-        validationFunction = state.headerValidation.validate(header, _)
-        _ <- EitherT(state.headerStore.getOrRaise(header.parentHeaderId).flatMap(validationFunction))
+        _ <- EitherT(state.headerValidation.validate(header))
           .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$headerId error=$error"))
           .leftMap(error => new IllegalArgumentException(error.show))
           .rethrowT

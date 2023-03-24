@@ -20,8 +20,6 @@ object BlockHeaderValidationFailures {
 
   case class SlotBeyondForwardBiasedSlotWindow(globalSlot: Slot, blockSlot: Slot) extends BlockHeaderValidationFailure
 
-  case class ParentMismatch(expectedParentId: BlockId, parentId: BlockId) extends BlockHeaderValidationFailure
-
   case class InvalidVrfThreshold(threshold: Ratio) extends BlockHeaderValidationFailure
 
   case class IneligibleCertificate(

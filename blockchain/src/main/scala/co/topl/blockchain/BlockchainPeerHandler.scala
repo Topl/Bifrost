@@ -214,11 +214,7 @@ object BlockchainPeerHandler {
             .evalMap { case (blockId, header) =>
               for {
                 _ <- Logger[F].debug(show"Validating remote header id=$blockId")
-                _ <- EitherT(
-                  headerStore
-                    .getOrRaise(header.parentHeaderId)
-                    .flatMap(headerValidation.validate(header, _))
-                )
+                _ <- EitherT(headerValidation.validate(header))
                   .leftSemiflatTap(error =>
                     Logger[F].warn(show"Received invalid block header id=$blockId error=$error")
                   )
