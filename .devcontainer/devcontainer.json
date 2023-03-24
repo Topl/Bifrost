@@ -1,33 +1,18 @@
 {
-	"name": "sbt-dev",
-	"image": "mcr.microsoft.com/devcontainers/base:ubuntu",
-	"postCreateCommand": "bash ./.devcontainer/scripts/post-install.sh",
-	"postStartCommand": "bash ./.devcontainer/scripts/post-start.sh",
+	"name": "dart-dev",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+
+	// Configure tool-specific properties.
 	"customizations": {
+		// Configure properties specific to VS Code.
 		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
 			"extensions": [
-				"scala-lang.scala",
-				"scalameta.metals",
-				"zxh404.vscode-proto3",
-				"ms-azuretools.vscode-docker"
+				"dart-code.dart-code",
+				"zxh404.vscode-proto3"
 			]
 		}
-	},
-	"features": {
-		"ghcr.io/devcontainers/features/docker-in-docker:1": {
-			"version": "latest",
-			"moby": true
-		},
-		"ghcr.io/devcontainers-contrib/features/sbt-sdkman:2": {
-			"jdkVersion": "11.0.18-tem",
-			"jdkDistro": "tem"
-		},
-		"ghcr.io/devcontainers/features/kubectl-helm-minikube:1": {},
-		"ghcr.io/rio/features/k9s:1": {}
-	},
-	"hostRequirements": {
-		"cpus": 6,
-		"memory": "12gb",
-		"storage": "20gb"
 	}
 }
