@@ -54,17 +54,6 @@ Development
 -------------------
 Developers should reference the [Development Setup](./docs/DevelopmentSetup.md) guide for setting up a new development environment for Bifrost.
 
-Testing
-----------
-**NOTE:** These instructions assume a working development environment.
-
-To run the Bifrost unit test suite from the project directory: `sbt test`
-
-To publish a Docker image from the project directory for local testing: `sbt 'node/docker:publishLocal'`
-   
-   - To run the published container: `docker run bifrost:x.x.x` (where `x.x.x` is the version that was published).
-   - To pass command line arguments: `docker run bifrost:x.x.x -s mySpecialSeed`
-
 
 Contributions
 -------------
