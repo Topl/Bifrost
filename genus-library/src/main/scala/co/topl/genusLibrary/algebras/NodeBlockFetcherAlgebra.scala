@@ -1,6 +1,7 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.genusLibrary.model.{BlockData, GenusException, HeightData}
+import co.topl.genus.services.BlockData
+import co.topl.genusLibrary.model.GRE
 
 /**
  * Algebra which defines fetch operations of blocks against the chain in the Node.
@@ -23,6 +24,6 @@ trait NodeBlockFetcherAlgebra[F[_], G[_]] {
    * @param height The height to lookup
    * @return the full block
    */
-  def fetch(height: Long): F[Either[GenusException, HeightData]]
+  def fetch(height: Long): F[Either[GRE, Option[BlockData]]]
 
 }

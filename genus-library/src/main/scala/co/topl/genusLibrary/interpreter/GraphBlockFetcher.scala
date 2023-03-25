@@ -8,11 +8,10 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, VertexFetcherAlgebra}
-import co.topl.genusLibrary.model.{GenusException, GenusExceptions}
+import co.topl.genusLibrary.model.GRE
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.Vertex
-import scodec.bits.ByteVector
 
 object GraphBlockFetcher {
 
@@ -20,39 +19,31 @@ object GraphBlockFetcher {
     Resource.pure {
       new BlockFetcherAlgebra[F] {
 
-        override def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[BlockHeader]]] =
+        override def fetchHeader(blockId: BlockId): F[Either[GRE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeader(blockId))
             .map(_.map(blockHeaderSchema.decodeVertex))
             .value
 
-        override def fetchHeaderByHeight(height: Long): F[Either[GenusException, Option[BlockHeader]]] =
+        override def fetchHeaderByHeight(height: Long): F[Either[GRE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeaderByHeight(height))
             .map(_.map(blockHeaderSchema.decodeVertex))
             .value
 
-        override def fetchBody(blockId: BlockId): F[Either[GenusException, Option[BlockBody]]] =
-          (for {
-            maybeHeaderVertex <- EitherT(vertexFetcher.fetchHeader(blockId))
-            headerVertex <- EitherT.fromOption[F](
-              maybeHeaderVertex,
-              GenusExceptions.NoCurrentHeaderVertex(ByteVector(blockId.value.toByteArray)): GenusException
-            )
-            maybeBodyVertex <- EitherT(vertexFetcher.fetchBody(headerVertex))
-            bodyVertex <- EitherT.fromOption[F](
-              maybeBodyVertex,
-              GenusExceptions.NoCurrentBodyVertex(ByteVector(blockId.value.toByteArray)): GenusException
-            )
-            blockBody <- EitherT.pure[F, GenusException](blockBodySchema.decodeVertex(bodyVertex).some)
-          } yield blockBody).value
+        override def fetchBody(blockId: BlockId): F[Either[GRE, Option[BlockBody]]] =
+          EitherT(vertexFetcher.fetchHeader(blockId)).flatMap {
+            case Some(headerVertex) =>
+              EitherT(vertexFetcher.fetchBody(headerVertex))
+                .map(_.map(blockBodySchema.decodeVertex))
+            case None =>
+              EitherT.pure[F, GRE](Option.empty[BlockBody])
+          }.value
 
         /**
          * Auxiliary def used by fetch BlockById and BlockByHeight
          * @param f a function that returns a Header Vertex
          * @return
          */
-        private def fetchBlockFromVertex(
-          f: () => F[Either[GenusException, Option[Vertex]]]
-        ): F[Either[GenusException, Option[BlockData]]] =
+        private def fetchBlockFromVertex(f: () => F[Either[GRE, Option[Vertex]]]): F[Either[GRE, Option[BlockData]]] =
           EitherT(f())
             .flatMap {
               case Some(headerVertex) =>
@@ -62,9 +53,9 @@ object GraphBlockFetcher {
                   .flatMap {
                     case Some(bodyVertex) =>
                       val body = blockBodySchema.decodeVertex(bodyVertex)
-                      EitherT.pure[F, GenusException]((header.some, body, Seq.empty[IoTransaction]))
+                      EitherT.pure[F, GRE]((header.some, body, Seq.empty[IoTransaction]))
                     case None =>
-                      EitherT.pure[F, GenusException](
+                      EitherT.pure[F, GRE](
                         (header.some, BlockBody(Seq.empty), Seq.empty[IoTransaction])
                       )
                   }
@@ -75,7 +66,7 @@ object GraphBlockFetcher {
                   }
 
               case None =>
-                EitherT.pure[F, GenusException](
+                EitherT.pure[F, GRE](
                   (Option.empty[BlockHeader], BlockBody(Seq.empty), Seq.empty[IoTransaction])
                 )
             }
@@ -90,11 +81,14 @@ object GraphBlockFetcher {
             }
             .value
 
-        override def fetchBlock(blockId: BlockId): F[Either[GenusException, Option[BlockData]]] =
+        override def fetchBlock(blockId: BlockId): F[Either[GRE, Option[BlockData]]] =
           fetchBlockFromVertex(() => vertexFetcher.fetchHeader(blockId))
 
-        override def fetchBlockByHeight(height: Long): F[Either[GenusException, Option[BlockData]]] =
+        override def fetchBlockByHeight(height: Long): F[Either[GRE, Option[BlockData]]] =
           fetchBlockFromVertex(() => vertexFetcher.fetchHeaderByHeight(height))
+
+        override def fetchBlockByDepth(height: Long): F[Either[GRE, Option[BlockData]]] =
+          fetchBlockFromVertex(() => vertexFetcher.fetchHeaderByDepth(height))
 
       }
     }

@@ -6,7 +6,7 @@ import cats.effect.kernel.Resource
 import cats.implicits._
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
-import co.topl.genusLibrary.model.GenusExceptions
+import co.topl.genusLibrary.model.GREs
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import fs2.grpc.syntax.all._
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
@@ -32,15 +32,15 @@ object GenusFullBlockGrpc {
             .evalMap(server => Async[F].delay(server.start()))
         )
 
-    private class GrpcServerImpl[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
+    private[genusServer] class GrpcServerImpl[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
         extends GenusFullBlockServiceFs2Grpc[F, Metadata] {
 
       override def getBlockById(request: GetBlockByIdRequest, ctx: Metadata): F[BlockResponse] =
         EitherT(blockFetcher.fetchBlock(request.blockId))
           .foldF(
-            ge => Async[F].raiseError[BlockData](GenusExceptions.Internal(ge)),
+            ge => Async[F].raiseError[BlockData](GREs.Internal(ge)),
             _.map(_.pure[F])
-              .getOrElse(Async[F].raiseError[BlockData](GenusExceptions.NotFound("Block not found")))
+              .getOrElse(Async[F].raiseError[BlockData](GREs.NotFound("Block not found")))
           )
           .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
           .adaptErrorsToGrpc
@@ -48,15 +48,22 @@ object GenusFullBlockGrpc {
       override def getBlockByHeight(request: GetBlockByHeightRequest, ctx: Metadata): F[BlockResponse] =
         EitherT(blockFetcher.fetchBlockByHeight(request.height.value))
           .foldF(
-            ge => Async[F].raiseError[BlockData](GenusExceptions.Internal(ge)),
+            ge => Async[F].raiseError[BlockData](GREs.Internal(ge)),
             _.map(_.pure[F])
-              .getOrElse(Async[F].raiseError[BlockData](GenusExceptions.NotFound("Block not found")))
+              .getOrElse(Async[F].raiseError[BlockData](GREs.NotFound("Block not found")))
           )
           .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
           .adaptErrorsToGrpc
 
       override def getBlockByDepth(request: GetBlockByDepthRequest, ctx: Metadata): F[BlockResponse] =
-        Async[F].raiseError[BlockResponse](GenusExceptions.UnImplemented).adaptErrorsToGrpc
+        EitherT(blockFetcher.fetchBlockByDepth(request.depth.value))
+          .foldF(
+            ge => Async[F].raiseError[BlockData](GREs.Internal(ge)),
+            _.map(_.pure[F])
+              .getOrElse(Async[F].raiseError[BlockData](GREs.NotFound("Block not found")))
+          )
+          .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+          .adaptErrorsToGrpc
 
     }
   }

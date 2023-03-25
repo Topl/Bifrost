@@ -2,8 +2,9 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.{Resource, Sync}
 import cats.implicits._
+import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
-import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions}
+import co.topl.genusLibrary.model.{GRE, GREs}
 import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
@@ -17,7 +18,7 @@ object GraphBlockInserter {
     Resource.pure(
       new BlockInserterAlgebra[F] {
 
-        override def insert(block: BlockData): F[Either[GenusException, Unit]] =
+        override def insert(block: BlockData): F[Either[GRE, Unit]] =
           Sync[F]
             .blocking {
 
@@ -53,7 +54,7 @@ object GraphBlockInserter {
               }.toEither
                 .leftMap { th =>
                   graph.rollback()
-                  GenusExceptions.Message(th.getMessage): GenusException
+                  GREs.Message(th.getMessage): GRE
                 }
             }
 

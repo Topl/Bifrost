@@ -2,7 +2,7 @@ package co.topl
 
 import cats.ApplicativeThrow
 import cats.implicits._
-import co.topl.genusLibrary.model.GenusExceptions
+import co.topl.genusLibrary.model.GREs
 import io.grpc.{Status, StatusException}
 
 /**
@@ -15,11 +15,11 @@ package object genusServer {
 
     def asGrpcException: StatusException =
       throwable match {
-        case e: GenusExceptions.NotFound =>
+        case e: GREs.NotFound =>
           Status.NOT_FOUND.augmentDescription(s"${e.getMessage}").asException()
-        case e: GenusExceptions.UnImplemented.type =>
+        case e: GREs.UnImplemented.type =>
           Status.UNIMPLEMENTED.augmentDescription(s"${e.getMessage}").asException()
-        case e: GenusExceptions.Internal =>
+        case e: GREs.Internal =>
           Status.INTERNAL.augmentDescription(s"${e.getMessage}").asException()
         case e =>
           Status.fromThrowable(e).asException()

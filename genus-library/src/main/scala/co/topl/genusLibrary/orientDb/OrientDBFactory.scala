@@ -2,7 +2,7 @@ package co.topl.genusLibrary.orientDb
 
 import cats.effect.{Resource, Sync}
 import cats.implicits._
-import co.topl.genusLibrary.model.GenusExceptions
+import co.topl.genusLibrary.model.GREs
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
@@ -38,7 +38,7 @@ object OrientDBFactory {
         )
         .leftMap(cause =>
           Resource
-            .eval(Logger[F].error(GenusExceptions.Message(cause).getMessage))
+            .eval(Logger[F].error(GREs.Message(cause).getMessage))
             .flatMap(_ => Resource.canceled)
         )
         .merge
