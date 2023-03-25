@@ -144,7 +144,7 @@ object ConsensusDataEventSourcedState {
           .pure[F]
         inputStakeChanges = transaction.inputs.reverse
           .flatMap(_.value.value.topl.flatMap(t => t.stakingAddress.tupleRight(t.quantity: BigInt)))
-        result = (inputStakeChanges ++ outputStakeChanges)
+        result = (outputStakeChanges ++ inputStakeChanges)
           .map { case (address, delta) =>
             StakeChange(address, delta)
           }

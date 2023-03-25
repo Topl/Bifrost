@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:fixnum/fixnum.dart';
+import 'package:topl_protobuf/quivr/models/shared.pb.dart';
 
 // Source: https://github.com/dart-lang/sdk/issues/32803#issuecomment-1228291047
 extension BigIntOps on BigInt {
@@ -31,4 +32,8 @@ extension ListBigIntOps on Iterable<int> {
     }
     return result;
   }
+}
+
+extension Int128Ops on Int128 {
+  BigInt get toBigInt => value.toBigInt;
 }
