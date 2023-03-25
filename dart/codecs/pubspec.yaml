@@ -14,6 +14,8 @@ dependencies:
   cryptography: ^2.0.5
   fpdart: ^0.3.0
   fast_base58: ^0.2.1
+  bifrost_common:
+    path: ../common
   topl_protobuf:
     path: ../../../protobuf-specs/build/dart
 dev_dependencies:    

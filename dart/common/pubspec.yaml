@@ -12,6 +12,7 @@ environment:
 
 dependencies:
   fpdart: ^0.3.0
+  fixnum:
   topl_protobuf:
     path: ../../../protobuf-specs/build/dart
 dev_dependencies:    
