@@ -20,5 +20,7 @@ dependencies:
     path: ../codecs
   bifrost_common:
     path: ../common
+  bifrost_crypto:
+    path: ../crypto
 dev_dependencies:    
   build_runner: ^1.10.3

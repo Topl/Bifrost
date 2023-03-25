@@ -4,9 +4,6 @@ import 'package:topl_protobuf/node/models/block.pb.dart';
 class BlockHeaderToBodyValidation extends BlockHeaderToBodyValidationAlgebra {
   @override
   Future<List<String>> validate(Block block) async {
-    final List<int> bodyMerkleTxRoot = throw UnimplementedError();
-
-    if (bodyMerkleTxRoot != block.header.txRoot) return ["Invalid TxRoot"];
-    return [];
+    return []; // TODO
   }
 }

@@ -1,9 +1,10 @@
+import 'package:bifrost_codecs/codecs.dart';
 import 'package:bifrost_common/models/unsigned.dart';
 import 'package:bifrost_consensus/algebras/consensus_validation_state_algebra.dart';
 import 'package:bifrost_consensus/algebras/eta_calculation_algebra.dart';
 import 'package:bifrost_consensus/algebras/leader_election_validation_algebra.dart';
 import 'package:bifrost_consensus/utils.dart';
-import 'package:bifrost_crypto/Ed25519.dart' as cryptoEd25519;
+import 'package:bifrost_crypto/ed25519.dart' as cryptoEd25519;
 import 'package:bifrost_minting/algebras/operational_key_maker_algebra.dart';
 import 'package:bifrost_minting/algebras/staking_algebra.dart';
 import 'package:bifrost_minting/algebras/vrf_calculator_algebra.dart';
@@ -51,7 +52,7 @@ class Staking extends StakingAlgebra {
         operationalKeyOutOpt.childKeyPair.vk.value,
       );
       final unsignedHeader = unsignedBlockBuilder(partialCertificate);
-      final List<int> messageToSign = []; // TODO
+      final List<int> messageToSign = unsignedHeader.signableBytes;
       final cryptoKeyPair = cryptoEd25519.KeyPair(
           operationalKeyOutOpt.childKeyPair.sk.value,
           operationalKeyOutOpt.childKeyPair.vk.value);

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:bifrost_codecs/codecs.dart';
 import 'package:bifrost_common/models/unsigned.dart';
 import 'package:bifrost_minting/algebras/block_packer_algebra.dart';
 import 'package:bifrost_minting/algebras/block_producer_algebra.dart';

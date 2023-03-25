@@ -55,6 +55,13 @@ packages:
       relative: true
     source: path
     version: "1.0.0+1"
+  bifrost_crypto:
+    dependency: "direct main"
+    description:
+      path: "../crypto"
+      relative: true
+    source: path
+    version: "1.0.0+1"
   build:
     dependency: transitive
     description:

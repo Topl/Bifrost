@@ -3,6 +3,7 @@ import 'package:bifrost_common/models/common.dart';
 import 'package:bifrost_consensus/algebras/leader_election_validation_algebra.dart';
 import 'package:bifrost_consensus/models/vrf_config.dart';
 import 'package:bifrost_consensus/models/vrf_argument.dart';
+import 'package:bifrost_crypto/ed25519vrf.dart';
 import 'package:bifrost_minting/algebras/vrf_calculator_algebra.dart';
 import 'package:fpdart/src/tuple.dart';
 import 'package:fixnum/fixnum.dart';
@@ -15,8 +16,8 @@ class VrfCalculator extends VrfCalculatorAlgebra {
   final VrfConfig vrfConfig;
   final int vrfCacheSize;
 
-  Map<List<int>, Map<Int64, List<int>>> _vrfProofsCache = {};
-  Map<List<int>, Map<Int64, List<int>>> _rhosCache = {};
+  Map<Tuple2<List<int>, Int64>, List<int>> _vrfProofsCache = {};
+  Map<Tuple2<List<int>, Int64>, List<int>> _rhosCache = {};
 
   VrfCalculator(this.skVrf, this.clock, this.leaderElectionValidation,
       this.vrfConfig, this.vrfCacheSize);
@@ -43,26 +44,25 @@ class VrfCalculator extends VrfCalculatorAlgebra {
 
   @override
   Future<List<int>> proofForSlot(Int64 slot, List<int> eta) async {
-    if (!_vrfProofsCache.containsKey(eta)) {
-      final result = _compute(VrfArgument(eta, slot));
-      _vrfProofsCache[eta] = result;
-      return result[slot];
+    final key = Tuple2(eta, slot);
+    if (!_vrfProofsCache.containsKey(key)) {
+      final arg = VrfArgument(eta, slot);
+      final result = ed25519Vrf.sign(skVrf, arg.signableBytes);
+      _vrfProofsCache[key] = result;
+      return result;
     }
-    return _vrfProofsCache[eta]![slot]!;
+    return _vrfProofsCache[key]!;
   }
 
   @override
   Future<List<int>> rhoForSlot(Int64 slot, List<int> eta) async {
+    final key = Tuple2(eta, slot);
     if (!_rhosCache.containsKey(eta)) {
-      final proof = proofForSlot(slot, eta);
-      // TODO: Ed25519VRF
-      throw UnimplementedError();
+      final proof = await proofForSlot(slot, eta);
+      final rho = ed25519Vrf.proofToHash(proof);
+      _rhosCache[key] = rho;
+      return rho;
     }
-    return _rhosCache[eta]![slot]!;
-  }
-
-  _compute(VrfArgument arg) {
-    // TODO: Ed25519VRF
-    throw UnimplementedError();
+    return _rhosCache[key]!;
   }
 }

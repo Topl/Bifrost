@@ -77,7 +77,7 @@ object BlockHeaderValidation {
           _         <- vrfVerification(header)
           _         <- kesVerification(header)
           _         <- registrationVerification(header)
-          threshold <- vrfThresholdFor(header, parent)
+          threshold <- vrfThresholdFor(header)
           _         <- vrfThresholdVerification(header, threshold, blake2b256Resource)
           _         <- eligibilityVerification(header, threshold)
         } yield header
@@ -211,8 +211,7 @@ object BlockHeaderValidation {
      * Determines the VRF threshold for the given child
      */
     private def vrfThresholdFor(
-      child:  BlockHeader,
-      parent: BlockHeader
+      child: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, Ratio] =
       EitherT
         .fromOptionF(
@@ -220,7 +219,7 @@ object BlockHeaderValidation {
           BlockHeaderValidationFailures.Unregistered(child.address)
         )
         .leftWiden[BlockHeaderValidationFailure]
-        .semiflatMap(leaderElection.getThreshold(_, child.slot - parent.slot))
+        .semiflatMap(leaderElection.getThreshold(_, child.slot - child.parentSlot))
 
     /**
      * Verify that the threshold evidence stamped on the block matches the threshold generated using local state
