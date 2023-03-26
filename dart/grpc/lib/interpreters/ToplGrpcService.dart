@@ -5,24 +5,21 @@ import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
 import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
 import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
 import 'package:topl_protobuf/node/models/block.pb.dart';
-import 'package:topl_protobuf/node/services/bifrost_rpc.pb.dart';
+import 'package:topl_protobuf/node/services/bifrost_rpc.pbgrpc.dart';
 
-class ToplGrpcService extends ToplGrpcServiceBase {
-  final String _p2pId;
-  final Future<SlotData?> Function(BlockId) _fetchSlotData;
+class ToplGrpcService extends NodeRpcServiceBase {
   final Future<BlockHeader?> Function(BlockId) _fetchHeader;
   final Future<BlockBody?> Function(BlockId) _fetchBody;
-  final Future<IoTransaction?> Function(Identifier_IoTransaction32) _fetchTransaction;
+  final Future<IoTransaction?> Function(Identifier_IoTransaction32)
+      _fetchTransaction;
   final Stream<BlockId> Function() _adoptions;
 
-  ToplGrpcService(this._p2pId, this._fetchSlotData, this._fetchHeader,
-      this._fetchBody, this._fetchTransaction, this._adoptions);
-
-  @override
-  Future<HandshakeRes> handshake(ServiceCall call, HandshakeReq request) {
-    print("Received handshake from peer p2pId=${request.p2pId}");
-    return Future.value(HandshakeRes(p2pId: _p2pId));
-  }
+  ToplGrpcService(
+    this._fetchHeader,
+    this._fetchBody,
+    this._fetchTransaction,
+    this._adoptions,
+  );
 
   @override
   Future<BroadcastTransactionRes> broadcastTransaction(
@@ -37,11 +34,6 @@ class ToplGrpcService extends ToplGrpcServiceBase {
     // TODO: implement currentMempool
     throw UnimplementedError();
   }
-
-  @override
-  Future<FetchSlotDataRes> fetchSlotData(
-          ServiceCall call, FetchSlotDataReq request) async =>
-      FetchSlotDataRes(slotData: await _fetchSlotData(request.blockId));
 
   @override
   Future<FetchBlockHeaderRes> fetchBlockHeader(

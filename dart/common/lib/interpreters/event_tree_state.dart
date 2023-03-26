@@ -5,7 +5,7 @@ import 'package:fpdart/fpdart.dart';
 class EventTreeState<State, Id> extends EventSourcedStateAlgebra<State, Id> {
   final Future<State> Function(State, Id) applyEvent;
   final Future<State> Function(State, Id) unapplyEvent;
-  final ParentChildTree<Id> parentChildTree;
+  final ParentChildTreeAlgebra<Id> parentChildTree;
   State currentState;
   Id currentEventId;
   final Future<void> Function(Id) currentEventChanged;

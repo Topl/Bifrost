@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:bifrost_crypto/impl/x25519_field.dart';
+
 abstract class EC {
   final _x25519Field = X25519Field();
   List<PointExt> _precompBaseTable = [];
@@ -49,7 +51,7 @@ abstract class EC {
     return zc;
   }
 
-  bool _gte2519(List<int> x, List<int> y) {
+  bool _gte256(List<int> x, List<int> y) {
     for (int i = 7; i >= 0; i--) {
       final x_i = x[i] ^ 0x80000000;
       final y_i = y[i] ^ 0x80000000;
@@ -170,13 +172,13 @@ abstract class EC {
     final u = _x25519Field.create;
     final v = _x25519Field.create;
     _x25519Field.sqr(r.y, u);
-    _x25519Field.mul(C_d, u, v);
+    _x25519Field.mul2(_C_d, u, v);
     _x25519Field.subOne(u);
-    _x25519Field.addOne(v);
+    _x25519Field.addOne1(v);
     if (!_x25519Field.sqrtRatioVar(u, v, r.x)) return false;
     _x25519Field.normalize(r.x);
     if (x_0 == 1 && _x25519Field.isZeroVar(r.x)) return false;
-    if (negate ^ (x_0 != (r.x(0) & 1))) _x25519Field.negate(r.x, r.x);
+    if (negate ^ (x_0 != (r.x[0] & 1))) _x25519Field.negate(r.x, r.x);
     _pointExtendXY(r);
     return true;
   }
@@ -206,13 +208,13 @@ abstract class EC {
     final x = _x25519Field.create;
     final y = _x25519Field.create;
     _x25519Field.inv(p.z, y);
-    _x25519Field.mul(p.x, y, x);
-    _x25519Field.mul(p.y, y, y);
+    _x25519Field.mul2(p.x, y, x);
+    _x25519Field.mul2(p.y, y, y);
     _x25519Field.normalize(x);
     _x25519Field.normalize(y);
     _x25519Field.encode(y, r, rOff);
     r[rOff + _POINT_BYTES - 1] =
-        (r[rOff + _POINT_BYTES - 1] | ((x(0) & 1) << 7));
+        (r[rOff + _POINT_BYTES - 1] | ((x[0] & 1) << 7));
   }
 
   List<int> _getWNAF(List<int> n, int width) {
@@ -258,14 +260,13 @@ abstract class EC {
     return ws;
   }
 
-  void _scalarMultBaseYZ(
-      List<int> k, List<int> kOff, List<int> y, List<int> z) {
+  void _scalarMultBaseYZ(List<int> k, int kOff, List<int> y, List<int> z) {
     final n = List.filled(_SCALAR_BYTES, 0);
     _pruneScalar(k, kOff, n);
     final p = PointAccum.fromField(_x25519Field);
     _scalarMultBase(n, p);
-    x25519Field.copy(p.y, 0, y, 0);
-    x25519Field.copy(p.z, 0, z, 0);
+    _x25519Field.copy(p.y, 0, y, 0);
+    _x25519Field.copy(p.z, 0, z, 0);
   }
 
   void _pointAddVar1(bool negate, PointExt p, PointAccum r) {
@@ -294,19 +295,19 @@ abstract class EC {
     }
     _x25519Field.apm(r.y, r.x, B, A);
     _x25519Field.apm(p.y, p.x, d, c);
-    _x25519Field.mul(A, C, A);
-    _x25519Field.mul(B, D, B);
-    _x25519Field.mul(r.u, r.v, C);
-    _x25519Field.mul(C, p.t, C);
-    _x25519Field.mul(C, _C_d2, C);
-    _x25519Field.mul(r.z, p.z, D);
+    _x25519Field.mul2(A, C, A);
+    _x25519Field.mul2(B, D, B);
+    _x25519Field.mul2(r.u, r.v, C);
+    _x25519Field.mul2(C, p.t, C);
+    _x25519Field.mul2(C, _C_d2, C);
+    _x25519Field.mul2(r.z, p.z, D);
     _x25519Field.add(D, D, D);
     _x25519Field.apm(B, A, H, E);
     _x25519Field.apm(D, C, g, f);
     _x25519Field.carry(g);
-    _x25519Field.mul(E, F, r.x);
-    _x25519Field.mul(G, H, r.y);
-    _x25519Field.mul(F, G, r.z);
+    _x25519Field.mul2(E, F, r.x);
+    _x25519Field.mul2(G, H, r.y);
+    _x25519Field.mul2(F, G, r.z);
   }
 
   void _pointAddVar2(bool negate, PointExt p, PointExt q, PointExt r) {
@@ -335,19 +336,19 @@ abstract class EC {
     }
     _x25519Field.apm(p.y, p.x, B, A);
     _x25519Field.apm(q.y, q.x, d, c);
-    _x25519Field.mul(A, C, A);
-    _x25519Field.mul(B, D, B);
-    _x25519Field.mul(p.t, q.t, C);
-    _x25519Field.mul(C, _C_d2, C);
-    _x25519Field.mul(p.z, q.z, D);
+    _x25519Field.mul2(A, C, A);
+    _x25519Field.mul2(B, D, B);
+    _x25519Field.mul2(p.t, q.t, C);
+    _x25519Field.mul2(C, _C_d2, C);
+    _x25519Field.mul2(p.z, q.z, D);
     _x25519Field.add(D, D, D);
     _x25519Field.apm(B, A, H, E);
     _x25519Field.apm(D, C, g, f);
     _x25519Field.carry(g);
-    _x25519Field.mul(E, F, r.x);
-    _x25519Field.mul(G, H, r.y);
-    _x25519Field.mul(F, G, r.z);
-    _x25519Field.mul(E, H, r.t);
+    _x25519Field.mul2(E, F, r.x);
+    _x25519Field.mul2(G, H, r.y);
+    _x25519Field.mul2(F, G, r.z);
+    _x25519Field.mul2(E, H, r.t);
   }
 
   void _pointAddPrecomp(PointPrecomp p, PointAccum r) {
@@ -359,16 +360,16 @@ abstract class EC {
     final G = _x25519Field.create;
     final H = r.v;
     _x25519Field.apm(r.y, r.x, B, A);
-    _x25519Field.mul(A, p.ymx_h, A);
-    _x25519Field.mul(B, p.ypx_h, B);
-    _x25519Field.mul(r.u, r.v, C);
-    _x25519Field.mul(C, p.xyd, C);
+    _x25519Field.mul2(A, p.ymx_h, A);
+    _x25519Field.mul2(B, p.ypx_h, B);
+    _x25519Field.mul2(r.u, r.v, C);
+    _x25519Field.mul2(C, p.xyd, C);
     _x25519Field.apm(B, A, H, E);
     _x25519Field.apm(r.z, C, G, F);
     _x25519Field.carry(G);
-    _x25519Field.mul(E, F, r.x);
-    _x25519Field.mul(G, H, r.y);
-    _x25519Field.mul(F, G, r.z);
+    _x25519Field.mul2(E, F, r.x);
+    _x25519Field.mul2(G, H, r.y);
+    _x25519Field.mul2(F, G, r.z);
   }
 
   PointExt _pointCopyAccum(PointAccum p) {
@@ -376,7 +377,7 @@ abstract class EC {
     _x25519Field.copy(p.x, 0, r.x, 0);
     _x25519Field.copy(p.y, 0, r.y, 0);
     _x25519Field.copy(p.z, 0, r.z, 0);
-    _x25519Field.mul(p.u, p.v, r.t);
+    _x25519Field.mul2(p.u, p.v, r.t);
     return r;
   }
 
@@ -407,9 +408,9 @@ abstract class EC {
     _x25519Field.sub(H, E, E);
     _x25519Field.add(C, G, F);
     _x25519Field.carry(F);
-    _x25519Field.mul(E, F, r.x);
-    _x25519Field.mul(G, H, r.y);
-    _x25519Field.mul(F, G, r.z);
+    _x25519Field.mul2(E, F, r.x);
+    _x25519Field.mul2(G, H, r.y);
+    _x25519Field.mul2(F, G, r.z);
   }
 
   void _pointExtendXYAccum(PointAccum p) {
@@ -420,13 +421,13 @@ abstract class EC {
 
   void _pointExtendXY(PointExt p) {
     _x25519Field.one(p.z);
-    _x25519Field.mul(p.x, p.y, p.t);
+    _x25519Field.mul2(p.x, p.y, p.t);
   }
 
   void _pointLookup(int block, int index, PointPrecomp p) {
     var off = block * _PRECOMP_POINTS * 3 * X25519Field.SIZE;
     for (int i = 0; i < _PRECOMP_POINTS; i++) {
-      final mask = ((i ^ index) - 1) >> 31
+      final mask = ((i ^ index) - 1) >> 31;
       _cmov(X25519Field.SIZE, mask, _precompBase, off, p.ypx_h, 0);
       off += X25519Field.SIZE;
       _cmov(X25519Field.SIZE, mask, _precompBase, off, p.ymx_h, 0);
@@ -460,76 +461,75 @@ abstract class EC {
     _x25519Field.zero(p.x);
     _x25519Field.one(p.y);
     _x25519Field.one(p.z);
-    _x25519Field.zero(p.u);
+    _x25519Field.zero(p.t);
   }
 
   void precompute() {
-          
-      if (_precompBase.isNotEmpty) return;
-      // Precomputed table for the base point in verification ladder
-      final b = PointExt.fromField(_x25519Field);
-      _x25519Field.copy(_B_x, 0, b.x, 0);
-      _x25519Field.copy(_B_y, 0, b.y, 0);
-      _pointExtendXY(b);
-      _precompBaseTable = _pointPrecompVar(b, 1 << (_WNAF_WIDTH_BASE - 2));
-      final p = PointAccum.fromField(_x25519Field);
-      _x25519Field.copy(_B_x, 0, p.x, 0);
-      _x25519Field.copy(_B_y, 0, p.y, 0);
-      _pointExtendXY(p);
-      _precompBase = List.filled(_PRECOMP_BLOCKS * _PRECOMP_POINTS * 3 * X25519Field.SIZE, 0);
-      var off = 0;
-      for (int b = 0; b < _PRECOMP_BLOCKS; b++) {
-        final List<PointExt> ds = [];
-        final  sum = PointExt.fromField(_x25519Field);
-        _pointSetNeutralExt(sum);
-        for (int t = 0; t < _PRECOMP_TEETH; t++) {
-          final  q = _pointCopyAccum(p);
-          _pointAddVar2(true, sum, q, sum);
-          _pointDouble(p);
-          ds.add(_pointCopyAccum(p));
-          if (b + t != _PRECOMP_BLOCKS + _PRECOMP_TEETH - 2)
-            for (int i = 1; i < _PRECOMP_SPACING; i++)
-              _pointDouble(p);
-        }
-        final List<PointExt> points = [];
-        var k = 1;
-        points.add(sum);
-        for (int t = 0; t < _PRECOMP_TEETH - 1; t++) {
-          final  size = 1 << t;
-          var j = 0;
-          while (j < size) {
-            points.add(PointExt.fromField(_x25519Field));
-            _pointAddVar2(false, points[k - size], ds[t], points[k]);
-            j += 1;
-            k += 1;
-          }
-        }
-        for (int i = 0; i < _PRECOMP_POINTS; i++) {
-          final  q = points[i];
-          final  x = _x25519Field.create;
-          final  y = _x25519Field.create;
-          _x25519Field.add(q.z, q.z, x);
-          _x25519Field.inv(x, y);
-          _x25519Field.mul(q.x, y, x);
-          _x25519Field.mul(q.y, y, y);
-          final  r = PointPrecomp.fromField(_x25519Field);
-          _x25519Field.apm(y, x, r.ypx_h, r.ymx_h);
-          _x25519Field.mul(x, y, r.xyd);
-          _x25519Field.mul(r.xyd, C_d4, r.xyd);
-          _x25519Field.normalize(r.ypx_h);
-          _x25519Field.normalize(r.ymx_h);
-          _x25519Field.copy(r.ypx_h, 0, _precompBase, off);
-          off += X25519Field.SIZE;
-          _x25519Field.copy(r.ymx_h, 0, _precompBase, off);
-          off += X25519Field.SIZE;
-          _x25519Field.copy(r.xyd, 0, _precompBase, off);
-          off += X25519Field.SIZE;
+    if (_precompBase.isNotEmpty) return;
+    // Precomputed table for the base point in verification ladder
+    final b = PointExt.fromField(_x25519Field);
+    _x25519Field.copy(_B_x, 0, b.x, 0);
+    _x25519Field.copy(_B_y, 0, b.y, 0);
+    _pointExtendXY(b);
+    _precompBaseTable = _pointPrecompVar(b, 1 << (_WNAF_WIDTH_BASE - 2));
+    final p = PointAccum.fromField(_x25519Field);
+    _x25519Field.copy(_B_x, 0, p.x, 0);
+    _x25519Field.copy(_B_y, 0, p.y, 0);
+    _pointExtendXYAccum(p);
+    _precompBase = List.filled(
+        _PRECOMP_BLOCKS * _PRECOMP_POINTS * 3 * X25519Field.SIZE, 0);
+    var off = 0;
+    for (int b = 0; b < _PRECOMP_BLOCKS; b++) {
+      final List<PointExt> ds = [];
+      final sum = PointExt.fromField(_x25519Field);
+      _pointSetNeutralExt(sum);
+      for (int t = 0; t < _PRECOMP_TEETH; t++) {
+        final q = _pointCopyAccum(p);
+        _pointAddVar2(true, sum, q, sum);
+        _pointDouble(p);
+        ds.add(_pointCopyAccum(p));
+        if (b + t != _PRECOMP_BLOCKS + _PRECOMP_TEETH - 2)
+          for (int i = 1; i < _PRECOMP_SPACING; i++) _pointDouble(p);
+      }
+      final List<PointExt> points = [];
+      var k = 1;
+      points.add(sum);
+      for (int t = 0; t < _PRECOMP_TEETH - 1; t++) {
+        final size = 1 << t;
+        var j = 0;
+        while (j < size) {
+          points.add(PointExt.fromField(_x25519Field));
+          _pointAddVar2(false, points[k - size], ds[t], points[k]);
+          j += 1;
+          k += 1;
         }
       }
+      for (int i = 0; i < _PRECOMP_POINTS; i++) {
+        final q = points[i];
+        final x = _x25519Field.create;
+        final y = _x25519Field.create;
+        _x25519Field.add(q.z, q.z, x);
+        _x25519Field.inv(x, y);
+        _x25519Field.mul2(q.x, y, x);
+        _x25519Field.mul2(q.y, y, y);
+        final r = PointPrecomp.fromField(_x25519Field);
+        _x25519Field.apm(y, x, r.ypx_h, r.ymx_h);
+        _x25519Field.mul2(x, y, r.xyd);
+        _x25519Field.mul2(r.xyd, _C_d4, r.xyd);
+        _x25519Field.normalize(r.ypx_h);
+        _x25519Field.normalize(r.ymx_h);
+        _x25519Field.copy(r.ypx_h, 0, _precompBase, off);
+        off += X25519Field.SIZE;
+        _x25519Field.copy(r.ymx_h, 0, _precompBase, off);
+        off += X25519Field.SIZE;
+        _x25519Field.copy(r.xyd, 0, _precompBase, off);
+        off += X25519Field.SIZE;
+      }
+    }
   }
 
   void _pruneScalar(List<int> n, int nOff, List<int> r) {
-    for(int i = 0; i < _SCALAR_BYTES; i++) {
+    for (int i = 0; i < _SCALAR_BYTES; i++) {
       r[i] = n[nOff + i];
     }
     r[0] = (r[0] & 0xf8);
@@ -538,7 +538,6 @@ abstract class EC {
   }
 
   List<int> _reduceScalar(List<int> n) {
-
     var x00 = _decode32v(n, 0) & _M32L; // x00:32/--
     var x01 = (_decode24(n, 4) << 4) & _M32L; // x01:28/--
     var x02 = _decode32v(n, 7) & _M32L; // x02:32/--
@@ -684,24 +683,23 @@ abstract class EC {
     // Recode the scalar into signed-digit form, then group comb bits in each block
     _cadd(_SCALAR_INTS, ~n[0] & 1, n, _L, n);
     _shiftDownBit(_SCALAR_INTS, n, 1);
-    for (int i = 0; i < _SCALAR_INTS; i++)
-      n[i] = _shuffle2(n[i]);
+    for (int i = 0; i < _SCALAR_INTS; i++) n[i] = _shuffle2(n[i]);
     final p = PointPrecomp.fromField(_x25519Field);
     var cOff = (_PRECOMP_SPACING - 1) * _PRECOMP_TEETH;
-      while (true) {
-        for (int b = 0; b < _PRECOMP_BLOCKS; b++) {
-          final w = n[b] >>> cOff;
-          final sign = (w >>> (_PRECOMP_TEETH - 1)) & 1;
-          final abs = (w ^ -sign) & _PRECOMP_MASK;
-          _pointLookup(b, abs, p);
-          _x25519Field.cswap(sign, p.ypx_h, p.ymx_h);
-          _x25519Field.cnegate(sign, p.xyd);
-          _pointAddPrecomp(p, r);
-        }
-        cOff -= _PRECOMP_TEETH;
-        if (cOff < 0) break;
-        _pointDouble(r);
+    while (true) {
+      for (int b = 0; b < _PRECOMP_BLOCKS; b++) {
+        final w = n[b] >>> cOff;
+        final sign = (w >>> (_PRECOMP_TEETH - 1)) & 1;
+        final abs = (w ^ -sign) & _PRECOMP_MASK;
+        _pointLookup(b, abs, p);
+        _x25519Field.cswap(sign, p.ypx_h, p.ymx_h);
+        _x25519Field.cnegate(sign, p.xyd);
+        _pointAddPrecomp(p, r);
       }
+      cOff -= _PRECOMP_TEETH;
+      if (cOff < 0) break;
+      _pointDouble(r);
+    }
   }
 
   void _scalarMultBaseEncoded(List<int> k, List<int> r, int rOff) {
@@ -710,7 +708,8 @@ abstract class EC {
     encodePoint(p, r, rOff);
   }
 
-  void _scalarMultStraussVar(List<int> nb, List<int> np, PointExt p, PointAccum r) {
+  void _scalarMultStraussVar(
+      List<int> nb, List<int> np, PointExt p, PointAccum r) {
     precompute();
     final width = 5;
     final ws_b = _getWNAF(nb, _WNAF_WIDTH_BASE);
@@ -719,29 +718,24 @@ abstract class EC {
     _pointSetNeutralAccum(r);
     var bit = 255;
     while (bit > 0 && (ws_b[bit] | ws_p[bit]) == 0) bit -= 1;
-      while (true) {
-        final wb = ws_b[bit];
-        if (wb != 0) {
-          final sign = wb >> 31;
-          final index = (wb ^ sign) >>> 1;
-          _pointAddVar1(sign != 0, _precompBaseTable[index], r);
-        }
-        final wp = ws_p[bit];
-        if (wp != 0) {
-          final sign = wp >> 31;
-          final index = (wp ^ sign) >>> 1;
-          _pointAddVar1(sign != 0, tp[index], r);
-        }
-        bit -= 1;
-        if (bit < 0) break;
-        _pointDouble(r);
+    while (true) {
+      final wb = ws_b[bit];
+      if (wb != 0) {
+        final sign = wb >> 31;
+        final index = (wb ^ sign) >>> 1;
+        _pointAddVar1(sign != 0, _precompBaseTable[index], r);
       }
+      final wp = ws_p[bit];
+      if (wp != 0) {
+        final sign = wp >> 31;
+        final index = (wp ^ sign) >>> 1;
+        _pointAddVar1(sign != 0, tp[index], r);
+      }
+      bit -= 1;
+      if (bit < 0) break;
+      _pointDouble(r);
+    }
   }
-}
-
-class X25519Field {
-  static const SIZE = 10;
-  List<int> get create;
 }
 
 class PointAccum {
