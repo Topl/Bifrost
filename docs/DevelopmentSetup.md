@@ -10,25 +10,34 @@ source ./docs/scripts/dev_setup.sh
 ```
 
 ## Setup Manually
-1. Install [Docker](https://docs.docker.com/engine/install/).
-    1. Be sure to follow the Linux post-installation [steps](https://docs.docker.com/engine/install/linux-postinstall/), namely run `sudo usermod -aG docker $USER`
-1. Install Java and SBT using [SDKMAN](https://sdkman.io/install).
-    1. Prerequisite: Install zip and unzip `sudo apt install zip unzip`
-    1. Run `curl -s "https://get.sdkman.io" | bash`
-    1. Run `source "$HOME/.sdkman/bin/sdkman-init.sh"`
-    1. Run `sdk install java 11.0.17-tem`
-    1. Run `sdk install sbt 1.7.3`
 
-## Build & Test
+You can use the contents of the `dev_setup.sh` script as a reference for a manual installation via the command line:
+
+https://github.com/Topl/Bifrost/blob/440eae84a3b116ff86eeb833b1733711cf51fb70/docs/scripts/dev_setup.sh#L1-L31    
+
+Alternatively, follow the original install instructions:
+
+* Install [Docker](https://docs.docker.com/engine/install/)
+* Be sure to follow the Linux post-installation [steps](https://docs.docker.com/engine/install/linux-postinstall/), namely run 
+  * `sudo usermod -aG docker $USER`
+* Install Java and SBT using [SDKMAN](https://sdkman.io/install)
+
+## Fork, Clone, Build & Test
+
+Fork the repository at https://github.com/Topl/Bifrost/fork
+
 ```sh
-git clone https://github.com/Topl/Bifrost
+# replace <your-github-username> with your github account username
+git clone https://github.com/<your-github-username>/Bifrost
 cd Bifrost
+git remote add upstream https://github.com/Topl/Bifrost.git
+
 git checkout tetra
 sbt compile
 sbt test
 ```
 
-### Docker Images
+## Docker Images
 
 To publish a Docker image from the project directory for local testing: `sbt 'node/docker:publishLocal'`
    
