@@ -29,5 +29,7 @@ dependencies:
     path: ../grpc
   bifrost_p2p:
     path: ../p2p
+  bifrost_crypto:
+    path: ../crypto
 dev_dependencies:    
   build_runner: ^1.10.3

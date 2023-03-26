@@ -2,6 +2,7 @@ import 'package:bifrost_common/models/common.dart';
 import 'package:bifrost_common/utils.dart';
 import 'package:bifrost_consensus/algebras/leader_election_validation_algebra.dart';
 import 'package:bifrost_consensus/models/vrf_config.dart';
+import 'package:bifrost_consensus/numeric_utils.dart';
 import 'package:bifrost_consensus/utils.dart';
 import 'package:rational/rational.dart';
 import 'package:fixnum/fixnum.dart';
@@ -9,10 +10,8 @@ import 'package:fixnum/fixnum.dart';
 // TODO Caching
 class LeaderElectionValidation extends LeaderElectionValidationAlgebra {
   final VrfConfig config;
-  final Rational Function(Rational) log1p;
-  final Rational Function(Rational) exp;
 
-  LeaderElectionValidation(this.config, this.log1p, this.exp);
+  LeaderElectionValidation(this.config);
 
   static final NormalizationConstant = BigInt.from(2).pow(512);
 

@@ -14,6 +14,7 @@ import 'package:bifrost_consensus/interpreters/leader_election_validation.dart';
 import 'package:bifrost_consensus/interpreters/local_chain.dart';
 import 'package:bifrost_consensus/models/vrf_config.dart';
 import 'package:bifrost_consensus/utils.dart';
+import 'package:bifrost_crypto/ed25519vrf.dart';
 import 'package:bifrost_minting/interpreters/block_packer.dart';
 import 'package:bifrost_minting/interpreters/block_producer.dart';
 import 'package:bifrost_minting/interpreters/operational_key_maker.dart';
@@ -39,6 +40,8 @@ void main(List<String> args) async {
   final genesisBlockId = genesisBlock.header.id;
 
   final operatorAddress = StakingAddress();
+
+  final vrfKeyPair = ed25519Vrf.generateKeyPair();
 
   final vrfVK = List.filled(32, 0);
 
@@ -67,11 +70,10 @@ void main(List<String> args) async {
   final etaCalculation = EtaCalculation(dataStores.slotData.getOrRaise, clock,
       genesisBlock.header.eligibilityCertificate.eta);
 
-  final leaderElectionValidation =
-      LeaderElectionValidation(vrfConfig, (p0) => null, (p0) => null);
+  final leaderElectionValidation = LeaderElectionValidation(vrfConfig);
 
-  final vrfCalculator =
-      VrfCalculator(skVrf, clock, leaderElectionValidation, vrfConfig, 512);
+  final vrfCalculator = VrfCalculator(
+      vrfKeyPair.sk, clock, leaderElectionValidation, vrfConfig, 512);
 
   final operationalKeyMaker = OperationalKeyMaker();
 
