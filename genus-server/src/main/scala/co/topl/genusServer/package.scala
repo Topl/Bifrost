@@ -2,7 +2,7 @@ package co.topl
 
 import cats.ApplicativeThrow
 import cats.implicits._
-import co.topl.genusLibrary.model.GREs
+import co.topl.genusLibrary.model.{GE, GEs}
 import io.grpc.{Status, StatusException}
 
 /**
@@ -13,16 +13,23 @@ package object genusServer {
 
   implicit class ThrowableAdapter(throwable: Throwable) {
 
+    private def asException(status: Status, e: GE): StatusException =
+      status
+        .withCause(e.getCause)
+        .augmentDescription(s"${e.getMessage}")
+        .asException()
+
     def asGrpcException: StatusException =
       throwable match {
-        case e: GREs.NotFound =>
-          Status.NOT_FOUND.augmentDescription(s"${e.getMessage}").asException()
-        case e: GREs.UnImplemented.type =>
-          Status.UNIMPLEMENTED.augmentDescription(s"${e.getMessage}").asException()
-        case e: GREs.Internal =>
-          Status.INTERNAL.augmentDescription(s"${e.getMessage}").asException()
-        case e =>
-          Status.fromThrowable(e).asException()
+        case e: GEs.HeaderNotFound       => asException(Status.NOT_FOUND, e)
+        case e: GEs.BodyNotFound         => asException(Status.NOT_FOUND, e)
+        case e: GEs.TransactionsNotFound => asException(Status.NOT_FOUND, e)
+        case e: GEs.NotFound             => asException(Status.NOT_FOUND, e)
+        case e: GEs.UnImplemented.type   => asException(Status.UNIMPLEMENTED, e)
+        case e: GEs.Internal             => asException(Status.INTERNAL, e)
+        case e: GEs.InternalMessage      => asException(Status.INTERNAL, e)
+        case e: GEs.InternalMessageCause => asException(Status.INTERNAL, e)
+        case e                           => Status.fromThrowable(e).asException()
       }
   }
 

@@ -2,10 +2,11 @@ package co.topl.genusServer
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.typeclasses.implicits._
 import co.topl.consensus.models._
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
-import co.topl.genusLibrary.model.{GRE, GREs}
+import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.node.models._
@@ -28,7 +29,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlock _)
           .expects(blockId)
           .once()
-          .returning(blockData.some.asRight[GRE].pure[F])
+          .returning(blockData.some.asRight[GE].pure[F])
 
         for {
           res <- underTest.getBlockById(GetBlockByIdRequest(blockId), new Metadata())
@@ -51,10 +52,10 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlock _)
           .expects(blockId)
           .once()
-          .returning(Option.empty[BlockData].asRight[GRE].pure[F])
+          .returning(Option.empty[BlockData].asRight[GE].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException]("NOT_FOUND: Block not found")(
+          _ <- interceptMessageIO[StatusException](s"NOT_FOUND: BlockId:${blockId.show}")(
             underTest.getBlockById(GetBlockByIdRequest(blockId), new Metadata())
           )
         } yield ()
@@ -72,10 +73,10 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlock _)
           .expects(blockId)
           .once()
-          .returning((GREs.UnImplemented: GRE).asLeft[Option[BlockData]].pure[F])
+          .returning((GEs.Internal(new IllegalStateException("Boom!")): GE).asLeft[Option[BlockData]].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException]("INTERNAL: Internal Error")(
+          _ <- interceptMessageIO[StatusException]("INTERNAL: Boom!")(
             underTest.getBlockById(GetBlockByIdRequest(blockId), new Metadata())
           )
         } yield ()
@@ -95,7 +96,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlockByHeight _)
           .expects(height)
           .once()
-          .returning(blockData.some.asRight[GRE].pure[F])
+          .returning(blockData.some.asRight[GE].pure[F])
 
         for {
           res <- underTest.getBlockByHeight(GetBlockByHeightRequest(ChainDistance(height)), new Metadata())
@@ -118,10 +119,10 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlockByHeight _)
           .expects(height)
           .once()
-          .returning(Option.empty[BlockData].asRight[GRE].pure[F])
+          .returning(Option.empty[BlockData].asRight[GE].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException]("NOT_FOUND: Block not found")(
+          _ <- interceptMessageIO[StatusException](s"NOT_FOUND: Height:${height.show}")(
             underTest.getBlockByHeight(GetBlockByHeightRequest(ChainDistance(height)), new Metadata())
           )
         } yield ()
@@ -139,10 +140,10 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlockByHeight _)
           .expects(height)
           .once()
-          .returning((GREs.UnImplemented: GRE).asLeft[Option[BlockData]].pure[F])
+          .returning((GEs.UnImplemented: GE).asLeft[Option[BlockData]].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException]("INTERNAL: Internal Error")(
+          _ <- interceptMessageIO[StatusException]("INTERNAL: An implementation is missing")(
             underTest.getBlockByHeight(GetBlockByHeightRequest(ChainDistance(height)), new Metadata())
           )
         } yield ()
@@ -162,7 +163,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlockByDepth _)
           .expects(depth)
           .once()
-          .returning(blockData.some.asRight[GRE].pure[F])
+          .returning(blockData.some.asRight[GE].pure[F])
 
         for {
           res <- underTest.getBlockByDepth(GetBlockByDepthRequest(ChainDistance(depth)), new Metadata())
@@ -185,10 +186,10 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlockByDepth _)
           .expects(depth)
           .once()
-          .returning(Option.empty[BlockData].asRight[GRE].pure[F])
+          .returning(Option.empty[BlockData].asRight[GE].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException]("NOT_FOUND: Block not found")(
+          _ <- interceptMessageIO[StatusException](s"NOT_FOUND: Depth:${depth.show}")(
             underTest.getBlockByDepth(GetBlockByDepthRequest(ChainDistance(depth)), new Metadata())
           )
         } yield ()
@@ -206,10 +207,10 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         (blockFetcher.fetchBlockByDepth _)
           .expects(depth)
           .once()
-          .returning((GREs.UnImplemented: GRE).asLeft[Option[BlockData]].pure[F])
+          .returning((GEs.InternalMessage("Boom!"): GE).asLeft[Option[BlockData]].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException]("INTERNAL: Internal Error")(
+          _ <- interceptMessageIO[StatusException]("INTERNAL: Boom!")(
             underTest.getBlockByDepth(GetBlockByDepthRequest(ChainDistance(depth)), new Metadata())
           )
         } yield ()

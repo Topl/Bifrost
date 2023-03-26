@@ -1,9 +1,10 @@
-package co.topl.genusLibrary.orientDb.schema
+package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
 import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
-import co.topl.genusLibrary.orientDb.schema.OrientDbIndexable.Instances._
+import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
+import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import com.orientechnologies.orient.core.metadata.schema.OType
 
 object SchemaIoTransaction {

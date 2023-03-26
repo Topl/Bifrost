@@ -2,7 +2,7 @@ package co.topl.genusLibrary.orientDb
 
 import cats.effect.{Resource, Sync}
 import cats.implicits._
-import co.topl.genusLibrary.model.GREs
+import co.topl.genusLibrary.model.GEs
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
@@ -38,7 +38,7 @@ object OrientDBFactory {
         )
         .leftMap(cause =>
           Resource
-            .eval(Logger[F].error(GREs.Message(cause).getMessage))
+            .eval(Logger[F].error(GEs.InternalMessage(cause).getMessage))
             .flatMap(_ => Resource.canceled)
         )
         .merge
@@ -51,7 +51,7 @@ object OrientDBFactory {
       )(factory => Sync[F].delay(factory.close()))
 
       // If we need to recreate the schema from scratch backup, rename/move the db folder.
-      _ <- OrientDBMetadataFactory.make(orientGraphFactory)
+      _ <- OrientDBMetadataFactory.make[F](orientGraphFactory)
 
     } yield orientGraphFactory
 }

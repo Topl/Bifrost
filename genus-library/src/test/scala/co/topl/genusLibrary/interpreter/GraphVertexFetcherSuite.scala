@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genusLibrary.model.{GRE, GREs}
+import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
@@ -36,7 +36,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeader(header.id),
-            (GREs.MessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GRE)
+            (GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GE)
               .asLeft[Option[Vertex]]
           ).toResource
         } yield ()
@@ -58,7 +58,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeader(header.id),
-            Option.empty[Vertex].asRight[GRE]
+            Option.empty[Vertex].asRight[GE]
           ).toResource
         } yield ()
 
@@ -81,7 +81,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeaderByHeight(height),
-            (GREs.MessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GRE)
+            (GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GE)
               .asLeft[Option[Vertex]]
           ).toResource
         } yield ()
@@ -102,10 +102,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-          _ <- assertIO(
-            graphVertexFetcher.fetchHeaderByHeight(height),
-            Option.empty[Vertex].asRight[GRE]
-          ).toResource
+          _ <- assertIO(graphVertexFetcher.fetchHeaderByHeight(height), Option.empty[Vertex].asRight[GE]).toResource
         } yield ()
 
         res.use_
@@ -113,9 +110,6 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     }
   }
 
-  /**
-   * This test throws an exception in the console, check out later how to correctly mock an instance of command
-   */
   test("On fetchHeaderByDepth, if an empty iterator is returned, a Right None should be returned") {
 
     val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
@@ -126,14 +120,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     val res = for {
       orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
       graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-      _                  <- orientGraphNoTx.makeActive().pure[F].toResource
-      _ <- assertIO(
-        graphVertexFetcher
-          .fetchHeaderByDepth(1)
-          .map(_.leftMap { case geEx: GREs.MessageCause => geEx.copy(cause = null): GRE }),
-        (GREs.MessageCause("GraphVertexFetcher:fetchHeaderByDepth", null): GRE)
-          .asLeft[Option[Vertex]]
-      ).toResource
+      _                  <- Sync[F].blocking(orientGraphNoTx.createVertexType("BlockHeader")).toResource
+
+      _ <- assertIO(graphVertexFetcher.fetchHeaderByDepth(1), Option.empty[Vertex].asRight[GE]).toResource
     } yield ()
 
     res.use_
@@ -156,7 +145,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
           graphVertexFetcher.fetchBody(vertex),
-          (GREs.MessageCause("GraphVertexFetcher:fetchBody", expectedTh): GRE)
+          (GEs.InternalMessageCause("GraphVertexFetcher:fetchBody", expectedTh): GE)
             .asLeft[Option[Vertex]]
         ).toResource
       } yield ()
@@ -179,10 +168,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         vertex          <- mock[Vertex].pure[F].toResource
         _ = (() => vertex.getId).expects().once().returning(new Object())
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-        _ <- assertIO(
-          graphVertexFetcher.fetchBody(vertex),
-          Option.empty[Vertex].asRight[GRE]
-        ).toResource
+        _ <- assertIO(graphVertexFetcher.fetchBody(vertex), Option.empty[Vertex].asRight[GE]).toResource
       } yield ()
 
       res.use_
@@ -206,7 +192,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
           graphVertexFetcher.fetchTransactions(vertex),
-          (GREs.MessageCause("GraphVertexFetcher:fetchTransactions", expectedTh): GRE)
+          (GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", expectedTh): GE)
             .asLeft[Iterable[Vertex]]
         ).toResource
       } yield ()
@@ -230,10 +216,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         _ = (() => vertex.getId).expects().once().returning(new Object())
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
 
-        _ <- assertIO(
-          EitherT(graphVertexFetcher.fetchTransactions(vertex)).map(_.size).value,
-          0.asRight[GRE]
-        ).toResource
+        _ <- assertIO(EitherT(graphVertexFetcher.fetchTransactions(vertex)).map(_.size).value, 0.asRight[GE]).toResource
       } yield ()
 
       res.use_

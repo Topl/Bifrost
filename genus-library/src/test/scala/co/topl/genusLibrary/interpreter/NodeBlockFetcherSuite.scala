@@ -11,7 +11,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
-import co.topl.genusLibrary.model.GREs._
+import co.topl.genusLibrary.model.GEs._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import munit.CatsEffectSuite
@@ -154,7 +154,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher.fetch(height),
-              NonExistentTransactions(ListSet(transactionId)).asLeft
+              TransactionsNotFound(ListSet(transactionId)).asLeft
             ).toResource
 
           } yield ()
@@ -222,7 +222,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher.fetch(height),
-              NonExistentTransactions(
+              TransactionsNotFound(
                 ListSet(
                   transactionId_02,
                   transactionId_03
@@ -294,7 +294,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher.fetch(height),
-              NonExistentTransactions(
+              TransactionsNotFound(
                 ListSet(
                   transactionId_01,
                   transactionId_02,

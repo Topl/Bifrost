@@ -5,12 +5,12 @@ import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
-import co.topl.genusLibrary.model.{GRE, GREs}
-import co.topl.genusLibrary.orientDb.schema.SchemaBlockHeader.Field
-import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.model.{GE, GEs}
+import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphCommand, OrientGraphNoTx, OrientVertex}
+import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -20,23 +20,23 @@ object GraphVertexFetcher {
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
-        override def fetchHeader(blockId: BlockId): F[Either[GRE, Option[Vertex]]] =
+        override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try(orientGraph.getVertices(Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
-              .leftMap[GRE](tx => GREs.MessageCause("GraphVertexFetcher:fetchHeader", tx))
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", tx))
           )
 
-        def fetchHeaderByHeight(height: Long): F[Either[GRE, Option[Vertex]]] =
+        def fetchHeaderByHeight(height: Long): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try(
               orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
             ).toEither
               .map(_.headOption)
-              .leftMap[GRE](tx => GREs.MessageCause("GraphVertexFetcher:fetchHeaderByHeight", tx))
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByHeight", tx))
           )
 
-        def fetchHeaderByDepth(depth: Long): F[Either[GRE, Option[Vertex]]] =
+        def fetchHeaderByDepth(depth: Long): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try {
 
@@ -49,16 +49,10 @@ object GraphVertexFetcher {
                */
               val queryString = s"select from blockHeader order by height desc limit 1"
 
-              // works
-//              val query: java.lang.Iterable[OrientVertex] =
-//                orientGraph.command(new OSQLSynchQuery[OrientVertex](queryString)).execute()
+              val query: java.lang.Iterable[OrientVertex] =
+                orientGraph.command(new OSQLSynchQuery[OrientVertex](queryString)).execute()
 
-              // works
-              val query2: java.lang.Iterable[OrientVertex] =
-                new OrientGraphCommand(orientGraph, new OSQLSynchQuery[OrientVertex](queryString))
-                  .execute()
-
-              query2.asScala.headOption
+              query.asScala.headOption
                 .map(blockHeaderSchema.decodeVertex)
                 .map(_.height)
                 .map(_ - depth)
@@ -68,10 +62,10 @@ object GraphVertexFetcher {
                 .flatMap(_.headOption)
 
             }.toEither
-              .leftMap[GRE](tx => GREs.MessageCause("GraphVertexFetcher:fetchHeaderByDepth", tx))
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByDepth", tx))
           )
 
-        override def fetchBody(headerVertex: Vertex): F[Either[GRE, Option[Vertex]]] =
+        override def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try(
               orientGraph
@@ -79,17 +73,17 @@ object GraphVertexFetcher {
                 .asScala
             ).toEither
               .map(_.headOption)
-              .leftMap[GRE](tx => GREs.MessageCause("GraphVertexFetcher:fetchBody", tx))
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchBody", tx))
           )
 
-        override def fetchTransactions(headerVertex: Vertex): F[Either[GRE, Iterable[Vertex]]] =
+        override def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
           Async[F].blocking(
             Try(
               orientGraph
                 .getVertices(ioTransactionSchema.name, Array(Field.BlockId), Array(headerVertex.getId))
                 .asScala
             ).toEither
-              .leftMap[GRE](tx => GREs.MessageCause("GraphVertexFetcher:fetchTransactions", tx))
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", tx))
           )
 
       }

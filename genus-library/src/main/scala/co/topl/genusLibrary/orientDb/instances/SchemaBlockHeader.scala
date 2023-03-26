@@ -1,9 +1,10 @@
-package co.topl.genusLibrary.orientDb.schema
+package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models._
-import co.topl.genusLibrary.orientDb.schema.OrientDbIndexable.Instances._
-import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
+import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import com.google.protobuf.ByteString
 
 object SchemaBlockHeader {

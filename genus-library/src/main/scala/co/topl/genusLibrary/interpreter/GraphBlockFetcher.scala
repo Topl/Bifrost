@@ -8,8 +8,8 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, VertexFetcherAlgebra}
-import co.topl.genusLibrary.model.GRE
-import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.model.GE
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.Vertex
 
@@ -19,23 +19,23 @@ object GraphBlockFetcher {
     Resource.pure {
       new BlockFetcherAlgebra[F] {
 
-        override def fetchHeader(blockId: BlockId): F[Either[GRE, Option[BlockHeader]]] =
+        override def fetchHeader(blockId: BlockId): F[Either[GE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeader(blockId))
             .map(_.map(blockHeaderSchema.decodeVertex))
             .value
 
-        override def fetchHeaderByHeight(height: Long): F[Either[GRE, Option[BlockHeader]]] =
+        override def fetchHeaderByHeight(height: Long): F[Either[GE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeaderByHeight(height))
             .map(_.map(blockHeaderSchema.decodeVertex))
             .value
 
-        override def fetchBody(blockId: BlockId): F[Either[GRE, Option[BlockBody]]] =
+        override def fetchBody(blockId: BlockId): F[Either[GE, Option[BlockBody]]] =
           EitherT(vertexFetcher.fetchHeader(blockId)).flatMap {
             case Some(headerVertex) =>
               EitherT(vertexFetcher.fetchBody(headerVertex))
                 .map(_.map(blockBodySchema.decodeVertex))
             case None =>
-              EitherT.pure[F, GRE](Option.empty[BlockBody])
+              EitherT.pure[F, GE](Option.empty[BlockBody])
           }.value
 
         /**
@@ -43,7 +43,7 @@ object GraphBlockFetcher {
          * @param f a function that returns a Header Vertex
          * @return
          */
-        private def fetchBlockFromVertex(f: () => F[Either[GRE, Option[Vertex]]]): F[Either[GRE, Option[BlockData]]] =
+        private def fetchBlockFromVertex(f: () => F[Either[GE, Option[Vertex]]]): F[Either[GE, Option[BlockData]]] =
           EitherT(f())
             .flatMap {
               case Some(headerVertex) =>
@@ -53,9 +53,9 @@ object GraphBlockFetcher {
                   .flatMap {
                     case Some(bodyVertex) =>
                       val body = blockBodySchema.decodeVertex(bodyVertex)
-                      EitherT.pure[F, GRE]((header.some, body, Seq.empty[IoTransaction]))
+                      EitherT.pure[F, GE]((header.some, body, Seq.empty[IoTransaction]))
                     case None =>
-                      EitherT.pure[F, GRE](
+                      EitherT.pure[F, GE](
                         (header.some, BlockBody(Seq.empty), Seq.empty[IoTransaction])
                       )
                   }
@@ -66,7 +66,7 @@ object GraphBlockFetcher {
                   }
 
               case None =>
-                EitherT.pure[F, GRE](
+                EitherT.pure[F, GE](
                   (Option.empty[BlockHeader], BlockBody(Seq.empty), Seq.empty[IoTransaction])
                 )
             }
@@ -81,13 +81,13 @@ object GraphBlockFetcher {
             }
             .value
 
-        override def fetchBlock(blockId: BlockId): F[Either[GRE, Option[BlockData]]] =
+        override def fetchBlock(blockId: BlockId): F[Either[GE, Option[BlockData]]] =
           fetchBlockFromVertex(() => vertexFetcher.fetchHeader(blockId))
 
-        override def fetchBlockByHeight(height: Long): F[Either[GRE, Option[BlockData]]] =
+        override def fetchBlockByHeight(height: Long): F[Either[GE, Option[BlockData]]] =
           fetchBlockFromVertex(() => vertexFetcher.fetchHeaderByHeight(height))
 
-        override def fetchBlockByDepth(height: Long): F[Either[GRE, Option[BlockData]]] =
+        override def fetchBlockByDepth(height: Long): F[Either[GE, Option[BlockData]]] =
           fetchBlockFromVertex(() => vertexFetcher.fetchHeaderByDepth(height))
 
       }

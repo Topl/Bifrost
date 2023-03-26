@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
-import co.topl.genusLibrary.model.{GRE, GREs}
+import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.Vertex
@@ -34,15 +34,15 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
             .expects(header.id)
             .once()
             .returning(
-              (GREs
-                .MessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GRE)
+              (GEs
+                .InternalMessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GE)
                 .asLeft[Option[Vertex]]
                 .pure[F]
             )
           graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeader(header.id),
-            (GREs.MessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GRE)
+            (GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GE)
               .asLeft[Option[BlockHeader]]
           ).toResource
         } yield ()
@@ -60,11 +60,11 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
           graphVertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           _ = (graphVertexFetcher.fetchHeader _)
             .expects(header.id)
-            .returning(Option.empty[Vertex].asRight[GRE].pure[F])
+            .returning(Option.empty[Vertex].asRight[GE].pure[F])
           graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeader(header.id),
-            Option.empty[BlockHeader].asRight[GRE]
+            Option.empty[BlockHeader].asRight[GE]
           ).toResource
         } yield ()
 
@@ -84,15 +84,15 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
             .expects(header.height)
             .once()
             .returning(
-              (GREs
-                .MessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GRE)
+              (GEs
+                .InternalMessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GE)
                 .asLeft[Option[Vertex]]
                 .pure[F]
             )
           graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeaderByHeight(header.height),
-            (GREs.MessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GRE)
+            (GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GE)
               .asLeft[Option[BlockHeader]]
           ).toResource
         } yield ()
@@ -110,11 +110,11 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
           _ = (graphVertexFetcher.fetchHeaderByHeight _)
             .expects(header.height)
             .once()
-            .returning(Option.empty[Vertex].asRight[GRE].pure[F])
+            .returning(Option.empty[Vertex].asRight[GE].pure[F])
           graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchHeaderByHeight(header.height),
-            Option.empty[BlockHeader].asRight[GRE]
+            Option.empty[BlockHeader].asRight[GE]
           ).toResource
         } yield ()
 
@@ -131,11 +131,11 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
           _ = (graphVertexFetcher.fetchHeader _)
             .expects(header.id)
             .once()
-            .returning(Option.empty[Vertex].asRight[GRE].pure[F])
+            .returning(Option.empty[Vertex].asRight[GE].pure[F])
           graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
           _ <- assertIO(
             graphBlockFetcher.fetchBody(header.id),
-            Option.empty[BlockBody].asRight[GRE]
+            Option.empty[BlockBody].asRight[GE]
           ).toResource
         } yield ()
 
@@ -154,18 +154,18 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
           _ = (graphVertexFetcher.fetchHeader _)
             .expects(header.id)
             .once()
-            .returning(headerVertex.some.asRight[GRE].pure[F])
+            .returning(headerVertex.some.asRight[GE].pure[F])
 
           _ = (graphVertexFetcher.fetchBody _)
             .expects(headerVertex)
             .once()
-            .returning(Option.empty[Vertex].asRight[GRE].pure[F])
+            .returning(Option.empty[Vertex].asRight[GE].pure[F])
 
           graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
 
           _ <- assertIO(
             graphBlockFetcher.fetchBody(header.id),
-            Option.empty[BlockBody].asRight[GRE]
+            Option.empty[BlockBody].asRight[GE]
           ).toResource
         } yield ()
 
