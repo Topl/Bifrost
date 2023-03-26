@@ -1,3 +1,0 @@
-class ECVRF25519 {
-  
-}

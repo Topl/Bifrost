@@ -1,19 +1,26 @@
+import 'package:bifrost_crypto/impl/ec.dart';
 import 'package:cryptography/cryptography.dart' as c;
 
 class Ed25519 {
   static final _algorithm = c.Ed25519();
 
-  Future<KeyPair> _convertAlgKeypair(c.SimpleKeyPair algKeypair) async {
+  Future<Ed25519KeyPair> _convertAlgKeypair(c.SimpleKeyPair algKeypair) async {
     final sk = await algKeypair.extractPrivateKeyBytes();
     final vk = await algKeypair.extractPublicKey();
-    return KeyPair(sk, vk.bytes);
+    return Ed25519KeyPair(sk, vk.bytes);
   }
 
-  Future<KeyPair> generateKeyPair() async {
+  Future<Ed25519KeyPair> generateKeyPair() async {
     return _convertAlgKeypair(await _algorithm.newKeyPair());
   }
 
-  Future<List<int>> sign(List<int> message, KeyPair keyPair) async {
+  Future<List<int>> sign(List<int> message, List<int> sk) async {
+    final vk = await getVerificationKey(sk);
+    return signKeyPair(message, Ed25519KeyPair(sk, vk));
+  }
+
+  Future<List<int>> signKeyPair(
+      List<int> message, Ed25519KeyPair keyPair) async {
     final algKeyPair = c.SimpleKeyPairData(
       keyPair.sk,
       publicKey: c.SimplePublicKey(keyPair.vk, type: c.KeyPairType.ed25519),
@@ -35,13 +42,22 @@ class Ed25519 {
       ),
     );
   }
+
+  Future<List<int>> getVerificationKey(List<int> sk) async {
+    final h = (await c.Sha512().hash(sk)).bytes.sublist(0, 32);
+    final s = List.filled(EC.SCALAR_BYTES, 0x00, growable: false);
+    ec.pruneScalar(h, 0, s);
+    final vk = List.filled(32, 0x00, growable: false);
+    ec.scalarMultBaseEncoded(s, vk, 0);
+    return vk;
+  }
 }
 
 final ed25519 = Ed25519();
 
-class KeyPair {
+class Ed25519KeyPair {
   final List<int> sk;
   final List<int> vk;
 
-  KeyPair(this.sk, this.vk);
+  Ed25519KeyPair(this.sk, this.vk);
 }

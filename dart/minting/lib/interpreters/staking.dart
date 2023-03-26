@@ -53,7 +53,7 @@ class Staking extends StakingAlgebra {
       );
       final unsignedHeader = unsignedBlockBuilder(partialCertificate);
       final List<int> messageToSign = unsignedHeader.signableBytes;
-      final cryptoKeyPair = cryptoEd25519.KeyPair(
+      final cryptoKeyPair = cryptoEd25519.Ed25519KeyPair(
           operationalKeyOutOpt.childKeyPair.sk.value,
           operationalKeyOutOpt.childKeyPair.vk.value);
       final operationalCertificate = OperationalCertificate(
