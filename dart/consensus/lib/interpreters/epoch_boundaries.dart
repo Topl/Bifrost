@@ -13,7 +13,7 @@ EventSourcedStateAlgebra<EpochBoundariesState, BlockId>
     epochBoundariesEventSourcedState(
         ClockAlgebra clock,
         BlockId initialBlockId,
-        ParentChildTree<BlockId> parentChildTree,
+        ParentChildTreeAlgebra<BlockId> parentChildTree,
         Future<void> Function(BlockId) currentEventChanged,
         EpochBoundariesState initialState,
         Future<SlotData> Function(BlockId) fetchSlotData) {

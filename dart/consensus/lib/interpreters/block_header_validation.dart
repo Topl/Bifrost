@@ -1,5 +1,6 @@
 import 'package:bifrost_codecs/codecs.dart';
 import 'package:bifrost_common/algebras/clock_algebra.dart';
+import 'package:bifrost_common/utils.dart';
 import 'package:bifrost_consensus/algebras/block_header_validation_algebra.dart';
 import 'package:bifrost_consensus/algebras/consensus_validation_state_algebra.dart';
 import 'package:bifrost_consensus/algebras/eta_calculation_algebra.dart';
@@ -110,7 +111,7 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
       return ["InvalidOperationalParentSignature"];
     final childSignatureResult = await ed25519.verify(
         header.operationalCertificate.childSignature,
-        header.signableBytes,
+        header.unsigned.signableBytes,
         header.operationalCertificate.childVK);
     if (!childSignatureResult) return ["InvalidBlockProof"];
     return [];

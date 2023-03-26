@@ -60,7 +60,7 @@ class Staking extends StakingAlgebra {
         parentVK: operationalKeyOutOpt.parentVK,
         parentSignature: operationalKeyOutOpt.parentSignature,
         childVK: operationalKeyOutOpt.childKeyPair.vk.value,
-        childSignature: await cryptoEd25519.Ed25519.sign(
+        childSignature: await cryptoEd25519.ed25519.sign(
           messageToSign,
           cryptoKeyPair,
         ),

@@ -49,7 +49,7 @@ packages:
     source: path
     version: "1.0.0+1"
   bifrost_common:
-    dependency: transitive
+    dependency: "direct main"
     description:
       path: "../common"
       relative: true
@@ -235,7 +235,7 @@ packages:
     source: hosted
     version: "6.1.4"
   fixnum:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: fixnum
       sha256: "04be3e934c52e082558cc9ee21f42f5c1cd7a1262f4c63cd0357c08d5bba81ec"
@@ -243,7 +243,7 @@ packages:
     source: hosted
     version: "1.0.1"
   fpdart:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: fpdart
       sha256: f198825b5682cd1c992dbbd0b3995e46f730be0b5addfc6d6e9ef9655911e98c
@@ -443,7 +443,7 @@ packages:
     source: hosted
     version: "1.2.2"
   rational:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: rational
       sha256: ba58e9e18df9abde280e8b10051e4bce85091e41e8e7e411b6cde2e738d357cf

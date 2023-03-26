@@ -1,5 +1,7 @@
 import 'dart:typed_data';
+import 'package:bifrost_common/models/unsigned.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
 import 'package:topl_protobuf/quivr/models/shared.pb.dart';
 
 // Source: https://github.com/dart-lang/sdk/issues/32803#issuecomment-1228291047
@@ -36,4 +38,23 @@ extension ListBigIntOps on Iterable<int> {
 
 extension Int128Ops on Int128 {
   BigInt get toBigInt => value.toBigInt;
+}
+
+extension BlockHeaderOps on BlockHeader {
+  UnsignedBlockHeader get unsigned => UnsignedBlockHeader(
+        parentHeaderId,
+        parentSlot,
+        txRoot,
+        bloomFilter,
+        timestamp,
+        height,
+        slot,
+        eligibilityCertificate,
+        PartialOperationalCertificate(
+            operationalCertificate.parentVK,
+            operationalCertificate.parentSignature,
+            operationalCertificate.childVK),
+        metadata,
+        address,
+      );
 }

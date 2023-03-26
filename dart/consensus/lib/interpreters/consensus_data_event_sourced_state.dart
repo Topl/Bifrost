@@ -21,7 +21,7 @@ class ConsensusData {
 
 EventSourcedStateAlgebra<ConsensusData, BlockId> consensusDataEventSourcedState(
     BlockId initialBlockId,
-    ParentChildTree<BlockId> parentChildTree,
+    ParentChildTreeAlgebra<BlockId> parentChildTree,
     Future<void> Function(BlockId) currentEventChanged,
     ConsensusData initialState,
     Future<BlockBody> Function(BlockId) fetchBlockBody,

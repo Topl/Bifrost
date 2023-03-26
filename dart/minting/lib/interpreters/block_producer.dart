@@ -20,7 +20,7 @@ class BlockProducer extends BlockProducerAlgebra {
   BlockProducer(this.parentHeaders, this.staker, this.clock, this.blockPacker);
 
   @override
-  Future<Stream<FullBlock>> get blocks async {
+  Stream<FullBlock> get blocks {
     final transformer =
         StreamTransformer((Stream<SlotData> stream, cancelOnError) {
       CancelableOperation<FullBlock?>? currentOperation = null;

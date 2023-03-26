@@ -12,12 +12,17 @@ environment:
 
 dependencies:
   args: ^2.3.1
+  fixnum:
+  fpdart:
+  rational:
   topl_protobuf:
     path: ../../../protobuf-specs/build/dart
   bifrost_minting:
     path: ../minting
   bifrost_consensus:
     path: ../consensus
+  bifrost_common:
+    path: ../common
   bifrost_codecs:
     path: ../codecs
   bifrost_grpc:

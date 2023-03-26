@@ -1,28 +1,29 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:args/args.dart';
 import 'package:bifrost_codecs/codecs.dart';
-import 'package:bifrost_consensus/interpreters/ChainSelection.dart';
-import 'package:bifrost_consensus/interpreters/LocalChain.dart';
-import 'package:bifrost_grpc/interpreters/ToplGrpcService.dart';
-import 'package:bifrost_minting/interpreters/BlockProducer.dart';
-import 'package:bifrost_minting/interpreters/BlockPacker.dart';
-import 'package:bifrost_common/interpreters/Clock.dart';
-import 'package:bifrost_common/interpreters/InMemoryStore.dart';
-import 'package:bifrost_minting/interpreters/LeaderElectionMinting.dart';
-import 'package:bifrost_minting/interpreters/OperationalKeys.dart';
-import 'package:bifrost_minting/interpreters/Staker.dart';
-import 'package:bifrost_minting/interpreters/VrfProofs.dart';
-import 'package:bifrost_node/PeerConsumer.dart';
-import 'package:bifrost_p2p/interpreters/P2PServer.dart';
+import 'package:bifrost_common/interpreters/clock.dart';
+import 'package:bifrost_common/interpreters/parent_child_tree.dart';
+import 'package:bifrost_consensus/interpreters/block_header_validation.dart';
+import 'package:bifrost_consensus/interpreters/chain_selection.dart';
+import 'package:bifrost_consensus/interpreters/consensus_data_event_sourced_state.dart';
+import 'package:bifrost_consensus/interpreters/consensus_validation_state.dart';
+import 'package:bifrost_consensus/interpreters/epoch_boundaries.dart';
+import 'package:bifrost_consensus/interpreters/eta_calculation.dart';
+import 'package:bifrost_consensus/interpreters/leader_election_validation.dart';
+import 'package:bifrost_consensus/interpreters/local_chain.dart';
+import 'package:bifrost_consensus/models/vrf_config.dart';
+import 'package:bifrost_consensus/utils.dart';
+import 'package:bifrost_minting/interpreters/block_packer.dart';
+import 'package:bifrost_minting/interpreters/block_producer.dart';
+import 'package:bifrost_minting/interpreters/operational_key_maker.dart';
+import 'package:bifrost_minting/interpreters/staking.dart';
+import 'package:bifrost_minting/interpreters/vrf_calculator.dart';
+import 'package:bifrost_node/data_stores.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:async/async.dart' show StreamGroup;
-import 'package:topl_protobuf/brambl/models/identifier.pb.dart';
-import 'package:topl_protobuf/brambl/models/transaction/io_transaction.pb.dart';
-import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
+import 'package:rational/rational.dart';
 import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
-import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
 import 'package:topl_protobuf/consensus/models/staking_address.pb.dart';
 import 'package:topl_protobuf/node/models/block.pb.dart';
 
@@ -33,10 +34,9 @@ void main(List<String> args) async {
   print(
       "Parsed args: ${appArgs.options.map((n) => "$n=${appArgs[n]}").join(" ")}");
 
-  final bigBangSlotData = SlotData(
-      parentSlotId: SlotId(slot: Int64(-1)),
-      slotId: SlotId(slot: Int64(0)),
-      height: Int64(1));
+  final genesisBlock = FullBlock(); // TODO
+
+  final genesisBlockId = genesisBlock.header.id;
 
   final operatorAddress = StakingAddress();
 
@@ -49,113 +49,116 @@ void main(List<String> args) async {
     Int64(50),
   );
 
-  final vrfProofs = VrfProofs(clock);
+  final dataStores = await DataStores.init(genesisBlock);
 
-  final leaderElectionMinting = LeaderElectionMinting(vrfVK, vrfProofs);
+  final currentEventIdGetterSetters =
+      CurrentEventIdGetterSetters(dataStores.currentEventIds);
 
-  final operationalKeys = OperationalKeys();
+  final canonicalHeadId = await currentEventIdGetterSetters.canonicalHead.get();
 
-  final slotDataStore = InMemoryStore<BlockId, SlotData>();
+  final parentChildTree = ParentChildTree<BlockId>(
+      dataStores.parentChildTree.get,
+      dataStores.parentChildTree.put,
+      genesisBlock.header.parentHeaderId);
 
-  final headerStore = InMemoryStore<BlockId, BlockHeader>();
+  final vrfConfig =
+      VrfConfig(15, 40, Rational.fromInt(1, 20), Rational.fromInt(1, 2));
 
-  final bodyStore = InMemoryStore<BlockId, BlockBody>();
+  final etaCalculation = EtaCalculation(dataStores.slotData.getOrRaise, clock,
+      genesisBlock.header.eligibilityCertificate.eta);
 
-  final transactionStore = InMemoryStore<Identifier_IoTransaction32, IoTransaction>();
+  final leaderElectionValidation =
+      LeaderElectionValidation(vrfConfig, (p0) => null, (p0) => null);
 
-  final localChain = LocalChain(bigBangSlotData.slotId.blockId);
+  final vrfCalculator =
+      VrfCalculator(skVrf, clock, leaderElectionValidation, vrfConfig, 512);
 
-  final chainSelection = ChainSelection(slotDataStore.getOrRaise);
+  final operationalKeyMaker = OperationalKeyMaker();
 
-  final validateFullBlock = (FullBlock block) async {
-    // TODO
-    final parentHeader =
-        await headerStore.getOrRaise(block.header.parentHeaderId);
-    if (block.header.slot <= parentHeader.slot) return "Non-forward slot";
-  };
+  final epochBoundaryState = epochBoundariesEventSourcedState(
+      clock,
+      genesisBlockId,
+      parentChildTree,
+      currentEventIdGetterSetters.epochBoundaries.set,
+      dataStores.epochBoundaries,
+      dataStores.slotData.getOrRaise);
+  final consensusDataState = consensusDataEventSourcedState(
+      genesisBlockId,
+      parentChildTree,
+      currentEventIdGetterSetters.consensusData.set,
+      ConsensusData(dataStores.operatorStakes, dataStores.activeStake,
+          dataStores.registrations),
+      dataStores.bodies.getOrRaise,
+      dataStores.transactions.getOrRaise);
 
-  final peerConsumer = PeerConsumer(
-    slotDataStore,
-    headerStore,
-    bodyStore,
-    transactionStore,
-    localChain,
-    chainSelection,
-    validateFullBlock,
-  );
+  final consensusValidationState = ConsensusValidationState(
+      genesisBlockId, epochBoundaryState, consensusDataState, clock);
 
-  final staker = Staker(
+  final localChain = LocalChain(genesisBlockId);
+
+  final chainSelection = ChainSelection(dataStores.slotData.getOrRaise);
+
+  final headerValidation = BlockHeaderValidation(
+      genesisBlockId,
+      etaCalculation,
+      consensusValidationState,
+      leaderElectionValidation,
+      clock,
+      dataStores.headers.getOrRaise);
+
+  final staker = Staking(
     operatorAddress,
-    leaderElectionMinting,
-    operationalKeys,
-    vrfProofs,
-    clock,
+    vrfVK,
+    operationalKeyMaker,
+    consensusValidationState,
+    etaCalculation,
+    vrfCalculator,
+    leaderElectionValidation,
   );
-
-  final knownPeers = (appArgs["p2p-known-peers"] as String)
-      .split(',')
-      .where((s) => s.isNotEmpty);
 
   final blockProducer = BlockProducer(
     StreamGroup.merge([
-      Stream.value(bigBangSlotData),
-      localChain.adoptions.asyncMap(slotDataStore.getOrRaise),
+      Stream.value(genesisBlock.header.slotData),
+      localChain.adoptions.asyncMap(dataStores.slotData.getOrRaise),
     ]),
     staker,
     clock,
     BlockPacker(),
   );
-  final p2pId = Random().nextInt(1000000).toString();
-  print("p2pId=$p2pId");
-  final rpcServer = ToplGrpcService(
-    p2pId,
-    slotDataStore.get,
-    headerStore.get,
-    bodyStore.get,
-    transactionStore.get,
-    () => localChain.adoptions,
-  );
-  final p2pServer = P2PServer(
-    p2pId,
-    appArgs["p2p-bind-host"],
-    int.parse(appArgs["p2p-bind-port"]),
-    rpcServer,
-    Stream.fromFuture(Future.delayed(Duration(seconds: 5)))
-        .asyncExpand((_) => Stream.fromIterable(knownPeers)),
-  );
-  await p2pServer.start();
 
-  final mintedBlocksStream = await blockProducer.blocks;
+  final mintedBlocksStream = blockProducer.blocks;
+
+  processBlock(FullBlock block) async {
+    final headerValidationErrors =
+        await headerValidation.validate(block.header);
+    if (headerValidationErrors.isNotEmpty) {
+      // TODO: throw?
+      print("Invalid block.  reason=$headerValidationErrors");
+    } else {
+      final id = block.header.id;
+      final body = BlockBody(
+          transactionIds: block.fullBody.transaction.map((t) => t.id));
+
+      await dataStores.slotData.put(id, block.header.slotData);
+      await dataStores.headers.put(id, block.header);
+      await dataStores.bodies.put(id, body);
+      if (await chainSelection.select(id, await localChain.currentHead) == id) {
+        print("Adopting id=$id");
+        localChain.adopt(id);
+      }
+    }
+  }
 
   unawaited(
-    mintedBlocksStream.asyncMap((b) async {
-      final id = b.header.id;
-      final slotData = SlotData(
-        slotId: SlotId(slot: b.header.slot),
-        parentSlotId:
-            SlotId(slot: b.header.parentSlot, blockId: b.header.parentHeaderId),
-        height: b.header.height,
-      );
-      final body =
-          BlockBody(transactionIds: b.fullBody.transaction.map((t) => t.id));
-
-      await slotDataStore.put(id, slotData);
-      await headerStore.put(id, b.header);
-      await bodyStore.put(id, body);
-      await localChain.adopt(id);
-      return b;
-    }).forEach((block) {
-      print(
-          "Minted block. id=${block.header.id.show} height=${block.header.height} slot=${block.header.slot}");
-    }),
+    mintedBlocksStream
+        .map((block) {
+          print(
+              "Minted block. id=${block.header.id.show} height=${block.header.height} slot=${block.header.slot}");
+          return block;
+        })
+        .asyncMap(processBlock)
+        .drain(),
   );
-
-  unawaited(p2pServer.clients
-      .forEach((client) => unawaited(peerConsumer.consume(client).last)));
-}
-
-T _unimplemented<T>() {
-  throw new UnimplementedError();
 }
 
 final ChainSelectionKLookback = Int64(50);
