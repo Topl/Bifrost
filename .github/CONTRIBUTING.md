@@ -5,8 +5,6 @@ Thank you very much for considering contributing to Bifrost! It is people like y
 
 Before you begin however, please be sure to read our [Contributor Code of Conduct](https://github.com/Topl/Bifrost/blob/main/.github/CODE_OF_CONDUCT.md). We want to ensure a healthy and collaborative environment here and will be enforcing these rules.
 
-**STOP RIGHT NOW AND READ THE CONTRIBUTOR LICENSE AGREEMENT AND CODE OF CONDUCT**
-
 <a name="communication"></a>
 ## Communication channels
 
@@ -46,20 +44,5 @@ Making Changes
 3. Make sure you have added the necessary tests for your changes.
 4. Run all the tests to assure nothing else was accidentally broken.
 5. Run `sbt clean preparePR` to check linting, formatting, and that all tests pass
-6. Submit a [new pull request](https://github.com/Topl/Bifrost/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc) in the proper format:
-
-```
-Pull Request
-
-## Purpose
-  State in plain words what the scope of the pull request and what problem it is trying to solve
-## Approach
-  Enumerate the steps you took to create the code/changes contained in this pull request
-## Testing
-  Specify all unit, integration, or end-to-end testing that is contained in this pull request
-## Tickets
-  List tickets if any that are connected to this pull request in the following format:
-  * closes #1234
-```
-
+6. Submit a [new pull request](https://github.com/Topl/Bifrost/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc).
 7. After submitting the pull request, make sure all checks pass and the branch is up to date with the target branch.
