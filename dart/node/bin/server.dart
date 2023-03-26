@@ -41,7 +41,7 @@ void main(List<String> args) async {
 
   final operatorAddress = StakingAddress();
 
-  final vrfKeyPair = ed25519Vrf.generateKeyPair();
+  final vrfKeyPair = await ed25519Vrf.generateKeyPair();
 
   final vrfVK = List.filled(32, 0);
 
