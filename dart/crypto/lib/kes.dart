@@ -2,6 +2,7 @@ import 'package:bifrost_crypto/ed25519.dart';
 import 'package:bifrost_crypto/impl/kes_helper.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:fpdart/fpdart.dart';
 import 'package:topl_protobuf/consensus/models/operational_certificate.pb.dart';
 
 class KesSum {
@@ -14,7 +15,7 @@ class KesSum {
         sk: SecretKeyKesSum(tree: tree, offset: offset), vk: vk);
   }
 
-  Future<SignatureKesSum> sign(SecretKeyKesSum sk, List<int> message) async {
+  Future<SignatureKesSum> sign(KesBinaryTree skTree, List<int> message) async {
     Future<SignatureKesSum> loop(
         KesBinaryTree keyTree, List<List<int>> W) async {
       if (keyTree is KesMerkleNode) {
@@ -35,7 +36,7 @@ class KesSum {
       }
     }
 
-    return loop(sk.tree, []);
+    return loop(skTree, []);
   }
 
   Future<bool> verify(SignatureKesSum signature, List<int> message,
@@ -96,12 +97,12 @@ class KesSum {
             signature.signature, message, signature.verificationKey);
   }
 
-  SecretKeyKesSum update(SecretKeyKesSum sk, int step) {
-    if (step == 0) return sk;
-    final totalSteps = kesHelper.exp(kesHelper.getTreeHeight(sk.tree));
-    final keyTime = getCurrentStep(sk.tree);
+  KesBinaryTree update(KesBinaryTree tree, int step) {
+    if (step == 0) return tree;
+    final totalSteps = kesHelper.exp(kesHelper.getTreeHeight(tree));
+    final keyTime = getCurrentStep(tree);
     if (step < totalSteps && keyTime < step) {
-      return _evolveKey(sk.tree, step);
+      return _evolveKey(tree, step);
     }
     throw Exception(
         "Update error - Max steps: $totalSteps, current step: $keyTime, requested increase: $step");
@@ -225,15 +226,15 @@ class KesSum {
       return KesEmpty();
     }
   }
-
-  _overwriteBytes(List<int> bytes) {
-    for (int i = 0; i < bytes.length; i++) {
-      bytes[i] = SecureRandom.fast.nextInt(256);
-    }
-  }
 }
 
 const kesSum = KesSum();
+
+_overwriteBytes(List<int> bytes) {
+  for (int i = 0; i < bytes.length; i++) {
+    bytes[i] = SecureRandom.fast.nextInt(256);
+  }
+}
 
 abstract class KesBinaryTree {}
 
@@ -280,46 +281,158 @@ class KeyPairKesSum {
 
 class KesProduct {
   const KesProduct();
-  KeyPairKesProduct createKeyPair(
-      List<int> seed, TreeHeight height, Int64 offset) {
-    final sk = generateSecretKey(seed, height);
-    final vk = generateVerificationKey(sk);
+  Future<KeyPairKesProduct> createKeyPair(
+      List<int> seed, TreeHeight height, Int64 offset) async {
+    final sk = await generateSecretKey(seed, height);
+    final vk = await generateVerificationKey(sk);
     return KeyPairKesProduct(sk: sk, vk: vk);
   }
 
-  SignatureKesProduct sign(SecretKeyKesProduct sk, List<int> message) {
-    throw UnimplementedError(); // TODO
+  Future<SignatureKesProduct> sign(
+      SecretKeyKesProduct sk, List<int> message) async {
+    return SignatureKesProduct(
+        superSignature: sk.subSignature,
+        subSignature: await kesSum.sign(sk.subTree, message),
+        subRoot: (await kesSum.generateVerificationKey(sk.subTree)).value);
   }
 
-  bool verify(SignatureKesProduct signature, List<int> message,
-      VerificationKeyKesProduct vk) {
-    throw UnimplementedError(); // TODO
+  Future<bool> verify(SignatureKesProduct signature, List<int> message,
+      VerificationKeyKesProduct vk) async {
+    final totalStepsSub =
+        kesHelper.exp(signature.superSignature.witness.length);
+    final keyTimeSup = vk.step ~/ totalStepsSub;
+    final keyTimeSub = vk.step % totalStepsSub;
+    return (await kesSum.verify(signature.superSignature, signature.subRoot,
+            VerificationKeyKesSum(value: vk.value, step: keyTimeSup))) &&
+        (await kesSum.verify(signature.subSignature, message,
+            VerificationKeyKesSum(value: signature.subRoot, step: keyTimeSub)));
   }
 
-  SecretKeyKesProduct update(SecretKeyKesProduct sk, int steps) {
-    throw UnimplementedError(); // TODO
+  Future<SecretKeyKesProduct> update(SecretKeyKesProduct sk, int step) async {
+    if (step == 0) return sk;
+    final keyTime = await getCurrentStep(sk);
+    final keyTimeSup = await kesSum.getCurrentStep(sk.superTree);
+    final heightSup = kesHelper.getTreeHeight(sk.superTree);
+    final heightSub = kesHelper.getTreeHeight(sk.subTree);
+    final totalSteps = kesHelper.exp(heightSup + heightSub);
+    final totalStepsSub = kesHelper.exp(heightSub);
+    final newKeyTimeSup = step ~/ totalStepsSub;
+    final newKeyTimeSub = step % totalStepsSub;
+
+    getSeed(Tuple2<List<int>, List<int>> seeds, int iter) async {
+      if (iter < newKeyTimeSup) {
+        final out = getSeed(await kesHelper.prng(seeds.second), iter + 1);
+        _overwriteBytes(seeds.first);
+        _overwriteBytes(seeds.second);
+        return out;
+      } else
+        return seeds;
+    }
+
+    if (step > keyTime && step < totalSteps) {
+      if (keyTimeSup < newKeyTimeSup) {
+        await kesSum._eraseOldNode(sk.subTree);
+        final seeds =
+            await getSeed(Tuple2(List.empty(), sk.nextSubSeed), keyTimeSup);
+        final superScheme =
+            await kesSum._evolveKey(sk.superTree, newKeyTimeSub);
+        final newSubScheme =
+            await kesSum.generateSecretKey(seeds.first, heightSub);
+        _overwriteBytes(seeds.first);
+        final kesVkSub = await kesSum.generateVerificationKey(newSubScheme);
+        final kesSigSuper = await kesSum.sign(superScheme, kesVkSub.value);
+        final forwardSecureSuperScheme = _eraseLeafSecretKey(superScheme);
+        final updatedSubScheme =
+            await kesSum._evolveKey(newSubScheme, newKeyTimeSub);
+        return SecretKeyKesProduct(
+          superTree: forwardSecureSuperScheme,
+          subTree: updatedSubScheme,
+          nextSubSeed: seeds.second,
+          subSignature: kesSigSuper,
+          offset: sk.offset, // TODO
+        );
+      } else {
+        final subScheme = await kesSum.update(sk.subTree, newKeyTimeSub);
+        return SecretKeyKesProduct(
+          superTree: sk.superTree,
+          subTree: subScheme,
+          nextSubSeed: sk.nextSubSeed,
+          subSignature: sk.subSignature,
+          offset: sk.offset, // TODO
+        );
+      }
+    }
+    throw Exception(
+        "Update error - Max steps: $totalSteps, current step: $keyTime, requested increase: $step");
   }
 
-  int getCurrentStep(SecretKeyKesProduct sk) {
-    throw UnimplementedError(); // TODO
+  Future<int> getCurrentStep(SecretKeyKesProduct sk) async {
+    final numSubSteps = kesHelper.exp(kesHelper.getTreeHeight(sk.subTree));
+    final tSup = await kesSum.getCurrentStep(sk.superTree);
+    final tSub = await kesSum.getCurrentStep(sk.subTree);
+    return (tSup * numSubSteps) + tSub;
   }
 
-  SecretKeyKesProduct generateSecretKey(List<int> seed, TreeHeight height) {
-    throw UnimplementedError(); // TODO
+  Future<SecretKeyKesProduct> generateSecretKey(
+      List<int> seed, TreeHeight height) async {
+    final rSuper = await kesHelper.prng(seed);
+    final rSub = await kesHelper.prng(rSuper.second);
+    final superScheme =
+        await kesSum.generateSecretKey(rSuper.first, height.sup);
+    final subScheme = await kesSum.generateSecretKey(rSub.first, height.sub);
+    final kesVkSub = await kesSum.generateVerificationKey(subScheme);
+    final kesSigSuper = await kesSum.sign(superScheme, kesVkSub.value);
+    _overwriteBytes(rSuper.second);
+    _overwriteBytes(seed);
+    return SecretKeyKesProduct(
+      superTree: superScheme,
+      subTree: subScheme,
+      nextSubSeed: rSub.second,
+      subSignature: kesSigSuper,
+      offset: Int64(0), // TODO
+    );
   }
 
-  VerificationKeyKesProduct generateVerificationKey(SecretKeyKesProduct sk) {
-    throw UnimplementedError(); // TODO
+  Future<VerificationKeyKesProduct> generateVerificationKey(
+      SecretKeyKesProduct sk) async {
+    final superTree = sk.superTree;
+    if (superTree is KesMerkleNode) {
+      return VerificationKeyKesProduct(
+          value: await kesHelper.witness(sk.superTree),
+          step: await getCurrentStep(sk));
+    } else if (superTree is KesSigningLeaf) {
+      return VerificationKeyKesProduct(
+          value: await kesHelper.witness(sk.superTree), step: 0);
+    } else {
+      return VerificationKeyKesProduct(
+          value: List.filled(32, 0x00, growable: false), step: 0);
+    }
+  }
+
+  _eraseLeafSecretKey(KesBinaryTree tree) {
+    if (tree is KesMerkleNode) {
+      if (tree.left is KesEmpty)
+        return KesMerkleNode(tree.seed, tree.witnessLeft, tree.witnessRight,
+            KesEmpty(), _eraseLeafSecretKey(tree.right));
+      else if (tree.right is KesEmpty) {
+        return KesMerkleNode(tree.seed, tree.witnessLeft, tree.witnessRight,
+            _eraseLeafSecretKey(tree.left), KesEmpty());
+      }
+    } else if (tree is KesSigningLeaf) {
+      _overwriteBytes(tree.sk);
+      return KesSigningLeaf(List.filled(32, 0x00, growable: false), tree.vk);
+    }
+    throw Exception("Evolving Key Configuration Error");
   }
 }
 
 const kesProduct = KesProduct();
 
 class TreeHeight {
-  final int x;
-  final int y;
+  final int sup;
+  final int sub;
 
-  TreeHeight(this.x, this.y);
+  TreeHeight(this.sup, this.sub);
 }
 
 class SecretKeyKesProduct {

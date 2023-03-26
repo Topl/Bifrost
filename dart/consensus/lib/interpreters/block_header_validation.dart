@@ -92,7 +92,7 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
         header.slot);
     if (expectedEta != header.eligibilityCertificate.eta)
       return ["InvalidEligibilityCertificate"];
-    final signatureVerification = ed25519Vrf.verify(
+    final signatureVerification = await ed25519Vrf.verify(
         header.eligibilityCertificate.vrfSig,
         VrfArgument(expectedEta, header.slot).signableBytes,
         header.eligibilityCertificate.vrfVK);
@@ -101,7 +101,7 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
   }
 
   Future<List<String>> _kesVerification(BlockHeader header) async {
-    final parentCommitmentVerification = kesProduct.verify(
+    final parentCommitmentVerification = await kesProduct.verify(
         header.operationalCertificate.parentSignature,
         []
           ..addAll(header.operationalCertificate.childVK)
@@ -126,7 +126,7 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
           ..addAll(header.eligibilityCertificate.vrfVK)
           ..addAll(header.address.value))
         .bytes;
-    final verificationResult = kesProduct.verify(
+    final verificationResult = await kesProduct.verify(
         commitment,
         message,
         VerificationKeyKesProduct(
@@ -155,7 +155,8 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
 
   Future<List<String>> _eligibilityVerification(
       BlockHeader header, Rational threshold) async {
-    final rho = ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig);
+    final rho =
+        await ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig);
     final isSlotLeader =
         await leaderElectionValidation.isSlotLeaderForThreshold(threshold, rho);
     if (!isSlotLeader) return ["Ineligible"];
