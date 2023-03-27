@@ -163,7 +163,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.20.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.20.2"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -254,7 +254,7 @@ object Dependencies {
     protobufSpecs ++
     Seq(
       "io.grpc" % "grpc-netty-shaded" % "1.53.0",
-      "io.grpc" % "grpc-services" % "1.53.0"
+      "io.grpc" % "grpc-services"     % "1.53.0"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
