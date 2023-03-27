@@ -113,6 +113,7 @@ extension Int64Codecs on Int64 {
 
 extension Int128Codecs on List<int> {
   String get base58 => Base58Encode(this);
+  String get show => base58;
 }
 
 extension BlockIdCodecs on BlockId {

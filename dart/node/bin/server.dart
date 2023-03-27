@@ -31,6 +31,7 @@ import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
 import 'package:topl_protobuf/node/models/block.pb.dart';
 
 void main(List<String> args) async {
+  Logger.root.level = Level.FINE;
   Logger.root.onRecord.listen((record) {
     print('${record.level.name}: ${record.time}: ${record.message}');
   });
@@ -98,6 +99,8 @@ void main(List<String> args) async {
 
   final secureStore = InMemorySecureStore();
 
+  log.info("Preparing Consensus State");
+
   final epochBoundaryState = epochBoundariesEventSourcedState(
       clock,
       await currentEventIdGetterSetters.epochBoundaries.get(),
@@ -117,6 +120,8 @@ void main(List<String> args) async {
   final consensusValidationState = ConsensusValidationState(
       genesisBlockId, epochBoundaryState, consensusDataState, clock);
 
+  log.info("Preparing OperationalKeyMaker");
+
   final operationalKeyMaker = await OperationalKeyMaker.init(
       canonicalHeadSlotData.slotId,
       Int64(150),
@@ -129,10 +134,14 @@ void main(List<String> args) async {
       consensusValidationState,
       stakerInitializers[0].kesKeyPair.sk);
 
+  log.info("Preparing LocalChain");
+
   final localChain =
       LocalChain(await currentEventIdGetterSetters.canonicalHead.get());
 
   final chainSelection = ChainSelection(dataStores.slotData.getOrRaise);
+
+  log.info("Preparing Header Validation");
 
   final headerValidation = BlockHeaderValidation(
       genesisBlockId,
@@ -141,6 +150,8 @@ void main(List<String> args) async {
       leaderElectionValidation,
       clock,
       dataStores.headers.getOrRaise);
+
+  log.info("Preparing Staking");
 
   final staker = Staking(
     stakerInitializers[0].stakingAddress,
@@ -152,15 +163,19 @@ void main(List<String> args) async {
     leaderElectionValidation,
   );
 
+  log.info("Preparing BlockProducer");
+
   final blockProducer = BlockProducer(
     StreamGroup.merge([
-      Stream.fromFuture(genesisBlock.header.slotData),
+      Stream.value(canonicalHeadSlotData),
       localChain.adoptions.asyncMap(dataStores.slotData.getOrRaise),
     ]),
     staker,
     clock,
     BlockPacker(),
   );
+
+  log.info("Let's get this party started!");
 
   final mintedBlocksStream = blockProducer.blocks;
 

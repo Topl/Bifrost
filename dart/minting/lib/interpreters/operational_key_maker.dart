@@ -13,6 +13,7 @@ import 'package:bifrost_minting/algebras/vrf_calculator_algebra.dart';
 import 'package:bifrost_minting/interpreters/vrf_calculator.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:logging/logging.dart';
 import 'package:rational/rational.dart';
 import 'package:topl_protobuf/consensus/models/operational_certificate.pb.dart';
 import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
@@ -29,7 +30,9 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
   final EtaCalculationAlgebra etaCalculation;
   final ConsensusValidationStateAlgebra consensusValidationState;
   Int64 currentOperationalPeriod;
-  Map<Int64, OperationalKeyOut>? _currentKeyCache;
+  Map<Int64, OperationalKeyOut>? currentKeyCache;
+
+  final log = Logger("OperationalKeyMaker");
 
   OperationalKeyMaker(
     this.operationalPeriodLength,
@@ -41,7 +44,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
     this.etaCalculation,
     this.consensusValidationState,
     this.currentOperationalPeriod,
-    this._currentKeyCache,
+    this.currentKeyCache,
   );
 
   static Future<OperationalKeyMaker> init(
@@ -72,7 +75,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
       null,
     );
 
-    await secureStore.write("", initialSK.encode);
+    await secureStore.write("k", initialSK.encode);
 
     final relativeStake = await consensusValidationState.operatorRelativeStake(
         parentSlotId.blockId, slot, address);
@@ -81,7 +84,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
           (operationalPeriod - activationOperationalPeriod).toInt(),
           (t) => impl._prepareOperationalPeriodKeys(
               t, slot, parentSlotId, relativeStake));
-      impl._currentKeyCache = initialKeysOpt;
+      impl.currentKeyCache = initialKeysOpt;
       impl.currentOperationalPeriod = operationalPeriod;
     }
     return impl;
@@ -92,7 +95,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
       Int64 slot, SlotId parentSlotId) async {
     final operationalPeriod = slot ~/ operationalPeriodLength;
     if (operationalPeriod == currentOperationalPeriod)
-      return _currentKeyCache?[slot];
+      return currentKeyCache?[slot];
     final relativeStake = await consensusValidationState.operatorRelativeStake(
         parentSlotId.blockId, slot, address);
     if (relativeStake == null) return null;
@@ -101,7 +104,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
         (t) => _prepareOperationalPeriodKeys(
             t, slot, parentSlotId, relativeStake));
     currentOperationalPeriod = operationalPeriod;
-    _currentKeyCache = newKeys;
+    currentKeyCache = newKeys;
     return newKeys?[slot];
   }
 
@@ -111,6 +114,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
     if (fileNames.length != 1)
       throw Exception("SecureStore contained invalid number of keys");
     final fileName = fileNames.first;
+    log.info("Consuming key id=$fileName");
     final diskKeyBytes = await secureStore.consume(fileName);
     if (diskKeyBytes == null) return null;
     final SecretKeyKesProduct diskKey =
@@ -120,7 +124,9 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
     if (latest == timeStep)
       currentPeriodKey = diskKey;
     else if (latest > timeStep) {
-      // TODO log
+      log.info(
+          "Persisted key timeStep=$latest is greater than current timeStep=$timeStep." +
+              "  Re-persisting original key.");
       secureStore.write(fileName, diskKeyBytes);
     } else {
       currentPeriodKey = await kesProduct.update(diskKey, timeStep);
@@ -129,8 +135,11 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
     if (currentPeriodKey == null) return null;
     final res = await use(currentPeriodKey);
     final nextTimeStep = timeStep + 1;
+    log.info("Updating next key idx=$nextTimeStep");
     final updated = await kesProduct.update(currentPeriodKey, nextTimeStep);
+    log.info("Saving next key idx=$nextTimeStep");
     await secureStore.write("k", updated.encode);
+    log.info("Saved next key idx=$nextTimeStep");
     return res;
   }
 
@@ -147,6 +156,10 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
         operationalPeriod * operationalPeriodLength;
     final operationalPeriodSlotMax =
         (operationalPeriod + 1) * operationalPeriodLength;
+    log.info("Computing ineligible slots for" +
+        " epoch=$epoch" +
+        " eta=${eta.show}" +
+        " range=$operationalPeriodSlotMin..$operationalPeriodSlotMax");
     final ineligibleSlots = await vrfCalculator.ineligibleSlots(
         epoch,
         eta,
@@ -158,6 +171,7 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
             (i) => fromSlot + i)
         .where((s) => !ineligibleSlots.contains(s))
         .toList();
+    log.info("Preparing linear keys. count=${slots.length}");
     final outs = await _prepareOperationalPeriodKeysImpl(kesParent, slots);
     final mappedKeys =
         Map.fromEntries(outs.map((out) => MapEntry(out.slot, out)));
