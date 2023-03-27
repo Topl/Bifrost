@@ -20,8 +20,8 @@ import 'package:bifrost_minting/interpreters/block_producer.dart';
 import 'package:bifrost_minting/interpreters/operational_key_maker.dart';
 import 'package:bifrost_minting/interpreters/staking.dart';
 import 'package:bifrost_minting/interpreters/vrf_calculator.dart';
+import 'package:bifrost_minting/interpreters/in_memory_secure_store.dart';
 import 'package:bifrost_node/data_stores.dart';
-import 'package:bifrost_node/genesis.dart';
 import 'package:bifrost_node/private_testnet.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:async/async.dart' show StreamGroup;
@@ -69,6 +69,8 @@ void main(List<String> args) async {
       CurrentEventIdGetterSetters(dataStores.currentEventIds);
 
   final canonicalHeadId = await currentEventIdGetterSetters.canonicalHead.get();
+  final canonicalHeadSlotData =
+      await dataStores.slotData.getOrRaise(canonicalHeadId);
 
   final parentChildTree = ParentChildTree<BlockId>(
     dataStores.parentChildTree.get,
@@ -94,7 +96,7 @@ void main(List<String> args) async {
   final vrfCalculator = VrfCalculator(
       vrfKeyPair.sk, clock, leaderElectionValidation, vrfConfig, 512);
 
-  final operationalKeyMaker = OperationalKeyMaker();
+  final secureStore = InMemorySecureStore();
 
   final epochBoundaryState = epochBoundariesEventSourcedState(
       clock,
@@ -114,6 +116,18 @@ void main(List<String> args) async {
 
   final consensusValidationState = ConsensusValidationState(
       genesisBlockId, epochBoundaryState, consensusDataState, clock);
+
+  final operationalKeyMaker = await OperationalKeyMaker.init(
+      canonicalHeadSlotData.slotId,
+      Int64(150),
+      Int64(0),
+      stakerInitializers[0].stakingAddress,
+      secureStore,
+      clock,
+      vrfCalculator,
+      etaCalculation,
+      consensusValidationState,
+      stakerInitializers[0].kesKeyPair.sk);
 
   final localChain =
       LocalChain(await currentEventIdGetterSetters.canonicalHead.get());

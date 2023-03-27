@@ -52,17 +52,17 @@ class Staking extends StakingAlgebra {
       final partialCertificate = PartialOperationalCertificate(
         operationalKeyOutOpt.parentVK,
         operationalKeyOutOpt.parentSignature,
-        operationalKeyOutOpt.childKeyPair.vk.value,
+        operationalKeyOutOpt.childKeyPair.vk,
       );
       final unsignedHeader = unsignedBlockBuilder(partialCertificate);
       final List<int> messageToSign = unsignedHeader.signableBytes;
       final cryptoKeyPair = await cryptoEd25519.Ed25519KeyPair(
-          operationalKeyOutOpt.childKeyPair.sk.value,
-          operationalKeyOutOpt.childKeyPair.vk.value);
+          operationalKeyOutOpt.childKeyPair.sk,
+          operationalKeyOutOpt.childKeyPair.vk);
       final operationalCertificate = OperationalCertificate(
         parentVK: operationalKeyOutOpt.parentVK,
         parentSignature: operationalKeyOutOpt.parentSignature,
-        childVK: operationalKeyOutOpt.childKeyPair.vk.value,
+        childVK: operationalKeyOutOpt.childKeyPair.vk,
         childSignature: await cryptoEd25519.ed25519.signKeyPair(
           messageToSign,
           cryptoKeyPair,

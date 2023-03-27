@@ -1,7 +1,7 @@
+import 'package:bifrost_crypto/ed25519.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:topl_protobuf/consensus/models/operational_certificate.pb.dart';
 import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
-import 'package:topl_protobuf/quivr/models/shared.pb.dart';
 
 abstract class OperationalKeyMakerAlgebra {
   Future<OperationalKeyOut?> operationalKeyForSlot(
@@ -10,7 +10,7 @@ abstract class OperationalKeyMakerAlgebra {
 
 class OperationalKeyOut {
   final Int64 slot;
-  final KeyPair childKeyPair;
+  final Ed25519KeyPair childKeyPair;
   final SignatureKesProduct parentSignature;
   final VerificationKeyKesProduct parentVK;
 

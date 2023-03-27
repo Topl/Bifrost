@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:bifrost_crypto/ed25519.dart';
 import 'package:bifrost_crypto/impl/kes_helper.dart';
 import 'package:bifrost_crypto/utils.dart';
@@ -97,12 +99,12 @@ class KesSum {
             signature.signature, message, signature.verificationKey);
   }
 
-  KesBinaryTree update(KesBinaryTree tree, int step) {
+  Future<KesBinaryTree> update(KesBinaryTree tree, int step) async {
     if (step == 0) return tree;
     final totalSteps = kesHelper.exp(kesHelper.getTreeHeight(tree));
     final keyTime = getCurrentStep(tree);
     if (step < totalSteps && keyTime < step) {
-      return _evolveKey(tree, step);
+      return await _evolveKey(tree, step);
     }
     throw Exception(
         "Update error - Max steps: $totalSteps, current step: $keyTime, requested increase: $step");
@@ -176,7 +178,7 @@ class KesSum {
     }
   }
 
-  _evolveKey(KesBinaryTree input, int step) async {
+  Future<KesBinaryTree> _evolveKey(KesBinaryTree input, int step) async {
     final halfTotalSteps = kesHelper.exp(kesHelper.getTreeHeight(input) - 1);
     shiftStep(int step) => step % halfTotalSteps;
     if (step >= halfTotalSteps) {
@@ -215,16 +217,17 @@ class KesSum {
     } else {
       if (input is KesMerkleNode && input.right is KesEmpty) {
         return KesMerkleNode(input.seed, input.witnessLeft, input.witnessRight,
-            _evolveKey(input.left, shiftStep(step)), KesEmpty());
+            await _evolveKey(input.left, shiftStep(step)), KesEmpty());
       }
       if (input is KesMerkleNode && input.left is KesEmpty) {
         return KesMerkleNode(input.seed, input.witnessLeft, input.witnessRight,
-            KesEmpty(), _evolveKey(input.right, shiftStep(step)));
+            KesEmpty(), await _evolveKey(input.right, shiftStep(step)));
       } else if (input is KesSigningLeaf) {
         return input;
       }
       return KesEmpty();
     }
+    return KesEmpty();
   }
 }
 
@@ -448,6 +451,102 @@ class SecretKeyKesProduct {
       required this.nextSubSeed,
       required this.subSignature,
       required this.offset});
+
+  factory SecretKeyKesProduct.decode(List<int> bytes) {
+    final superTreeRes = _decodeTree(bytes);
+    final subTreeRes = _decodeTree(superTreeRes.second);
+    final nextSubSeed = subTreeRes.second.sublist(0, 32);
+    final subSignatureRes = _decodeSignature(subTreeRes.second.sublist(32));
+    final offset = Int64.fromBytes(subSignatureRes.second.sublist(0, 8));
+    return SecretKeyKesProduct(
+      superTree: superTreeRes.first,
+      subTree: subTreeRes.first,
+      nextSubSeed: nextSubSeed,
+      subSignature: subSignatureRes.first,
+      offset: offset,
+    );
+  }
+
+  List<int> get encode {
+    return [
+      ..._encodeTree(superTree),
+      ..._encodeTree(subTree),
+      ...nextSubSeed,
+      ..._encodeSignature(subSignature),
+      ...offset.toBytes()
+    ];
+  }
+
+  List<int> _encodeTree(KesBinaryTree tree) {
+    if (tree is KesMerkleNode) {
+      return [
+        ...[0x00],
+        ...tree.seed,
+        ...tree.witnessLeft,
+        ...tree.witnessRight,
+        ..._encodeTree(tree.left),
+        ..._encodeTree(tree.right)
+      ];
+    } else if (tree is KesSigningLeaf) {
+      return [
+        ...[0x01],
+        ...tree.sk,
+        ...tree.vk
+      ];
+    } else if (tree is KesEmpty) {
+      return [0x02];
+    }
+    throw Exception("Encoding Error");
+  }
+
+  List<int> _encodeSignature(SignatureKesSum signature) {
+    return [
+      ...signature.verificationKey,
+      ...signature.signature,
+      ...Int64(signature.witness.length).toBytes(),
+      ...signature.witness.flatMap((t) => t)
+    ];
+  }
+
+  static Tuple2<KesBinaryTree, List<int>> _decodeTree(List<int> bytes) {
+    int cursor = 1;
+    if (bytes[0] == 0x00) {
+      final seed = bytes.sublist(cursor, cursor += 32);
+      final witnessLeft = bytes.sublist(cursor, cursor += 32);
+      final witnessRight = bytes.sublist(cursor, cursor += 32);
+      final left = _decodeTree(bytes.sublist(cursor));
+      final right = _decodeTree(left.second);
+      return Tuple2(
+          KesMerkleNode(
+              seed, witnessLeft, witnessRight, left.first, right.first),
+          right.second);
+    } else if (bytes[0] == 0x01) {
+      final sk = bytes.sublist(cursor, cursor += 32);
+      final vk = bytes.sublist(cursor, cursor += 32);
+      return Tuple2(KesSigningLeaf(sk, vk), bytes.sublist(cursor));
+    } else if (bytes[0] == 0x02) {
+      return Tuple2(KesEmpty(), bytes.sublist(1));
+    }
+    throw Exception("Decoding Error");
+  }
+
+  static Tuple2<SignatureKesSum, List<int>> _decodeSignature(List<int> bytes) {
+    int cursor = 0;
+    final vk = bytes.sublist(cursor, cursor += 32);
+    final signature = bytes.sublist(cursor, cursor += 64);
+    Int64 witnessLength = _parseInt(bytes.sublist(cursor, cursor += 8));
+    final witness = List.generate(witnessLength.toInt(), (index) {
+      return bytes.sublist(cursor, cursor += 32);
+    });
+
+    final kesSignature = SignatureKesSum(
+        verificationKey: vk, signature: signature, witness: witness);
+    return Tuple2(kesSignature, bytes.sublist(cursor));
+  }
+
+  static Int64 _parseInt(List<int> bytes) {
+    return Int64.fromBytes(bytes);
+  }
 }
 
 class KeyPairKesProduct {
