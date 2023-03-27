@@ -267,12 +267,15 @@ object BlockChecker {
     val getMissedBodiesFun =
       getFromChainUntil[F, BlockId](state.slotDataStore.getOrRaise, id => id.pure[F], state.bodyStore.contains) _
 
-    for {
-      missedBodies <- getMissedBodiesFun(bestKnownHeaderId)
-      _            <- Logger[F].info(show"Send request to get missed bodies for blockIds: $missedBodies")
-      message = RequestsProxy.Message.DownloadBlocksRequest(hostId, NonEmptyChain.fromSeq(missedBodies).get)
-      _ <- state.requestsProxy.sendNoWait(message)
-    } yield ()
+    val requestMissedCommands =
+      for {
+        missedBodies <- OptionT(getMissedBodiesFun(bestKnownHeaderId).map(NonEmptyChain.fromSeq))
+        _ <- OptionT.liftF(Logger[F].info(show"Send request to get missed bodies for blockIds: $missedBodies"))
+        message = RequestsProxy.Message.DownloadBlocksRequest(hostId, missedBodies)
+        _ <- OptionT.liftF(state.requestsProxy.sendNoWait(message))
+      } yield ()
+
+    requestMissedCommands.getOrElse(().pure[F])
   }
 
   private def processRemoteBodies[F[_]: Async: Logger](
