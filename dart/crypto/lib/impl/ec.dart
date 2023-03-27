@@ -1,4 +1,5 @@
 import 'package:bifrost_crypto/impl/x25519_field.dart';
+import 'package:fixnum/fixnum.dart';
 
 class EC {
   final x25519Field = X25519Field();
@@ -18,7 +19,7 @@ class EC {
     final y_5 = y[5] & M;
     final y_6 = y[6] & M;
     final y_7 = y[7] & M;
-    int zc = 0;
+    Int64 zc = Int64.ZERO;
     for (int i = 0; i < 8; i++) {
       int c = 0;
       final x_i = x[i] & M;
@@ -47,16 +48,16 @@ class EC {
       zz[i + 7] = c;
       c >>>= 32;
       zc += c + zz[i + 8] & M;
-      zz[i + 8] = zc;
-      zc >>>= 32;
+      zz[i + 8] = zc.toInt32().toInt();
+      zc >>= 32; // TODO: >>>?
     }
-    return zc;
+    return zc.toInt32().toInt();
   }
 
   bool gte256(List<int> x, List<int> y) {
     for (int i = 7; i >= 0; i--) {
-      final x_i = x[i] ^ 0x80000000;
-      final y_i = y[i] ^ 0x80000000;
+      final x_i = x[i] ^ -0x7fffffff;
+      final y_i = y[i] ^ -0x7fffffff;
       if (x_i < y_i) return false;
       if (x_i > y_i) return true;
     }
@@ -76,23 +77,22 @@ class EC {
 
   int cadd(int len, int mask, List<int> x, List<int> y, List<int> z) {
     final m = -(mask & 1) & M;
-    int c = 0;
+    Int64 c = Int64.ZERO;
     for (int i = 0; i < len; i++) {
       c += (x[i] & M) + (y[i] & m);
-      z[i] = c;
-      c >>>= 32;
+      z[i] = c.toInt32().toInt();
+      c = c >> 32; // TODO: >>>?
     }
-    return c;
+    return c.toInt32().toInt();
   }
 
   int shiftDownBit(int len, List<int> z, int c) {
-    int i = len - 1;
+    int i = len;
     int cv = c;
-    while (i >= 0) {
+    while (--i >= 0) {
       final next = z[i];
-      z[i] = (next >>> 1) | (cv << 32);
+      z[i] = (next >>> 1) | (cv << 31);
       cv = next;
-      i -= 1;
     }
     return cv << 31;
   }
@@ -130,13 +130,10 @@ class EC {
     return reduceScalar(result);
   }
 
-  bool checkContextVar(List<int> ctx, int phflag) =>
-      phflag == 0x00 || ctx.length < 256;
-
   bool checkPointVar(List<int> p) {
     final t = List.filled(8, 0);
     decode32(p, 0, t, 0, 8);
-    t[7] &= 0x7fffffff;
+    t[7] &= 0x7fffffff; // TODO?
     return !gte256(t, P);
   }
 
@@ -189,21 +186,21 @@ class EC {
       decode32(k, kOff, n, 0, SCALAR_INTS);
 
   void encode24(int n, List<int> bs, int off) {
-    bs[off] = n;
-    bs[off + 1] = n >>> 8;
-    bs[off + 2] = n >>> 16;
+    bs[off] = n; // TODO: toByte
+    bs[off + 1] = (n >>> 8); // TODO: toByte
+    bs[off + 2] = n >>> 16; // TODO: toByte
   }
 
   void encode32(int n, List<int> bs, int off) {
-    bs[off] = n;
-    bs[off + 1] = n >>> 8;
-    bs[off + 2] = n >>> 16;
-    bs[off + 3] = n >>> 24;
+    bs[off] = n; // TODO: toByte
+    bs[off + 1] = n >>> 8; // TODO: toByte
+    bs[off + 2] = n >>> 16; // TODO: toByte
+    bs[off + 3] = n >>> 24; // TODO: toByte
   }
 
-  void encode56(int n, List<int> bs, int off) {
-    encode32(n, bs, off);
-    encode24((n >>> 32), bs, off + 4);
+  void encode56(Int64 n, List<int> bs, int off) {
+    encode32(n.toInt32().toInt(), bs, off);
+    encode24((n >> 32).toInt32().toInt(), bs, off + 4); // TODO: >>>
   }
 
   void encodePoint(PointAccum p, List<int> r, int rOff) {
@@ -215,7 +212,8 @@ class EC {
     x25519Field.normalize(x);
     x25519Field.normalize(y);
     x25519Field.encode(y, r, rOff);
-    r[rOff + POINT_BYTES - 1] = (r[rOff + POINT_BYTES - 1] | ((x[0] & 1) << 7));
+    r[rOff + POINT_BYTES - 1] =
+        (r[rOff + POINT_BYTES - 1] | ((x[0] & 1) << 7)); // TODO: toByte
   }
 
   List<int> getWNAF(List<int> n, int width) {
@@ -276,10 +274,10 @@ class EC {
     final F = x25519Field.create;
     final G = x25519Field.create;
     final H = r.v;
-    List<int> c = List.empty();
-    List<int> d = List.empty();
-    List<int> f = List.empty();
-    List<int> g = List.empty();
+    late List<int> c;
+    late List<int> d;
+    late List<int> f;
+    late List<int> g;
     if (negate) {
       c = D;
       d = C;
@@ -317,10 +315,10 @@ class EC {
     final F = x25519Field.create;
     final G = x25519Field.create;
     final H = x25519Field.create;
-    List<int> c = List.empty();
-    List<int> d = List.empty();
-    List<int> f = List.empty();
-    List<int> g = List.empty();
+    late List<int> c;
+    late List<int> d;
+    late List<int> f;
+    late List<int> g;
     if (negate) {
       c = D;
       d = C;
@@ -489,21 +487,22 @@ class EC {
         if (b + t != PRECOMP_BLOCKS + PRECOMP_TEETH - 2)
           for (int i = 1; i < PRECOMP_SPACING; i++) pointDouble(p);
       }
-      final List<PointExt> points = [];
+      final List<PointExt?> points =
+          List.filled(PRECOMP_POINTS, null, growable: false);
       var k = 1;
-      points.add(sum);
+      points[0] = sum;
       for (int t = 0; t < PRECOMP_TEETH - 1; t++) {
         final size = 1 << t;
         var j = 0;
         while (j < size) {
-          points.add(PointExt.fromField(x25519Field));
-          pointAddVar2(false, points[k - size], ds[t], points[k]);
+          points[k] = PointExt.fromField(x25519Field);
+          pointAddVar2(false, points[k - size]!, ds[t], points[k]!);
           j += 1;
           k += 1;
         }
       }
       for (int i = 0; i < PRECOMP_POINTS; i++) {
-        final q = points[i];
+        final q = points[i]!;
         final x = x25519Field.create;
         final y = x25519Field.create;
         x25519Field.add(q.z, q.z, x);
@@ -524,6 +523,7 @@ class EC {
         off += X25519Field.SIZE;
       }
     }
+    return;
   }
 
   void pruneScalar(List<int> n, int nOff, List<int> r) {
@@ -531,31 +531,31 @@ class EC {
       r[i] = n[nOff + i];
     }
     r[0] = (r[0] & 0xf8);
-    r[SCALAR_BYTES - 1] = r[SCALAR_BYTES - 1] & 0x7f;
-    r[SCALAR_BYTES - 1] = r[SCALAR_BYTES - 1] & 0x40;
+    r[SCALAR_BYTES - 1] = r[SCALAR_BYTES - 1] & 0x7f; // TODO: toByte
+    r[SCALAR_BYTES - 1] = r[SCALAR_BYTES - 1] & 0x40; // TODO: toByte
   }
 
   List<int> reduceScalar(List<int> n) {
-    var x00 = decode32v(n, 0) & M32L; // x00:32/--
-    var x01 = (decode24(n, 4) << 4) & M32L; // x01:28/--
-    var x02 = decode32v(n, 7) & M32L; // x02:32/--
-    var x03 = (decode24(n, 11) << 4) & M32L; // x03:28/--
-    var x04 = decode32v(n, 14) & M32L; // x04:32/--
-    var x05 = (decode24(n, 18) << 4) & M32L; // x05:28/--
-    var x06 = decode32v(n, 21) & M32L; // x06:32/--
-    var x07 = (decode24(n, 25) << 4) & M32L; // x07:28/--
-    var x08 = decode32v(n, 28) & M32L; // x08:32/--
-    var x09 = (decode24(n, 32) << 4) & M32L; // x09:28/--
-    var x10 = decode32v(n, 35) & M32L; // x10:32/--
-    var x11 = (decode24(n, 39) << 4) & M32L; // x11:28/--
-    var x12 = decode32v(n, 42) & M32L; // x12:32/--
-    var x13 = (decode24(n, 46) << 4) & M32L; // x13:28/--
-    var x14 = decode32v(n, 49) & M32L; // x14:32/--
-    var x15 = (decode24(n, 53) << 4) & M32L; // x15:28/--
-    var x16 = decode32v(n, 56) & M32L; // x16:32/--
-    var x17 = (decode24(n, 60) << 4) & M32L; // x17:28/--
-    final x18 = n[63] & 0xff; // x18:08/--
-    var t = 0;
+    var x00 = Int64(decode32v(n, 0)) & M32L; // x00:32/--
+    var x01 = Int64((decode24(n, 4)) << 4) & M32L; // x01:28/--
+    var x02 = Int64(decode32v(n, 7)) & M32L; // x02:32/--
+    var x03 = Int64((decode24(n, 11)) << 4) & M32L; // x03:28/--
+    var x04 = Int64(decode32v(n, 14)) & M32L; // x04:32/--
+    var x05 = Int64((decode24(n, 18)) << 4) & M32L; // x05:28/--
+    var x06 = Int64(decode32v(n, 21)) & M32L; // x06:32/--
+    var x07 = Int64((decode24(n, 25)) << 4) & M32L; // x07:28/--
+    var x08 = Int64(decode32v(n, 28)) & M32L; // x08:32/--
+    var x09 = Int64((decode24(n, 32)) << 4) & M32L; // x09:28/--
+    var x10 = Int64(decode32v(n, 35)) & M32L; // x10:32/--
+    var x11 = Int64((decode24(n, 39)) << 4) & M32L; // x11:28/--
+    var x12 = Int64(decode32v(n, 42)) & M32L; // x12:32/--
+    var x13 = Int64((decode24(n, 46)) << 4) & M32L; // x13:28/--
+    var x14 = Int64(decode32v(n, 49)) & M32L; // x14:32/--
+    var x15 = Int64((decode24(n, 53)) << 4) & M32L; // x15:28/--
+    var x16 = Int64(decode32v(n, 56)) & M32L; // x16:32/--
+    var x17 = Int64((decode24(n, 60)) << 4) & M32L; // x17:28/--
+    final x18 = n[63] & 0xff; // x18:08/-- TODO?
+    var t = Int64(0);
     x09 -= x18 * L0; // x09:34/28
     x10 -= x18 * L1; // x10:33/30
     x11 -= x18 * L2; // x11:35/28
@@ -617,7 +617,7 @@ class EC {
     x07 &= M28L; // x08:56/53, x07:28/--
     x09 += (x08 >> 28);
     x08 &= M28L; // x09:29/25, x08:28/--
-    t = x08 >>> 27;
+    t = x08 >> 27; // TODO: >>>
     x09 += t; // x09:29/26
     x00 -= x09 * L0; // x00:55/53
     x01 -= x09 * L1; // x01:55/54
@@ -669,7 +669,7 @@ class EC {
     encode56(x02 | (x03 << 28), r, 7);
     encode56(x04 | (x05 << 28), r, 14);
     encode56(x06 | (x07 << 28), r, 21);
-    encode32(x08, r, 28);
+    encode32(x08.toInt32().toInt(), r, 28);
     return r;
   }
 
@@ -697,6 +697,12 @@ class EC {
       if (cOff < 0) break;
       pointDouble(r);
     }
+  }
+
+  List<int> createScalarMultBaseEncoded(List<int> s) {
+    final r = List.filled(SCALAR_BYTES, 0x00);
+    scalarMultBaseEncoded(s, r, 0);
+    return r;
   }
 
   void scalarMultBaseEncoded(List<int> k, List<int> r, int rOff) {
@@ -740,8 +746,8 @@ class EC {
   static const SECRET_KEY_SIZE = 32;
   static const SIGNATURE_SIZE = POINT_BYTES + SCALAR_BYTES;
   static const DOM2_PREFIX = "SigEd25519 no Ed25519 collisions";
-  static const M28L = 0x0fffffff;
-  static const M32L = 0xffffffff;
+  static final M28L = Int64(0x0fffffff);
+  static final M32L = Int64(0xffffffff);
   static const P = [
     0xffffffed,
     0xffffffff,

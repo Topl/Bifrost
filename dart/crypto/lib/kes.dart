@@ -1,5 +1,6 @@
 import 'package:bifrost_crypto/ed25519.dart';
 import 'package:bifrost_crypto/impl/kes_helper.dart';
+import 'package:bifrost_crypto/utils.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:fpdart/fpdart.dart';
@@ -43,24 +44,23 @@ class KesSum {
       VerificationKeyKesSum vk) async {
     leftGoing(int level) => ((vk.step / kesHelper.exp(level)) % 2) == 0;
     emptyWitness() async =>
-        vk.value == await kesHelper.hash(signature.verificationKey);
+        vk.value.sameElements(await kesHelper.hash(signature.verificationKey));
     singleWitness(List<int> witness) async {
       if (leftGoing(0))
-        return vk.value == await kesHelper.hash(signature.verificationKey);
+        return vk.value
+            .sameElements(await kesHelper.hash(signature.verificationKey));
       else
-        return vk.value ==
-            await kesHelper.hash(<int>[]
-              ..addAll(witness)
-              ..addAll(signature.verificationKey));
+        return vk.value.sameElements(await kesHelper.hash(<int>[]
+          ..addAll(witness)
+          ..addAll(signature.verificationKey)));
     }
 
     multiWitness(List<List<int>> witnessList, List<int> witnessLeft,
         List<int> witnessRight, int index) async {
       if (witnessList.isEmpty)
-        return vk.value ==
-            await kesHelper.hash(<int>[]
-              ..addAll(witnessLeft)
-              ..addAll(witnessRight));
+        return vk.value.sameElements(await kesHelper.hash(<int>[]
+          ..addAll(witnessLeft)
+          ..addAll(witnessRight)));
       else if (leftGoing(index))
         return multiWitness(
             witnessList.sublist(1),

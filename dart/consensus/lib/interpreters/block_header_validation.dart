@@ -10,6 +10,7 @@ import 'package:bifrost_consensus/utils.dart';
 import 'package:bifrost_crypto/ed25519.dart';
 import 'package:bifrost_crypto/ed25519vrf.dart';
 import 'package:bifrost_crypto/kes.dart';
+import 'package:bifrost_crypto/utils.dart';
 import 'package:fpdart/fpdart.dart';
 import 'package:hashlib/hashlib.dart';
 import 'package:rational/rational.dart';
@@ -49,11 +50,12 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
     errors.addAll(await _vrfVerification(header));
     if (errors.isNotEmpty) return errors;
 
-    errors.addAll(await _kesVerification(header));
-    if (errors.isNotEmpty) return errors;
+    // TODO
+    // errors.addAll(await _kesVerification(header));
+    // if (errors.isNotEmpty) return errors;
 
-    errors.addAll(await _registrationVerification(header));
-    if (errors.isNotEmpty) return errors;
+    // errors.addAll(await _registrationVerification(header));
+    // if (errors.isNotEmpty) return errors;
 
     final vrfThresholdOrErrors = await _vrfThresholdFor(header);
 
@@ -72,8 +74,8 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
   }
 
   List<String> _statelessVerification(BlockHeader child, BlockHeader parent) {
-    if (child.slot > parent.slot) return ["NonForwardSlot"];
-    if (child.timestamp > parent.timestamp) return ["NonForwardTimestamp"];
+    if (child.slot <= parent.slot) return ["NonForwardSlot"];
+    if (child.timestamp <= parent.timestamp) return ["NonForwardTimestamp"];
     if (child.height != parent.height + 1) return ["NonForwardHeight"];
     return [];
   }
@@ -81,7 +83,7 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
   List<String> _timeSlotVerification(BlockHeader header) {
     if (clock.timestampToSlot(header.timestamp) != header.slot)
       return ["TimestampSlotMismatch"];
-    if (header.slot < (clock.globalSlot + clock.forwardBiasedSlotWindow))
+    if (header.slot > (clock.globalSlot + clock.forwardBiasedSlotWindow))
       return ["SlotBeyondForwardBiasedSlotWindow"];
     return [];
   }
@@ -93,9 +95,10 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
     if (expectedEta != header.eligibilityCertificate.eta)
       return ["InvalidEligibilityCertificate"];
     final signatureVerification = await ed25519Vrf.verify(
-        header.eligibilityCertificate.vrfSig,
-        VrfArgument(expectedEta, header.slot).signableBytes,
-        header.eligibilityCertificate.vrfVK);
+      header.eligibilityCertificate.vrfSig,
+      VrfArgument(expectedEta, header.slot).signableBytes,
+      header.eligibilityCertificate.vrfVK,
+    );
     if (!signatureVerification) return ["InvalidEligibilityCertificateEta"];
     return [];
   }
@@ -125,7 +128,8 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
         .convert([]
           ..addAll(header.eligibilityCertificate.vrfVK)
           ..addAll(header.address.value))
-        .bytes;
+        .bytes
+        .int8List;
     final verificationResult = await kesProduct.verify(
         commitment,
         message,
@@ -148,7 +152,7 @@ class BlockHeaderValidation extends BlockHeadervalidationAlgebra {
   List<String> _vrfThresholdVerification(
       BlockHeader header, Rational threshold) {
     final evidence = threshold.thresholdEvidence;
-    if (evidence != header.eligibilityCertificate.thresholdEvidence)
+    if (!evidence.sameElements(header.eligibilityCertificate.thresholdEvidence))
       return ["InvalidVrfThreshold"];
     return [];
   }

@@ -5,6 +5,7 @@ import 'package:bifrost_common/utils.dart';
 import 'package:bifrost_common/models/common.dart';
 import 'package:bifrost_consensus/algebras/eta_calculation_algebra.dart';
 import 'package:bifrost_consensus/utils.dart';
+import 'package:bifrost_crypto/utils.dart';
 import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
 import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
 import 'package:fixnum/fixnum.dart';
@@ -13,13 +14,13 @@ import 'package:hashlib/hashlib.dart';
 class EtaCalculation extends EtaCalculationAlgebra {
   final Future<SlotData> Function(BlockId) fetchSlotData;
   final ClockAlgebra clock;
-  final Eta bigBangEta;
+  final Eta genesisEta;
 
-  EtaCalculation(this.fetchSlotData, this.clock, this.bigBangEta);
+  EtaCalculation(this.fetchSlotData, this.clock, this.genesisEta);
 
   @override
   Future<Eta> etaToBe(SlotId parentSlotId, Int64 childSlot) async {
-    if (childSlot > clock.slotsPerEpoch) return bigBangEta;
+    if (childSlot > clock.slotsPerEpoch) return genesisEta;
     final parentEpoch = clock.epochOfSlot(parentSlotId.slot);
     final childEpoch = clock.epochOfSlot(childSlot);
     final parentSlotData = await fetchSlotData(parentSlotId.blockId);
@@ -70,12 +71,12 @@ class EtaCalculationArgs {
 
   EtaCalculationArgs(this.previousEta, this.epoch, this.rhoNonceHashValues);
 
-  Uint8List get eta {
+  List<int> get eta {
     final bytes = <int>[]
       ..addAll(previousEta)
       ..addAll(epoch.toBigInt.bytes);
     rhoNonceHashValues.forEach(bytes.addAll);
 
-    return blake2b256.convert(bytes).bytes;
+    return blake2b256.convert(bytes).bytes.int8List;
   }
 }

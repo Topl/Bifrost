@@ -14,6 +14,7 @@ dependencies:
   async: ^2.10.0
   rational: ^2.2.2
   fpdart: ^0.3.0
+  logging:
   topl_protobuf:
     path: ../../../protobuf-specs/build/dart
   bifrost_common:
@@ -25,4 +26,7 @@ dependencies:
   bifrost_consensus:
     path: ../consensus
 dev_dependencies:    
-  build_runner: ^1.10.3
+  build_runner: ^2.3.3
+  test: ^1.24.0
+  mockito: ^5.4.0
+  convert: ^3.1.1

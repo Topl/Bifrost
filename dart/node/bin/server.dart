@@ -25,16 +25,21 @@ import 'package:bifrost_node/genesis.dart';
 import 'package:bifrost_node/private_testnet.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:async/async.dart' show StreamGroup;
+import 'package:logging/logging.dart';
 import 'package:rational/rational.dart';
 import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
-import 'package:topl_protobuf/consensus/models/staking_address.pb.dart';
 import 'package:topl_protobuf/node/models/block.pb.dart';
 
 void main(List<String> args) async {
-  print("Command args=$args");
+  Logger.root.onRecord.listen((record) {
+    print('${record.level.name}: ${record.time}: ${record.message}');
+  });
+  final log = Logger("App");
+
+  log.info("Command args=$args");
 
   final appArgs = argParser.parse(args);
-  print(
+  log.info(
       "Parsed args: ${appArgs.options.map((n) => "$n=${appArgs[n]}").join(" ")}");
 
   final genesisTimestamp = Int64(DateTime.now().millisecondsSinceEpoch);
@@ -45,7 +50,7 @@ void main(List<String> args) async {
   final genesisConfig =
       await PrivateTestnet().config(genesisTimestamp, stakerInitializers, null);
 
-  final genesisBlock = genesisConfig.block;
+  final genesisBlock = await genesisConfig.block;
 
   final genesisBlockId = genesisBlock.header.id;
 
@@ -150,7 +155,7 @@ void main(List<String> args) async {
         await headerValidation.validate(block.header);
     if (headerValidationErrors.isNotEmpty) {
       // TODO: throw?
-      print("Invalid block.  reason=$headerValidationErrors");
+      log.warning("Invalid block.  reason=$headerValidationErrors");
     } else {
       final id = block.header.id;
       final body = BlockBody(
@@ -160,7 +165,7 @@ void main(List<String> args) async {
       await dataStores.headers.put(id, block.header);
       await dataStores.bodies.put(id, body);
       if (await chainSelection.select(id, await localChain.currentHead) == id) {
-        print("Adopting id=$id");
+        log.info("Adopting id=${id.show}");
         localChain.adopt(id);
       }
     }
@@ -169,8 +174,8 @@ void main(List<String> args) async {
   unawaited(
     mintedBlocksStream
         .map((block) {
-          print(
-              "Minted block. id=${block.header.id.show} height=${block.header.height} slot=${block.header.slot}");
+          log.info(
+              "Minted block. id=${block.header.id.show} height=${block.header.height} slot=${block.header.slot} parentSlot=${block.header.parentSlot}");
           return block;
         })
         .asyncMap(processBlock)

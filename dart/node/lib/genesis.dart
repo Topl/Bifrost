@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:bifrost_codecs/codecs.dart';
+import 'package:cryptography/cryptography.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:topl_protobuf/brambl/models/transaction/io_transaction.pb.dart';
 import 'package:topl_protobuf/brambl/models/transaction/unspent_transaction_output.pb.dart';
@@ -20,12 +21,13 @@ class GenesisConfig {
 
   static final DefaultEtaPrefix = utf8.encode("genesis");
 
-  FullBlock get block {
+  Future<FullBlock> get block async {
     final transaction = IoTransaction(outputs: outputs);
     final transactions = [transaction];
-    final eta = <int>[]
-      ..addAll(etaPrefix)
-      ..addAll(transaction.id.evidence.digest.value);
+    final eta = (await Sha256().hash(<int>[]
+          ..addAll(etaPrefix)
+          ..addAll(transaction.id.evidence.digest.value)))
+        .bytes;
     final eligibilityCertificate = EligibilityCertificate(
       vrfSig: _emptyBytes(80),
       vrfVK: _emptyBytes(32),

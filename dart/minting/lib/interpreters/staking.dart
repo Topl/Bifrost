@@ -10,6 +10,7 @@ import 'package:bifrost_minting/algebras/staking_algebra.dart';
 import 'package:bifrost_minting/algebras/vrf_calculator_algebra.dart';
 import 'package:bifrost_minting/models/vrf_hit.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:logging/logging.dart';
 import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
 import 'package:topl_protobuf/consensus/models/eligibility_certificate.pb.dart';
 import 'package:topl_protobuf/consensus/models/operational_certificate.pb.dart';
@@ -24,6 +25,8 @@ class Staking extends StakingAlgebra {
   final EtaCalculationAlgebra etaCalculation;
   final VrfCalculatorAlgebra vrfCalculator;
   final LeaderElectionValidationAlgebra leaderElectionValidation;
+
+  final log = Logger("staking");
 
   Staking(
       this._address,
@@ -94,7 +97,7 @@ class Staking extends StakingAlgebra {
     final rho = await vrfCalculator.rhoForSlot(slot, eta);
     final isLeader =
         await leaderElectionValidation.isSlotLeaderForThreshold(threshold, rho);
-    print("Staking leader election test result=$isLeader slot=$slot");
+    log.fine("Staking leader election test result=$isLeader slot=$slot");
     if (isLeader) {
       final evidence = threshold.thresholdEvidence;
       final testProof = await vrfCalculator.proofForSlot(slot, eta);

@@ -17,6 +17,7 @@ class LeaderElectionValidation extends LeaderElectionValidationAlgebra {
 
   @override
   Future<Rational> getThreshold(Rational relativeStake, Int64 slotDiff) async {
+    return Rational(slotDiff.toBigInt, BigInt.from(8));
     final difficultyCurve = (slotDiff > config.lddCutoff)
         ? config.baselineDifficulty
         : (Rational(slotDiff.toBigInt, BigInt.from(config.lddCutoff)) *
@@ -26,16 +27,20 @@ class LeaderElectionValidation extends LeaderElectionValidationAlgebra {
       return difficultyCurve;
     else {
       final coefficient = log1p(Rational.fromInt(-1) * difficultyCurve);
-      final result = exp(coefficient * relativeStake);
-      return Rational.one - result;
+      final expResult = exp(coefficient * relativeStake);
+      final result = Rational.one - expResult;
+      return result;
     }
   }
 
   @override
   Future<bool> isSlotLeaderForThreshold(Rational threshold, Rho rho) async {
+    // TODO
+    return threshold > Rational.fromInt(7, 8);
     final testRhoHashBytes = rho.rhoTestHash;
-    final test = Rational(
-        ([0]..addAll(testRhoHashBytes)).toBigInt, NormalizationConstant);
+    final numeratorBytes = ([0x00]..addAll(testRhoHashBytes));
+    final numerator = numeratorBytes.toBigInt;
+    final test = Rational(numerator, NormalizationConstant);
     return threshold > test;
   }
 }

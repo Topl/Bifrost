@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:bifrost_crypto/impl/ec.dart';
+import 'package:bifrost_crypto/utils.dart';
 import 'package:cryptography/cryptography.dart';
 import 'package:fpdart/fpdart.dart';
 
@@ -30,14 +33,14 @@ class Ed25519VRF {
 
   Future<Ed25519VRFKeyPair> generateKeyPairFromSeed(List<int> seed) async {
     assert(seed.length == 32);
-    final sk = (await Sha512().hash(seed)).bytes.sublist(0, 32);
+    final sk = (await _sha512Signed(seed)).sublist(0, 32);
     final vk = await getVerificationKey(sk);
     return Ed25519VRFKeyPair(sk: sk, vk: vk);
   }
 
   Future<List<int>> getVerificationKey(List<int> secretKey) async {
     assert(secretKey.length == 32);
-    final h = (await Sha512().hash(secretKey)).bytes;
+    final h = await _sha512Signed(secretKey);
     final s = List.filled(EC.SCALAR_BYTES, 0, growable: false);
     ec.pruneScalar(h, 0, s);
     final vk = List.filled(32, 0, growable: false);
@@ -47,12 +50,12 @@ class Ed25519VRF {
 
   Future<bool> verify(
       List<int> signature, List<int> message, List<int> vk) async {
-    assert(signature.length == 64);
+    assert(signature.length == 80);
     assert(vk.length == 32);
-    final gamma_str = signature.take(EC.POINT_BYTES).toList();
-    final c = gamma_str.sublist(EC.POINT_BYTES, EC.POINT_BYTES + C_BYTES)
+    final gamma_str = signature.sublist(0, EC.POINT_BYTES);
+    final c = signature.sublist(EC.POINT_BYTES, EC.POINT_BYTES + C_BYTES)
       ..addAll(List.filled(EC.SCALAR_BYTES - C_BYTES, 0, growable: false));
-    final s = signature.drop(EC.POINT_BYTES + C_BYTES).toList();
+    final s = signature.sublist(EC.POINT_BYTES + C_BYTES).toList();
     final H = await _hashToCurveTryAndIncrement(vk, message);
     final gamma = PointExt.fromField(ec.x25519Field);
     final Y = PointExt.fromField(ec.x25519Field);
@@ -84,14 +87,13 @@ class Ed25519VRF {
     ec.scalarMultStraussVar(nb, np, t, V);
     ec.scalarMultStraussVar(nb, np, gamma, g);
     final cp = await _hashPoints(H.first, g, U, V);
-    return c == cp;
+    return c.sameElements(cp);
   }
 
   Future<List<int>> sign(List<int> sk, List<int> message) async {
     assert(sk.length == 32);
     final x = await _pruneHash(sk);
-    final pk = List.filled(EC.SCALAR_BYTES, 0x00, growable: false);
-    ec.scalarMultBaseEncoded(x, pk, 0);
+    final pk = ec.createScalarMultBaseEncoded(x);
     final H = await _hashToCurveTryAndIncrement(pk, message);
     final gamma = PointAccum.fromField(ec.x25519Field);
     ec.decodeScalar(x, 0, np);
@@ -135,11 +137,11 @@ class Ed25519VRF {
       ..addAll(three)
       ..addAll(cg_enc)
       ..addAll(zero);
-    return (await Sha512().hash(input)).bytes;
+    return await _sha512Signed(input);
   }
 
   _pruneHash(List<int> s) async {
-    final h = (await Sha512().hash(s)).bytes;
+    final h = await _sha512Signed(s);
     h[0] = h[0] & 0xf8;
     h[EC.SCALAR_BYTES - 1] = h[EC.SCALAR_BYTES - 1] & 0x7f;
     h[EC.SCALAR_BYTES - 1] = h[EC.SCALAR_BYTES - 1] | 0x40;
@@ -163,7 +165,7 @@ class Ed25519VRF {
         ..addAll(a)
         ..addAll(ctr_byte)
         ..addAll(zero);
-      final output = (await Sha512().hash(input)).bytes;
+      final output = await _sha512Signed(input);
       for (int i = 0; i < EC.POINT_BYTES; i++) hash[i] = output[i];
       isPoint = ec.decodePointVar(hash, 0, false, H);
       if (isPoint) {
@@ -186,19 +188,19 @@ class Ed25519VRF {
     ec.decodeScalar(zeroScalar, 0, nb);
     ec.scalarMultStraussVar(nb, np, p, pA);
     ec.encodePoint(pA, pBytes, 0);
-    return pBytes == neutralPointBytes;
+    return pBytes.sameElements(neutralPointBytes);
   }
 
   _nonceGenerationRFC8032(List<int> sk, List<int> h) async {
-    final sk_hash = (await Sha512().hash(sk)).bytes;
+    final sk_hash = await _sha512Signed(sk);
     final trunc_hashed_sk = <int>[]
       ..addAll(sk_hash.sublist(EC.SCALAR_BYTES))
       ..addAll(h);
-    final out = (await Sha512().hash(trunc_hashed_sk)).bytes;
+    final out = await _sha512Signed(trunc_hashed_sk);
     return ec.reduceScalar(out);
   }
 
-  _hashPoints(
+  Future<List<int>> _hashPoints(
       PointAccum p1, PointAccum p2, PointAccum p3, PointAccum p4) async {
     final zero = [0x00];
     final two = [0x02];
@@ -215,10 +217,15 @@ class Ed25519VRF {
     ec.encodePoint(p4, r, 0);
     str.addAll(r);
     str.addAll(zero);
-    final out = (await Sha512().hash(str)).bytes;
+    final out = await _sha512Signed(str);
     return <int>[]
       ..addAll(out.sublist(0, C_BYTES))
       ..addAll(List.filled(EC.SCALAR_BYTES - C_BYTES, 0x00, growable: false));
+  }
+
+  Future<Int8List> _sha512Signed(List<int> input) async {
+    final o1 = (await Sha512().hash(input)).bytes;
+    return Uint8List.fromList(o1).int8List;
   }
 }
 

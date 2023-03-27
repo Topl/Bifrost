@@ -1,4 +1,7 @@
+import 'dart:typed_data';
+
 import 'package:bifrost_crypto/impl/ec.dart';
+import 'package:bifrost_crypto/utils.dart';
 import 'package:cryptography/cryptography.dart' as c;
 
 class Ed25519 {
@@ -49,7 +52,9 @@ class Ed25519 {
   }
 
   Future<List<int>> getVerificationKey(List<int> sk) async {
-    final h = (await c.Sha512().hash(sk)).bytes.sublist(0, 32);
+    final h = Uint8List.fromList((await c.Sha512().hash(sk)).bytes)
+        .int8List
+        .sublist(0, 32);
     final s = List.filled(EC.SCALAR_BYTES, 0x00, growable: false);
     ec.pruneScalar(h, 0, s);
     final vk = List.filled(32, 0x00, growable: false);

@@ -12,6 +12,7 @@ import co.topl.models.utility.Ratio
 import co.topl.numerics.algebras.{Exp, Log1p}
 import co.topl.numerics.implicits._
 import scalacache.caffeine.CaffeineCache
+import scodec.bits.ByteVector
 
 /**
  * Credit to Aaron Schutza
