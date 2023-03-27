@@ -47,7 +47,7 @@ class VrfCalculator extends VrfCalculatorAlgebra {
     final key = Tuple2(eta, slot);
     if (!_vrfProofsCache.containsKey(key)) {
       final arg = VrfArgument(eta, slot);
-      final result = ed25519Vrf.sign(skVrf, arg.signableBytes);
+      final result = await ed25519Vrf.sign(skVrf, arg.signableBytes);
       _vrfProofsCache[key] = result;
       return result;
     }
@@ -59,7 +59,7 @@ class VrfCalculator extends VrfCalculatorAlgebra {
     final key = Tuple2(eta, slot);
     if (!_rhosCache.containsKey(eta)) {
       final proof = await proofForSlot(slot, eta);
-      final rho = ed25519Vrf.proofToHash(proof);
+      final rho = await ed25519Vrf.proofToHash(proof);
       _rhosCache[key] = rho;
       return rho;
     }

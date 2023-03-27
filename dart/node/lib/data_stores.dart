@@ -74,7 +74,8 @@ class DataStores {
       await stores.currentEventIds.put(key, genesisBlock.header.parentHeaderId);
     }
 
-    await stores.slotData.put(genesisBlockId, genesisBlock.header.slotData);
+    await stores.slotData
+        .put(genesisBlockId, await genesisBlock.header.slotData);
     await stores.headers.put(genesisBlockId, genesisBlock.header);
     await stores.bodies.put(
       genesisBlockId,
@@ -86,8 +87,8 @@ class DataStores {
     }
     await stores.blockHeightTree
         .put(Int64(0), genesisBlock.header.parentHeaderId);
-    if (!await stores.activeStake.contains({})) {
-      await stores.activeStake.put({}, BigInt.from(0));
+    if (!await stores.activeStake.contains("")) {
+      await stores.activeStake.put("", BigInt.from(0));
     }
     return stores;
   }

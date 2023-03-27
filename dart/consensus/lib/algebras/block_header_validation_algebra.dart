@@ -1,4 +1,3 @@
-import 'package:fpdart/fpdart.dart';
 import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
 
 abstract class BlockHeadervalidationAlgebra {

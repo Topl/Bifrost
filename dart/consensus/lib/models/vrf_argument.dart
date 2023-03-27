@@ -9,6 +9,5 @@ class VrfArgument {
 
   VrfArgument(this.eta, this.slot);
 
-  Uint8List get signableBytes =>
-      Uint8List.fromList(eta..addAll(slot.toBigInt.bytes));
+  Uint8List get signableBytes => Uint8List.fromList(eta + slot.toBigInt.bytes);
 }

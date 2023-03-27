@@ -36,10 +36,10 @@ EventSourcedStateAlgebra<ConsensusData, BlockId> consensusDataEventSourcedState(
       currentEventChanged);
 }
 
-_applyBlock(
+Future<ConsensusData> Function(ConsensusData, BlockId) _applyBlock(
     Future<BlockBody> Function(BlockId) fetchBlockBody,
     Future<IoTransaction> Function(Identifier_IoTransaction32)
-        fetchTransaction) async {
+        fetchTransaction) {
   calculateStakeChanges(IoTransaction transaction) {
     final inputChanges = transaction.inputs
         .map((i) => i.value)
@@ -76,7 +76,7 @@ _applyBlock(
     );
   }
 
-  apply(ConsensusData state, BlockId blockId) async {
+  Future<ConsensusData> apply(ConsensusData state, BlockId blockId) async {
     final body = await fetchBlockBody(blockId);
     final transactions =
         await Future.wait(body.transactionIds.map(fetchTransaction));
@@ -84,10 +84,10 @@ _applyBlock(
     final registrationChanges = Map.fromEntries(transactions
         .map(calculateRegistrationChanges)
         .flatMap((m) => m.entries));
-    final previousTotalStake = await state.totalActiveStake.getOrRaise({});
+    final previousTotalStake = await state.totalActiveStake.getOrRaise("");
     final newTotalStake = stakeChanges.foldLeft<BigInt>(
         previousTotalStake, (a, b) => a + b.second);
-    await state.totalActiveStake.put({}, newTotalStake);
+    await state.totalActiveStake.put("", newTotalStake);
     for (final stakeChange in stakeChanges) {
       final previousStake = await state.operatorStakes.get(stakeChange.first);
       final newStake = previousStake != null
@@ -108,10 +108,10 @@ _applyBlock(
   return apply;
 }
 
-_unapplyBlock(
+Future<ConsensusData> Function(ConsensusData, BlockId) _unapplyBlock(
     Future<BlockBody> Function(BlockId) fetchBlockBody,
     Future<IoTransaction> Function(Identifier_IoTransaction32)
-        fetchTransaction) async {
+        fetchTransaction) {
   calculateStakeChanges(IoTransaction transaction) {
     final outputChanges = transaction.outputs
         .map((i) => i.value)
@@ -148,7 +148,7 @@ _unapplyBlock(
     );
   }
 
-  f(ConsensusData state, BlockId blockId) async {
+  Future<ConsensusData> f(ConsensusData state, BlockId blockId) async {
     final body = await fetchBlockBody(blockId);
     final transactions =
         await Future.wait(body.transactionIds.reversed.map(fetchTransaction));

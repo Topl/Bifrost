@@ -18,13 +18,21 @@ extension BigIntOps on BigInt {
     }
     return result;
   }
+
+  Int128 get toInt128 {
+    final b = bytes;
+    if (b.length > 16) {
+      throw Exception("BigInt too large to fit in Int128");
+    }
+    return Int128(value: b);
+  }
 }
 
 extension Int64Ops on Int64 {
-  BigInt get toBigInt => toBytes().toBigInt;
+  BigInt get toBigInt => BigInt.parse(toString());
 }
 
-extension ListBigIntOps on Iterable<int> {
+extension ListIntOps on Iterable<int> {
   BigInt get toBigInt {
     BigInt result = BigInt.zero;
 

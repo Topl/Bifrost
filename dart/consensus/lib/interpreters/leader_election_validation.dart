@@ -19,9 +19,8 @@ class LeaderElectionValidation extends LeaderElectionValidationAlgebra {
   Future<Rational> getThreshold(Rational relativeStake, Int64 slotDiff) async {
     final difficultyCurve = (slotDiff > config.lddCutoff)
         ? config.baselineDifficulty
-        : Rational(BigInt.parse(slotDiff.toString()),
-                BigInt.parse(config.lddCutoff.toString())) *
-            config.amplitude;
+        : (Rational(slotDiff.toBigInt, BigInt.from(config.lddCutoff)) *
+            config.amplitude);
 
     if (difficultyCurve == Rational.one)
       return difficultyCurve;

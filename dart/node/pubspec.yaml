@@ -15,6 +15,7 @@ dependencies:
   fixnum:
   fpdart:
   rational:
+  cryptography:
   topl_protobuf:
     path: ../../../protobuf-specs/build/dart
   bifrost_minting:

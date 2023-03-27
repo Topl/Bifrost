@@ -7,11 +7,16 @@ class Ed25519 {
   Future<Ed25519KeyPair> _convertAlgKeypair(c.SimpleKeyPair algKeypair) async {
     final sk = await algKeypair.extractPrivateKeyBytes();
     final vk = await algKeypair.extractPublicKey();
-    return Ed25519KeyPair(sk, vk.bytes);
+    return Ed25519KeyPair(
+        List.of(sk, growable: false), List.of(vk.bytes, growable: false));
   }
 
   Future<Ed25519KeyPair> generateKeyPair() async {
     return _convertAlgKeypair(await _algorithm.newKeyPair());
+  }
+
+  Future<Ed25519KeyPair> generateKeyPairFromSeed(List<int> seed) async {
+    return _convertAlgKeypair(await _algorithm.newKeyPairFromSeed(seed));
   }
 
   Future<List<int>> sign(List<int> message, List<int> sk) async {

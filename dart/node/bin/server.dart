@@ -21,6 +21,8 @@ import 'package:bifrost_minting/interpreters/operational_key_maker.dart';
 import 'package:bifrost_minting/interpreters/staking.dart';
 import 'package:bifrost_minting/interpreters/vrf_calculator.dart';
 import 'package:bifrost_node/data_stores.dart';
+import 'package:bifrost_node/genesis.dart';
+import 'package:bifrost_node/private_testnet.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:async/async.dart' show StreamGroup;
 import 'package:rational/rational.dart';
@@ -35,20 +37,24 @@ void main(List<String> args) async {
   print(
       "Parsed args: ${appArgs.options.map((n) => "$n=${appArgs[n]}").join(" ")}");
 
-  final genesisBlock = FullBlock(); // TODO
+  final genesisTimestamp = Int64(DateTime.now().millisecondsSinceEpoch);
+
+  final stakerInitializers =
+      await PrivateTestnet().stakerInitializers(genesisTimestamp, 1);
+
+  final genesisConfig =
+      await PrivateTestnet().config(genesisTimestamp, stakerInitializers, null);
+
+  final genesisBlock = genesisConfig.block;
 
   final genesisBlockId = genesisBlock.header.id;
 
-  final operatorAddress = StakingAddress();
-
   final vrfKeyPair = await ed25519Vrf.generateKeyPair();
 
-  final vrfVK = List.filled(32, 0);
-
   final clock = Clock(
-    Duration(milliseconds: 500),
+    Duration(milliseconds: 200),
     ChainSelectionKLookback * 6,
-    Int64(DateTime.now().millisecondsSinceEpoch),
+    genesisTimestamp,
     Int64(50),
   );
 
@@ -60,12 +66,20 @@ void main(List<String> args) async {
   final canonicalHeadId = await currentEventIdGetterSetters.canonicalHead.get();
 
   final parentChildTree = ParentChildTree<BlockId>(
-      dataStores.parentChildTree.get,
-      dataStores.parentChildTree.put,
-      genesisBlock.header.parentHeaderId);
+    dataStores.parentChildTree.get,
+    dataStores.parentChildTree.put,
+    genesisBlock.header.parentHeaderId,
+  );
 
-  final vrfConfig =
-      VrfConfig(15, 40, Rational.fromInt(1, 20), Rational.fromInt(1, 2));
+  await parentChildTree.assocate(
+      genesisBlockId, genesisBlock.header.parentHeaderId);
+
+  final vrfConfig = VrfConfig(
+    lddCutoff: 15,
+    precision: 40,
+    baselineDifficulty: Rational.fromInt(1, 20),
+    amplitude: Rational.fromInt(1, 2),
+  );
 
   final etaCalculation = EtaCalculation(dataStores.slotData.getOrRaise, clock,
       genesisBlock.header.eligibilityCertificate.eta);
@@ -79,13 +93,13 @@ void main(List<String> args) async {
 
   final epochBoundaryState = epochBoundariesEventSourcedState(
       clock,
-      genesisBlockId,
+      await currentEventIdGetterSetters.epochBoundaries.get(),
       parentChildTree,
       currentEventIdGetterSetters.epochBoundaries.set,
       dataStores.epochBoundaries,
       dataStores.slotData.getOrRaise);
   final consensusDataState = consensusDataEventSourcedState(
-      genesisBlockId,
+      await currentEventIdGetterSetters.consensusData.get(),
       parentChildTree,
       currentEventIdGetterSetters.consensusData.set,
       ConsensusData(dataStores.operatorStakes, dataStores.activeStake,
@@ -96,7 +110,8 @@ void main(List<String> args) async {
   final consensusValidationState = ConsensusValidationState(
       genesisBlockId, epochBoundaryState, consensusDataState, clock);
 
-  final localChain = LocalChain(genesisBlockId);
+  final localChain =
+      LocalChain(await currentEventIdGetterSetters.canonicalHead.get());
 
   final chainSelection = ChainSelection(dataStores.slotData.getOrRaise);
 
@@ -109,8 +124,8 @@ void main(List<String> args) async {
       dataStores.headers.getOrRaise);
 
   final staker = Staking(
-    operatorAddress,
-    vrfVK,
+    stakerInitializers[0].stakingAddress,
+    stakerInitializers[0].vrfKeyPair.vk,
     operationalKeyMaker,
     consensusValidationState,
     etaCalculation,
@@ -120,7 +135,7 @@ void main(List<String> args) async {
 
   final blockProducer = BlockProducer(
     StreamGroup.merge([
-      Stream.value(genesisBlock.header.slotData),
+      Stream.fromFuture(genesisBlock.header.slotData),
       localChain.adoptions.asyncMap(dataStores.slotData.getOrRaise),
     ]),
     staker,
@@ -141,7 +156,7 @@ void main(List<String> args) async {
       final body = BlockBody(
           transactionIds: block.fullBody.transaction.map((t) => t.id));
 
-      await dataStores.slotData.put(id, block.header.slotData);
+      await dataStores.slotData.put(id, await block.header.slotData);
       await dataStores.headers.put(id, block.header);
       await dataStores.bodies.put(id, body);
       if (await chainSelection.select(id, await localChain.currentHead) == id) {

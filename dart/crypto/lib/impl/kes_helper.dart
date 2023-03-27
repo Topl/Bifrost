@@ -7,7 +7,7 @@ import 'package:fpdart/fpdart.dart';
 class KesHelper {
   const KesHelper();
   Future<List<int>> hash(List<int> input) async {
-    return (await Blake2b().hash(input)).bytes;
+    return (await Sha256().hash(input)).bytes;
   }
 
   int exp(int n) => pow(2, n).toInt();

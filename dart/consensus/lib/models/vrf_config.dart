@@ -6,6 +6,10 @@ class VrfConfig {
   final Rational baselineDifficulty;
   final Rational amplitude;
 
-  VrfConfig(
-      this.lddCutoff, this.precision, this.baselineDifficulty, this.amplitude);
+  VrfConfig({
+    required this.lddCutoff,
+    required this.precision,
+    required this.baselineDifficulty,
+    required this.amplitude,
+  });
 }

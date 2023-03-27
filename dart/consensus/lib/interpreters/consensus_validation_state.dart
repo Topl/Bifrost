@@ -33,12 +33,13 @@ class ConsensusValidationState extends ConsensusValidationStateAlgebra {
         final maybeStake = await consensusData.operatorStakes.get(address);
         if (maybeStake != null) {
           final totalStake =
-              await consensusData.totalActiveStake.getOrRaise({});
+              await consensusData.totalActiveStake.getOrRaise("");
           return Rational(maybeStake, totalStake);
         }
+        return null;
       });
 
-  _useStateAtTargetBoundary<Res>(BlockId currentBlockId, Slot slot,
+  Future<Res> _useStateAtTargetBoundary<Res>(BlockId currentBlockId, Slot slot,
       Future<Res> Function(ConsensusData) f) async {
     final epoch = clock.epochOfSlot(slot);
     final targetEpoch = epoch - 2;

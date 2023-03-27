@@ -3,6 +3,7 @@ import 'package:bifrost_common/utils.dart';
 import 'package:cryptography/dart.dart';
 import 'package:fast_base58/fast_base58.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:topl_protobuf/brambl/models/evidence.pb.dart';
 import 'package:topl_protobuf/brambl/models/identifier.pb.dart';
 import 'package:topl_protobuf/brambl/models/transaction/io_transaction.pb.dart';
 import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
@@ -10,11 +11,16 @@ import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
 import 'package:topl_protobuf/consensus/models/eligibility_certificate.pb.dart';
 import 'package:topl_protobuf/consensus/models/operational_certificate.pb.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:topl_protobuf/quivr/models/shared.pb.dart';
 
-const _blake2b256 = const DartBlake2b();
+const _hashAlg = const DartSha256();
 
 extension IoTransactionCodecs on IoTransaction {
-  Identifier_IoTransaction32 get id => throw UnimplementedError();
+  // TODO
+  Identifier_IoTransaction32 get id => Identifier_IoTransaction32(
+      evidence: Evidence_Sized32(
+          digest:
+              Digest_Digest32(value: List.filled(32, 0x00, growable: false))));
 }
 
 extension BlockHeaderCodecs on BlockHeader {
@@ -30,7 +36,7 @@ extension BlockHeaderCodecs on BlockHeader {
     ..addAll(operationalCertificate.immutableBytes)
     ..addAll(metadata)
     ..addAll(address.value);
-  BlockId get id => BlockId(value: _blake2b256.hashSync(immutableBytes).bytes);
+  BlockId get id => BlockId(value: _hashAlg.hashSync(immutableBytes).bytes);
 }
 
 extension UnsignedBlockHeaderCodecs on UnsignedBlockHeader {

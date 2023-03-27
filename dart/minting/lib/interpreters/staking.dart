@@ -53,14 +53,14 @@ class Staking extends StakingAlgebra {
       );
       final unsignedHeader = unsignedBlockBuilder(partialCertificate);
       final List<int> messageToSign = unsignedHeader.signableBytes;
-      final cryptoKeyPair = cryptoEd25519.Ed25519KeyPair(
+      final cryptoKeyPair = await cryptoEd25519.Ed25519KeyPair(
           operationalKeyOutOpt.childKeyPair.sk.value,
           operationalKeyOutOpt.childKeyPair.vk.value);
       final operationalCertificate = OperationalCertificate(
         parentVK: operationalKeyOutOpt.parentVK,
         parentSignature: operationalKeyOutOpt.parentSignature,
         childVK: operationalKeyOutOpt.childKeyPair.vk.value,
-        childSignature: await cryptoEd25519.ed25519.sign(
+        childSignature: await cryptoEd25519.ed25519.signKeyPair(
           messageToSign,
           cryptoKeyPair,
         ),
@@ -94,6 +94,7 @@ class Staking extends StakingAlgebra {
     final rho = await vrfCalculator.rhoForSlot(slot, eta);
     final isLeader =
         await leaderElectionValidation.isSlotLeaderForThreshold(threshold, rho);
+    print("Staking leader election test result=$isLeader slot=$slot");
     if (isLeader) {
       final evidence = threshold.thresholdEvidence;
       final testProof = await vrfCalculator.proofForSlot(slot, eta);

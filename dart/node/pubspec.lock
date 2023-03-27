@@ -203,7 +203,7 @@ packages:
     source: hosted
     version: "3.0.2"
   cryptography:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: cryptography
       sha256: df156c5109286340817d21fa7b62f9140f17915077127dd70f8bd7a2a0997a35

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:bifrost_codecs/codecs.dart';
 import 'package:bifrost_common/utils.dart';
 import 'package:bifrost_consensus/algebras/chain_selection_algebra.dart';
 import 'package:bifrost_consensus/utils.dart';

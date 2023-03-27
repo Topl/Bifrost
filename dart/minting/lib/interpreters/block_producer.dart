@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:bifrost_common/models/unsigned.dart';
 import 'package:bifrost_minting/algebras/block_packer_algebra.dart';
@@ -85,8 +86,9 @@ class BlockProducer extends BlockProducerAlgebra {
   }
 
   Future<VrfHit?> _nextEligibility(SlotId parentSlotId) async {
-    var test = clock.globalSlot;
-    if (test < parentSlotId.slot) test = parentSlotId.slot;
+    Int64 test = parentSlotId.slot + 1;
+    final globalSlot = clock.globalSlot;
+    if (globalSlot > test) test = globalSlot;
     final exitSlot = test + 100000;
     VrfHit? maybeHit;
     while (maybeHit == null && test < exitSlot) {

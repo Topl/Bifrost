@@ -5,7 +5,6 @@ import 'package:bifrost_common/utils.dart';
 import 'package:bifrost_common/models/common.dart';
 import 'package:bifrost_consensus/algebras/eta_calculation_algebra.dart';
 import 'package:bifrost_consensus/utils.dart';
-import 'package:fpdart/fpdart.dart';
 import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
 import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
 import 'package:fixnum/fixnum.dart';
@@ -43,11 +42,11 @@ class EtaCalculation extends EtaCalculationAlgebra {
   _isWithinTwoThirds(SlotData from) =>
       from.slotId.slot % clock.slotsPerEpoch <= (clock.slotsPerEpoch * 2 ~/ 3);
 
-  _calculate(SlotData twoThirdsBest) async {
+  Future<Eta> _calculate(SlotData twoThirdsBest) async {
     // TODO: Caching
     final epoch = clock.epochOfSlot(twoThirdsBest.slotId.slot);
     final epochRange = clock.epochRange(epoch);
-    final epochData = <SlotData>[];
+    final epochData = [twoThirdsBest];
     while (epochData.first.parentSlotId.slot >= epochRange.first) {
       epochData.insert(
           0, await fetchSlotData(epochData.first.parentSlotId.blockId));
@@ -72,9 +71,10 @@ class EtaCalculationArgs {
   EtaCalculationArgs(this.previousEta, this.epoch, this.rhoNonceHashValues);
 
   Uint8List get eta {
-    final bytes = Uint8List.fromList(previousEta)
-      ..addAll(epoch.toBigInt.bytes)
-      ..addAll(rhoNonceHashValues.flatMap((t) => t));
+    final bytes = <int>[]
+      ..addAll(previousEta)
+      ..addAll(epoch.toBigInt.bytes);
+    rhoNonceHashValues.forEach(bytes.addAll);
 
     return blake2b256.convert(bytes).bytes;
   }

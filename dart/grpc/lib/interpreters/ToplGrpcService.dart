@@ -3,7 +3,6 @@ import 'package:topl_protobuf/brambl/models/identifier.pb.dart';
 import 'package:topl_protobuf/brambl/models/transaction/io_transaction.pb.dart';
 import 'package:topl_protobuf/consensus/models/block_header.pb.dart';
 import 'package:topl_protobuf/consensus/models/block_id.pb.dart';
-import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
 import 'package:topl_protobuf/node/models/block.pb.dart';
 import 'package:topl_protobuf/node/services/bifrost_rpc.pbgrpc.dart';
 

@@ -14,10 +14,9 @@ final TestStringArray = utf8.encode("TEST");
 final NonceStringArray = utf8.encode("NONCE");
 
 extension RhoOps on Rho {
-  List<int> get rhoTestHash =>
-      blake2b512.convert(this..addAll(TestStringArray)).bytes;
+  List<int> get rhoTestHash => blake2b512.convert(this + TestStringArray).bytes;
   List<int> get rhoNonceHash =>
-      blake2b512.convert(this..addAll(NonceStringArray)).bytes;
+      blake2b512.convert(this + NonceStringArray).bytes;
 }
 
 extension RatioOps on Rational {
@@ -26,10 +25,10 @@ extension RatioOps on Rational {
 }
 
 extension BlockHeaderOps on BlockHeader {
-  SlotData get slotData => SlotData(
+  Future<SlotData> get slotData async => SlotData(
         slotId: SlotId(blockId: id, slot: slot),
         parentSlotId: SlotId(blockId: parentHeaderId, slot: parentSlot),
-        rho: ed25519Vrf.proofToHash(eligibilityCertificate.vrfSig),
+        rho: await ed25519Vrf.proofToHash(eligibilityCertificate.vrfSig),
         eta: eligibilityCertificate.eta,
       );
 }

@@ -281,7 +281,7 @@ class KeyPairKesSum {
 
 class KesProduct {
   const KesProduct();
-  Future<KeyPairKesProduct> createKeyPair(
+  Future<KeyPairKesProduct> generateKeyPair(
       List<int> seed, TreeHeight height, Int64 offset) async {
     final sk = await generateSecretKey(seed, height);
     final vk = await generateVerificationKey(sk);

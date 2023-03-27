@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:bifrost_crypto/impl/x25519_field.dart';
 
 class EC {
@@ -224,15 +222,12 @@ class EC {
     final t = List.filled(SCALAR_INTS * 2, 0);
     var tPos = t.length;
     var c = 0;
-    var i = SCALAR_INTS - 1;
-    while (i >= 0) {
+    var i = SCALAR_INTS;
+    while (--i >= 0) {
       final next = n[i];
-      tPos -= 1;
-      t[tPos] = (next >>> 16) | (c << 16);
+      t[--tPos] = (next >>> 16) | (c << 16);
       c = next;
-      tPos -= 1;
-      t[tPos] = c;
-      i -= 1;
+      t[--tPos] = c;
     }
     final ws = List.filled(256, 0);
     final pow2 = 1 << width;
@@ -248,14 +243,14 @@ class EC {
         final bit = word16 & 1;
         if (bit == carry) {
           j += 1;
-          break;
+        } else {
+          var digit = (word16 & mask) + carry;
+          carry = digit & sign;
+          digit -= (carry << 1);
+          carry >>>= (width - 1);
+          ws[(i << 4) + j] = digit;
+          j += width;
         }
-        var digit = (word16 & mask) + carry;
-        carry = digit & sign;
-        digit -= (carry << 1);
-        carry >>>= (width - 1);
-        ws[(i << 4) + j] = digit;
-        j += width;
       }
       i += 1;
       j -= 16;
@@ -443,7 +438,7 @@ class EC {
   List<PointExt> pointPrecompVar(PointExt p, int count) {
     final d = PointExt.fromField(x25519Field);
     pointAddVar2(false, p, p, d);
-    final List<PointExt> table = List.empty();
+    final List<PointExt> table = [];
     table.add(pointCopyExt(p));
     for (int i = 1; i < count; i++) {
       table.add(PointExt.fromField(x25519Field));
@@ -679,7 +674,6 @@ class EC {
   }
 
   void scalarMultBase(List<int> k, PointAccum r) {
-    _precompute();
     pointSetNeutralAccum(r);
     final n = List.filled(SCALAR_INTS, 0);
     decodeScalar(k, 0, n);
@@ -713,7 +707,6 @@ class EC {
 
   void scalarMultStraussVar(
       List<int> nb, List<int> np, PointExt p, PointAccum r) {
-    _precompute();
     final width = 5;
     final ws_b = getWNAF(nb, WNAF_WIDTH_BASE);
     final ws_p = getWNAF(np, width);
@@ -734,8 +727,7 @@ class EC {
         final index = (wp ^ sign) >>> 1;
         pointAddVar1(sign != 0, tp[index], r);
       }
-      bit -= 1;
-      if (bit < 0) break;
+      if (--bit < 0) break;
       pointDouble(r);
     }
   }
