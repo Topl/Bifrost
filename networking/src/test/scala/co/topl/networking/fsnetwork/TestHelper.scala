@@ -4,7 +4,8 @@ import cats.data.NonEmptyChain
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.node.models.BlockBody
 import org.scalacheck.{Arbitrary, Gen}
@@ -54,5 +55,24 @@ object TestHelper extends TransactionGenerator {
       for {
         txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary)
       } yield (txs, BlockBody.of(txs.map(tx => tx.id)))
+    )
+
+  private def headerToSlotData(header: BlockHeader): SlotData = {
+    val sampleSlotData = ModelGenerators.arbitrarySlotData.arbitrary.first
+    val slotId = sampleSlotData.slotId.copy(blockId = header.id)
+    val parentSlotId = sampleSlotData.parentSlotId.copy(blockId = header.parentHeaderId)
+    sampleSlotData.copy(slotId = slotId, parentSlotId = parentSlotId)
+  }
+
+  def arbitraryLinkedSlotDataHeaderBlockNoTx(
+    sizeGen: Gen[Long]
+  ): Arbitrary[NonEmptyChain[(BlockId, SlotData, BlockHeader, BlockBody)]] =
+    Arbitrary(
+      for {
+        size    <- sizeGen
+        headers <- arbitraryLinkedBlockHeaderChain(Gen.oneOf(List[Long](size))).arbitrary
+      } yield headers.map { h =>
+        (h.id, headerToSlotData(h), h, co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary.first)
+      }
     )
 }
