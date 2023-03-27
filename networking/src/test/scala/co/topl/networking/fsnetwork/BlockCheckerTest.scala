@@ -993,7 +993,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
 
       val allIdSlotDataHeaderBlock =
-        arbitraryLinkedSlotDataHeaderBlockNoTx(Gen.choose(3, maxChainSize)).arbitrary.first
+        arbitraryLinkedSlotDataHeaderBlockNoTx(Gen.choose(4, maxChainSize)).arbitrary.first
 
       val knownIdSlotDataHeaderBlock = allIdSlotDataHeaderBlock.head
 
