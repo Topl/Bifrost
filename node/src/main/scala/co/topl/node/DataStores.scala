@@ -171,9 +171,9 @@ object DataStores {
       _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        BlockBody(bigBangBlock.fullBody.transaction.map(_.id))
+        BlockBody(bigBangBlock.fullBody.transactions.map(_.id))
       )
-      _ <- bigBangBlock.fullBody.transaction.traverseTap(transaction =>
+      _ <- bigBangBlock.fullBody.transactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)
       )
       _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)
