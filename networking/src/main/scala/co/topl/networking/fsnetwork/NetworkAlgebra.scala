@@ -14,6 +14,7 @@ import co.topl.ledger.algebras._
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 
@@ -32,6 +33,7 @@ trait NetworkAlgebra[F[_]] {
   def makeBlockChecker(
     reputationAggregator:        ReputationAggregatorActor[F],
     peersManager:                PeersManagerActor[F],
+    requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
@@ -44,6 +46,12 @@ trait NetworkAlgebra[F[_]] {
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData]
   ): Resource[F, BlockCheckerActor[F]]
 
+  def makeRequestsProxy(
+    reputationAggregator: ReputationAggregatorActor[F],
+    peersManager:         PeersManagerActor[F],
+    headerStore:          Store[F, BlockId, BlockHeader],
+    bodyStore:            Store[F, BlockId, BlockBody]
+  ): Resource[F, RequestsProxyActor[F]]
 }
 
 class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
@@ -71,6 +79,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
   override def makeBlockChecker(
     reputationAggregator:        ReputationAggregatorActor[F],
     peersManager:                PeersManagerActor[F],
+    requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
@@ -85,6 +94,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     BlockChecker.makeActor(
       reputationAggregator,
       peersManager,
+      requestsProxy,
       localChain,
       slotDataStore,
       headerStore,
@@ -96,4 +106,12 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
       bodyAuthorizationValidation,
       chainSelectionAlgebra
     )
+
+  def makeRequestsProxy(
+    reputationAggregator: ReputationAggregatorActor[F],
+    peersManager:         PeersManagerActor[F],
+    headerStore:          Store[F, BlockId, BlockHeader],
+    bodyStore:            Store[F, BlockId, BlockBody]
+  ): Resource[F, RequestsProxyActor[F]] =
+    RequestsProxy.makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
 }

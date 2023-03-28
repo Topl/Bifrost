@@ -71,7 +71,7 @@ object ContainsTransactions {
 
   trait Instances {
 
-    implicit val fullBlockBodyContainsTransactions: ContainsTransactions[FullBlockBody] = _.transaction
+    implicit val fullBlockBodyContainsTransactions: ContainsTransactions[FullBlockBody] = _.transactions
 
     implicit val transactionsContainsTransactions: ContainsTransactions[Seq[IoTransaction]] = identity
 

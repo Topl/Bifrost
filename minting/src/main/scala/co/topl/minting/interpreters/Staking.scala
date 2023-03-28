@@ -15,7 +15,6 @@ import co.topl.crypto.signing.Ed25519
 import co.topl.minting.algebras._
 import co.topl.minting.models.VrfHit
 import co.topl.models._
-import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
@@ -88,12 +87,17 @@ object Staking {
               )
               unsignedBlock = unsignedBlockBuilder(partialCertificate)
               messageToSign = unsignedBlock.signableBytes
-              signature <- ed25519Resource.use(_.sign(operationalKeyOut.childSK, messageToSign).pure[F])
+              signature <- ed25519Resource.use(
+                _.sign(
+                  Ed25519.SecretKey(operationalKeyOut.childSK.toByteArray),
+                  messageToSign.toByteArray
+                ).pure[F]
+              )
               operationalCertificate = OperationalCertificate(
                 operationalKeyOut.parentVK,
                 operationalKeyOut.parentSignature,
                 partialCertificate.childVK,
-                signature
+                ByteString.copyFrom(signature)
               )
               header = BlockHeader(
                 unsignedBlock.parentHeaderId,

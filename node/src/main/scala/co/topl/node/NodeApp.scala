@@ -218,6 +218,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         Validators.make[F](
           cryptoResources,
           dataStores,
+          bigBangBlockId,
           currentEventIdGetterSetters,
           blockIdTree,
           etaCalculation,
