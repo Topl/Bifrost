@@ -129,7 +129,7 @@ package object fsnetwork {
         .map(NonEmptyChain.fromSeq)
     )
 
-  sealed trait BlockBodyDownloadError extends Throwable
+  sealed trait BlockBodyDownloadError extends Exception
 
   object BlockBodyDownloadError {
 
@@ -147,7 +147,13 @@ package object fsnetwork {
     }
 
     case class UnknownError(ex: Throwable) extends BlockBodyDownloadError {
-      override def toString: String = s"Unknow error during getting block from peer ${ex.toString}"
+      this.initCause(ex)
+
+      override def toString: String = {
+        val name = Option(ex.getClass.getName).getOrElse("")
+        val message = Option(ex.getLocalizedMessage).getOrElse("")
+        s"Unknown error during getting block from peer due next throwable $name : $message"
+      }
     }
   }
 }

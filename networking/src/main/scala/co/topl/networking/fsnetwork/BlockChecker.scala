@@ -296,7 +296,7 @@ object BlockChecker {
     val loggedProcessResult =
       processResult
         .biSemiflatTap(
-          error => Logger[F].info(show"Failed to apply bodies due: $error"),
+          error => Logger[F].error(show"Failed to apply bodies due: $error"),
           newStateAndBlock => Logger[F].info(show"Successfully adopted block: ${newStateAndBlock._2}")
         )
 
