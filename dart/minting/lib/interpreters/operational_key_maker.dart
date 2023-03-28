@@ -160,11 +160,13 @@ class OperationalKeyMaker extends OperationalKeyMakerAlgebra {
         " epoch=$epoch" +
         " eta=${eta.show}" +
         " range=$operationalPeriodSlotMin..$operationalPeriodSlotMax");
-    final ineligibleSlots = await vrfCalculator.ineligibleSlots(
-        epoch,
-        eta,
-        Tuple2(operationalPeriodSlotMin, operationalPeriodSlotMax),
-        relativeStake);
+    final ineligibleSlots = [];
+    // TODO: Uncomment once VRF is fixed
+    // final ineligibleSlots = await vrfCalculator.ineligibleSlots(
+    //     epoch,
+    //     eta,
+    //     Tuple2(operationalPeriodSlotMin, operationalPeriodSlotMax),
+    //     relativeStake);
     final slots = List.generate(
             (operationalPeriodLength - (fromSlot % operationalPeriodLength))
                 .toInt(),

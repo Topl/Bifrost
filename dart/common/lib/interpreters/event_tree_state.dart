@@ -1,6 +1,7 @@
 import 'package:bifrost_common/algebras/event_sourced_state_algebra.dart';
 import 'package:bifrost_common/algebras/parent_child_tree_algebra.dart';
 import 'package:fpdart/fpdart.dart';
+import 'package:mutex/mutex.dart';
 
 class EventTreeState<State, Id> extends EventSourcedStateAlgebra<State, Id> {
   final Future<State> Function(State, Id) applyEvent;
@@ -9,6 +10,7 @@ class EventTreeState<State, Id> extends EventSourcedStateAlgebra<State, Id> {
   State currentState;
   Id currentEventId;
   final Future<void> Function(Id) currentEventChanged;
+  final _mutex = Mutex();
 
   EventTreeState(
     this.applyEvent,
@@ -23,17 +25,19 @@ class EventTreeState<State, Id> extends EventSourcedStateAlgebra<State, Id> {
   Future<State> stateAt(eventId) => useStateAt(eventId, (t) => Future.value(t));
 
   @override
-  Future<U> useStateAt<U>(Id eventId, Future<U> Function(State p1) f) async {
-    if (eventId == currentEventId)
+  Future<U> useStateAt<U>(Id eventId, Future<U> Function(State p1) f) {
+    return _mutex.protect(() async {
+      if (eventId == currentEventId)
+        return f(currentState);
+      else {
+        final applyUnapplyChains =
+            await parentChildTree.findCommmonAncestor(currentEventId, eventId);
+        await _unapplyEvents(applyUnapplyChains.first.sublist(1),
+            applyUnapplyChains.first.first);
+        await _applyEvents(applyUnapplyChains.second.sublist(1));
+      }
       return f(currentState);
-    else {
-      final applyUnapplyChains =
-          await parentChildTree.findCommmonAncestor(currentEventId, eventId);
-      await _unapplyEvents(applyUnapplyChains.first.tail.toNullable()!.toList(),
-          applyUnapplyChains.first.first);
-      await _applyEvents(applyUnapplyChains.second.tail.toNullable()!);
-    }
-    return f(currentState);
+    });
   }
 
   _unapplyEvents(List<Id> eventIds, Id newEventId) async {

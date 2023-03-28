@@ -190,6 +190,7 @@ void main(List<String> args) async {
       final body = BlockBody(
           transactionIds: block.fullBody.transaction.map((t) => t.id));
 
+      await parentChildTree.assocate(id, block.header.parentHeaderId);
       await dataStores.slotData.put(id, await block.header.slotData);
       await dataStores.headers.put(id, block.header);
       await dataStores.bodies.put(id, body);

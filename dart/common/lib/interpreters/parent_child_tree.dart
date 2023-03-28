@@ -14,7 +14,7 @@ class ParentChildTree<T> extends ParentChildTreeAlgebra<T> {
     if (parent == root)
       await write(child, Tuple2(Int64(1), parent));
     else {
-      final heightId = _readOrRaise(parent);
+      final heightId = await _readOrRaise(parent);
       await write(child, Tuple2(heightId.first + 1, parent));
     }
   }
@@ -65,7 +65,7 @@ class ParentChildTree<T> extends ParentChildTreeAlgebra<T> {
 
   _readOrRaise(T id) async {
     final v = await read(id);
-    if (v == null) throw Exception("Element not found");
+    if (v == null) throw Exception("Element id=$id not found");
     return v;
   }
 

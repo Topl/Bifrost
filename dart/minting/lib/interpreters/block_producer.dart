@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:bifrost_codecs/codecs.dart';
 import 'package:bifrost_common/models/unsigned.dart';
 import 'package:bifrost_minting/algebras/block_packer_algebra.dart';
 import 'package:bifrost_minting/algebras/block_producer_algebra.dart';
@@ -9,6 +10,7 @@ import 'package:bifrost_minting/algebras/staking_algebra.dart';
 import 'package:async/async.dart';
 import 'package:bifrost_minting/models/vrf_hit.dart';
 import 'package:fixnum/fixnum.dart';
+import 'package:logging/logging.dart';
 import 'package:topl_protobuf/consensus/models/slot_data.pb.dart';
 import 'package:topl_protobuf/node/models/block.pb.dart';
 
@@ -19,6 +21,8 @@ class BlockProducer extends BlockProducerAlgebra {
   final BlockPackerAlgebra blockPacker;
 
   BlockProducer(this.parentHeaders, this.staker, this.clock, this.blockPacker);
+
+  final log = Logger("BlockProducer");
 
   @override
   Stream<FullBlock> get blocks {
@@ -49,40 +53,43 @@ class BlockProducer extends BlockProducerAlgebra {
   }
 
   CancelableOperation<FullBlock?> _makeChild(SlotData parentSlotData) {
-    final completer = CancelableCompleter<FullBlock?>();
+    late final CancelableOperation<FullBlock?> completer;
 
-    unawaited(_nextEligibility(parentSlotData.slotId).then(
-      (nextHit) async {
-        if (nextHit != null)
-          return _prepareBlockBody(
-            parentSlotData,
-            nextHit.slot,
-            () => completer.isCanceled,
-          )
-              .then((bodyOpt) async {
-                if (bodyOpt != null) {
-                  final timestamp = clock.slotToTimestamps(nextHit.slot).first;
-                  final maybeHeader = await staker.certifyBlock(
-                      parentSlotData.slotId,
-                      nextHit.slot,
-                      _prepareUnsignedBlock(
-                        parentSlotData,
-                        bodyOpt,
-                        timestamp,
-                        nextHit,
-                      ));
-                  if (maybeHeader != null)
-                    return FullBlock(header: maybeHeader, fullBody: bodyOpt);
-                }
-              })
-              .then((value) => completer.complete(value))
-              .onError(completer.completeError);
-        else
-          return completer.complete(null);
-      },
-    ));
+    Future<FullBlock?> go() async {
+      final nextHit = await _nextEligibility(parentSlotData.slotId);
+      if (nextHit != null) {
+        log.info("Packing block for slot=${nextHit.slot}");
+        final bodyOpt = await _prepareBlockBody(
+          parentSlotData,
+          nextHit.slot,
+          () => completer.isCanceled,
+        );
+        if (bodyOpt != null) {
+          log.info("Constructing block for slot=${nextHit.slot}");
+          final timestamp = clock.slotToTimestamps(nextHit.slot).first;
+          final maybeHeader = await staker.certifyBlock(
+              parentSlotData.slotId,
+              nextHit.slot,
+              _prepareUnsignedBlock(
+                parentSlotData,
+                bodyOpt,
+                timestamp,
+                nextHit,
+              ));
+          if (maybeHeader != null) {
+            log.info(
+                "Produced block header id=${maybeHeader.id.show} height=${maybeHeader.height} slot=${maybeHeader.slot} parentId=${maybeHeader.parentHeaderId.show}");
+            return FullBlock(header: maybeHeader, fullBody: bodyOpt);
+          } else {
+            log.warning("Failed to produce block at next slot=${nextHit.slot}");
+          }
+        }
+      }
+      return null;
+    }
 
-    return completer.operation;
+    completer = CancelableOperation.fromFuture(go());
+    return completer;
   }
 
   Future<VrfHit?> _nextEligibility(SlotId parentSlotId) async {
@@ -114,20 +121,21 @@ class BlockProducer extends BlockProducerAlgebra {
     return body;
   }
 
-  _prepareUnsignedBlock(SlotData parentSlotData, FullBlockBody fullBody,
-          Int64 timestamp, VrfHit nextHit) =>
-      (PartialOperationalCertificate partialOperationalCertificate) =>
-          UnsignedBlockHeader(
-            parentSlotData.slotId.blockId,
-            parentSlotData.slotId.slot,
-            [], // TODO
-            [], // TODO
-            timestamp,
-            parentSlotData.height + 1,
-            nextHit.slot,
-            nextHit.cert,
-            partialOperationalCertificate,
-            [],
-            staker.address,
-          );
+  UnsignedBlockHeader Function(PartialOperationalCertificate)
+      _prepareUnsignedBlock(SlotData parentSlotData, FullBlockBody fullBody,
+              Int64 timestamp, VrfHit nextHit) =>
+          (PartialOperationalCertificate partialOperationalCertificate) =>
+              UnsignedBlockHeader(
+                parentSlotData.slotId.blockId,
+                parentSlotData.slotId.slot,
+                [], // TODO
+                [], // TODO
+                timestamp,
+                parentSlotData.height + 1,
+                nextHit.slot,
+                nextHit.cert,
+                partialOperationalCertificate,
+                [],
+                staker.address,
+              );
 }
