@@ -1,9 +1,9 @@
 package co.topl.networking.fsnetwork
 
+import cats.MonadThrow
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits._
-import cats.{Applicative, MonadThrow}
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
@@ -11,6 +11,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.fsnetwork.BlockBodyDownloadError._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -70,35 +71,86 @@ object PeerBlockBodyFetcher {
       _ <- state.requestsProxy.sendNoWait(messageToSend)
     } yield (state, state)
 
-  private def downloadBlockBody[F[_]: Async: Logger](state: State[F])(blockId: BlockId) =
-    for {
-      _               <- Logger[F].info(show"Fetching remote body id=$blockId")
-      body: BlockBody <- OptionT(state.client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
-      _               <- Logger[F].debug(show"Fetched remote body id=$blockId")
-      _               <- downloadMissingTransactions(state, body).compile.drain
-    } yield (blockId, Either.right[BlockBodyDownloadError, BlockBody](body))
+  private def downloadBlockBody[F[_]: Async: Logger](
+    state: State[F]
+  )(blockId: BlockId): F[(BlockId, Either[BlockBodyDownloadError, BlockBody])] = {
+    val bodyEither: F[BlockBody] =
+      for {
+        _    <- Logger[F].info(show"Fetching remote body id=$blockId")
+        body <- downloadBlockBody(state, blockId)
+        _    <- Logger[F].debug(show"Fetched remote body id=$blockId")
+        _    <- downloadingMissingTransactions(state, body)
+      } yield body
 
-  private def downloadMissingTransactions[F[_]: Async: Logger](state: State[F], blockBody: BlockBody): Stream[F, Unit] =
+    bodyEither
+      .map(blockBody => Either.right[BlockBodyDownloadError, BlockBody](blockBody))
+      .handleError {
+        case e: BlockBodyDownloadError => Either.left[BlockBodyDownloadError, BlockBody](e)
+        case unknownError              => Either.left(UnknownError(unknownError))
+      }
+      .flatTap {
+        case Right(_) =>
+          Logger[F].debug(show"Successfully download block $blockId from peer ${state.hostId}")
+        case Left(error) =>
+          Logger[F].error(show"Failed download block $blockId from peer ${state.hostId} because of: ${error.toString}")
+      }
+      .map((blockId, _))
+
+  }
+
+  private def downloadBlockBody[F[_]: Async](
+    state:   State[F],
+    blockId: BlockId
+  ): F[BlockBody] =
+    OptionT(state.client.getRemoteBody(blockId)).getOrElseF(MonadThrow[F].raiseError(BodyNotFoundInPeer))
+
+  private def downloadingMissingTransactions[F[_]: Async: Logger](
+    state:     State[F],
+    blockBody: BlockBody
+  ): F[List[Identifier.IoTransaction32]] =
     Stream
       .iterable[F, Identifier.IoTransaction32](blockBody.transactionIds)
       .evalMap(transactionId =>
         state.transactionStore
           .contains(transactionId)
-          .ifM(ifTrue = Applicative[F].unit, ifFalse = downloadTransaction(state, transactionId))
+          .flatMap {
+            case true  => transactionId.pure[F]
+            case false => downloadAndCheckTransaction(state, transactionId)
+          }
       )
+      .compile
+      .toList
 
-  private def downloadTransaction[F[_]: Async: Logger](state: State[F], transactionId: Identifier.IoTransaction32) = {
-    val InconsistentTransactionId =
-      new IllegalArgumentException("Claimed transaction ID did not match provided header")
-
+  private def downloadAndCheckTransaction[F[_]: Async: Logger](
+    state:         State[F],
+    transactionId: Identifier.IoTransaction32
+  ): F[Identifier.IoTransaction32] =
     for {
-      _           <- Logger[F].debug(show"Fetching remote transaction id=$transactionId")
-      transaction <- OptionT(state.client.getRemoteTransaction(transactionId)).getOrNoSuchElement(transactionId.show)
-      _           <- MonadThrow[F].raiseWhen(transaction.id =!= transactionId)(InconsistentTransactionId)
-      _           <- Logger[F].debug(show"Saving transaction id=$transactionId")
-      _           <- state.transactionStore.put(transactionId, transaction)
-    } yield ()
+      _                     <- Logger[F].debug(show"Fetching remote transaction id=$transactionId")
+      downloadedTransaction <- downloadTransaction(state, transactionId)
+      _                     <- checkTransaction(transactionId, downloadedTransaction)
+      _                     <- Logger[F].debug(show"Saving transaction id=$transactionId")
+      _                     <- state.transactionStore.put(transactionId, downloadedTransaction)
+    } yield transactionId
+
+  private def checkTransaction[F[_]: Async](
+    transactionId:         Identifier.IoTransaction32,
+    downloadedTransaction: IoTransaction
+  ): F[IoTransaction] = {
+    val downloadedTransactionId = downloadedTransaction.id
+    if (downloadedTransactionId =!= transactionId) {
+      MonadThrow[F].raiseError(TransactionHaveIncorrectId(transactionId, downloadedTransactionId))
+    } else {
+      downloadedTransaction.pure[F]
+    }
   }
+
+  private def downloadTransaction[F[_]: Async](
+    state:         State[F],
+    transactionId: Identifier.IoTransaction32
+  ): F[IoTransaction] =
+    OptionT(state.client.getRemoteTransaction(transactionId))
+      .getOrElseF(MonadThrow[F].raiseError(TransactionNotFoundInPeer(transactionId)))
 
   private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(s"Start body fetcher actor for ${state.hostId}") >>
