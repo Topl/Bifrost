@@ -293,14 +293,15 @@ object BlockChecker {
         newState = updateState(state, appliedNewHeadBlock)
       } yield (newState, appliedNewHeadBlock)
 
-    processResult
-      .biSemiflatTap(
-        error => Logger[F].info(show"Failed to apply bodies due: $error"),
-        newStateAndBlock => Logger[F].info(show"Successfully adopted block: ${newStateAndBlock._2}")
-      )
+    val loggedProcessResult =
+      processResult
+        .biSemiflatTap(
+          error => Logger[F].error(show"Failed to apply bodies due: $error"),
+          newStateAndBlock => Logger[F].info(show"Successfully adopted block: ${newStateAndBlock._2}")
+        )
 
     // extract current state from Either
-    processResult.map(_._1).value.map(_.getOrElse(state)).map(s => (s, s))
+    loggedProcessResult.map(_._1).value.map(_.getOrElse(state)).map(s => (s, s))
   }
 
   private def verifyAndSaveBodies[F[_]: Async: Logger](
@@ -375,11 +376,12 @@ object BlockChecker {
     } yield appliedBlock
   }
 
-  private def requestNextBodyBlocks[F[_]: Async](state: State[F]): F[Unit] = {
+  private def requestNextBodyBlocks[F[_]: Async: Logger](state: State[F]): F[Unit] = {
     val sendMessageCommand =
       for {
         bestTip      <- OptionT.fromOption[F](state.bestKnownRemoteSlotDataOpt.map(_.last))
         missedBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestTip, chunkSize)
+        _            <- OptionT.liftF(Logger[F].debug(show"Request next bodies from proxy: $missedBodies"))
         host = state.bestKnownRemoteSlotDataHost.get
       } yield state.requestsProxy.sendNoWait(RequestsProxy.Message.DownloadBlocksRequest(host, missedBodies))
 
