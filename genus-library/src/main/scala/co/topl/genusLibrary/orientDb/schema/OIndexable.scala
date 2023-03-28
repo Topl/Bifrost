@@ -6,19 +6,19 @@ import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 
 @simulacrum.typeclass
-trait OrientDbIndexable[T] {
+trait OIndexable[T] {
   def indexType: OClass.INDEX_TYPE
 }
 
-object OrientDbIndexable {
+object OIndexable {
 
   trait Instances {
 
-    implicit val blockHeader: OrientDbIndexable[BlockHeader] = new OrientDbIndexable[BlockHeader] {
+    implicit val blockHeader: OIndexable[BlockHeader] = new OIndexable[BlockHeader] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val ioTransaction: OrientDbIndexable[IoTransaction] = new OrientDbIndexable[IoTransaction] {
+    implicit val ioTransaction: OIndexable[IoTransaction] = new OIndexable[IoTransaction] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
   }

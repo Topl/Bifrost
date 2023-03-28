@@ -34,15 +34,15 @@ object GenusServerApp
 
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
-      blockFetcher       <- GraphBlockFetcher.make(dbNoTx, vertexFetcher)
+      blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
 
       rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
-      nodeEnabled <- Resource.pure(true) // maybe we can use a config
+      nodeEnabled <- Resource.pure(false) // maybe we can use a config
       inserter <- nodeBlockFetcher
-        .fetch(startHeight = 1, endHeight = 100)
+        .fetch(startHeight = 1, endHeight = 300)
         .map(_.spaced(50 millis))
         .map(
           _.evalMap(graphBlockInserter.insert)
@@ -53,7 +53,7 @@ object GenusServerApp
       _ <-
         if (nodeEnabled)
           inserter
-            .take(10)
+            .take(300)
             .compile
             .toList
             .void

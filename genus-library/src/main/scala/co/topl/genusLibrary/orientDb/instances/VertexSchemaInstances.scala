@@ -1,14 +1,17 @@
-package co.topl.genusLibrary.orientDb.schema
+package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Evidence, Identifier, LockAddress, TransactionOutputAddress}
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
-import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
+import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
 import quivr.models.Digest
+import scala.jdk.CollectionConverters._
 
 /**
  * Metadata describing the schema used for the Genus graph in OrientDB
@@ -16,6 +19,18 @@ import quivr.models.Digest
 object VertexSchemaInstances {
 
   trait Instances {
+
+    implicit class Ops(graph: OrientGraph) {
+
+      def addHeader(blockHeader: BlockHeader): OrientVertex =
+        graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(blockHeader).asJava)
+
+      def addBody(blockBody: BlockBody): OrientVertex =
+        graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(blockBody).asJava)
+
+      def addIoTx(ioTx: IoTransaction): OrientVertex =
+        graph.addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(ioTx).asJava)
+    }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()

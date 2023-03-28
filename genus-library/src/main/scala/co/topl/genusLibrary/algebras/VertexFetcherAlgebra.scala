@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.algebras
 
 import co.topl.consensus.models.BlockId
-import co.topl.genusLibrary.model.GenusException
+import co.topl.genusLibrary.model.GE
 import com.tinkerpop.blueprints.Vertex
 
 /**
@@ -15,7 +15,23 @@ trait VertexFetcherAlgebra[F[_]] {
    * @param blockId  blockId filter by field
    * @return Optional header vertex, None if it was not found
    */
-  def fetchHeader(blockId: BlockId): F[Either[GenusException, Option[Vertex]]]
+  def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]]
+
+  /**
+   * Fetch a BlockHeader vertex on the stored Ledger
+   *
+   * @param height filter by field
+   * @return Optional header vertex, None if it was not found
+   */
+  def fetchHeaderByHeight(height: Long): F[Either[GE, Option[Vertex]]]
+
+  /**
+   * Fetch a BlockHeader vertex on the stored Ledger
+   *
+   * @param depth filter by field, The block at depth 1 is the highest block
+   * @return Optional header vertex, None if it was not found
+   */
+  def fetchHeaderByDepth(depth: Long): F[Either[GE, Option[Vertex]]]
 
   /**
    * Fetch a BlockBody Vertex, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
@@ -23,7 +39,7 @@ trait VertexFetcherAlgebra[F[_]] {
    * @param headerVertex filter by field
    * @return Optional body vertex, None if it was not found
    */
-  def fetchBody(headerVertex: Vertex): F[Either[GenusException, Option[Vertex]]]
+  def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]]
 
   /**
    * Fetch Transactions Vertices, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
@@ -31,6 +47,6 @@ trait VertexFetcherAlgebra[F[_]] {
    * @param headerVertex filter by field
    * @return transactions vertices
    */
-  def fetchTransactions(headerVertex: Vertex): F[Either[GenusException, Iterable[Vertex]]]
+  def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]]
 
 }

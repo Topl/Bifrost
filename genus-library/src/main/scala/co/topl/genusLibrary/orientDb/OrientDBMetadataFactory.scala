@@ -2,11 +2,11 @@ package co.topl.genusLibrary.orientDb {
 
   import cats.effect.{Resource, Sync, SyncIO}
   import cats.implicits._
-  import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
-  import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
+  import co.topl.genusLibrary.orientDb.schema.VertexSchema
+  import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
   import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
   import com.orientechnologies.orient.core.metadata.schema.OClass
-  import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientGraphNoTx}
+  import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
   import org.typelevel.log4cats.Logger
   import scala.util.Try
 
@@ -29,7 +29,7 @@ package co.topl.genusLibrary.orientDb {
 
       } yield ()
 
-    private def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
+    private[orientDb] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
       Resource
         .eval(Sync[F].blocking(Option(db.getClass(schema.name))))
         .evalMap {
@@ -79,25 +79,5 @@ package co.topl.genusLibrary.orientDb {
         .to[F]
         .onError { case e => Logger[F].error(e)(s"Failed to create link on ${vs.name}") }
         .void
-
-    private def initializeEdge[F[_]: Sync: Logger](
-      edgeSchema: EdgeSchema
-    )(implicit graphNoTx: OrientGraphNoTx): F[Unit] =
-      for {
-        _ <- Logger[F].debug(s"${edgeSchema.name} schema edge lookup")
-        res <- SyncIO
-          .fromOption(Option(graphNoTx.getEdgeType(edgeSchema.name)))(
-            new IllegalStateException(s"${edgeSchema.name} schema not found")
-          )
-          .handleErrorWith(_ =>
-            SyncIO
-              .fromTry(Try(graphNoTx.createEdgeType(edgeSchema.name)))
-          )
-          .to[F]
-          .onError { case e =>
-            Logger[F].error(e)(s"Failed to create ${edgeSchema.name}")
-          }
-          .void
-      } yield res
   }
 }

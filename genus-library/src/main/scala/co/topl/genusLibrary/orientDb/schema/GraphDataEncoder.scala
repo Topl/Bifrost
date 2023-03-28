@@ -27,7 +27,7 @@ case class GraphDataEncoder[T] private (
    * @tparam V The type of value that the property will have
    * @return an updated copy of the GraphDataEncoder
    */
-  def withProperty[V <: AnyRef: OrientDbTyped](
+  def withProperty[V <: AnyRef: OTyped](
     name:      String,
     extract:   T => V,
     mandatory: Boolean,
@@ -36,7 +36,7 @@ case class GraphDataEncoder[T] private (
   ): GraphDataEncoder[T] =
     copy(
       encode = t => encode(t).updated(name, extract(t)),
-      properties = properties.incl(Property(name, OrientDbTyped[V].oType, mandatory, readOnly, notNull))
+      properties = properties.incl(Property(name, OTyped[V].oType, mandatory, readOnly, notNull))
     )
 
   /**
@@ -47,8 +47,8 @@ case class GraphDataEncoder[T] private (
    * @return the updated GraphDataEncoder
    */
 
-  def withIndex[V <: AnyRef: OrientDbIndexable](name: String, propertyNames: String*): GraphDataEncoder[T] =
-    copy(indices = indices + Index(name, OrientDbIndexable[V].indexType, propertyNames: _*))
+  def withIndex[V <: AnyRef: OIndexable](name: String, propertyNames: String*): GraphDataEncoder[T] =
+    copy(indices = indices + Index(name, OIndexable[V].indexType, propertyNames: _*))
 
   /**
    * Describe an Link on the vertex

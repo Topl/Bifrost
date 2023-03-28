@@ -631,7 +631,9 @@ lazy val genusServer = project
   )
   .dependsOn(
     genusLibrary,
-    commonApplication
+    commonApplication,
+    models % "compile->compile;test->test",
+    munitScalamock % "test->test"
   )
 
 lazy val genusLibrary = project

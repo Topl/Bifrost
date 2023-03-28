@@ -2,13 +2,13 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.{Resource, Sync}
 import cats.implicits._
+import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
-import co.topl.genusLibrary.model.{BlockData, GenusException, GenusExceptions}
-import co.topl.genusLibrary.orientDb.schema.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.schema.SchemaBlockHeader.Field
+import co.topl.genusLibrary.model.{GE, GEs}
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
-import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object GraphBlockInserter {
@@ -17,16 +17,14 @@ object GraphBlockInserter {
     Resource.pure(
       new BlockInserterAlgebra[F] {
 
-        override def insert(block: BlockData): F[Either[GenusException, Unit]] =
+        override def insert(block: BlockData): F[Either[GE, Unit]] =
           Sync[F]
             .blocking {
 
               Try {
-                val headerVertex =
-                  graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(block.header).asJava)
+                val headerVertex = graph.addHeader(block.header)
 
-                val bodyVertex =
-                  graph.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(block.body).asJava)
+                val bodyVertex = graph.addBody(block.body)
                 bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
                 // Relationship between Header <-> Body
@@ -34,8 +32,7 @@ object GraphBlockInserter {
 
                 // Relationships between Header <-> TxIOs
                 block.transactions.map { ioTx =>
-                  val txVertex =
-                    graph.addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(ioTx).asJava)
+                  val txVertex = graph.addIoTx(ioTx)
                   txVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
                   graph.addEdge(s"class:${blockHeaderTxIOEdge.name}", headerVertex, txVertex, blockHeaderTxIOEdge.label)
                 }
@@ -53,7 +50,7 @@ object GraphBlockInserter {
               }.toEither
                 .leftMap { th =>
                   graph.rollback()
-                  GenusExceptions.Message(th.getMessage): GenusException
+                  GEs.InternalMessage(th.getMessage): GE
                 }
             }
 

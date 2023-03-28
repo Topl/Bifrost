@@ -1,6 +1,7 @@
-package co.topl.genusLibrary.orientDb.schema
+package co.topl.genusLibrary.orientDb.instances
 
-import co.topl.genusLibrary.orientDb.schema.OrientDbTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
+import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import co.topl.node.models.BlockBody
 import com.orientechnologies.orient.core.metadata.schema.OType
 
