@@ -11,7 +11,7 @@ package object util {
     new NodeRpcApi(rpc)
 
   implicit def nodeToDockerApi(node: BifrostDockerTetraNode)(implicit
-    dockerClient:                    DockerClient
+    dockerClient: DockerClient
   ): NodeDockerApi =
     new NodeDockerApi(node.containerId)
 }
