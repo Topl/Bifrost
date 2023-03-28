@@ -75,10 +75,10 @@ object BlockPacker {
                       queue.take
                         .flatMap { transaction =>
                           // Attempt to stuff that transaction into our current block
-                          val fullBody = current.addTransaction(transaction)
+                          val fullBody = current.addTransactions(transaction)
                           // If it's valid, hooray.  If not, return the previous value
                           val transactionValidationContext =
-                            StaticTransactionValidationContext(parentBlockId, fullBody.transaction, height, slot)
+                            StaticTransactionValidationContext(parentBlockId, fullBody.transactions, height, slot)
                           validateBody(transactionValidationContext).ifF(fullBody, current)
                         }
                         .logDuration("BlockPacker Iteration")

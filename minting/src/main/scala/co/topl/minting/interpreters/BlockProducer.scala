@@ -86,7 +86,7 @@ object BlockProducer {
         maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
         result <- OptionT
           .fromOption[F](maybeHeader)
-          .map(Block(_, BlockBody(fullBody.transaction.map(_.id))))
+          .map(Block(_, BlockBody(fullBody.transactions.map(_.id))))
           .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
           // Despite being eligible, there may not be a corresponding linear KES key if the node restarted in the middle
           // of an operational period.  The node must wait until the next operational period
