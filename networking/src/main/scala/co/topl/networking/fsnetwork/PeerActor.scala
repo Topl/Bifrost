@@ -17,6 +17,7 @@ import co.topl.networking.fsnetwork.PeerActor.Message.{DownloadBlockBodies, Down
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
 object PeerActor {
@@ -65,6 +66,7 @@ object PeerActor {
     client:               BlockchainPeerClient[F],
     reputationAggregator: ReputationAggregatorActor[F],
     blockChecker:         BlockCheckerActor[F],
+    requestsProxy:        RequestsProxyActor[F],
     localChain:           LocalChainAlgebra[F],
     slotDataStore:        Store[F, BlockId, SlotData],
     transactionStore:     Store[F, Identifier.IoTransaction32, IoTransaction],
@@ -72,7 +74,7 @@ object PeerActor {
   ): Resource[F, PeerActor[F]] =
     for {
       header <- PeerBlockHeaderFetcher.makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
-      body   <- PeerBlockBodyFetcher.makeActor(hostId, client, blockChecker, transactionStore)
+      body   <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore)
       initialState = State(hostId, client, reputationAggregator, header, body)
       actor <- Actor.make(initialState, getFsm[F])
     } yield actor
