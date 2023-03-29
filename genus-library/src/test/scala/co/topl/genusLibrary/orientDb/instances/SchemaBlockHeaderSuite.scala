@@ -23,11 +23,14 @@ class SchemaBlockHeaderSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   test("Test Block Header Schema Metadata") {
 
-    val g: OrientGraphFactory = new OrientGraphFactory("memory:test")
-
     val res = for {
-      orientGraphFactory <- Resource.make[F, OrientGraphFactory](Sync[F].blocking(g))(g => Sync[F].delay(g.close()))
-      db     <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => Sync[F].delay(db.close()))
+      orientGraphFactory <- Resource.pure(new OrientGraphFactory("memory:test"))
+      db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db =>
+        Sync[F].delay {
+          db.drop()
+          db.close()
+        }
+      )
       schema <- SchemaBlockHeader.make().pure[F].toResource
       _      <- OrientDBMetadataFactory.createVertex[F](db, schema)
 
@@ -150,12 +153,16 @@ class SchemaBlockHeaderSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
   }
 
   test("Test Block Header Schema Add Vertex") {
-    val g: OrientGraphFactory = new OrientGraphFactory("memory:test")
-
     val res = for {
 
-      orientGraphFactory <- Resource.make[F, OrientGraphFactory](Sync[F].blocking(g))(g => Sync[F].delay(g.close()))
-      db          <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => Sync[F].delay(db.close()))
+      orientGraphFactory <- Resource.pure(new OrientGraphFactory("memory:test"))
+      db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db =>
+        Sync[F].delay {
+          db.drop()
+          db.close()
+        }
+      )
+
       schema      <- SchemaBlockHeader.make().pure[F].toResource
       _           <- OrientDBMetadataFactory.createVertex[F](db, schema)
       orientGraph <- Sync[F].blocking(orientGraphFactory.getTx).toResource
