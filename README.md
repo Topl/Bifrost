@@ -68,7 +68,7 @@ Testing
 
 To run the Bifrost unit test suite from the project directory: `sbt test`
 
-To publish a Docker image from the project directory for local testing: `sbt node/Docker/publishLocal`.  To use the locally published image, run `docker run bifrost-node`.
+To publish a Docker image from the project directory for local testing: `sbt node/Docker/publishLocal`.  To use the locally published image, run `docker run toplprotocol/bifrost-node`.
 
 Contributions
 -------------
