@@ -175,7 +175,7 @@ object ChainSelection {
         xSegment.head === ySegment.head
 
       def comparisonResult: F[Int] =
-        blake2b512Resource.use(implicit blake2b512 => standardOrder.compare(xSegment, ySegment).pure[F])
+        blake2b512Resource.use(implicit blake2b512 => Sync[F].delay(standardOrder.compare(xSegment, ySegment)))
     }
 
     /**
