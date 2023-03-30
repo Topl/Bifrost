@@ -6,6 +6,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.validation.TransactionAuthorizationInterpreter
 import co.topl.brambl.validation.TransactionSyntaxInterpreter
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.consensus.algebras.EligibilityCacheAlgebra
 import co.topl.consensus.algebras.{
   BlockHeaderToBodyValidationAlgebra,
   BlockHeaderValidationAlgebra,
@@ -13,6 +14,7 @@ import co.topl.consensus.algebras.{
   EtaCalculationAlgebra,
   LeaderElectionValidationAlgebra
 }
+import co.topl.consensus.interpreters.EligibilityCache
 import co.topl.consensus.interpreters.{BlockHeaderToBodyValidation, BlockHeaderValidation}
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
@@ -40,6 +42,7 @@ object Validators {
     cryptoResources:             CryptoResources[F],
     dataStores:                  DataStores[F],
     bigBangBlockId:              BlockId,
+    eligibilityCache:            EligibilityCacheAlgebra[F],
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
     blockIdTree:                 ParentChildTree[F, BlockId],
     etaCalculation:              EtaCalculationAlgebra[F],
@@ -53,6 +56,7 @@ object Validators {
           etaCalculation,
           consensusValidationState,
           leaderElectionThreshold,
+          eligibilityCache,
           clockAlgebra,
           dataStores.headers,
           bigBangBlockId,

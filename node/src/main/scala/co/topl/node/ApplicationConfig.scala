@@ -111,7 +111,8 @@ object ApplicationConfig {
       epochBoundaries: Cache.CacheConfig,
       operatorStakes:  Cache.CacheConfig,
       registrations:   Cache.CacheConfig,
-      blockHeightTree: Cache.CacheConfig
+      blockHeightTree: Cache.CacheConfig,
+      eligibilities:   Cache.CacheConfig
     )
 
     object Cache {

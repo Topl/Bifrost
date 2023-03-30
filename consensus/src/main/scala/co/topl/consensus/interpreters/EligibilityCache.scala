@@ -1,8 +1,13 @@
 package co.topl.consensus.interpreters
 
+import cats.Applicative
+import cats.Monad
 import cats.effect._
 import cats.effect.implicits._
+import cats.implicits._
 import co.topl.consensus.algebras.EligibilityCacheAlgebra
+import co.topl.consensus.models.BlockHeader
+import co.topl.consensus.models.BlockId
 import co.topl.models.Bytes
 import co.topl.models.Slot
 import com.google.protobuf.ByteString
@@ -30,6 +35,25 @@ object EligibilityCache {
       def tryInclude(vrfVK: Bytes, slot: Slot): F[Boolean] =
         ref.modify(_.tryInclude(vrfVK, slot))
     }
+
+  def repopulate[F[_]: Monad](
+    underlying:    EligibilityCacheAlgebra[F],
+    maximumLength: Int,
+    canonicalHead: BlockHeader,
+    fetchHeader:   BlockId => F[BlockHeader]
+  ): F[Unit] =
+    // Exclude the genesis eligibility
+    if (canonicalHead.height <= 1)
+      Applicative[F].unit
+    else
+      canonicalHead
+        .iterateUntilM(header =>
+          for {
+            _            <- underlying.tryInclude(header.eligibilityCertificate.vrfVK, header.slot)
+            parentHeader <- fetchHeader(header.parentHeaderId)
+          } yield parentHeader
+        )(header => header.height <= 1 || header.height > (canonicalHead.height - maximumLength))
+        .void
 
   /**
    * The internal state of the cache
