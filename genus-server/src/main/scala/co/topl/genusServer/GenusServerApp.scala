@@ -35,6 +35,7 @@ object GenusServerApp
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
       blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
+      transactionFetcher <- GraphTransactionFetcher.make(vertexFetcher)
 
       rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
@@ -60,8 +61,8 @@ object GenusServerApp
             .toResource
         else Resource.unit[F]
 
-      _ <- GenusFullBlockGrpc.Server
-        .serve(conf.rpcHost, conf.rpcPort, blockFetcher)
+      _ <- GenusGrpc.Server
+        .serve(conf.rpcHost, conf.rpcPort, blockFetcher, transactionFetcher)
         .evalTap(grpcServer =>
           Logger[F].info(s"RPC Server bound at ${grpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )

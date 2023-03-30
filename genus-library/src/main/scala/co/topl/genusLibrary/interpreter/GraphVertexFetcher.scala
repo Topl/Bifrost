@@ -3,10 +3,12 @@ package co.topl.genusLibrary.interpreter
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
+import co.topl.brambl.models.Identifier
+import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
-import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
+import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
@@ -20,9 +22,15 @@ object GraphVertexFetcher {
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
+//        override def fetchRId(oId: ORecordId): F[Either[GE, Option[Vertex]]] =
+//          Async[F].blocking(
+//            Try(Option(orientGraph.getVertex(oId))).toEither
+//              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchRId", tx))
+//          )
+
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
-            Try(orientGraph.getVertices(Field.BlockId, blockId.value.toByteArray).asScala).toEither
+            Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", tx))
           )
@@ -30,7 +38,9 @@ object GraphVertexFetcher {
         def fetchHeaderByHeight(height: Long): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try(
-              orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
+              orientGraph
+                .getVertices(blockHeaderSchema.name, Array(SchemaBlockHeader.Field.Height), Array(height))
+                .asScala
             ).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByHeight", tx))
@@ -57,7 +67,9 @@ object GraphVertexFetcher {
                 .map(_.height)
                 .map(_ - depth)
                 .map(height =>
-                  orientGraph.getVertices(blockHeaderSchema.name, Array(Field.Height), Array(height)).asScala
+                  orientGraph
+                    .getVertices(blockHeaderSchema.name, Array(SchemaBlockHeader.Field.Height), Array(height))
+                    .asScala
                 )
                 .flatMap(_.headOption)
 
@@ -69,7 +81,7 @@ object GraphVertexFetcher {
           Async[F].blocking(
             Try(
               orientGraph
-                .getVertices(blockBodySchema.name, Array(Field.BlockId), Array(headerVertex.getId))
+                .getVertices(blockBodySchema.name, Array(SchemaBlockHeader.Field.BlockId), Array(headerVertex.getId))
                 .asScala
             ).toEither
               .map(_.headOption)
@@ -80,10 +92,28 @@ object GraphVertexFetcher {
           Async[F].blocking(
             Try(
               orientGraph
-                .getVertices(ioTransactionSchema.name, Array(Field.BlockId), Array(headerVertex.getId))
+                .getVertices(
+                  ioTransactionSchema.name,
+                  Array(SchemaBlockHeader.Field.BlockId),
+                  Array(headerVertex.getId)
+                )
                 .asScala
             ).toEither
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", tx))
+          )
+
+        def fetchTransaction(ioTransaction32: Identifier.IoTransaction32): F[Either[GE, Option[Vertex]]] =
+          Async[F].blocking(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaIoTransaction.Field.TransactionId,
+                  ioTransaction32.id.evidence.digest.value.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransaction", tx))
           )
 
       }

@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.algebras
 
+import co.topl.brambl.models.Identifier
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.model.GE
 import com.tinkerpop.blueprints.Vertex
@@ -48,5 +49,13 @@ trait VertexFetcherAlgebra[F[_]] {
    * @return transactions vertices
    */
   def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]]
+
+  /**
+   * Fetch Transaction Vertex, using TransactionIndex
+   *
+   * @param ioTransaction32 filter by index field
+   * @return Optional transaction vertex, None if it was not found
+   */
+  def fetchTransaction(ioTransaction32: Identifier.IoTransaction32): F[Either[GE, Option[Vertex]]]
 
 }

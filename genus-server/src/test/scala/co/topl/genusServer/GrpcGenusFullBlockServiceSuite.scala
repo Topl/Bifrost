@@ -15,14 +15,14 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
-class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GrpcGenusFullBlockServiceSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("getBlockById: OK") {
     PropF.forAllF { (blockId: BlockId, blockHeader: BlockHeader, blockBody: BlockBody) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         val blockData = BlockData(blockHeader, blockBody, Seq.empty)
 
@@ -47,7 +47,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (blockId: BlockId) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         (blockFetcher.fetchBlock _)
           .expects(blockId)
@@ -68,7 +68,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (blockId: BlockId) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         (blockFetcher.fetchBlock _)
           .expects(blockId)
@@ -89,7 +89,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (height: Long, blockHeader: BlockHeader, blockBody: BlockBody) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         val blockData = BlockData(blockHeader, blockBody, Seq.empty)
 
@@ -114,7 +114,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (height: Long) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         (blockFetcher.fetchBlockByHeight _)
           .expects(height)
@@ -135,7 +135,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (height: Long) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         (blockFetcher.fetchBlockByHeight _)
           .expects(height)
@@ -156,7 +156,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (depth: Long, blockHeader: BlockHeader, blockBody: BlockBody) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         val blockData = BlockData(blockHeader, blockBody, Seq.empty)
 
@@ -181,7 +181,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (depth: Long) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         (blockFetcher.fetchBlockByDepth _)
           .expects(depth)
@@ -202,7 +202,7 @@ class GenusFullBlockGrpcSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (depth: Long) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val underTest = new GenusFullBlockGrpc.Server.GrpcServerImpl[F](blockFetcher)
+        val underTest = new GrpcGenusFullBlockService[F](blockFetcher)
 
         (blockFetcher.fetchBlockByDepth _)
           .expects(depth)
