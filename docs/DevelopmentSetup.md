@@ -21,5 +21,5 @@ Otherwise, the directions below will suffice.
     1. Run `sdk install sbt 1.7.3`
 
 ## Bifrost
-1. Clone https://github.com/Topl/Bifrost and checkout branch `tetra`.
+1. Clone https://github.com/Topl/Bifrost and checkout branch `dev`.
 1. Run `sbt compile` from the command line.
