@@ -46,4 +46,6 @@ object BlockHeaderValidationFailures {
     poolVK:        StakingAddress
   ) extends BlockHeaderValidationFailure
 
+  case class DuplicateEligibility(vrfVK: Bytes, slot: Slot) extends BlockHeaderValidationFailure
+
 }
