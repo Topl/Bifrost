@@ -11,7 +11,7 @@ Docker containers for each release are available via [Github Container Repositor
 We encourage all production deployments of Bifrost to make use of our Docker releases.
 
 ### Release Versioning
-Bifrost applies [semantic versioning](https://semver.org/) with respect to the protocol consensus mechanism.
+Tetra-eon releases of Bifrost are currently versioned on an incrementing alpha version (i.e. `2.0.0-alpha0`, `2.0.0-alpha1`).  Once the implementation reaches a stable point, we will adopt [semantic versioning](https://semver.org/) with respect to the protocol consensus mechanism.
 We chose to use semantic versioning because blockchains must maintain strict binary compatibility with all previous consensus, application, and network messages to allow trustless bootstrapping of new network participants from genesis.
 
 We apply the following rules to our MAJOR.MINOR.PATCH versions:
@@ -49,6 +49,14 @@ Docs
 ----------
 Additional documentation, tutorials, and code examples can be found at [docs.topl.co](http://docs.topl.co).
 
+Running
+-------------------
+The easiest way to run a Bifrost node is to use the official Docker image.  To run a Bifrost node using Docker:
+
+`docker run toplprotocol/bifrost-node:2.0.0-alpha2 --rpcBindHost 0.0.0.0`
+- `2.0.0-alpha2` can be substituted with the desired version
+- We recommend using the `--rpcBindHost 0.0.0.0` argument when running a Docker container to allow host-machine connections to the RPC layer.
+
 
 Development
 -------------------
@@ -60,11 +68,7 @@ Testing
 
 To run the Bifrost unit test suite from the project directory: `sbt test`
 
-To publish a Docker image from the project directory for local testing: `sbt 'node/docker:publishLocal'`
-   
-   - To run the published container: `docker run bifrost:x.x.x` (where `x.x.x` is the version that was published).
-   - To pass command line arguments: `docker run bifrost:x.x.x -s mySpecialSeed`
-
+To publish a Docker image from the project directory for local testing: `sbt node/Docker/publishLocal`.  To use the locally published image, run `docker run toplprotocol/bifrost-node`.
 
 Contributions
 -------------
