@@ -21,7 +21,7 @@ class SchemaBlockHeaderSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
   type F[A] = IO[A]
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  test("Test Block Header Schema Metadata") {
+  test("Block Header Schema Metadata") {
 
     val res = for {
       orientGraphFactory <- Resource.pure(new OrientGraphFactory("memory:test"))
@@ -152,7 +152,7 @@ class SchemaBlockHeaderSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   }
 
-  test("Test Block Header Schema Add Vertex") {
+  test("Block Header Schema Add vertex") {
     val res = for {
 
       orientGraphFactory <- Resource.pure(new OrientGraphFactory("memory:test"))
