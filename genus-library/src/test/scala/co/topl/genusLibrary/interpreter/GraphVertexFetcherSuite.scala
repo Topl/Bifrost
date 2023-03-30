@@ -118,7 +118,12 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     }
 
     val res = for {
-      orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+      orientGraphNoTx <- Resource.make(Sync[F].blocking(g))(g =>
+        Sync[F].delay {
+          g.drop()
+          g.shutdown()
+        }
+      )
       graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
       _                  <- Sync[F].blocking(orientGraphNoTx.createVertexType("BlockHeader")).toResource
 
