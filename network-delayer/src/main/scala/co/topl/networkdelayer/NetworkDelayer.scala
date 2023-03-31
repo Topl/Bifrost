@@ -45,7 +45,7 @@ object NetworkDelayer
         clientResource <- buildClientResource(route)
         _ <- Logger[F].info(s"Serving at binding=${route.bindHost}:${route.bindPort} with throttle=${route.throttle}")
         _ <- serverStream
-          .parEvalMapUnbounded(handleSocket(route)(clientResource))
+          .mapAsync(1)(handleSocket(route)(clientResource)(_).start)
           .compile
           .drain
       } yield ()
