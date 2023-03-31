@@ -1,15 +1,9 @@
 package co.topl.consensus.interpreters
 
-import cats.Applicative
-import cats.Monad
 import cats.effect._
 import cats.effect.implicits._
-import cats.implicits._
 import co.topl.consensus.algebras.EligibilityCacheAlgebra
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.BlockId
-import co.topl.models.Bytes
-import co.topl.models.Slot
+import co.topl.models._
 import com.google.protobuf.ByteString
 
 import scala.collection.immutable.SortedSet
@@ -35,32 +29,6 @@ object EligibilityCache {
       def tryInclude(vrfVK: Bytes, slot: Slot): F[Boolean] =
         ref.modify(_.tryInclude(vrfVK, slot))
     }
-
-  /**
-   * When a node is launched, eligibilities from adopted blocks should be added to the cache.
-   * @param underlying The underlying cache to populate
-   * @param maximumLength The maximum number of entries in the underlying cache
-   * @param canonicalHead The current head of the chain
-   * @param fetchHeader Header lookup function (to traverse ancestors)
-   */
-  def repopulate[F[_]: Monad](
-    underlying:    EligibilityCacheAlgebra[F],
-    maximumLength: Int,
-    canonicalHead: BlockHeader,
-    fetchHeader:   BlockId => F[BlockHeader]
-  ): F[Unit] =
-    // Exclude the genesis eligibility
-    if (canonicalHead.height <= 1)
-      Applicative[F].unit
-    else
-      canonicalHead
-        .iterateUntilM(header =>
-          for {
-            _            <- underlying.tryInclude(header.eligibilityCertificate.vrfVK, header.slot)
-            parentHeader <- fetchHeader(header.parentHeaderId)
-          } yield parentHeader
-        )(header => header.height <= 1 || header.height > (canonicalHead.height - maximumLength))
-        .void
 
   /**
    * The internal state of the cache
