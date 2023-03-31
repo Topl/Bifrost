@@ -2,39 +2,37 @@ package co.topl.genusLibrary.orientDb.instances
 
 import cats.effect.implicits.effectResourceOps
 import cats.effect.kernel.Async
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{Resource, Sync}
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
-import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
+import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
+import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
+import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.jdk.CollectionConverters._
 
-class SchemaBlockHeaderSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  type F[A] = IO[A]
-  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+class SchemaBlockHeaderTest
+    extends CatsEffectSuite
+    with ScalaCheckEffectSuite
+    with AsyncMockFactory
+    with CatsEffectFunFixtures
+    with DbFixtureUtil {
 
-  test("Block Header Schema Metadata") {
-
+  orientDbFixture.test("Block Header Schema Metadata") { odb =>
     val res = for {
-      orientGraphFactory <- Resource.pure(new OrientGraphFactory("memory:test"))
-      db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db =>
-        Sync[F].delay {
-          db.drop()
-          db.close()
-        }
-      )
-      schema <- SchemaBlockHeader.make().pure[F].toResource
-      _      <- OrientDBMetadataFactory.createVertex[F](db, schema)
+      odbFactory <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      dbNoTx     <- Sync[F].blocking(odbFactory.getNoTx).toResource
+      _          <- Sync[F].blocking(dbNoTx.makeActive()).toResource
 
-      oClass <- Async[F].delay(db.getClass(schema.name)).toResource
+      databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
+      schema             <- SchemaBlockHeader.make().pure[F].toResource
+      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema)
+
+      oClass <- Async[F].delay(databaseDocumentTx.getClass(schema.name)).toResource
 
       _ <- assertIO(oClass.getName.pure[F], schema.name, s"${schema.name} Class was not created").toResource
 
@@ -152,24 +150,23 @@ class SchemaBlockHeaderSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   }
 
-  test("Block Header Schema Add vertex") {
+  orientDbFixture.test("Block Header Schema Add vertex") { odb =>
     val res = for {
+      odbFactory <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
 
-      orientGraphFactory <- Resource.pure(new OrientGraphFactory("memory:test"))
-      db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db =>
-        Sync[F].delay {
-          db.drop()
-          db.close()
-        }
-      )
+      dbNoTx <- Sync[F].blocking(odbFactory.getNoTx).toResource
+      _      <- Sync[F].blocking(dbNoTx.makeActive()).toResource
 
-      schema      <- SchemaBlockHeader.make().pure[F].toResource
-      _           <- OrientDBMetadataFactory.createVertex[F](db, schema)
-      orientGraph <- Sync[F].blocking(orientGraphFactory.getTx).toResource
+      schema <- SchemaBlockHeader.make().pure[F].toResource
+      _      <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema)
+
+      dbTx <- Sync[F].blocking(odbFactory.getTx).toResource
+      _    <- Sync[F].blocking(dbTx.makeActive()).toResource
+
       blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
       vertex <- Sync[F]
         .blocking(
-          orientGraph
+          dbTx
             .addVertex(s"class:${schema.name}", schema.encode(blockHeader).asJava)
         )
         .toResource
