@@ -434,6 +434,7 @@ lazy val consensus = project
     algebras % "compile->compile;test->test",
     numerics,
     eventTree,
+    commonInterpreters % "compile->test",
     munitScalamock % "test->test"
   )
 
