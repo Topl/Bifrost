@@ -36,6 +36,13 @@ object EligibilityCache {
         ref.modify(_.tryInclude(vrfVK, slot))
     }
 
+  /**
+   * When a node is launched, eligibilities from adopted blocks should be added to the cache.
+   * @param underlying The underlying cache to populate
+   * @param maximumLength The maximum number of entries in the underlying cache
+   * @param canonicalHead The current head of the chain
+   * @param fetchHeader Header lookup function (to traverse ancestors)
+   */
   def repopulate[F[_]: Monad](
     underlying:    EligibilityCacheAlgebra[F],
     maximumLength: Int,

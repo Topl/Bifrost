@@ -14,7 +14,6 @@ import co.topl.consensus.algebras.{
   EtaCalculationAlgebra,
   LeaderElectionValidationAlgebra
 }
-import co.topl.consensus.interpreters.EligibilityCache
 import co.topl.consensus.interpreters.{BlockHeaderToBodyValidation, BlockHeaderValidation}
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree

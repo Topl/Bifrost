@@ -685,7 +685,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
   private def validateErrorType[E](underTest: BlockHeaderValidationAlgebra[F])(header: BlockHeader) =
     EitherT(underTest.validate(header)).swap
       .getOrRaise(new IllegalStateException("Validation unexpectedly succeeded"))
-      .map(_.isInstanceOf[E])
+      .map(_.isInstanceOf[E @unchecked])
       .assert
       .void
 
