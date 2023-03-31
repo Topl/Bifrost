@@ -77,8 +77,10 @@ object VrfCalculator {
     def rhoForSlot(slot: Slot, eta: Eta): F[Rho] =
       rhosCache.cachingF((eta.data, slot))(ttl = None)(
         for {
-          proof          <- proofForSlot(slot, eta)
-          proofHashBytes <- ed25519VRFResource.use(_.proofToHash(proof.toByteArray).pure[F])
+          proof <- proofForSlot(slot, eta)
+          proofHashBytes <- ed25519VRFResource.use(ed25519VRF =>
+            Sync[F].delay(ed25519VRF.proofToHash(proof.toByteArray))
+          )
           rho = Rho(Sized.strictUnsafe(ByteString.copyFrom(proofHashBytes)))
         } yield rho
       )

@@ -214,7 +214,7 @@ object Blockchain {
             headerStore.put(id, block.header) &>
             bodyStore.put(id, block.body) &>
             ed25519VrfResource
-              .use(implicit e => block.header.slotData.pure[F])
+              .use(implicit e => Sync[F].delay(block.header.slotData))
               .flatTap(slotDataStore.put(id, _))
           }
           .map(Validated.Valid(_))

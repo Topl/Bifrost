@@ -51,7 +51,7 @@ object Staking {
               vrfHit <- OptionT
                 .whenF[F, VrfHit](isLeader)(
                   blake2b256Resource
-                    .use(thresholdEvidence(threshold)(_).pure[F])
+                    .use(implicit b => Sync[F].delay(thresholdEvidence(threshold)))
                     .map(evidence =>
                       VrfHit(
                         EligibilityCertificate(testProof, vkVrf, evidence, eta.data),
@@ -86,12 +86,14 @@ object Staking {
                 )
               )
               unsignedBlock = unsignedBlockBuilder(partialCertificate)
-              messageToSign = unsignedBlock.signableBytes
-              signature <- ed25519Resource.use(
-                _.sign(
-                  Ed25519.SecretKey(operationalKeyOut.childSK.toByteArray),
-                  messageToSign.toByteArray
-                ).pure[F]
+              messageToSign = unsignedBlock.signableBytes.toByteArray
+              signature <- ed25519Resource.use(ed25519 =>
+                Sync[F].delay(
+                  ed25519.sign(
+                    Ed25519.SecretKey(operationalKeyOut.childSK.toByteArray),
+                    messageToSign
+                  )
+                )
               )
               operationalCertificate = OperationalCertificate(
                 operationalKeyOut.parentVK,

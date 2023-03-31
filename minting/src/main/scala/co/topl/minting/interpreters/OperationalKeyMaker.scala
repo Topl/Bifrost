@@ -136,7 +136,9 @@ object OperationalKeyMaker {
             })
             _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
             diskKey <- OptionT(secureStore.consume[SecretKeyKesProduct](fileName))
-            latest  <- OptionT.liftF(kesProductResource.use(_.getCurrentStep(diskKey).pure[F]))
+            latest <- OptionT.liftF(
+              kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.getCurrentStep(diskKey)))
+            )
             currentPeriodKey <-
               if (latest === timeStep) OptionT.pure[F](diskKey)
               else if (latest > timeStep)
@@ -149,12 +151,15 @@ object OperationalKeyMaker {
                     ) >>
                     secureStore.write(fileName, diskKey)
                   )
-              else OptionT.liftF(kesProductResource.use(_.update(diskKey, timeStep.toInt).pure[F]))
+              else
+                OptionT.liftF(kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.update(diskKey, timeStep))))
             res <- OptionT.liftF(use(currentPeriodKey))
             nextTimeStep = timeStep + 1
-            _       <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
-            updated <- OptionT.liftF(kesProductResource.use(_.update(currentPeriodKey, nextTimeStep).pure[F]))
-            _       <- OptionT.liftF(secureStore.write(UUID.randomUUID().toString, updated))
+            _ <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
+            updated <- OptionT.liftF(
+              kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.update(currentPeriodKey, nextTimeStep)))
+            )
+            _ <- OptionT.liftF(secureStore.write(UUID.randomUUID().toString, updated))
           } yield res
         ).value
       )
@@ -224,7 +229,7 @@ object OperationalKeyMaker {
         )
         .flatMap(children =>
           kesProductResource
-            .use(r => Sync[F].delay(r.getVerificationKey(kesParent)))
+            .use(kesProduct => Sync[F].delay(kesProduct.getVerificationKey(kesParent)))
             .flatMap(parentVK =>
               slots
                 .zip(children)
@@ -232,16 +237,14 @@ object OperationalKeyMaker {
                   kesProductResource
                     .use(kesProductScheme =>
                       Sync[F]
-                        .delay {
+                        .delay(
                           kesProductScheme.sign(
                             kesParent,
                             childVK.concat(ByteString.copyFrom(Longs.toByteArray(slot))).toByteArray
                           )
-                        }
+                        )
                     )
-                    .map { parentSignature =>
-                      OperationalKeyOut(slot, childVK, childSK, parentSignature, parentVK)
-                    }
+                    .map(parentSignature => OperationalKeyOut(slot, childVK, childSK, parentSignature, parentVK))
                 }
             )
         )

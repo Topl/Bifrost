@@ -53,13 +53,12 @@ object LeaderElectionValidation {
        * @return true if elected slot leader and false otherwise
        */
       def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] =
-        blake2b512Resource.use(implicit blake2b512 =>
-          Sync[F].delay {
-            val testRhoHashBytes = rhoToRhoTestHash(rho.sizedBytes.data).toByteArray
+        blake2b512Resource
+          .use(implicit blake2b512 => Sync[F].delay(rhoToRhoTestHash(rho.sizedBytes.data).toByteArray))
+          .map { testRhoHashBytes =>
             val test = Ratio(BigInt(Array(0x00.toByte) ++ testRhoHashBytes), NormalizationConstant, BigInt(1))
             (threshold > test)
           }
-        )
     }
 
   def makeCached[F[_]: Sync](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
