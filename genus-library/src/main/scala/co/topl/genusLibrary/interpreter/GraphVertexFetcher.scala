@@ -22,12 +22,6 @@ object GraphVertexFetcher {
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
-//        override def fetchRId(oId: ORecordId): F[Either[GE, Option[Vertex]]] =
-//          Async[F].blocking(
-//            Try(Option(orientGraph.getVertex(oId))).toEither
-//              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchRId", tx))
-//          )
-
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
