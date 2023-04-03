@@ -2,7 +2,9 @@ package co.topl.consensus.interpreters
 
 import cats.effect._
 import cats.effect.implicits._
+import cats.implicits._
 import co.topl.consensus.algebras.EligibilityCacheAlgebra
+import co.topl.consensus.models._
 import co.topl.models._
 import com.google.protobuf.ByteString
 
@@ -29,6 +31,35 @@ object EligibilityCache {
       def tryInclude(vrfVK: Bytes, slot: Slot): F[Boolean] =
         ref.modify(_.tryInclude(vrfVK, slot))
     }
+
+  /**
+   * When a node is launched, eligibilities from adopted blocks should be added to the cache.
+   *
+   * @param underlying    The underlying cache to populate
+   * @param maximumLength The maximum number of entries in the underlying cache
+   * @param canonicalHead The current head of the chain
+   * @param fetchHeader   Header lookup function (to traverse ancestors)
+   */
+  def repopulate[F[_]: Async](
+    underlying:    EligibilityCacheAlgebra[F],
+    maximumLength: Int,
+    canonicalHead: BlockHeader,
+    fetchHeader:   BlockId => F[BlockHeader]
+  ): F[Unit] = {
+    import fs2._
+    // A stream of block headers from the canonical head back to the genesis block
+    // The canonical head is not included in this stream.
+    val ancestors =
+      Stream.unfoldEval(canonicalHead)(header =>
+        if (header.height <= 1) none[(BlockHeader, BlockHeader)].pure[F]
+        else fetchHeader(header.parentHeaderId).map(parentH => (parentH, parentH).some)
+      )
+    (Stream(canonicalHead) ++ ancestors)
+      .take(maximumLength)
+      .evalMap(header => underlying.tryInclude(header.eligibilityCertificate.vrfVK, header.slot))
+      .compile
+      .drain
+  }
 
   /**
    * The internal state of the cache
