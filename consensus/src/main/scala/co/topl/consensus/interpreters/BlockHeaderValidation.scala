@@ -273,6 +273,7 @@ object BlockHeaderValidation {
             BlockHeaderValidationFailures.IneligibleCertificate(threshold, header.eligibilityCertificate)
           )
           .leftWiden[BlockHeaderValidationFailure]
+        // Warning: This is most likely a side effecting operation
         isNewEligibility <- EitherT.liftF(eligibilityCache.tryInclude(header.eligibilityCertificate.vrfVK, header.slot))
         _ <- EitherT
           .cond[F](
