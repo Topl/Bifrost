@@ -105,6 +105,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
 
       canonicalHeadId       <- Resource.eval(currentEventIdGetterSetters.canonicalHead.get())
       canonicalHeadSlotData <- Resource.eval(dataStores.slotData.getOrRaise(canonicalHeadId))
+      canonicalHead         <- Resource.eval(dataStores.headers.getOrRaise(canonicalHeadId))
       _                     <- Resource.eval(Logger[F].info(show"Canonical head id=$canonicalHeadId"))
 
       blockIdTree <- Resource.eval(
@@ -215,7 +216,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           ).map(_.some)
         )
 
-      eligibilityCache <- EligibilityCache.make[F](appConfig.bifrost.cache.eligibilities.maximumEntries.toInt)
+      eligibilityCache <-
+        EligibilityCache
+          .make[F](appConfig.bifrost.cache.eligibilities.maximumEntries.toInt)
+          .evalTap(
+            EligibilityCache.repopulate(
+              _,
+              appConfig.bifrost.cache.eligibilities.maximumEntries.toInt,
+              canonicalHead,
+              dataStores.headers.getOrRaise
+            )
+          )
       validators <- Resource.eval(
         Validators.make[F](
           cryptoResources,
