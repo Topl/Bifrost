@@ -214,11 +214,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
             vrfConfig
           ).map(_.some)
         )
+
+      eligibilityCache <- EligibilityCache.make[F](appConfig.bifrost.cache.eligibilities.maximumEntries.toInt)
       validators <- Resource.eval(
         Validators.make[F](
           cryptoResources,
           dataStores,
           bigBangBlockId,
+          eligibilityCache,
           currentEventIdGetterSetters,
           blockIdTree,
           etaCalculation,

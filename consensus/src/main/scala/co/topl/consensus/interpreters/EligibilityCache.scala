@@ -3,8 +3,7 @@ package co.topl.consensus.interpreters
 import cats.effect._
 import cats.effect.implicits._
 import co.topl.consensus.algebras.EligibilityCacheAlgebra
-import co.topl.models.Bytes
-import co.topl.models.Slot
+import co.topl.models._
 import com.google.protobuf.ByteString
 
 import scala.collection.immutable.SortedSet

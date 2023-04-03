@@ -31,6 +31,7 @@ object BlockHeaderValidation {
     etaInterpreter:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElection:           LeaderElectionValidationAlgebra[F],
+    eligibilityCache:         EligibilityCacheAlgebra[F],
     clockAlgebra:             ClockAlgebra[F],
     blockHeaderStore:         Store[F, BlockId, BlockHeader],
     bigBangBlockId:           BlockId,
@@ -44,6 +45,7 @@ object BlockHeaderValidation {
         etaInterpreter,
         consensusValidationState,
         leaderElection,
+        eligibilityCache,
         clockAlgebra,
         blockHeaderStore,
         bigBangBlockId,
@@ -58,6 +60,7 @@ object BlockHeaderValidation {
     etaInterpreter:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElection:           LeaderElectionValidationAlgebra[F],
+    eligibilityCache:         EligibilityCacheAlgebra[F],
     clockAlgebra:             ClockAlgebra[F],
     blockHeaderStore:         Store[F, BlockId, BlockHeader],
     bigBangBlockId:           BlockId,
@@ -268,6 +271,15 @@ object BlockHeaderValidation {
             isSlotLeader,
             (),
             BlockHeaderValidationFailures.IneligibleCertificate(threshold, header.eligibilityCertificate)
+          )
+          .leftWiden[BlockHeaderValidationFailure]
+        // Warning: This is most likely a side effecting operation
+        isNewEligibility <- EitherT.liftF(eligibilityCache.tryInclude(header.eligibilityCertificate.vrfVK, header.slot))
+        _ <- EitherT
+          .cond[F](
+            isNewEligibility,
+            (),
+            BlockHeaderValidationFailures.DuplicateEligibility(header.eligibilityCertificate.vrfVK, header.slot)
           )
           .leftWiden[BlockHeaderValidationFailure]
       } yield header
