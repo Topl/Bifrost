@@ -1,6 +1,5 @@
 package co.topl.consensus.interpreters
 
-import cats.{Applicative, Monad}
 import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
@@ -41,22 +40,26 @@ object EligibilityCache {
    * @param canonicalHead The current head of the chain
    * @param fetchHeader   Header lookup function (to traverse ancestors)
    */
-  def repopulate[F[_]: Monad](
+  def repopulate[F[_]: Async](
     underlying:    EligibilityCacheAlgebra[F],
     maximumLength: Int,
     canonicalHead: BlockHeader,
     fetchHeader:   BlockId => F[BlockHeader]
-  ): F[Unit] =
-    if (maximumLength <= 0 || canonicalHead.height < 1)
-      Applicative[F].unit
-    else {
-      underlying.tryInclude(canonicalHead.eligibilityCertificate.vrfVK, canonicalHead.slot) >>
-      (
-        if (canonicalHead.height <= 1) Applicative[F].unit
-        else
-          fetchHeader(canonicalHead.parentHeaderId).flatMap(repopulate(underlying, maximumLength - 1, _, fetchHeader))
+  ): F[Unit] = {
+    import fs2._
+    // A stream of block headers from the canonical head back to the genesis block
+    // The canonical head is not included in this stream.
+    val ancestors =
+      Stream.unfoldEval(canonicalHead)(header =>
+        if (header.height <= 1) none[(BlockHeader, BlockHeader)].pure[F]
+        else fetchHeader(header.parentHeaderId).map(parentH => (parentH, parentH).some)
       )
-    }
+    (Stream(canonicalHead) ++ ancestors)
+      .take(maximumLength)
+      .evalMap(header => underlying.tryInclude(header.eligibilityCertificate.vrfVK, header.slot))
+      .compile
+      .drain
+  }
 
   /**
    * The internal state of the cache
