@@ -13,9 +13,10 @@ import scala.concurrent.duration._
 
 /**
  * This test creates ~3 nodes that share the same seed but are not configured to talk to each other (meaning they
- * are siloed from one another).  After allowing each node to forge its own unique chain, the nodes are restarted with
- * communication enabled.  The nodes are expected to share the blocks they've produced by the other nodes, and each
- * node should independently agree that one chain is the best.
+ * are siloed from one another).  The first two nodes are launched and allowed to forge their own unique chains for
+ * two epochs.  Then, they are shutdown.  A third node is created, and all 3 nodes are reconnected and launched.
+ * The first two nodes should reach consensus, while the third node should be able to synchronize with the chain.
+ * By the end of the test, all 3 nodes should be in sync and producing blocks.
  */
 class ChainSelectionTest extends IntegrationSuite {
 
@@ -43,13 +44,12 @@ class ChainSelectionTest extends IntegrationSuite {
       implicit0(dockerClient: DockerClient) = _dockerClient
       node0 <- dockerSupport.createNode("ChainSelectionTest-node0", "ChainSelectionTest", config0.yaml)
       node1 <- dockerSupport.createNode("ChainSelectionTest-node1", "ChainSelectionTest", config1.yaml)
-      node2 <- dockerSupport.createNode("ChainSelectionTest-node2", "ChainSelectionTest", config2.yaml)
 
-      nodes = List(node0, node1, node2)
-      _ <- nodes.parTraverse(_.startContainer[F]).toResource
-      _ <- nodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
+      initialNodes = List(node0, node1)
+      _ <- initialNodes.parTraverse(_.startContainer[F]).toResource
+      _ <- initialNodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
       _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
-      blockHeaders <- nodes
+      blockHeaders <- initialNodes
         .parTraverse(node =>
           node
             .rpcClient[F]
@@ -57,19 +57,22 @@ class ChainSelectionTest extends IntegrationSuite {
         )
         .toResource
 
-      _ <- blockHeaders.size.pure[F].assertEquals(3).toResource
-      _ <- blockHeaders.distinct.size.pure[F].assertEquals(3).toResource
+      _ <- blockHeaders.size.pure[F].assertEquals(2).toResource
+      _ <- blockHeaders.distinct.size.pure[F].assertEquals(2).toResource
 
-      // Stop, configure with KnownPeers, restart containers and run again
-      _ <- nodes.parTraverse(_.stop[F]).toResource
-      _ <- nodes
+      // Create a third node
+      node2 <- dockerSupport.createNode("ChainSelectionTest-node2", "ChainSelectionTest", config2.yaml)
+      // Stop, configure with KnownPeers, (re)start containers and run again
+      allNodes = List(node0, node1, node2)
+      _ <- allNodes.parTraverse(_.stop[F]).toResource
+      _ <- allNodes
         .zip(nodesWithknownPeers)
         .parTraverse { case (node, config) => node.configure[F](config.yaml) }
         .toResource
       // Note: Launch nodes in-order so that the P2P connections properly initialize.  Once proper peer management and
       // retry logic is implemented, the relaunches can happen in parallel.
       _ <- Stream
-        .iterable(nodes)
+        .iterable(allNodes)
         .evalMap(node => node.restartContainer[F] >> node.rpcClient[F].use(_.waitForRpcStartUp))
         .compile
         .drain
@@ -77,7 +80,7 @@ class ChainSelectionTest extends IntegrationSuite {
       _ <- Logger[F]
         .info("ChainSelectionTest Waiting for nodes to reach target epoch.  This may take several minutes.")
         .toResource
-      thirdEpochHeads <- nodes
+      thirdEpochHeads <- allNodes
         .parTraverse(
           _.rpcClient[F]
             .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(6.minutes).compile.lastOrError)
@@ -89,7 +92,7 @@ class ChainSelectionTest extends IntegrationSuite {
       _ <- Logger[F].info(heights.mkString(",")).toResource
       _ <- (heights.max - heights.min <= 5).pure[F].assert.toResource
       // All nodes should have a shared common ancestor near the tip of the chain
-      _ <- nodes
+      _ <- allNodes
         .parTraverse(
           _.rpcClient[F].use(
             _.blockIdAtHeight(heights.min - 5)
