@@ -30,4 +30,8 @@ object EdgeSchemaInstances {
     override def label: String = "hasTxIO"
   }
 
+  // Edge: address <--> transactionIO
+  val addressTxIOEdge: EdgeSchema = new EdgeSchema {
+    override def label: String = "hasAddress"
+  }
 }

@@ -35,9 +35,9 @@ class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuit
       )
 
       blockHeaderSchema <- SchemaBlockHeader.make().pure[F].toResource
-      _                 <- OrientDBMetadataFactory.createVertex[F](db, blockHeaderSchema)
+      _                 <- OrientDBMetadataFactory.createSchema[F](db, blockHeaderSchema).toResource
       transactionSchema <- SchemaIoTransaction.make().pure[F].toResource
-      _                 <- OrientDBMetadataFactory.createVertex[F](db, transactionSchema)
+      _                 <- OrientDBMetadataFactory.createSchema[F](db, transactionSchema).toResource
 
       oClass <- Async[F].delay(db.getClass(transactionSchema.name)).toResource
 
@@ -90,9 +90,9 @@ class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuit
       )
 
       blockHeaderSchema <- SchemaBlockHeader.make().pure[F].toResource
-      _                 <- OrientDBMetadataFactory.createVertex[F](db, blockHeaderSchema)
+      _                 <- OrientDBMetadataFactory.createSchema[F](db, blockHeaderSchema).toResource
       transactionSchema <- SchemaIoTransaction.make().pure[F].toResource
-      _                 <- OrientDBMetadataFactory.createVertex[F](db, transactionSchema)
+      _                 <- OrientDBMetadataFactory.createSchema[F](db, transactionSchema).toResource
 
       orientGraph <- Sync[F].blocking(orientGraphFactory.getTx).toResource
       blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource

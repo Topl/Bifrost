@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
+import co.topl.brambl.models.Address
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import com.orientechnologies.orient.core.metadata.schema.OClass
@@ -19,6 +20,10 @@ object OIndexable {
     }
 
     implicit val ioTransaction: OIndexable[IoTransaction] = new OIndexable[IoTransaction] {
+      override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
+    }
+
+    implicit val address: OIndexable[Address] = new OIndexable[Address] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
   }

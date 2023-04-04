@@ -31,10 +31,10 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     PropF.forAllF { blockHeader: BlockHeader =>
       val res = for {
-        blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+        blockData     <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
+        blockInserter <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
-          graphHeaderInserter.insert(blockData),
+          blockInserter.insert(blockData),
           (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
         ).toResource
       } yield ()
@@ -52,10 +52,10 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     PropF.forAllF { blockHeader: BlockHeader =>
       val res = for {
-        blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+        blockData     <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
+        blockInserter <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
-          graphHeaderInserter.insert(blockData),
+          blockInserter.insert(blockData),
           ().asRight[GE]
         ).toResource
       } yield ()
@@ -73,10 +73,10 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val res = for {
-          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+          blockData     <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          blockInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
-            graphHeaderInserter.insert(blockData),
+            blockInserter.insert(blockData),
             (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
           ).toResource
         } yield ()
@@ -103,10 +103,10 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val res = for {
-          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+          blockData     <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          blockInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
-            graphHeaderInserter.insert(blockData),
+            blockInserter.insert(blockData),
             ().asRight[GE]
           ).toResource
         } yield ()
@@ -131,10 +131,10 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val res = for {
-          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+          blockData     <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          blockInserter <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
-            graphHeaderInserter.insert(blockData),
+            blockInserter.insert(blockData),
             (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
           ).toResource
         } yield ()

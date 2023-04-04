@@ -30,7 +30,7 @@ class VertexSchemaTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     val res = for {
       odbFactory         <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
       databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
-      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema)
+      _                  <- OrientDBMetadataFactory.createSchema[F](databaseDocumentTx, testSchema).toResource
 
       oClass <- Async[F].delay(databaseDocumentTx.getClass(testSchema.name)).toResource
 
@@ -50,7 +50,7 @@ class VertexSchemaTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     val res = for {
       odbFactory         <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
       databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
-      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema)
+      _                  <- OrientDBMetadataFactory.createSchema[F](databaseDocumentTx, testSchema).toResource
 
       dbTx <- Sync[F].blocking(odbFactory.getTx).toResource
       _    <- Sync[F].blocking(dbTx.makeActive()).toResource

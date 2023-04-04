@@ -41,13 +41,13 @@ object GenusServerApp
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
-      nodeEnabled <- Resource.pure(false) // maybe we can use a config
+      nodeEnabled <- Resource.pure(true) // maybe we can use a config
       inserter <- nodeBlockFetcher
-        .fetch(startHeight = 1, endHeight = 300)
+        .fetch(startHeight = 1, endHeight = 10)
         .map(_.spaced(50 millis))
         .map(
           _.evalMap(graphBlockInserter.insert)
-            .evalTap(res => Logger[F].info(res.leftMap(_.toString).swap.getOrElse("OK")))
+            .evalTap(res => Logger[F].info(res.leftMap(_.getMessage).swap.getOrElse("OK")))
         )
         .toResource
 

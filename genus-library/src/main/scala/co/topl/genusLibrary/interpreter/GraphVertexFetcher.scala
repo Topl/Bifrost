@@ -8,7 +8,7 @@ import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction}
+import co.topl.genusLibrary.orientDb.instances.{SchemaAddress, SchemaBlockHeader, SchemaIoTransaction}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
@@ -108,6 +108,20 @@ object GraphVertexFetcher {
             ).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransaction", tx))
+          )
+
+        def fetchAddress(addressId: Identifier): F[Either[GE, Option[Vertex]]] =
+          Async[F].blocking(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaAddress.Field.AddressId,
+                  addressId.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchAddress", tx))
           )
 
       }

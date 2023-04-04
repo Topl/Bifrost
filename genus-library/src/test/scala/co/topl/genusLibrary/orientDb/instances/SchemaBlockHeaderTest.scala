@@ -30,7 +30,7 @@ class SchemaBlockHeaderTest
 
       databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
       schema             <- SchemaBlockHeader.make().pure[F].toResource
-      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema)
+      _                  <- OrientDBMetadataFactory.createSchema[F](databaseDocumentTx, schema).toResource
 
       oClass <- Async[F].delay(databaseDocumentTx.getClass(schema.name)).toResource
 
@@ -158,7 +158,7 @@ class SchemaBlockHeaderTest
       _      <- Sync[F].blocking(dbNoTx.makeActive()).toResource
 
       schema <- SchemaBlockHeader.make().pure[F].toResource
-      _      <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema)
+      _      <- OrientDBMetadataFactory.createSchema[F](dbNoTx.getRawGraph, schema).toResource
 
       dbTx <- Sync[F].blocking(odbFactory.getTx).toResource
       _    <- Sync[F].blocking(dbTx.makeActive()).toResource

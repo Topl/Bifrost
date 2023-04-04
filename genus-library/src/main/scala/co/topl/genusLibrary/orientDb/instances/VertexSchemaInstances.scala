@@ -2,7 +2,7 @@ package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.{Evidence, Identifier, LockAddress, TransactionOutputAddress}
+import co.topl.brambl.models.{Address, Evidence, Identifier, TransactionOutputAddress}
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
@@ -30,53 +30,17 @@ object VertexSchemaInstances {
 
       def addIoTx(ioTx: IoTransaction): OrientVertex =
         graph.addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(ioTx).asJava)
+
+      def addAddress(address: Address): OrientVertex =
+        graph.addVertex(s"class:${addressSchema.name}", addressSchema.encode(address).asJava)
     }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
+    private[genusLibrary] val addressSchema: VertexSchema[Address] = SchemaAddress.make()
 
     // Note, From here to the end, VertexSchemas not tested
-    /**
-     * Schema for Address nodes
-     */
-    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[LockAddress] =
-      VertexSchema.create(
-        "LockAddress",
-        GraphDataEncoder[LockAddress]
-          .withProperty(
-            "network",
-            v => java.lang.Integer.valueOf(v.network),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )
-          .withProperty(
-            "ledger",
-            v => java.lang.Integer.valueOf(v.ledger),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )
-          .withProperty(
-            "id",
-            _.id match {
-              case v: LockAddress.Id.Lock32 => Array[Byte](0) ++ v.value.toByteArray
-              case v: LockAddress.Id.Lock64 => Array[Byte](1) ++ v.value.toByteArray
-            },
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          ),
-        v => {
-          val idData: Array[Byte] = v("id")
-          val id = idData(0) match {
-            case 0 => LockAddress.Id.Lock32(Identifier.Lock32.parseFrom(idData.tail))
-            case 1 => LockAddress.Id.Lock64(Identifier.Lock64.parseFrom(idData.tail))
-          }
-          LockAddress(v("network"), v("ledger"), id)
-        }
-      )
 
     /**
      * Schema for TxO state vertexes

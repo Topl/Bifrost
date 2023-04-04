@@ -58,4 +58,12 @@ trait VertexFetcherAlgebra[F[_]] {
    */
   def fetchTransaction(ioTransaction32: Identifier.IoTransaction32): F[Either[GE, Option[Vertex]]]
 
+  /**
+   * Fetch Address Vertex, using Address Inex
+   *
+   * @param addressId filter by index field
+   * @return Optional Address vertex, None if it was not found
+   */
+  def fetchAddress(addressId: Identifier): F[Either[GE, Option[Vertex]]]
+
 }

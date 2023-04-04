@@ -1,9 +1,11 @@
 package co.topl.genusLibrary.orientDb {
 
+  import cats.effect.implicits.effectResourceOps
   import cats.effect.{Resource, Sync, SyncIO}
   import cats.implicits._
-  import co.topl.genusLibrary.orientDb.schema.VertexSchema
+  import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
   import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
+  import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
   import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
   import com.orientechnologies.orient.core.metadata.schema.OClass
   import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
@@ -23,16 +25,25 @@ package co.topl.genusLibrary.orientDb {
       for {
         db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => Sync[F].delay(db.close()))
 
-        _ <- createVertex(db, blockHeaderSchema)
-        _ <- createVertex(db, blockBodySchema)
-        _ <- createVertex(db, ioTransactionSchema)
+        _ <- createSchema(db, blockHeaderSchema).toResource
+        _ <- createSchema(db, blockBodySchema).toResource
+        _ <- createSchema(db, ioTransactionSchema).toResource
+        _ <- createSchema(db, addressSchema).toResource
+
+        _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge)
+          .traverse(e => createEdgeSchema(db, e))
+          .void
+          .toResource
 
       } yield ()
 
-    private[orientDb] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
-      Resource
-        .eval(Sync[F].blocking(Option(db.getClass(schema.name))))
-        .evalMap {
+    private[orientDb] def createSchema[F[_]: Sync: Logger](
+      db:     ODatabaseDocumentInternal,
+      schema: VertexSchema[_]
+    ): F[Unit] =
+      Sync[F]
+        .blocking(Option(db.getClass(schema.name)))
+        .flatMap {
           case Some(oClass) =>
             Logger[F].info(s"${oClass.getName} class found, schema remains equals")
           case _ =>
@@ -79,5 +90,21 @@ package co.topl.genusLibrary.orientDb {
         .to[F]
         .onError { case e => Logger[F].error(e)(s"Failed to create link on ${vs.name}") }
         .void
+
+    private[orientDb] def createEdgeSchema[F[_]: Sync: Logger](
+      db:   ODatabaseDocumentInternal,
+      edge: EdgeSchema
+    ) =
+      Sync[F]
+        .blocking(Option(db.getClass(edge.label)))
+        .flatMap {
+          case Some(oClass) =>
+            Logger[F].info(s"${oClass.getName} class found, schema remains equals")
+          case _ =>
+            Sync[F]
+              .blocking(db.createClass(edge.label, "E"))
+              .void
+
+        }
   }
 }
