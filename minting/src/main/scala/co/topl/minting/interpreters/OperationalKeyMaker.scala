@@ -196,45 +196,31 @@ object OperationalKeyMaker {
       kesParent: SecretKeyKesProduct,
       slots:     Vector[Slot]
     ): F[Vector[OperationalKeyOut]] =
-      Sync[F]
-        .delay(List.fill(slots.size)(()))
-        .flatMap(
-          _.parTraverse(_ =>
-            ed25519Resource
-              .use(ed =>
-                Sync[F].delay(
-                  ed.deriveKeyPairFromEntropy(Entropy.fromUuid(UUID.randomUUID()), None)
-                )
-              )
-              .map { keyPair =>
-                (
-                  ByteString.copyFrom(keyPair.signingKey.bytes),
-                  ByteString.copyFrom(keyPair.verificationKey.bytes)
-                )
-              }
-          )
-        )
-        .flatMap(children =>
-          kesProductResource
-            .use(kesProduct => Sync[F].delay(kesProduct.getVerificationKey(kesParent)))
-            .flatMap(parentVK =>
-              slots
-                .zip(children)
-                .parTraverse { case (slot, (childSK, childVK)) =>
-                  kesProductResource
-                    .use(kesProductScheme =>
-                      Sync[F]
-                        .delay(
-                          kesProductScheme.sign(
-                            kesParent,
-                            childVK.concat(ByteString.copyFrom(Longs.toByteArray(slot))).toByteArray
-                          )
-                        )
-                    )
-                    .map(parentSignature => OperationalKeyOut(slot, childVK, childSK, parentSignature, parentVK))
-                }
-            )
-        )
+      kesProductResource
+        .use(kesProduct => Sync[F].delay(kesProduct.getVerificationKey(kesParent)))
+        .flatMap(parentVK => slots.parTraverse(prepareOperationalPeriodKey(kesParent, parentVK, _)))
+
+    /**
+     * From some "parent" KES keypair, create a single child key for the given slot
+     */
+    private def prepareOperationalPeriodKey(
+      kesParentSK: SecretKeyKesProduct,
+      kesParentVK: VerificationKeyKesProduct,
+      slot:        Slot
+    ) =
+      for {
+        entropy <- Sync[F].delay(Entropy.fromUuid(UUID.randomUUID()))
+        keyPair <- ed25519Resource.use(ed => Sync[F].delay(ed.deriveKeyPairFromEntropy(entropy, None)))
+        message = keyPair.verificationKey.bytes ++ Longs.toByteArray(slot)
+        parentSignature <- kesProductResource
+          .use(kesProductScheme => Sync[F].delay(kesProductScheme.sign(kesParentSK, message)))
+      } yield OperationalKeyOut(
+        slot,
+        ByteString.copyFrom(keyPair.verificationKey.bytes),
+        ByteString.copyFrom(keyPair.signingKey.bytes),
+        parentSignature,
+        kesParentVK
+      )
   }
 
 }

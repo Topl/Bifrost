@@ -47,7 +47,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           .returning(outputHeader.some.pure[F])
 
         val clock = mock[ClockAlgebra[F]]
-        (() => clock.globalSlot).expects().once().returning(parentSlotData.slotId.slot.pure[F])
+        (() => clock.slotsPerEpoch).expects().once().returning(300L.pure[F])
+        (() => clock.globalSlot).expects().twice().returning((parentSlotData.slotId.slot + 1).pure[F])
         (clock.slotToTimestamps(_)).expects(vrfHit.slot).once().returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
 
         val blockPacker = mock[BlockPackerAlgebra[F]]
