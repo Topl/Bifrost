@@ -16,7 +16,7 @@ class EligibilityCacheSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   type F[A] = IO[A]
 
   test("Eligibility Cache with new entry") {
-    val entry1 = (generateVrfVK(), 1L)
+    val entry1 = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 1L)
 
     val resource =
       for {
@@ -28,25 +28,30 @@ class EligibilityCacheSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
   }
 
   test("Eligibility Cache with old entry") {
-    val entry1 = (generateVrfVK(), 1L)
-    val entry2 = (generateVrfVK(), 2L)
+    val entry1 = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 1L)
+    val illegalEntry1 = (arbitraryBlockId.arbitrary.first, entry1._2, entry1._3)
+    val entry2 = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 2L)
 
     val resource =
       for {
         underTest <- EligibilityCache.make[F](10)
         _         <- (underTest.tryInclude _).tupled(entry1).assert.toResource
-        _         <- (underTest.tryInclude _).tupled(entry1).map(!_).assert.toResource
-        _         <- (underTest.tryInclude _).tupled(entry2).assert.toResource
+        _         <- (underTest.tryInclude _).tupled(illegalEntry1).map(!_).assert.toResource
+        // Re-inserting entry1 under the same block ID should be permitted/true
+        _ <- (underTest.tryInclude _).tupled(entry1).assert.toResource
+        _ <- (underTest.tryInclude _).tupled(entry2).assert.toResource
       } yield ()
 
     resource.use_
   }
 
   test("Eligibility Cache with new entry and overflow") {
-    val entry1 = (generateVrfVK(), 1L)
-    val entry2 = (generateVrfVK(), 2L)
-    val entry3 = (generateVrfVK(), 3L)
-    val entry3A = (generateVrfVK(), 3L)
+    val entry1 = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 1L)
+    val entry2 = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 2L)
+    val illegalEntry2 = (arbitraryBlockId.arbitrary.first, entry2._2, entry2._3)
+    val entry3 = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 3L)
+    val illegalEntry3 = (arbitraryBlockId.arbitrary.first, entry3._2, entry3._3)
+    val entry3A = (arbitraryBlockId.arbitrary.first, generateVrfVK(), 3L)
 
     val resource =
       for {
@@ -54,10 +59,11 @@ class EligibilityCacheSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         _         <- (underTest.tryInclude _).tupled(entry1).assert.toResource
         _         <- (underTest.tryInclude _).tupled(entry2).assert.toResource
         _         <- (underTest.tryInclude _).tupled(entry3).assert.toResource
+
         // NOTE: No way to assert that entry1 was removed.  Attempting to `tryInclude` it again would return "true",
         // but the entry would be immediately removed because it's at an "older" slot
-        _ <- (underTest.tryInclude _).tupled(entry2).map(!_).assert.toResource
-        _ <- (underTest.tryInclude _).tupled(entry3).map(!_).assert.toResource
+        _ <- (underTest.tryInclude _).tupled(illegalEntry2).map(!_).assert.toResource
+        _ <- (underTest.tryInclude _).tupled(illegalEntry3).map(!_).assert.toResource
         _ <- (underTest.tryInclude _).tupled(entry3A).assert.toResource
       } yield ()
 
@@ -105,29 +111,29 @@ class EligibilityCacheSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val headers = Map(h0Id -> h0, h1Id -> h1, h2Id -> h2, h3Id -> h3, h4Id -> h4)
       val underlying = mock[EligibilityCacheAlgebra[F]]
       (underlying
-        .tryInclude(_, _))
-        .expects(h4.eligibilityCertificate.vrfVK, h4.slot)
+        .tryInclude(_, _, _))
+        .expects(h4Id, h4.eligibilityCertificate.vrfVK, h4.slot)
         .once()
         .returning(true.pure[F])
       (underlying
-        .tryInclude(_, _))
-        .expects(h3.eligibilityCertificate.vrfVK, h3.slot)
+        .tryInclude(_, _, _))
+        .expects(h3Id, h3.eligibilityCertificate.vrfVK, h3.slot)
         .once()
         .returning(true.pure[F])
       (underlying
-        .tryInclude(_, _))
-        .expects(h2.eligibilityCertificate.vrfVK, h2.slot)
+        .tryInclude(_, _, _))
+        .expects(h2Id, h2.eligibilityCertificate.vrfVK, h2.slot)
         .once()
         .returning(true.pure[F])
       (underlying
-        .tryInclude(_, _))
-        .expects(h1.eligibilityCertificate.vrfVK, h1.slot)
+        .tryInclude(_, _, _))
+        .expects(h1Id, h1.eligibilityCertificate.vrfVK, h1.slot)
         .once()
         .returning(true.pure[F])
       // The genesis parent should never be called
       (underlying
-        .tryInclude(_, _))
-        .expects(h0.eligibilityCertificate.vrfVK, h0.slot)
+        .tryInclude(_, _, _))
+        .expects(h0Id, h0.eligibilityCertificate.vrfVK, h0.slot)
         .never()
       val testResource =
         for {
