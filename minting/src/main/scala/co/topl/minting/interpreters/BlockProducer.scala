@@ -1,5 +1,6 @@
 package co.topl.minting.interpreters
 
+import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
@@ -55,7 +56,25 @@ object BlockProducer {
       Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockProducer")
 
     val blocks: F[Stream[F, Block]] =
-      Sync[F].delay(parentHeaders.through(AbandonerPipe(makeChild)))
+      Sync[F].delay(parentHeaders.evalFilter(isRecentParent).through(AbandonerPipe(makeChild)))
+
+    /**
+     * Determines if the given SlotData is recent enough to be used as a parent for a new block.
+     * @param parentSlotData The parent to attempt to use for a new block
+     * @return true if the parent was created within the last epoch, false otherwise
+     */
+    private def isRecentParent(parentSlotData: SlotData) =
+      (clock.globalSlot, clock.slotsPerEpoch)
+        .mapN((currentSlot, epochLength) => (currentSlot - parentSlotData.slotId.slot) < epochLength)
+        .flatTap(isRecent =>
+          if (!isRecent)
+            Logger[F].warn(
+              show"Skipping block production on parent=${parentSlotData.slotId.blockId.show}" +
+              show" because more than one epoch has elapsed since it was created." +
+              show" Awaiting new block from network peer."
+            )
+          else Applicative[F].unit
+        )
 
     /**
      * Construct a new child Block of the given parent
