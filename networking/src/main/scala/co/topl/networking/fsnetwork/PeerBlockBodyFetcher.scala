@@ -67,7 +67,7 @@ object PeerBlockBodyFetcher {
   ): F[(State[F], Response[F])] =
     for {
       idToBody <- Stream.foldable(blocksToDownload).evalMap(downloadBlockBody(state)).compile.toList
-      messageToSend = RequestsProxy.Message.DownloadBlockResponse(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
+      messageToSend = RequestsProxy.Message.DownloadBodiesResponse(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
       _ <- state.requestsProxy.sendNoWait(messageToSend)
     } yield (state, state)
 
@@ -78,7 +78,7 @@ object PeerBlockBodyFetcher {
       for {
         _    <- Logger[F].info(show"Fetching remote body id=$blockId")
         body <- downloadBlockBody(state, blockId)
-        _    <- Logger[F].debug(show"Fetched remote body id=$blockId")
+        _    <- Logger[F].info(show"Fetched remote body id=$blockId")
         _    <- downloadingMissingTransactions(state, body)
       } yield body
 

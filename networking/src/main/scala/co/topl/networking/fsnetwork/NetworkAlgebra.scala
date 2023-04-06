@@ -32,7 +32,6 @@ trait NetworkAlgebra[F[_]] {
 
   def makeBlockChecker(
     reputationAggregator:        ReputationAggregatorActor[F],
-    peersManager:                PeersManagerActor[F],
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -78,7 +77,6 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
 
   override def makeBlockChecker(
     reputationAggregator:        ReputationAggregatorActor[F],
-    peersManager:                PeersManagerActor[F],
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -93,7 +91,6 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
   ): Resource[F, BlockCheckerActor[F]] =
     BlockChecker.makeActor(
       reputationAggregator,
-      peersManager,
       requestsProxy,
       localChain,
       slotDataStore,

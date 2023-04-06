@@ -1,14 +1,16 @@
 package co.topl.networking
 
 import cats.data.{EitherT, NonEmptyChain, OptionT}
+import cats.effect.Async
 import cats.implicits._
-import cats.{Applicative, Monad, MonadThrow, Show}
+import cats.{Monad, MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
 import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure, BlockId, SlotData}
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.typeclasses.implicits._
+import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 
 package object fsnetwork {
@@ -19,6 +21,8 @@ package object fsnetwork {
   // how many block/headers could be requested from remote host in the same time,
   // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
   val chunkSize = 1
+
+  val requestCacheSize = 100
 
   implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
 
@@ -33,21 +37,6 @@ package object fsnetwork {
       OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
   }
 
-  implicit class StoreOps[F[_]: Applicative, Key, T](store: Store[F, Key, T]) {
-
-    def filterKnown(key: Key, value: T): F[Option[(Key, T)]] =
-      store.contains(key).map {
-        case true  => None
-        case false => Option(key, value)
-      }
-
-    def filterKnownBlocks(blocks: NonEmptyChain[(Key, T)]): F[Option[NonEmptyChain[(Key, T)]]] =
-      blocks.toList
-        .traverse { case (key, value) => store.filterKnown(key, value) }
-        .map(_.flatten)
-        .map(NonEmptyChain.fromSeq)
-  }
-
   object EitherTExt {
 
     def condF[F[_]: Monad, S, E](test: F[Boolean], ifTrue: => F[S], ifFalse: => F[E]): EitherT[F, E, S] =
@@ -55,6 +44,33 @@ package object fsnetwork {
         case true  => EitherT.right[E](ifTrue)
         case false => EitherT.left[S](ifFalse)
       }
+  }
+
+  implicit class CacheOps[K, V](cache: Cache[K, V]) {
+    def contains(key: K): Boolean = cache.getIfPresent(key) != null
+
+    def get(key: K): Option[V] = Option(cache.getIfPresent(key))
+  }
+
+  implicit class SeqFOps[T, F[_]: Async](seq: Seq[T]) {
+
+    def takeWhileF(p: T => F[Boolean]): F[List[T]] =
+      fs2.Stream
+        .emits(seq)
+        .evalMap(data => p(data).map((data, _)))
+        .takeWhile(_._2)
+        .map(_._1)
+        .compile
+        .toList
+
+    def dropWhileF(p: T => F[Boolean]): F[List[T]] =
+      fs2.Stream
+        .emits(seq)
+        .evalMap(data => p(data).map((data, _)))
+        .dropWhile(_._2)
+        .map(_._1)
+        .compile
+        .toList
   }
 
   // TODO move Show instances to separate file
@@ -120,14 +136,20 @@ package object fsnetwork {
   def getFirstNMissedInStore[F[_]: MonadThrow, T](
     store:     Store[F, BlockId, T],
     slotStore: Store[F, BlockId, SlotData],
-    from:      SlotData,
+    from:      BlockId,
     size:      Int
   ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from.slotId.blockId)
+      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )
+
+  def dropKnownPrefix[F[_]: Async, T](
+    data:  Seq[(BlockId, T)],
+    store: Store[F, BlockId, T]
+  ): F[Option[NonEmptyChain[(BlockId, T)]]] =
+    data.dropWhileF(idAndBody => store.contains(idAndBody._1)).map(NonEmptyChain.fromSeq)
 
   sealed trait BlockBodyDownloadError extends Exception
 
@@ -153,6 +175,21 @@ package object fsnetwork {
         val name = Option(ex.getClass.getName).getOrElse("")
         val message = Option(ex.getLocalizedMessage).getOrElse("")
         s"Unknown error during getting block from peer due next throwable $name : $message"
+      }
+    }
+  }
+
+  sealed trait BlockHeaderDownloadError extends Exception
+
+  object BlockHeaderDownloadError {
+
+    case class UnknownError(ex: Throwable) extends BlockHeaderDownloadError {
+      this.initCause(ex)
+
+      override def toString: String = {
+        val name = Option(ex.getClass.getName).getOrElse("")
+        val message = Option(ex.getLocalizedMessage).getOrElse("")
+        s"Unknown error during getting header from peer due next throwable $name : $message"
       }
     }
   }

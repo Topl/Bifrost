@@ -13,6 +13,7 @@ import co.topl.networking.fsnetwork.RequestsProxy.Message._
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 
 object RequestsProxy {
   sealed trait Message
@@ -20,9 +21,24 @@ object RequestsProxy {
   object Message {
     case class SetupBlockChecker[F[_]](blockCheckerActor: BlockCheckerActor[F]) extends Message
 
-    case class DownloadBlocksRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
+    // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
+    // then A is parent of B and B is parent of C
+    case class DownloadHeadersRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
 
-    case class DownloadBlockResponse(
+    // response shall contains chain of linked blocks, for example if we have chain A -> B -> C
+    // then A is parent of B and B is parent of C
+    case class DownloadHeadersResponse(
+      hostId:   HostId,
+      response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+    ) extends Message
+
+    // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
+    // then A is parent of B and B is parent of C
+    case class DownloadBodiesRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
+
+    // response shall contains chain of linked blocks, for example if we have chain A -> B -> C
+    // then A is parent of B and B is parent of C
+    case class DownloadBodiesResponse(
       source:   HostId,
       response: NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
     ) extends Message
@@ -34,7 +50,10 @@ object RequestsProxy {
     blockCheckerOpt:      Option[BlockCheckerActor[F]],
     headerStore:          Store[F, BlockId, BlockHeader],
     bodyStore:            Store[F, BlockId, BlockBody],
-    bodyRequests:         Map[BlockId, Option[BlockBody]] = Map.empty
+    headerRequests: Cache[BlockId, Option[BlockHeader]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[BlockHeader]](),
+    bodyRequests: Cache[BlockId, Option[BlockBody]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[BlockBody]]()
   )
 
   type Response[F[_]] = State[F]
@@ -44,10 +63,14 @@ object RequestsProxy {
     Fsm {
       case (state, message: SetupBlockChecker[F] @unchecked) =>
         setupBlockChecker(state, message.blockCheckerActor)
-      case (state, DownloadBlocksRequest(hostId, blockIds)) =>
-        downloadBlockRequest(state, hostId, blockIds)
-      case (state, DownloadBlockResponse(source, response)) =>
-        downloadBlockResponse(state, source, response)
+      case (state, DownloadHeadersRequest(hostId, blockIds)) =>
+        downloadHeadersRequest(state, hostId, blockIds)
+      case (state, DownloadHeadersResponse(source, response)) =>
+        downloadHeadersResponse(state, source, response)
+      case (state, DownloadBodiesRequest(hostId, blockIds)) =>
+        downloadBodiesRequest(state, hostId, blockIds)
+      case (state, DownloadBodiesResponse(source, response)) =>
+        downloadBodiesResponse(state, source, response)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -57,13 +80,7 @@ object RequestsProxy {
     bodyStore:            Store[F, BlockId, BlockBody]
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
-      State(
-        reputationAggregator,
-        peersManager,
-        blockCheckerOpt = None,
-        headerStore,
-        bodyStore
-      )
+      State(reputationAggregator, peersManager, blockCheckerOpt = None, headerStore, bodyStore)
     Actor.make(initialState, getFsm[F])
   }
 
@@ -76,46 +93,139 @@ object RequestsProxy {
     (newState, newState).pure[F]
   }
 
-  private def downloadBlockRequest[F[_]: Async: Logger](
+  private def downloadHeadersRequest[F[_]: Async: Logger](
     state:    State[F],
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     for {
-      _              <- Logger[F].info(show"Get request for blocks downloads $blockIds")
-      idsDownloaded  <- sendAlreadyDownloadedBlocksToBlockChecker(state, hostId, blockIds)
-      _              <- Logger[F].info(show"Send already downloaded block to block checker $idsDownloaded")
-      idsForDownload <- sendDownloadRequestForNewBlocks(state, hostId, blockIds)
-      _              <- Logger[F].info(show"Send request for additional block body download $idsForDownload")
-      bodyReq: Map[BlockId, Option[BlockBody]] = state.bodyRequests -- idsDownloaded ++ idsForDownload.map((_, None))
-      newState = state.copy(bodyRequests = bodyReq)
-    } yield (newState, newState)
+      _              <- Logger[F].info(show"Get request for headers downloads $blockIds")
+      idsDownloaded  <- sendAlreadyDownloadedHeadersToBlockChecker(state, hostId, blockIds)
+      _              <- Logger[F].info(show"Send already downloaded header to block checker $idsDownloaded")
+      idsForDownload <- sendDownloadRequestForNewHeaders(state, hostId, blockIds)
+      _              <- Logger[F].info(show"Send request for additional block header download $idsForDownload")
+      _ = saveDownloadRequestToCache(state.headerRequests, idsForDownload)
+    } yield (state, state)
 
-  // response with longest possible prefix for request ids
-  // where for each block id corresponding block body is already downloaded
-  private def sendAlreadyDownloadedBlocksToBlockChecker[F[_]: Async](
+  // response with longest possible prefix for requested ids
+  // where corresponding block header is already downloaded for each block id
+  // also drop any data which is already in header storage
+  private def sendAlreadyDownloadedHeadersToBlockChecker[F[_]: Async](
+    state:    State[F],
+    hostId:   HostId,
+    blockIds: NonEmptyChain[BlockId]
+  ): F[Seq[BlockId]] = {
+    val definedPrefix: Seq[(BlockId, BlockHeader)] = getDefinedPrefixFrom(state.headerRequests, blockIds)
+    sendHeaders(state, hostId, definedPrefix).getOrElse(List.empty)
+  }
+
+  // send block download request only for new headers
+  private def sendDownloadRequestForNewHeaders[F[_]: Async](
     state:    State[F],
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[List[BlockId]] = {
-    val alreadyDownloadedBodies =
-      blockIds
-        .map(id => (id, state.bodyRequests.get(id).flatten))
-        .takeWhile_ { case (_, bodyOpt) => bodyOpt.isDefined }
-        .map { case (id, bodyOpt) => (id, bodyOpt.get) }
-
-    // TODO add meta information about downloaded blocks so we could get actual source of block
-    val sendMessage: Option[F[Unit]] =
-      for {
-        downloadedPrefix <- NonEmptyChain.fromSeq(alreadyDownloadedBodies)
-        blockChecker     <- state.blockCheckerOpt
-      } yield blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockBodies(hostId, downloadedPrefix))
-
-    sendMessage.getOrElse(().pure[F]) >> alreadyDownloadedBodies.map(_._1).pure[F]
+    val newBlockIds = blockIds.filterNot(state.headerRequests.contains)
+    NonEmptyChain
+      .fromChain(newBlockIds)
+      .map { blockIds =>
+        state.peersManager.sendNoWait(PeersManager.Message.BlockHeadersRequest(hostId, blockIds)) >>
+        blockIds.toList.pure[F]
+      }
+      .getOrElse(List.empty[BlockId].pure[F])
   }
 
-  // send block download request only for new blocks
-  private def sendDownloadRequestForNewBlocks[F[_]: Async](
+  private def downloadHeadersResponse[F[_]: Async: Logger](
+    state:    State[F],
+    hostId:   HostId,
+    response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+  ): F[(State[F], Response[F])] = {
+    val successfullyDownloadedHeaders =
+      response.collect { case (id, Right(header)) => (id, header) }.toList
+
+    for {
+      _       <- Logger[F].info(show"Successfully download next headers: ${successfullyDownloadedHeaders.map(_._1)}")
+      _       <- processHeaderDownloadErrors(state.reputationAggregator, state.peersManager, hostId, response)
+      sentIds <- sendSuccessfulHeadersPrefix(state, hostId, response)
+      _       <- Logger[F].info(show"Send headers prefix to block checker $sentIds")
+      _ = saveDownloadResultToCache(state.headerRequests, successfullyDownloadedHeaders)
+    } yield (state, state)
+  }
+
+  private def processHeaderDownloadErrors[F[_]: Async](
+    reputationAggregator: ReputationAggregatorActor[F],
+    peersManager:         PeersManagerActor[F],
+    source:               HostId,
+    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+  ): F[Unit] = {
+    val errorsOpt =
+      NonEmptyChain.fromChain(response.collect { case (id, Left(error)) => (id, error) })
+
+    errorsOpt match {
+
+      case Some(errors) =>
+        // TODO translate error to reputation value or send error itself?
+        val reputationMessage: ReputationAggregator.Message =
+          ReputationAggregator.Message.UpdatePeerReputation(source, -1)
+        // TODO we shall not try to download header from the same host, peer manager shall decide it
+        val repeatDownloadMessage: PeersManager.Message =
+          PeersManager.Message.BlockHeadersRequest(source, errors.map(_._1))
+
+        errors.traverse(_ => reputationAggregator.sendNoWait(reputationMessage)) >>
+        peersManager.sendNoWait(repeatDownloadMessage)
+
+      case None => ().pure[F]
+    }
+  }
+
+  // We send prefix to block checker if parent of first block in response is already in storage
+  private def sendSuccessfulHeadersPrefix[F[_]: Async: Logger](
+    state:    State[F],
+    source:   HostId,
+    response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+  ): F[Seq[BlockId]] = {
+    val firstBlock = response.head._1
+
+    val sendMessage =
+      for {
+        idAndHeaders <- OptionT.fromOption[F](NonEmptyChain.fromSeq(getDefinedPrefix(response)))
+        firstBlockHeader = idAndHeaders.head._2
+        _       <- OptionT(state.headerStore.get(firstBlockHeader.parentHeaderId))
+        _       <- OptionT.liftF(Logger[F].debug(show"Parent of header $firstBlock is already adopted"))
+        sentIds <- sendHeaders(state, source, idAndHeaders.toList)
+      } yield sentIds
+
+    sendMessage.getOrElse(List.empty[BlockId])
+  }
+
+  private def downloadBodiesRequest[F[_]: Async: Logger](
+    state:    State[F],
+    hostId:   HostId,
+    blockIds: NonEmptyChain[BlockId]
+  ): F[(State[F], Response[F])] =
+    for {
+      _              <- Logger[F].info(show"Get request for bodies downloads $blockIds")
+      idsDownloaded  <- sendAlreadyDownloadedBodiesToBlockChecker(state, hostId, blockIds)
+      _              <- Logger[F].info(show"Send already downloaded bodies to block checker $idsDownloaded")
+      idsForDownload <- sendDownloadRequestForNewBodies(state, hostId, blockIds)
+      _              <- Logger[F].info(show"Send request for additional block body download $idsForDownload")
+      _ = saveDownloadRequestToCache(state.bodyRequests, idsForDownload)
+    } yield (state, state)
+
+  // response with longest possible prefix for requested ids
+  // where corresponding block body is already downloaded for each block id
+  // also drop any data which is already in body storage
+  private def sendAlreadyDownloadedBodiesToBlockChecker[F[_]: Async](
+    state:    State[F],
+    hostId:   HostId,
+    blockIds: NonEmptyChain[BlockId]
+  ): F[Seq[BlockId]] = {
+    val dataToSend = getDefinedPrefixFrom(state.bodyRequests, blockIds)
+    sendBodies(state, hostId, dataToSend).getOrElse(List.empty)
+  }
+
+  // send block download request only for new bodies
+  private def sendDownloadRequestForNewBodies[F[_]: Async](
     state:    State[F],
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
@@ -124,31 +234,30 @@ object RequestsProxy {
     NonEmptyChain
       .fromChain(newBlockIds)
       .map { blockIds =>
-        state.peersManager.sendNoWait(PeersManager.Message.BlockDownloadRequest(hostId, blockIds)) >>
+        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyDownloadRequest(hostId, blockIds)) >>
         blockIds.toList.pure[F]
       }
       .getOrElse(List.empty[BlockId].pure[F])
   }
 
-  private def downloadBlockResponse[F[_]: Async: Logger](
+  private def downloadBodiesResponse[F[_]: Async: Logger](
     state:    State[F],
     hostId:   HostId,
     response: NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
   ): F[(State[F], Response[F])] = {
-    val successfullyDownloadedBlocks =
-      response.collect { case (id, Right(body)) => (id, Option(body)) }
+    val successfullyDownloadedBodies =
+      response.collect { case (id, Right(body)) => (id, body) }.toList
 
     for {
-      _       <- Logger[F].info(show"Successfully download next blocks: ${successfullyDownloadedBlocks.map(_._1)}")
-      _       <- processDownloadErrors(state.reputationAggregator, state.peersManager, hostId, response)
-      sentIds <- sendSuccessfulBodiesPrefix(state.headerStore, state.bodyStore, state.blockCheckerOpt, hostId, response)
+      _       <- Logger[F].info(show"Successfully download next bodies: ${successfullyDownloadedBodies.map(_._1)}")
+      _       <- processBlockDownloadErrors(state.reputationAggregator, state.peersManager, hostId, response)
+      sentIds <- sendSuccessfulBodiesPrefix(state, hostId, response)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
-      bodyReq: Map[BlockId, Option[BlockBody]] = state.bodyRequests -- sentIds ++ successfullyDownloadedBlocks.toList
-      newState = state.copy(bodyRequests = bodyReq)
-    } yield (newState, newState)
+      _ = saveDownloadResultToCache(state.bodyRequests, successfullyDownloadedBodies)
+    } yield (state, state)
   }
 
-  private def processDownloadErrors[F[_]: Async](
+  private def processBlockDownloadErrors[F[_]: Async](
     reputationAggregator: ReputationAggregatorActor[F],
     peersManager:         PeersManagerActor[F],
     source:               HostId,
@@ -165,7 +274,7 @@ object RequestsProxy {
           ReputationAggregator.Message.UpdatePeerReputation(source, -1)
         // TODO we shall not try to download body from the same host, peer manager shall decide it
         val repeatDownloadMessage: PeersManager.Message =
-          PeersManager.Message.BlockDownloadRequest(source, errors.map(_._1))
+          PeersManager.Message.BlockBodyDownloadRequest(source, errors.map(_._1))
 
         errors.traverse(_ => reputationAggregator.sendNoWait(reputationMessage)) >>
         peersManager.sendNoWait(repeatDownloadMessage)
@@ -176,26 +285,61 @@ object RequestsProxy {
 
   // If parent of first block in response is already in storage then we send prefix to block checker
   private def sendSuccessfulBodiesPrefix[F[_]: Async: Logger](
-    headerStore:     Store[F, BlockId, BlockHeader],
-    bodyStore:       Store[F, BlockId, BlockBody],
-    blockCheckerOpt: Option[BlockCheckerActor[F]],
-    source:          HostId,
-    response:        NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
-  ): F[List[BlockId]] = {
+    state:    State[F],
+    source:   HostId,
+    response: NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
+  ): F[Seq[BlockId]] = {
     val firstBlock = response.head._1
-    def prefix =
-      response.takeWhile_ { case (_, res) => res.isRight }.collect { case (id, Right(body)) => (id, body) }
 
     val sendMessage =
       for {
-        firstBlockHeader <- OptionT(headerStore.get(firstBlock))
-        _                <- OptionT(bodyStore.get(firstBlockHeader.parentHeaderId))
+        idAndBodies      <- OptionT.fromOption[F](NonEmptyChain.fromSeq(getDefinedPrefix(response)))
+        firstBlockHeader <- OptionT(state.headerStore.get(firstBlock))
+        _                <- OptionT(state.bodyStore.get(firstBlockHeader.parentHeaderId))
         _                <- OptionT.liftF(Logger[F].debug(show"Parent of block body $firstBlock is already adopted"))
-        blockChecker     <- OptionT.fromOption[F](blockCheckerOpt)
-        idAndBodies      <- OptionT.fromOption[F](NonEmptyChain.fromSeq(prefix))
-      } yield blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockBodies(source, idAndBodies)) >>
-      idAndBodies.map(_._1).toList.pure[F]
+        sentIds          <- sendBodies(state, source, idAndBodies.toList)
+      } yield sentIds
 
-    sendMessage.getOrElse(List.empty[BlockId].pure[F]).flatten
+    sendMessage.getOrElse(List.empty[BlockId])
   }
+
+  private def sendHeaders[F[_]: Async](
+    state:  State[F],
+    hostId: HostId,
+    toSend: Seq[(BlockId, BlockHeader)]
+  ): OptionT[F, Seq[BlockId]] =
+    for {
+      toSend       <- OptionT(dropKnownPrefix(toSend, state.headerStore))
+      blockChecker <- OptionT.fromOption[F](state.blockCheckerOpt)
+      _            <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(hostId, toSend)))
+    } yield toSend.toList.map(_._1)
+
+  private def sendBodies[F[_]: Async](
+    state:  State[F],
+    hostId: HostId,
+    toSend: Seq[(BlockId, BlockBody)]
+  ): OptionT[F, Seq[BlockId]] =
+    for {
+      toSend       <- OptionT(dropKnownPrefix(toSend, state.bodyStore))
+      blockChecker <- OptionT.fromOption[F](state.blockCheckerOpt)
+      _            <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockBodies(hostId, toSend)))
+    } yield toSend.toList.map(_._1)
+
+  private def getDefinedPrefix[T, E](blocks: NonEmptyChain[(BlockId, Either[E, T])]): Seq[(BlockId, T)] =
+    blocks.takeWhile_ { case (_, res) => res.isRight }.collect { case (id, Right(body)) => (id, body) }
+
+  private def getDefinedPrefixFrom[T](
+    requestsMap: Cache[BlockId, Option[T]],
+    request:     NonEmptyChain[BlockId]
+  ): Seq[(BlockId, T)] =
+    request
+      .map(id => (id, requestsMap.get(id).flatten))
+      .takeWhile_ { case (_, bodyOpt) => bodyOpt.isDefined }
+      .map { case (id, bodyOpt) => (id, bodyOpt.get) }
+
+  private def saveDownloadRequestToCache[T](cache: Cache[BlockId, Option[T]], ids: Seq[BlockId]) =
+    ids.map(id => cache.put(id, None))
+
+  private def saveDownloadResultToCache[T](cache: Cache[BlockId, Option[T]], ids: Seq[(BlockId, T)]) =
+    ids.map { case (id, data) => cache.put(id, Option(data)) }
 }
