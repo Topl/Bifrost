@@ -64,7 +64,7 @@ object Validators {
           cryptoResources.ed25519,
           cryptoResources.blake2b256
         )
-        .flatMap(BlockHeaderValidation.WithCache.make[F](_, dataStores.headers, bigBangBlockId))
+        .flatMap(BlockHeaderValidation.WithCache.make[F](_))
       headerToBody <- BlockHeaderToBodyValidation.make()
       boxState <- BoxState.make(
         currentEventIdGetterSetters.boxState.get(),
