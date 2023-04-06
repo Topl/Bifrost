@@ -45,7 +45,6 @@ object NetworkManager {
       requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)
       blocksChecker <- networkAlgebra.makeBlockChecker(
         reputationAggregator,
-        peerManager,
         requestsProxy,
         localChain,
         slotDataStore,

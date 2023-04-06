@@ -90,7 +90,7 @@ class PeerBlockBodyFetcherTest
           }
         }
 
-      val expectedMessage = RequestsProxy.Message.DownloadBlockResponse(hostId, wrappedBodies)
+      val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
       PeerBlockBodyFetcher
@@ -164,7 +164,7 @@ class PeerBlockBodyFetcherTest
         }
 
       val expectedMessage =
-        RequestsProxy.Message.DownloadBlockResponse(hostId, wrappedBodies)
+        RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
       PeerBlockBodyFetcher
@@ -243,7 +243,7 @@ class PeerBlockBodyFetcherTest
         }
 
       val expectedMessage =
-        RequestsProxy.Message.DownloadBlockResponse(hostId, wrappedBodies)
+        RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
       PeerBlockBodyFetcher
@@ -300,7 +300,7 @@ class PeerBlockBodyFetcherTest
 
       val wrappedBodies =
         blockIdsAndBodies.map { case (id, body) => (id, Either.right[BlockBodyDownloadError, BlockBody](body)) }
-      val expectedMessage = RequestsProxy.Message.DownloadBlockResponse(hostId, wrappedBodies)
+      val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
       PeerBlockBodyFetcher

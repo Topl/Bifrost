@@ -73,8 +73,16 @@ object PeerActor {
     blockIdTree:          ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]] =
     for {
-      header <- PeerBlockHeaderFetcher.makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
-      body   <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore)
+      header <- PeerBlockHeaderFetcher.makeActor(
+        hostId,
+        client,
+        blockChecker,
+        requestsProxy,
+        localChain,
+        slotDataStore,
+        blockIdTree
+      )
+      body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore)
       initialState = State(hostId, client, reputationAggregator, header, body)
       actor <- Actor.make(initialState, getFsm[F])
     } yield actor

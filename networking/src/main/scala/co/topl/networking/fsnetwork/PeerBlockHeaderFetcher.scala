@@ -15,6 +15,7 @@ import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -35,13 +36,14 @@ object PeerBlockHeaderFetcher {
   }
 
   case class State[F[_]](
-    hostId:              HostId,
-    client:              BlockchainPeerClient[F],
-    blockHeadersChecker: BlockCheckerActor[F],
-    localChain:          LocalChainAlgebra[F],
-    slotDataStore:       Store[F, BlockId, SlotData],
-    blockIdTree:         ParentChildTree[F, BlockId],
-    fetchingFiber:       Option[Fiber[F, Throwable, Unit]]
+    hostId:        HostId,
+    client:        BlockchainPeerClient[F],
+    blockChecker:  BlockCheckerActor[F],
+    requestsProxy: RequestsProxyActor[F],
+    localChain:    LocalChainAlgebra[F],
+    slotDataStore: Store[F, BlockId, SlotData],
+    blockIdTree:   ParentChildTree[F, BlockId],
+    fetchingFiber: Option[Fiber[F, Throwable, Unit]]
   )
 
   type Response[F[_]] = State[F]
@@ -54,14 +56,15 @@ object PeerBlockHeaderFetcher {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:              HostId,
-    client:              BlockchainPeerClient[F],
-    blockHeadersChecker: BlockCheckerActor[F],
-    localChain:          LocalChainAlgebra[F],
-    slotDataStore:       Store[F, BlockId, SlotData],
-    blockIdTree:         ParentChildTree[F, BlockId]
+    hostId:        HostId,
+    client:        BlockchainPeerClient[F],
+    blockChecker:  BlockCheckerActor[F],
+    requestsProxy: RequestsProxyActor[F],
+    localChain:    LocalChainAlgebra[F],
+    slotDataStore: Store[F, BlockId, SlotData],
+    blockIdTree:   ParentChildTree[F, BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
-    val initialState = State(hostId, client, blockHeadersChecker, localChain, slotDataStore, blockIdTree, None)
+    val initialState = State(hostId, client, blockChecker, requestsProxy, localChain, slotDataStore, blockIdTree, None)
     Actor.make(initialState, getFsm[F])
   }
 
@@ -83,11 +86,11 @@ object PeerBlockHeaderFetcher {
     newBlockIdsStream.evalMap { blockId =>
       {
         for {
-          _                    <- OptionT.liftF(Logger[F].info(show"Got block with id from remote host $blockId"))
-          newBlockId           <- isUnknownBlockOpt(state, blockId)
-          remoteSlotData       <- adoptRemoteSlotData(state, newBlockId)
-          betterBlocksSlotData <- compareWithLocalChain(remoteSlotData, state)
-          _                    <- OptionT.liftF(sendProposalToBlockChecker(state, betterBlocksSlotData))
+          _          <- OptionT.liftF(Logger[F].info(show"Got slot data for $blockId from remote host ${state.hostId}"))
+          newBlockId <- isUnknownBlockOpt(state, blockId)
+          remoteSlotData <- adoptRemoteSlotData(state, newBlockId)
+          betterSlotData <- compareWithLocalChain(remoteSlotData, state)
+          _              <- OptionT.liftF(sendProposalToBlockChecker(state, betterSlotData))
         } yield ()
       }.value.void
     }
@@ -167,7 +170,7 @@ object PeerBlockHeaderFetcher {
 
   private def sendProposalToBlockChecker[F[_]](state: State[F], slotData: NonEmptyChain[SlotData]) = {
     val message = BlockChecker.Message.RemoteSlotData(state.hostId, slotData)
-    state.blockHeadersChecker.sendNoWait(message)
+    state.blockChecker.sendNoWait(message)
   }
 
   private def downloadHeaders[F[_]: Async: Logger](
@@ -176,7 +179,7 @@ object PeerBlockHeaderFetcher {
   ): F[(State[F], Response[F])] = {
     for {
       remoteHeaders <- getHeadersFromRemotePeer(state.client, blockIds)
-      _             <- OptionT.liftF(sendHeadersToBlockChecker(state, remoteHeaders))
+      _             <- OptionT.liftF(sendHeadersToProxy(state, remoteHeaders))
     } yield ()
   }.value as (state, state)
 
@@ -203,16 +206,23 @@ object PeerBlockHeaderFetcher {
     for {
       _      <- Logger[F].info(show"Fetching remote header id=$blockId")
       header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
+      _      <- Logger[F].info(show"Fetched remote header id=$blockId")
       _      <- MonadThrow[F].raiseWhen(header.id =!= blockId)(InconsistentHeaderId)
     } yield (blockId, header)
   }
 
-  private def sendHeadersToBlockChecker[F[_]](
+  private def sendHeadersToProxy[F[_]](
     state:   State[F],
     headers: NonEmptyChain[(BlockId, BlockHeader)]
   ) = {
-    val message = BlockChecker.Message.RemoteBlockHeader(state.hostId, headers)
-    state.blockHeadersChecker.sendNoWait(message)
+    val message =
+      RequestsProxy.Message.DownloadHeadersResponse(
+        state.hostId,
+        headers.map { case (id, header) =>
+          (id, Either.right[BlockHeaderDownloadError, BlockHeader](header))
+        }
+      )
+    state.requestsProxy.sendNoWait(message)
   }
 
   private def stopActor[F[_]: Applicative](state: State[F]): F[(State[F], Response[F])] = {

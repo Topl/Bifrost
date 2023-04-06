@@ -13,7 +13,6 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.StaticBodyValidationContext
 import co.topl.networking.fsnetwork.BlockChecker.Message._
-import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
@@ -42,10 +41,11 @@ object BlockChecker {
      * @param source source of headers, used as a hint from which peer bodies shall be requested
      * @param headers headers to check and adopt
      */
-    case class RemoteBlockHeader(source: HostId, headers: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class RemoteBlockHeaders(source: HostId, headers: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
 
     /**
-     * check and adopt block bodies, if adopted bodies is better than local chain then remote bodies became new top block
+     * check and adopt block bodies, if adopted bodies is better than local chain
+     * then remote bodies became new top block
      * @param source source of bodies, could be used as a hint from which peer next bodies shall be requested
      * @param bodies bodies to check
      */
@@ -57,7 +57,6 @@ object BlockChecker {
 
   case class State[F[_]](
     reputationAggregator:        ReputationAggregatorActor[F],
-    peersManager:                PeersManagerActor[F],
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -80,14 +79,13 @@ object BlockChecker {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, RemoteSlotData(hostId, slotData))        => processSlotData(state, hostId, slotData)
-      case (state, RemoteBlockHeader(hostId, blockHeaders)) => processRemoteHeaders(state, hostId, blockHeaders)
-      case (state, RemoteBlockBodies(_, blockBodies))       => processRemoteBodies(state, blockBodies)
+      case (state, RemoteSlotData(hostId, slotData))         => processSlotData(state, hostId, slotData)
+      case (state, RemoteBlockHeaders(hostId, blockHeaders)) => processRemoteHeaders(state, hostId, blockHeaders)
+      case (state, RemoteBlockBodies(hostId, blockBodies))   => processRemoteBodies(state, hostId, blockBodies)
     }
 
   def makeActor[F[_]: Async: Logger](
     reputationAggregator:        ReputationAggregatorActor[F],
-    peersManager:                PeersManagerActor[F],
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -105,7 +103,6 @@ object BlockChecker {
     val initialState =
       State(
         reputationAggregator,
-        peersManager,
         requestsProxy,
         localChain,
         slotDataStore,
@@ -149,16 +146,15 @@ object BlockChecker {
     state:           State[F],
     remoteSlotData:  NonEmptyChain[SlotData],
     candidateHostId: HostId
-  ): F[State[F]] =
+  ): F[State[F]] = {
+    val remoteIds = remoteSlotData.map(_.slotId.blockId)
     for {
       fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
-      fullSlotDataIds = fullSlotData.map(_.slotId.blockId)
-      _        <- Logger[F].debug(show"Extend slot data ${remoteSlotData.map(_.slotId.blockId)} to $fullSlotDataIds")
-      newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
-      isChainExtension = state.bestKnownRemoteSlotDataOpt.exists(_.isExtendedBy(remoteSlotData))
-      // we do NOT ask new headers if new slot data is overlap of current best chain
-      _ <- if (isChainExtension) Logger[F].info("Receive extension for current chain") else requestNextHeaders(newState)
+      _            <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
+      newState     <- changeLocalSlotData(state, fullSlotData, candidateHostId)
+      _            <- requestNextHeaders(newState)
     } yield newState
+  }
 
   /**
    * Received remote slot data could be not full, because some of slot data could be already saved in slot storage,
@@ -198,10 +194,10 @@ object BlockChecker {
   private def requestNextHeaders[F[_]: MonadThrow: Logger](state: State[F]): F[Unit] =
     state.bestKnownRemoteSlotDataOpt
       .map { slotData =>
-        getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.last, chunkSize)
+        getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.lastId, chunkSize)
           .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
-          .map(PeersManager.Message.BlockHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
-          .foreachF(state.peersManager.sendNoWait)
+          .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
+          .foreachF(state.requestsProxy.sendNoWait)
       }
       .getOrElse(().pure[F])
 
@@ -210,16 +206,15 @@ object BlockChecker {
     hostId:       HostId,
     blockHeaders: NonEmptyChain[(BlockId, BlockHeader)]
   ): F[(State[F], Response[F])] = {
+    val skipMessage = show"Skip validation for known headers ${blockHeaders.map(_._1)}"
+
     val processResult =
       for {
-        _ <- EitherT.right(Logger[F].info(show"Received headers: ${blockHeaders.map(_._1)}"))
-        newHeadersOpt = state.headerStore.filterKnownBlocks(blockHeaders)
-        newHeaders       <- EitherT.fromOptionF(newHeadersOpt, "Skip validation for known headers")
+        _                <- EitherT.right(Logger[F].info(show"Received headers: ${blockHeaders.map(_._1)}"))
+        newHeaders       <- EitherT.fromOptionF(dropKnownPrefix(blockHeaders.toList, state.headerStore), skipMessage)
         (verifiedIds, _) <- verifyAndSaveHeaders(state, newHeaders)
-        _                <- EitherT.right[String](requestBlockBodies(state, hostId, verifiedIds.last))
-        // we no need to request next headers if we are no longer on the best chain
-        receivedHeadersAreInBestChain = state.bestKnownRemoteSlotDataOpt.exists(_.contains(verifiedIds.last))
-        _ <- EitherT.right[String](if (receivedHeadersAreInBestChain) requestNextHeaders(state) else ().pure[F])
+        _                <- EitherT.right[String](requestMissedBodiesForKnownHeaders(state, hostId, verifiedIds.last))
+        _                <- EitherT.right[String](requestNextHeaders(state))
       } yield verifiedIds
 
     processResult
@@ -241,8 +236,8 @@ object BlockChecker {
           .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$headerId error=$error"))
           .leftMap(error => new IllegalArgumentException(error.show))
           .rethrowT
-        _ <- Logger[F].info(show"Saving header id=$headerId")
         _ <- state.headerStore.put(headerId, header)
+        _ <- Logger[F].info(show"Saved header id=$headerId")
       } yield (headerId, header)
 
     EitherT
@@ -259,37 +254,39 @@ object BlockChecker {
       .map(_.unzip)
   }
 
-  private def requestBlockBodies[F[_]: Async: Logger](
-    state:             State[F],
-    hostId:            HostId,
-    bestKnownHeaderId: BlockId
+  private def requestMissedBodiesForKnownHeaders[F[_]: Async: Logger](
+    state:        State[F],
+    hostId:       HostId,
+    bestKnownTip: BlockId
   ): F[Unit] = {
-    val getMissedBodiesFun =
-      getFromChainUntil[F, BlockId](state.slotDataStore.getOrRaise, id => id.pure[F], state.bodyStore.contains) _
+    def takeWhileKnownHeaders(ids: NonEmptyChain[BlockId]) =
+      OptionT(ids.toList.takeWhileF(state.headerStore.contains).map(NonEmptyChain.fromSeq))
 
-    val requestMissedCommands =
+    val requestMissedBodiesCommand =
       for {
-        missedBodies <- OptionT(getMissedBodiesFun(bestKnownHeaderId).map(NonEmptyChain.fromSeq))
-        _ <- OptionT.liftF(Logger[F].info(show"Send request to get missed bodies for blockIds: $missedBodies"))
-        message = RequestsProxy.Message.DownloadBlocksRequest(hostId, missedBodies)
+        unknownBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize)
+        unknownBodiesWithHeaders <- takeWhileKnownHeaders(unknownBodies)
+        _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: $unknownBodiesWithHeaders"))
+        message = RequestsProxy.Message.DownloadBodiesRequest(hostId, unknownBodiesWithHeaders)
         _ <- OptionT.liftF(state.requestsProxy.sendNoWait(message))
       } yield ()
 
-    requestMissedCommands.getOrElse(().pure[F])
+    requestMissedBodiesCommand.getOrElse(().pure[F])
   }
 
   private def processRemoteBodies[F[_]: Async: Logger](
     state:       State[F],
+    hostId:      HostId,
     blockBodies: NonEmptyChain[(BlockId, BlockBody)]
   ): F[(State[F], Response[F])] = {
-    val newBodiesOpt = state.bodyStore.filterKnownBlocks(blockBodies)
+    val skipMessage = show"Skip validation of known bodies ${blockBodies.map(_._1)}"
 
     val processResult: EitherT[F, String, (State[F], BlockId)] =
       for {
-        newBlockBodies      <- EitherT.fromOptionF(newBodiesOpt, "Skip validation of known bodies")
+        newBlockBodies      <- EitherT.fromOptionF(dropKnownPrefix(blockBodies.toList, state.bodyStore), skipMessage)
         verifiedFullBlocks  <- verifyAndSaveBodies(state, newBlockBodies)
         appliedNewHeadBlock <- tryToApplyBestBlock(state, verifiedFullBlocks.last.header.id)
-        _                   <- EitherT.liftF(requestNextBodyBlocks(state))
+        _                   <- EitherT.liftF(requestNextBodies(state, hostId))
         newState = updateState(state, appliedNewHeadBlock)
       } yield (newState, appliedNewHeadBlock)
 
@@ -315,8 +312,8 @@ object BlockChecker {
           .leftSemiflatTap(e => Logger[F].warn(show"Received invalid block body id=$blockId errors=$e"))
           .leftMap((e: String) => new IllegalArgumentException(e))
           .rethrowT
-        _ <- Logger[F].info(show"Saving body id=$verifiedId")
         _ <- state.bodyStore.put(verifiedId, verifiedBlock.body)
+        _ <- Logger[F].info(show"Saved body id=$verifiedId")
       } yield block
 
     EitherT.fromOptionF(
@@ -376,17 +373,10 @@ object BlockChecker {
     } yield appliedBlock
   }
 
-  private def requestNextBodyBlocks[F[_]: Async: Logger](state: State[F]): F[Unit] = {
-    val sendMessageCommand =
-      for {
-        bestTip      <- OptionT.fromOption[F](state.bestKnownRemoteSlotDataOpt.map(_.last))
-        missedBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestTip, chunkSize)
-        _            <- OptionT.liftF(Logger[F].debug(show"Request next bodies from proxy: $missedBodies"))
-        host = state.bestKnownRemoteSlotDataHost.get
-      } yield state.requestsProxy.sendNoWait(RequestsProxy.Message.DownloadBlocksRequest(host, missedBodies))
-
-    sendMessageCommand.getOrElse(().pure[F]).flatten
-  }
+  private def requestNextBodies[F[_]: Async: Logger](state: State[F], hostId: HostId): F[Unit] =
+    state.bestKnownRemoteSlotDataOpt
+      .map(bestChain => requestMissedBodiesForKnownHeaders(state, hostId, bestChain.lastId))
+      .getOrElse(().pure[F])
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
   private def updateState[F[_]](state: State[F], newTopBlock: BlockId): State[F] =
