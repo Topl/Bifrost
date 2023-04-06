@@ -335,7 +335,11 @@ object BlockHeaderValidation {
     /**
      * Wraps an existing BlockHeaderValidation with a cache.  Valid block IDs are saved in the cache to avoid recomputing
      * when switching branches.
-     * @param underlying The base cache
+     *
+     * Invalid block IDs are not saved, but this is subject to change.  This is to avoid an adversary flooding the
+     * cache with invalid block IDs, but this comes at the risk of the adversary flooding compute resources.
+     *
+     * @param underlying The base header validation implementation
      * @param cacheSize The maximum number of header IDs to store
      */
     def make[F[_]: Sync](
