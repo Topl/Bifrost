@@ -84,6 +84,12 @@ lazy val testnetSimulationOrchestratorDockerSettings =
     Docker / packageName := "testnet-simulation-orchestrator"
   )
 
+lazy val genusDockerSettings =
+  dockerSettings ++ Seq(
+    dockerExposedPorts := Seq(9091),
+    Docker / packageName := "genus-server"
+  )
+
 def assemblySettings(main: String) = Seq(
   assembly / mainClass := Some(main),
   assembly / test := {},
@@ -620,7 +626,7 @@ lazy val catsAkka = project
 
 lazy val genusServer = project
   .in(file("genus-server"))
-  .enablePlugins(BuildInfoPlugin)
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(
     name := "genus-server",
     commonSettings,
@@ -628,7 +634,8 @@ lazy val genusServer = project
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genusServer",
-    libraryDependencies ++= Dependencies.genusServer
+    libraryDependencies ++= Dependencies.genusServer,
+    genusDockerSettings
   )
   .dependsOn(
     genusLibrary,

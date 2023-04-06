@@ -1,0 +1,14 @@
+version: "3.7"
+
+services:
+  node:
+    image: toplprotocol/bifrost-node
+
+    network_mode: "host"
+
+  genus:
+    image: toplprotocol/genus-server
+    depends_on:
+      - node
+
+    network_mode: "host"

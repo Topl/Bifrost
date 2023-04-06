@@ -39,6 +39,8 @@ object GenusServerApp
 
       rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
+      // sleep a little the service, helps on docker compose
+      _ <- Temporal[F].sleep(30.seconds).flatMap(_ => Logger[F].info(s"After sleep")).toResource
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
       nodeEnabled <- Resource.pure(false) // maybe we can use a config
