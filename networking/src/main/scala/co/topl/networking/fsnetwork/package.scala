@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.{Monad, MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
-import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure, BlockId, SlotData}
+import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.typeclasses.implicits._
@@ -31,6 +31,9 @@ package object fsnetwork {
   }
 
   implicit class BlockchainPeerClientOps[F[_]: MonadThrow: Logger](client: BlockchainPeerClient[F]) {
+
+    def getRemoteHeaderOrError(id: BlockId): F[BlockHeader] =
+      OptionT(client.getRemoteHeader(id)).getOrRaise(BlockHeaderDownloadError.HeaderNotFoundInPeer)
 
     def getRemoteSlotDataLogged(id: BlockId): F[SlotData] =
       Logger[F].info(show"Fetching remote SlotData id=$id") >>
@@ -114,9 +117,7 @@ package object fsnetwork {
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
           acc.pure[F],
-          getSlotDataFromT(t).flatMap { slotData =>
-            iteration(acc.appended(t), slotData.parentSlotId.blockId)
-          }
+          getSlotDataFromT(t).flatMap(slotData => iteration(acc.appended(t), slotData.parentSlotId.blockId))
         )
       }
 
@@ -182,6 +183,14 @@ package object fsnetwork {
   sealed trait BlockHeaderDownloadError extends Exception
 
   object BlockHeaderDownloadError {
+
+    case object HeaderNotFoundInPeer extends BlockBodyDownloadError {
+      override def toString: String = "Block body has not found in peer"
+    }
+
+    case class HeaderHaveIncorrectId(expected: BlockId, actual: BlockId) extends BlockBodyDownloadError {
+      override def toString: String = show"Peer returns header with bad id: expected $expected, actual $actual"
+    }
 
     case class UnknownError(ex: Throwable) extends BlockHeaderDownloadError {
       this.initCause(ex)

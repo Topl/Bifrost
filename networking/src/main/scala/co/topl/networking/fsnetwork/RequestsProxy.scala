@@ -167,12 +167,12 @@ object RequestsProxy {
         // TODO translate error to reputation value or send error itself?
         val reputationMessage: ReputationAggregator.Message =
           ReputationAggregator.Message.UpdatePeerReputation(source, -1)
-        // TODO we shall not try to download header from the same host, peer manager shall decide it
-        val repeatDownloadMessage: PeersManager.Message =
-          PeersManager.Message.BlockHeadersRequest(source, errors.map(_._1))
 
-        errors.traverse(_ => reputationAggregator.sendNoWait(reputationMessage)) >>
-        peersManager.sendNoWait(repeatDownloadMessage)
+        errors.traverse { case (id, _) =>
+          reputationAggregator.sendNoWait(reputationMessage) >>
+          // TODO we shall not try to download header from the same host, peer manager shall decide it
+          peersManager.sendNoWait(PeersManager.Message.BlockHeadersRequest(source, NonEmptyChain.one(id)))
+        }.void
 
       case None => ().pure[F]
     }
@@ -272,12 +272,12 @@ object RequestsProxy {
         // TODO translate error to reputation value or send error itself?
         val reputationMessage: ReputationAggregator.Message =
           ReputationAggregator.Message.UpdatePeerReputation(source, -1)
-        // TODO we shall not try to download body from the same host, peer manager shall decide it
-        val repeatDownloadMessage: PeersManager.Message =
-          PeersManager.Message.BlockBodyDownloadRequest(source, errors.map(_._1))
 
-        errors.traverse(_ => reputationAggregator.sendNoWait(reputationMessage)) >>
-        peersManager.sendNoWait(repeatDownloadMessage)
+        errors.traverse { case (id, _) =>
+          reputationAggregator.sendNoWait(reputationMessage) >>
+          // TODO we shall not try to download header from the same host, peer manager shall decide it
+          peersManager.sendNoWait(PeersManager.Message.BlockBodyDownloadRequest(source, NonEmptyChain.one(id)))
+        }.void
 
       case None => ().pure[F]
     }

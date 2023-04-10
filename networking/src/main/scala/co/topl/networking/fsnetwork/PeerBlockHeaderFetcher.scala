@@ -15,6 +15,7 @@ import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
+import co.topl.networking.fsnetwork.BlockHeaderDownloadError.{HeaderHaveIncorrectId, UnknownError}
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -86,8 +87,8 @@ object PeerBlockHeaderFetcher {
     newBlockIdsStream.evalMap { blockId =>
       {
         for {
-          _          <- OptionT.liftF(Logger[F].info(show"Got slot data for $blockId from remote host ${state.hostId}"))
-          newBlockId <- isUnknownBlockOpt(state, blockId)
+          _              <- OptionT.liftF(Logger[F].info(show"Got slot for $blockId from remote host ${state.hostId}"))
+          newBlockId     <- isUnknownBlockOpt(state, blockId)
           remoteSlotData <- adoptRemoteSlotData(state, newBlockId)
           betterSlotData <- compareWithLocalChain(remoteSlotData, state)
           _              <- OptionT.liftF(sendProposalToBlockChecker(state, betterSlotData))
@@ -131,7 +132,7 @@ object PeerBlockHeaderFetcher {
   }
 
   // return: recent (current) block is the last
-  private def buildTine[F[_]: MonadThrow: Logger](
+  private def buildTine[F[_]: Async: Logger](
     store:  Store[F, BlockId, SlotData],
     client: BlockchainPeerClient[F],
     from:   BlockId
@@ -148,6 +149,10 @@ object PeerBlockHeaderFetcher {
       getSlotData,
       (sd: SlotData) => store.contains(sd.slotId.blockId)
     )(from)
+      .handleErrorWith { error =>
+        Logger[F].error(show"Failed to get remote slot data due to ${error.getLocalizedMessage}") >>
+        List.empty[SlotData].pure[F] // TODO send information about error to reputation handler
+      }
 
     OptionT(tine.map(NonEmptyChain.fromSeq(_)))
   }
@@ -176,52 +181,57 @@ object PeerBlockHeaderFetcher {
   private def downloadHeaders[F[_]: Async: Logger](
     state:    State[F],
     blockIds: NonEmptyChain[BlockId]
-  ): F[(State[F], Response[F])] = {
+  ): F[(State[F], Response[F])] =
     for {
-      remoteHeaders <- getHeadersFromRemotePeer(state.client, blockIds)
-      _             <- OptionT.liftF(sendHeadersToProxy(state, remoteHeaders))
-    } yield ()
-  }.value as (state, state)
+      remoteHeaders <- getHeadersFromRemotePeer(state.client, state.hostId, blockIds)
+      _             <- sendHeadersToProxy(state, NonEmptyChain.fromSeq(remoteHeaders).get)
+    } yield (state, state)
 
   private def getHeadersFromRemotePeer[F[_]: Async: Logger](
     client:   BlockchainPeerClient[F],
+    hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
-  ): OptionT[F, NonEmptyChain[(BlockId, BlockHeader)]] =
-    OptionT(
-      Stream
-        .foldable[F, NonEmptyChain, BlockId](blockIds)
-        .parEvalMapUnbounded(downloadHeader(client, _))
-        .compile
-        .toList
-        .map(NonEmptyChain.fromSeq(_))
-    )
+  ): F[List[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]] =
+    Stream
+      .foldable[F, NonEmptyChain, BlockId](blockIds)
+      .parEvalMapUnbounded(downloadHeader(client, hostId, _))
+      .compile
+      .toList
 
   private def downloadHeader[F[_]: Async: Logger](
     client:  BlockchainPeerClient[F],
+    hostId:  HostId,
     blockId: BlockId
-  ): F[(BlockId, BlockHeader)] = {
-    val InconsistentHeaderId =
-      new IllegalArgumentException("Claimed block ID did not match provided header")
+  ): F[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])] = {
+    val headerEither =
+      for {
+        _                   <- Logger[F].info(show"Fetching remote header id=$blockId")
+        (fetchedId, header) <- client.getRemoteHeaderOrError(blockId).map(h => (h.id, h))
+        _                   <- Logger[F].info(show"Fetched remote header id=$blockId")
+        _                   <- MonadThrow[F].raiseWhen(fetchedId =!= blockId)(HeaderHaveIncorrectId(blockId, fetchedId))
+      } yield header
 
-    for {
-      _      <- Logger[F].info(show"Fetching remote header id=$blockId")
-      header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
-      _      <- Logger[F].info(show"Fetched remote header id=$blockId")
-      _      <- MonadThrow[F].raiseWhen(header.id =!= blockId)(InconsistentHeaderId)
-    } yield (blockId, header)
+    headerEither
+      .map(blockHeader => Either.right[BlockHeaderDownloadError, BlockHeader](blockHeader))
+      .handleError {
+        case e: BlockHeaderDownloadError => Either.left[BlockHeaderDownloadError, BlockHeader](e)
+        case unknownError                => Either.left(UnknownError(unknownError))
+      }
+      .flatTap {
+        case Right(_) =>
+          Logger[F].debug(show"Successfully download block header $blockId from peer $hostId")
+        case Left(error) =>
+          Logger[F].error(show"Failed download block $blockId from peer $hostId because of: ${error.toString}")
+      }
+      .map((blockId, _))
   }
 
   private def sendHeadersToProxy[F[_]](
-    state:   State[F],
-    headers: NonEmptyChain[(BlockId, BlockHeader)]
-  ) = {
-    val message =
-      RequestsProxy.Message.DownloadHeadersResponse(
-        state.hostId,
-        headers.map { case (id, header) =>
-          (id, Either.right[BlockHeaderDownloadError, BlockHeader](header))
-        }
-      )
+    state:         State[F],
+    headersEither: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+  ): F[Unit] = {
+    val message: RequestsProxy.Message =
+      RequestsProxy.Message.DownloadHeadersResponse(state.hostId, headersEither)
     state.requestsProxy.sendNoWait(message)
   }
 
