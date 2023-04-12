@@ -1,6 +1,8 @@
 package co.topl.codecs.bytes.tetra
 
+import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
 import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.common.ImmutableBytes
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
@@ -19,11 +21,15 @@ trait ProtoIdentifiableOps {
 
 class IoTransactionIdOps(val transaction: IoTransaction) extends AnyVal {
 
-  import co.topl.brambl.common.ContainsImmutable.instances.ioTransactionImmutable
   import co.topl.brambl.common._
 
-  def id: Identifier.IoTransaction32 =
-    Identifier.IoTransaction32(ContainsEvidence[IoTransaction].sized32Evidence(transaction))
+  def id: Identifier.IoTransaction32 = {
+    implicit val immutableContainsImmutable: ContainsImmutable[ImmutableBytes] = identity
+    val signableBytes = ContainsSignable[IoTransaction].signableBytes(transaction)
+    val immutable = ImmutableBytes(signableBytes.value)
+    val evidence = ContainsEvidence[ImmutableBytes].sized32Evidence(immutable)
+    Identifier.IoTransaction32(evidence)
+  }
 
 }
 
