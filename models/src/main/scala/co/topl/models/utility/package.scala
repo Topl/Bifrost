@@ -13,4 +13,8 @@ package object utility {
   implicit def byteVectorToByteString(byteVector: ByteVector): ByteString =
     ByteString.copyFrom(byteVector.toByteBuffer)
 
+  implicit def byteStringToByteArray(byteString: ByteString): Array[Byte] = byteString.toByteArray
+
+  implicit def byteArrayToByteString(byteArray: Array[Byte]): ByteString = ByteString.copyFrom(byteArray)
+
 }

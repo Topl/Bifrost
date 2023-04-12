@@ -22,7 +22,6 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
-import scodec.bits.ByteVector
 
 object EtaCalculation {
 
@@ -151,7 +150,7 @@ object EtaCalculation {
     ): F[Eta] =
       Sync[F]
         .delay(EtaCalculationArgs(previousEta, epoch, rhoNonceHashValues.toIterable).digestMessages)
-        .flatMap(bytes => blake2b256Resource.use(b2b => Sync[F].delay(b2b.hash(bytes.map(v => v: ByteVector): _*))))
+        .flatMap(bytes => blake2b256Resource.use(b2b => Sync[F].delay(b2b.hash(bytes.map(v => v: Array[Byte]): _*))))
         .map(v => v: ByteString)
         .map(Sized.strictUnsafe(_): Eta)
 

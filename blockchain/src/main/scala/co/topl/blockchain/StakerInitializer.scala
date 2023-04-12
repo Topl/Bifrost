@@ -123,19 +123,19 @@ object StakerInitializers {
 
       val operatorSK = new Ed25519()
         .deriveKeyPairFromSeed(
-          blake2b256.hash(seed.data :+ 1).toArray
+          blake2b256.hash(seed.data.toByteArray :+ 1)
         )
         .signingKey
         .bytes
       val walletSK = new Ed25519()
         .deriveKeyPairFromSeed(
-          blake2b256.hash(seed.data :+ 2).toArray
+          blake2b256.hash(seed.data.toByteArray :+ 2)
         )
         .signingKey
         .bytes
       val spendingSK = new Ed25519()
         .deriveKeyPairFromSeed(
-          blake2b256.hash(seed.data :+ 3).toArray
+          blake2b256.hash(seed.data.toByteArray :+ 3)
         )
         .signingKey
         .bytes
@@ -143,10 +143,10 @@ object StakerInitializers {
         Ed25519VRF
           .precomputed()
           .deriveKeyPairFromSeed(
-            blake2b256.hash(seed.data :+ 4).toArray
+            blake2b256.hash(seed.data.toByteArray :+ 4)
           )
       val (kesSK, _) = new KesProduct().createKeyPair(
-        seed = blake2b256.hash(seed.data :+ 5).toArray,
+        seed = blake2b256.hash(seed.data.toByteArray :+ 5),
         height = kesKeyHeight,
         0
       )

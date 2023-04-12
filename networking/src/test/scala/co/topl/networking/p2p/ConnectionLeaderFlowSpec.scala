@@ -19,7 +19,6 @@ import org.scalatest.EitherValues
 import org.scalatest.OptionValues
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scodec.bits.ByteVector
 
 import scala.util.Random
 
@@ -46,22 +45,20 @@ class ConnectionLeaderFlowSpec
     val random2 = new Random(0)
     val expectedPublishedInt = random2.nextInt()
     val expectedPublishedEvidence =
-      new Blake2b256().hash(ByteVector(intToBytestring(expectedPublishedInt).toByteBuffer))
+      new Blake2b256().hash(intToBytestring(expectedPublishedInt).toArray)
 
     val remoteInt = expectedPublishedInt + 1
-    val remoteIntEvidence = new Blake2b256().hash(ByteVector(intToBytestring(remoteInt).toByteBuffer))
+    val remoteIntEvidence = new Blake2b256().hash(intToBytestring(remoteInt).toArray)
 
     val expectedConnectionLeader =
       if (
         BigInt(
           new Blake2b256()
-            .hash(ByteVector(intToBytestring(expectedPublishedInt).toArray ++ intToBytestring(remoteInt).toArray))
-            .toArray
+            .hash(intToBytestring(expectedPublishedInt).toArray ++ intToBytestring(remoteInt).toArray)
         ) >
         BigInt(
           new Blake2b256()
-            .hash(ByteVector(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray))
-            .toArray
+            .hash(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray)
         )
       ) ConnectionLeaders.Local
       else ConnectionLeaders.Remote
@@ -76,9 +73,9 @@ class ConnectionLeaderFlowSpec
       TestSource.probe[ByteString].via(underTest).toMat(TestSink[ByteString]())(Keep.both).run()
 
     sub.request(1)
-    val evidence = ByteVector(sub.expectNext().toByteBuffer)
+    val evidence = sub.expectNext().toArray
     evidence shouldBe expectedPublishedEvidence
-    pub.sendNext(ByteString(remoteIntEvidence.toArray))
+    pub.sendNext(ByteString(remoteIntEvidence))
 
     sub.request(1)
     bytestringToInt(sub.expectNext()) shouldBe expectedPublishedInt
