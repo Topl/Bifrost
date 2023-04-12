@@ -18,6 +18,7 @@ import co.topl.models.utility.Lengths
 import co.topl.models.utility.Sized
 import com.google.protobuf.ByteString
 import quivr.models._
+import quivr.models.VerificationKey._
 
 /**
  * Represents the data required to initialize a new staking.  This includes the necessary secret keys, plus their
@@ -77,7 +78,7 @@ object StakerInitializers {
                       Challenge().withRevealed(
                         Proposition(
                           Proposition.Value.DigitalSignature(
-                            Proposition.DigitalSignature("ed25519", VerificationKey(spendingVK))
+                            Proposition.DigitalSignature("ed25519", VerificationKey(Vk.Ed25519(Ed25519Vk(spendingVK))))
                           )
                         )
                       )
