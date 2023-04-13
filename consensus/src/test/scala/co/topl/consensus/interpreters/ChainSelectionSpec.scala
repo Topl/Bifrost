@@ -225,6 +225,65 @@ class ChainSelectionSpec
     orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
   }
 
+  it should "tiebreak chain-density rule by rhoTestHash for equal density tines" in {
+    val grandAncestor =
+      createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Array.fill[Byte](32)(9)))), height = 4)
+    val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
+
+    val List(rhoX, rhoY) =
+      List
+        .tabulate(2)(i =>
+          Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](ByteString.copyFrom(Array.fill[Byte](64)(i.toByte))))
+        )
+        .sortBy(r => BigInt(rhoToRhoTestHash(r.sizedBytes.data).toByteArray))
+
+    val xSegment = {
+      val base = LazyList
+        .unfold(ancestor)(previous =>
+          Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
+            .map(d => (d, d))
+        )
+        .take(50)
+        .toList
+
+      base :+ createSlotData(
+        base.last.slotId.slot + 1,
+        base.last.slotId,
+        base.last.height + 1,
+        rho = rhoX
+      )
+    }
+    val ySegment = {
+      val base = LazyList
+        .unfold(ancestor)(previous =>
+          Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
+            .map(d => (d, d))
+        )
+        .take(50)
+        .toList
+
+      base :+ createSlotData(
+        base.last.slotId.slot + 1,
+        base.last.slotId,
+        base.last.height + 1,
+        rho = rhoY
+      )
+    }
+
+    val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
+
+    val fetchSlotData = mockFunction[BlockId, F[SlotData]]
+
+    fetchSlotData
+      .expects(*)
+      .anyNumberOfTimes()
+      .onCall((id: BlockId) => allBlocks(id).pure[F])
+
+    val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource, kLookback = 0, sWindow = 150)
+
+    orderT.compare(xSegment.last, ySegment.last).unsafeRunSync() should be > 0
+  }
+
   private def createSlotData(
     slot:         Slot,
     parentSlotId: SlotId,
