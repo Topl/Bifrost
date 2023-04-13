@@ -5,12 +5,14 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Evidence, Identifier, LockAddress, TransactionOutputAddress}
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
+import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
 import quivr.models.Digest
+
 import scala.jdk.CollectionConverters._
 
 /**
@@ -35,6 +37,7 @@ object VertexSchemaInstances {
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
+    private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
 
     // Note, From here to the end, VertexSchemas not tested
     /**

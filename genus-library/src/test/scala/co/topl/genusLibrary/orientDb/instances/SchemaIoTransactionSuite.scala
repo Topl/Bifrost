@@ -7,7 +7,6 @@ import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
 import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
 import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
-import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.ioTransactionSchema
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -108,7 +107,7 @@ class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuit
       transactionVertex <- Sync[F].blocking {
         val v = orientGraph
           .addVertex(s"class:${transactionSchema.name}", transactionSchema.encode(transaction).asJava)
-        v.setProperty(ioTransactionSchema.links.head.propertyName, blockHeaderVertex.getId)
+        v.setProperty(transactionSchema.links.head.propertyName, blockHeaderVertex.getId)
         v
       }.toResource
 
