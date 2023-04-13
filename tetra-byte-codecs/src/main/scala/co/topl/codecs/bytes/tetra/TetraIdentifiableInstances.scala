@@ -8,6 +8,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
 
+import co.topl.brambl.common._
 import scala.language.implicitConversions
 
 trait ProtoIdentifiableOps {
@@ -21,16 +22,18 @@ trait ProtoIdentifiableOps {
 
 class IoTransactionIdOps(val transaction: IoTransaction) extends AnyVal {
 
-  import co.topl.brambl.common._
-
   def id: Identifier.IoTransaction32 = {
-    implicit val immutableContainsImmutable: ContainsImmutable[ImmutableBytes] = identity
+    import IoTransactionIdOps._
     val signableBytes = ContainsSignable[IoTransaction].signableBytes(transaction)
     val immutable = ImmutableBytes(signableBytes.value)
     val evidence = ContainsEvidence[ImmutableBytes].sized32Evidence(immutable)
     Identifier.IoTransaction32(evidence)
   }
 
+}
+
+object IoTransactionIdOps {
+  implicit private val immutableContainsImmutable: ContainsImmutable[ImmutableBytes] = identity
 }
 
 class BlockHeaderIdOps(val header: BlockHeader) extends AnyVal {
