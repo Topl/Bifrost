@@ -11,7 +11,6 @@ import co.topl.models.Bytes
 import co.topl.models.UnsignedBlockHeader
 import co.topl.models.utility._
 import com.google.protobuf.ByteString
-import scodec.bits.ByteVector
 
 package object consensus {
 
@@ -56,7 +55,7 @@ package object consensus {
 
   def thresholdEvidence(threshold: Ratio)(implicit blake2b256: Blake2b256): ByteString =
     blake2b256.hash(
-      ByteVector(threshold.numerator.toByteArray ++ threshold.denominator.toByteArray)
+      threshold.numerator.toByteArray ++ threshold.denominator.toByteArray
     )
 
   /**

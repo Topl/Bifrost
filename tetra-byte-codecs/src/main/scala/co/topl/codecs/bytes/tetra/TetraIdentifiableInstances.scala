@@ -42,7 +42,7 @@ class BlockHeaderIdOps(val header: BlockHeader) extends AnyVal {
   def id: BlockId =
     BlockId(
       new Blake2b256().hash(
-        TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.toByteVector
+        TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.toByteVector.toArray
       )
     )
 }

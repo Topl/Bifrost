@@ -7,7 +7,6 @@ import akka.util.ByteString
 import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.networking.multiplexer.{bytestringToInt, intToBytestring}
-import scodec.bits.ByteVector
 
 import scala.concurrent.{Future, Promise}
 import scala.util.Random
@@ -40,7 +39,7 @@ object ConnectionLeaderFlow {
       .fromMaterializer { (_, _) =>
         val localValue = random.nextInt()
         val localValueBytes = intToBytestring(localValue).toArray
-        val localValueEvidence = ByteString(new Blake2b256().hash(ByteVector(localValueBytes)).toArray)
+        val localValueEvidence = ByteString(new Blake2b256().hash(localValueBytes))
         evidenceFlow(
           localValueEvidence,
           remoteEvidence => {
@@ -50,13 +49,13 @@ object ConnectionLeaderFlow {
               localValue,
               remoteInt => {
                 val remoteValueBytes = intToBytestring(remoteInt).toArray
-                val remoteValueHash = ByteString(new Blake2b256().hash(ByteVector(remoteValueBytes)).toArray)
+                val remoteValueHash = ByteString(new Blake2b256().hash(remoteValueBytes))
                 if (remoteEvidence != remoteValueHash)
                   throw new IllegalStateException("Remote evidence did not match remote value")
                 val connectionLeader =
                   if (
-                    BigInt(new Blake2b256().hash(ByteVector(localValueBytes ++ remoteValueBytes)).toArray) >
-                    BigInt(new Blake2b256().hash(ByteVector(remoteValueBytes ++ localValueBytes)).toArray)
+                    BigInt(new Blake2b256().hash(localValueBytes ++ remoteValueBytes)) >
+                    BigInt(new Blake2b256().hash(remoteValueBytes ++ localValueBytes))
                   )
                     ConnectionLeaders.Local
                   else ConnectionLeaders.Remote

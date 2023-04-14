@@ -58,11 +58,11 @@ class KesProductSpec
   }
 
   it should "generate identical keypairs given the same seed" in {
-    forAll(genBytesWithBoundedSize(1, 1024), Gen.choose(1, 12), Gen.choose(1, 12)) {
+    forAll(genByteArrayWithBoundedSize(1, 1024), Gen.choose(1, 12), Gen.choose(1, 12)) {
       (seedBytes, supHeight: Int, subHeight: Int) =>
         val kesProduct = new KesProduct
-        val (_, vk1) = kesProduct.createKeyPair(seedBytes.toArray, (supHeight, subHeight), 0)
-        val (_, vk2) = kesProduct.createKeyPair(seedBytes.toArray, (supHeight, subHeight), 0)
+        val (_, vk1) = kesProduct.createKeyPair(Array.from(seedBytes), (supHeight, subHeight), 0)
+        val (_, vk2) = kesProduct.createKeyPair(Array.from(seedBytes), (supHeight, subHeight), 0)
 
         vk1 shouldBe vk2
     }
