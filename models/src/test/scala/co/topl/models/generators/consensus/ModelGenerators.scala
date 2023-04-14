@@ -36,6 +36,9 @@ trait ModelGenerators {
   def signatureEd25519Gen: Gen[ByteString] =
     genSizedStrictByteString[Lengths.`64`.type]().map(_.data)
 
+  def txRoot: Gen[Sized.Strict[ByteString, Lengths.`32`.type]] =
+    genSizedStrictByteString[Lengths.`32`.type]()
+
   implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] =
     Arbitrary(genSizedStrictByteString[Lengths.`32`.type]().map(_.data).map(StakingAddress(_)))
 

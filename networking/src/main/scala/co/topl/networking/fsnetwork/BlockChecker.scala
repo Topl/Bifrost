@@ -39,17 +39,17 @@ object BlockChecker {
     /**
      * Check and adopt remote headers, if headers is valid then appropriate bodies will be requested
      * @param source source of headers, used as a hint from which peer bodies shall be requested
-     * @param headers headers to check and adopt
+     * @param idsAndHeaders headers to check and adopt
      */
-    case class RemoteBlockHeaders(source: HostId, headers: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class RemoteBlockHeaders(source: HostId, idsAndHeaders: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
 
     /**
      * check and adopt block bodies, if adopted bodies is better than local chain
      * then remote bodies became new top block
      * @param source source of bodies, could be used as a hint from which peer next bodies shall be requested
-     * @param bodies bodies to check
+     * @param idsAndBodies bodies to check
      */
-    case class RemoteBlockBodies(source: HostId, bodies: NonEmptyChain[(BlockId, BlockBody)]) extends Message
+    case class RemoteBlockBodies(source: HostId, idsAndBodies: NonEmptyChain[(BlockId, BlockBody)]) extends Message
     // TODO implement it, in case if verification of some incoming data fot current best slot is failed
     //  then we need to reset current best slot data (and request it again) to not stuck on incorrect slot data
     // case class ClearSlotData() extends Message
@@ -64,7 +64,6 @@ object BlockChecker {
     bodyStore:                   Store[F, BlockId, BlockBody],
     chainSelection:              ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
-    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -92,7 +91,6 @@ object BlockChecker {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     headerValidation:            BlockHeaderValidationAlgebra[F],
-    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -110,7 +108,6 @@ object BlockChecker {
         bodyStore,
         chainSelectionAlgebra,
         headerValidation,
-        headerToBodyValidation,
         bodySyntaxValidation,
         bodySemanticValidation,
         bodyAuthorizationValidation,
@@ -259,14 +256,23 @@ object BlockChecker {
     hostId:       HostId,
     bestKnownTip: BlockId
   ): F[Unit] = {
-    def takeWhileKnownHeaders(ids: NonEmptyChain[BlockId]) =
-      OptionT(ids.toList.takeWhileF(state.headerStore.contains).map(NonEmptyChain.fromSeq))
+    def takeWithKnownHeaders(ids: NonEmptyChain[BlockId]) =
+      OptionT(
+        fs2.Stream
+          .emits(ids.toList)
+          .evalMap(id => state.headerStore.get(id).map((id, _)))
+          .takeWhile { case (_, headerOpt) => headerOpt.isDefined }
+          .map { case (id, headerOpt) => (id, headerOpt.get) }
+          .compile
+          .toList
+          .map(NonEmptyChain.fromSeq)
+      )
 
     val requestMissedBodiesCommand =
       for {
         unknownBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize)
-        unknownBodiesWithHeaders <- takeWhileKnownHeaders(unknownBodies)
-        _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: $unknownBodiesWithHeaders"))
+        unknownBodiesWithHeaders <- takeWithKnownHeaders(unknownBodies)
+        _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: ${unknownBodiesWithHeaders.map(_._1)}"))
         message = RequestsProxy.Message.DownloadBodiesRequest(hostId, unknownBodiesWithHeaders)
         _ <- OptionT.liftF(state.requestsProxy.sendNoWait(message))
       } yield ()
@@ -343,8 +349,6 @@ object BlockChecker {
     val header = block.header
     val body = block.body
     for {
-      _ <- EitherT.liftF(Logger[F].debug(show"Validating header to body consistency for id=$blockId"))
-      _ <- EitherT(state.headerToBodyValidation.validate(block)).leftMap(e => e.show)
       _ <- EitherT.liftF(Logger[F].debug(show"Validating syntax of body id=$blockId"))
       _ <- EitherT(state.bodySyntaxValidation.validate(body).map(_.toEither.leftMap(_.show)))
       _ <- EitherT.liftF(Logger[F].debug(show"Validating semantics of body id=$blockId"))
