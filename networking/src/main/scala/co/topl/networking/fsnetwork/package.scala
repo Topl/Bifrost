@@ -8,6 +8,7 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
+import co.topl.models.TxRoot
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
@@ -158,6 +159,10 @@ package object fsnetwork {
 
     case object BodyNotFoundInPeer extends BlockBodyDownloadError {
       override def toString: String = "Block body has not found in peer"
+    }
+
+    case class BodyHaveIncorrectTxRoot(headerTxRoot: TxRoot, bodyTxRoot: TxRoot) extends BlockBodyDownloadError {
+      override def toString: String = show"Peer returns body with bad txRoot: expected $headerTxRoot, got $bodyTxRoot"
     }
 
     case class TransactionNotFoundInPeer(transactionId: Identifier.IoTransaction32) extends BlockBodyDownloadError {

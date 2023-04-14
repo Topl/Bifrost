@@ -34,7 +34,7 @@ object RequestsProxy {
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
-    case class DownloadBodiesRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
+    case class DownloadBodiesRequest(hostId: HostId, blockIds: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
 
     // response shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
@@ -67,8 +67,8 @@ object RequestsProxy {
         downloadHeadersRequest(state, hostId, blockIds)
       case (state, DownloadHeadersResponse(source, response)) =>
         downloadHeadersResponse(state, source, response)
-      case (state, DownloadBodiesRequest(hostId, blockIds)) =>
-        downloadBodiesRequest(state, hostId, blockIds)
+      case (state, DownloadBodiesRequest(hostId, blockData)) =>
+        downloadBodiesRequest(state, hostId, blockData)
       case (state, DownloadBodiesResponse(source, response)) =>
         downloadBodiesResponse(state, source, response)
     }
@@ -199,18 +199,21 @@ object RequestsProxy {
   }
 
   private def downloadBodiesRequest[F[_]: Async: Logger](
-    state:    State[F],
-    hostId:   HostId,
-    blockIds: NonEmptyChain[BlockId]
-  ): F[(State[F], Response[F])] =
+    state:     State[F],
+    hostId:    HostId,
+    blockData: NonEmptyChain[(BlockId, BlockHeader)]
+  ): F[(State[F], Response[F])] = {
+    val blockIds = blockData.map(_._1)
+
     for {
       _              <- Logger[F].info(show"Get request for bodies downloads $blockIds")
       idsDownloaded  <- sendAlreadyDownloadedBodiesToBlockChecker(state, hostId, blockIds)
       _              <- Logger[F].info(show"Send already downloaded bodies to block checker $idsDownloaded")
-      idsForDownload <- sendDownloadRequestForNewBodies(state, hostId, blockIds)
+      idsForDownload <- sendDownloadRequestForNewBodies(state, hostId, blockData)
       _              <- Logger[F].info(show"Send request for additional block body download $idsForDownload")
       _ = saveDownloadRequestToCache(state.bodyRequests, idsForDownload)
     } yield (state, state)
+  }
 
   // response with longest possible prefix for requested ids
   // where corresponding block body is already downloaded for each block id
@@ -226,16 +229,16 @@ object RequestsProxy {
 
   // send block download request only for new bodies
   private def sendDownloadRequestForNewBodies[F[_]: Async](
-    state:    State[F],
-    hostId:   HostId,
-    blockIds: NonEmptyChain[BlockId]
+    state:     State[F],
+    hostId:    HostId,
+    blockData: NonEmptyChain[(BlockId, BlockHeader)]
   ): F[List[BlockId]] = {
-    val newBlockIds = blockIds.filterNot(state.bodyRequests.contains)
+    val newBlockData = blockData.filterNot(d => state.bodyRequests.contains(d._1))
     NonEmptyChain
-      .fromChain(newBlockIds)
-      .map { blockIds =>
-        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyDownloadRequest(hostId, blockIds)) >>
-        blockIds.toList.pure[F]
+      .fromChain(newBlockData)
+      .map { blockData =>
+        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyDownloadRequest(hostId, blockData)) >>
+        blockData.map(_._1).toList.pure[F]
       }
       .getOrElse(List.empty[BlockId].pure[F])
   }
@@ -250,7 +253,7 @@ object RequestsProxy {
 
     for {
       _       <- Logger[F].info(show"Successfully download next bodies: ${successfullyDownloadedBodies.map(_._1)}")
-      _       <- processBlockDownloadErrors(state.reputationAggregator, state.peersManager, hostId, response)
+      _       <- processBlockDownloadErrors(state, hostId, response)
       sentIds <- sendSuccessfulBodiesPrefix(state, hostId, response)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
       _ = saveDownloadResultToCache(state.bodyRequests, successfullyDownloadedBodies)
@@ -258,28 +261,35 @@ object RequestsProxy {
   }
 
   private def processBlockDownloadErrors[F[_]: Async](
-    reputationAggregator: ReputationAggregatorActor[F],
-    peersManager:         PeersManagerActor[F],
-    source:               HostId,
-    response:             NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
+    state:    State[F],
+    source:   HostId,
+    response: NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
   ): F[Unit] = {
+    val reputationAggregator: ReputationAggregatorActor[F] = state.reputationAggregator
+    val peersManager: PeersManagerActor[F] = state.peersManager
+
     val errorsOpt =
       NonEmptyChain.fromChain(response.collect { case (id, Left(error)) => (id, error) })
 
+    def processError(id: BlockId): F[Unit] = {
+      // TODO translate error to reputation value or send error itself?
+      val reputationMessage: ReputationAggregator.Message =
+        ReputationAggregator.Message.UpdatePeerReputation(source, -1)
+
+      {
+        for {
+          _      <- OptionT.liftF(reputationAggregator.sendNoWait(reputationMessage))
+          header <- OptionT(state.headerStore.get(id))
+          message = PeersManager.Message.BlockBodyDownloadRequest(source, NonEmptyChain.one((id, header)))
+          _ <- OptionT.liftF(peersManager.sendNoWait(message))
+        } yield ()
+      }.getOrElse(())
+    }
+
     errorsOpt match {
 
-      case Some(errors) =>
-        // TODO translate error to reputation value or send error itself?
-        val reputationMessage: ReputationAggregator.Message =
-          ReputationAggregator.Message.UpdatePeerReputation(source, -1)
-
-        errors.traverse { case (id, _) =>
-          reputationAggregator.sendNoWait(reputationMessage) >>
-          // TODO we shall not try to download header from the same host, peer manager shall decide it
-          peersManager.sendNoWait(PeersManager.Message.BlockBodyDownloadRequest(source, NonEmptyChain.one(id)))
-        }.void
-
-      case None => ().pure[F]
+      case Some(errors) => errors.traverse { case (id, _) => processError(id) }.void
+      case None         => ().pure[F]
     }
   }
 
