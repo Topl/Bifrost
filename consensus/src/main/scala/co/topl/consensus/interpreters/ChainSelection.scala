@@ -26,7 +26,7 @@ object ChainSelection {
   import NonEmpty.instances._
   import Prepend.instances._
 
-  private val lengthOrder = Order.by[SlotData, Long](_.height)
+  private val heightOrder = Order.by[SlotData, Long](_.height)
   private val slotOrder = Order.by[SlotData, Slot](-_.slotId.slot)
 
   private def rhoTestHashOrderSlotData(implicit blake2b512: Blake2b512) =
@@ -38,7 +38,7 @@ object ChainSelection {
    * The normal ordering to use between tines with a recent common ancestor
    */
   private def standardOrder(implicit blake2b512: Blake2b512): Order[SlotData] =
-    lengthOrder
+    heightOrder
       .tiebreakWith(slotOrder)
       .tiebreakWith(rhoTestHashOrderSlotData)
 
