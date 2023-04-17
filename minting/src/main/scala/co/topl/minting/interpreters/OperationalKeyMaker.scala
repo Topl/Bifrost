@@ -1,13 +1,14 @@
 package co.topl.minting.interpreters
 
-import cats._
 import cats.data._
-import cats.effect.implicits.effectResourceOps
+import cats.effect.Deferred
+import cats.effect.implicits._
 import cats.effect.{Async, MonadCancelThrow, Ref, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
@@ -36,28 +37,31 @@ object OperationalKeyMaker {
    * @param etaCalculation An EtaCalculation interpreter is needed to determine the eta to use when determining VRF ineligibilities.
    * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
    */
-  def make[F[_]: Async: Parallel: Logger](
-    parentSlotId:                SlotId,
+  def make[F[_]: Async: Logger](
     operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
+    vrfConfig:                   VrfConfig,
     secureStore:                 SecureStore[F],
     clock:                       ClockAlgebra[F],
     vrfCalculator:               VrfCalculatorAlgebra[F],
+    leaderElection:              LeaderElectionValidationAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
     kesProductResource:          UnsafeResource[F, KesProduct],
     ed25519Resource:             UnsafeResource[F, Ed25519]
   ): Resource[F, OperationalKeyMakerAlgebra[F]] =
     for {
-      stateRef <- Ref.of(none[(Long, Map[Long, OperationalKeyOut])]).toResource
+      stateRef <- Ref.of(none[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]).toResource
       impl = new Impl[F](
         operationalPeriodLength,
         activationOperationalPeriod,
         address,
+        vrfConfig,
         secureStore,
         clock,
         vrfCalculator,
+        leaderElection,
         etaCalculation,
         consensusState,
         kesProductResource,
@@ -66,18 +70,20 @@ object OperationalKeyMaker {
       )
     } yield impl
 
-  private class Impl[F[_]: Sync: Parallel: Logger](
+  private class Impl[F[_]: Async: Logger](
     operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
+    vrfConfig:                   VrfConfig,
     secureStore:                 SecureStore[F],
     clock:                       ClockAlgebra[F],
     vrfCalculator:               VrfCalculatorAlgebra[F],
+    leaderElection:              LeaderElectionValidationAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
     kesProductResource:          UnsafeResource[F, KesProduct],
     ed25519Resource:             UnsafeResource[F, Ed25519],
-    stateRef:                    Ref[F, Option[(Long, Map[Long, OperationalKeyOut])]]
+    stateRef:                    Ref[F, Option[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]]
   ) extends OperationalKeyMakerAlgebra[F] {
 
     def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId): F[Option[OperationalKeyOut]] = {
@@ -85,7 +91,7 @@ object OperationalKeyMaker {
       MonadCancelThrow[F].uncancelable(_ =>
         stateRef.get.flatMap {
           case Some((`operationalPeriod`, keys)) =>
-            keys.get(slot).pure[F]
+            OptionT.fromOption[F](keys.get(slot)).flatMapF(_.get).value
           case _ =>
             OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(address))
               .flatMapF(relativeStake =>
@@ -97,6 +103,7 @@ object OperationalKeyMaker {
               .semiflatTap(newKeys => stateRef.set((operationalPeriod -> newKeys).some))
               .flatTapNone(stateRef.set(none))
               .subflatMap(_.get(slot))
+              .flatMapF(_.get)
               .value
         }
       )
@@ -114,13 +121,12 @@ object OperationalKeyMaker {
       MonadCancelThrow[F].uncancelable(_ =>
         (
           for {
-            fileName <- OptionT.liftF(secureStore.list.flatMap {
-              case Chain(fileName) => fileName.pure[F]
-              case _ =>
-                MonadError[F, Throwable].raiseError[String](
-                  new IllegalStateException("SecureStore contained 0 or multiple keys")
-                )
-            })
+            fileName <- OptionT(
+              secureStore.list
+                .ensure(new IllegalStateException("SecureStore is empty"))(_.nonEmpty)
+                .ensure(new IllegalStateException("SecureStore contains multiple keys"))(_.length === 1)
+                .map(_.headOption)
+            )
             _       <- OptionT.liftF(Logger[F].info(show"Consuming key id=$fileName"))
             diskKey <- OptionT(secureStore.consume[SecretKeyKesProduct](fileName))
             latest <- OptionT.liftF(
@@ -158,69 +164,95 @@ object OperationalKeyMaker {
      * @param parentSlotId Used for Eta lookup when determining ineligible VRF slots
      */
     private[interpreters] def prepareOperationalPeriodKeys(
-      kesParent:     SecretKeyKesProduct,
+      parentSK:      SecretKeyKesProduct,
       fromSlot:      Slot,
       parentSlotId:  SlotId,
       relativeStake: Ratio
-    ): F[Map[Long, OperationalKeyOut]] =
+    ): F[Map[Long, Deferred[F, Option[OperationalKeyOut]]]] =
       for {
         epoch <- clock.epochOf(fromSlot)
         eta   <- etaCalculation.etaToBe(parentSlotId, fromSlot)
         operationalPeriod = fromSlot / operationalPeriodLength
-        operationalPeriodSlots = Range.Long(
-          operationalPeriod * operationalPeriodLength,
-          (operationalPeriod + 1) * operationalPeriodLength,
-          1L
-        )
+        operationalPeriodSlots = Range
+          .Long(
+            operationalPeriod * operationalPeriodLength,
+            (operationalPeriod + 1) * operationalPeriodLength,
+            1L
+          )
+          .toList
         _ <- Logger[F].info(
-          show"Computing ineligible slots for" +
+          show"Computing operational keys for" +
           show" epoch=$epoch" +
           show" eta=$eta" +
-          show" range=${operationalPeriodSlots.start}..${operationalPeriodSlots.last}"
+          show" range=${operationalPeriodSlots.head}..${operationalPeriodSlots.last}"
         )
-        ineligibleSlots <- vrfCalculator
-          .ineligibleSlots(epoch, eta, operationalPeriodSlots.some, relativeStake)
-          .map(_.toSet)
-        slots = Vector
-          .tabulate((operationalPeriodLength - (fromSlot % operationalPeriodLength)).toInt)(_ + fromSlot)
-          .filterNot(ineligibleSlots)
-        _    <- Logger[F].info(s"Preparing linear keys.  count=${slots.size}")
-        outs <- prepareOperationalPeriodKeys(kesParent, slots)
-        mappedKeys = outs.map(o => o.slot -> o).toMap
-      } yield mappedKeys
-
-    /**
-     * From some "parent" KES key, create several SKs for each slot in the given list of slots
-     */
-    private[interpreters] def prepareOperationalPeriodKeys(
-      kesParent: SecretKeyKesProduct,
-      slots:     Vector[Slot]
-    ): F[Vector[OperationalKeyOut]] =
-      kesProductResource
-        .use(kesProduct => Sync[F].delay(kesProduct.getVerificationKey(kesParent)))
-        .flatMap(parentVK => slots.parTraverse(prepareOperationalPeriodKey(kesParent, parentVK, _)))
+        parentVK      <- kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.getVerificationKey(parentSK)))
+        deferredSlots <- operationalPeriodSlots.traverse(slot => Deferred[F, Option[OperationalKeyOut]].map((slot, _)))
+        threshold     <- maximumThreshold(relativeStake)
+        _ <- Async[F].start(
+          fs2.Stream
+            .emits(deferredSlots)
+            .evalMap { case (slot, deferred) =>
+              potentiallyEligibleSlot(eta, slot, threshold)
+                .ifM(
+                  ifTrue = prepareOperationalPeriodKey(parentSK, parentVK, slot).map(_.some),
+                  ifFalse = none[OperationalKeyOut].pure[F]
+                )
+                .flatMap(deferred.complete)
+            }
+            .compile
+            .drain >> Logger[F].info(
+            show"Finished computing operational keys for" +
+            show" epoch=$epoch" +
+            show" eta=$eta" +
+            show" range=${operationalPeriodSlots.head}..${operationalPeriodSlots.last}"
+          )
+        )
+      } yield deferredSlots.toMap
 
     /**
      * From some "parent" KES keypair, create a single child key for the given slot
      */
     private def prepareOperationalPeriodKey(
-      kesParentSK: SecretKeyKesProduct,
-      kesParentVK: VerificationKeyKesProduct,
-      slot:        Slot
+      parentSK: SecretKeyKesProduct,
+      parentVK: VerificationKeyKesProduct,
+      slot:     Slot
     ) =
       for {
-        entropy <- Sync[F].delay(Entropy.fromUuid(UUID.randomUUID()))
-        keyPair <- ed25519Resource.use(ed => Sync[F].delay(ed.deriveKeyPairFromEntropy(entropy, None)))
-        message = keyPair.verificationKey.bytes ++ Longs.toByteArray(slot)
+        entropy      <- Sync[F].delay(Entropy.fromUuid(UUID.randomUUID()))
+        childKeyPair <- ed25519Resource.use(ed => Sync[F].delay(ed.deriveKeyPairFromEntropy(entropy, None)))
+        message = childKeyPair.verificationKey.bytes ++ Longs.toByteArray(slot)
         parentSignature <- kesProductResource
-          .use(kesProductScheme => Sync[F].delay(kesProductScheme.sign(kesParentSK, message)))
+          .use(kesProductScheme => Sync[F].delay(kesProductScheme.sign(parentSK, message)))
       } yield OperationalKeyOut(
         slot,
-        ByteString.copyFrom(keyPair.verificationKey.bytes),
-        ByteString.copyFrom(keyPair.signingKey.bytes),
+        ByteString.copyFrom(childKeyPair.verificationKey.bytes),
+        ByteString.copyFrom(childKeyPair.signingKey.bytes),
         parentSignature,
-        kesParentVK
+        parentVK
       )
+
+    /**
+     * Determines the threshold at the VRF LDD Cutoff point.
+     * @param relativeStake The operator's relative stake
+     * @return a threshold at the LDD Cutoff Point
+     */
+    private def maximumThreshold(relativeStake: Ratio): F[Ratio] =
+      leaderElection.getThreshold(relativeStake, vrfConfig.lddCutoff)
+
+    /**
+     * Determines if the operator *might* be eligible for the given slot,
+     * based on the threshold at the LDD Cutoff.  If the operator is not
+     * eligible at the cutoff slot, then it will never be eligible
+     * @param eta Eta value
+     * @param slot Test slot
+     * @param threshold LDD Cutoff Threshold
+     * @return true if potentially eligible, false if definitely ineligible
+     */
+    private def potentiallyEligibleSlot(eta: Eta, slot: Slot, threshold: Ratio) =
+      vrfCalculator
+        .rhoForSlot(slot, eta)
+        .flatMap(leaderElection.isSlotLeaderForThreshold(threshold))
   }
 
 }

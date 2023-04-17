@@ -3,10 +3,6 @@ package co.topl.minting.interpreters
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
 import cats.effect.implicits.effectResourceOps
-import cats.implicits._
-import co.topl.algebras.ClockAlgebra
-import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.consensus.models.VrfConfig
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models._
@@ -30,10 +26,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
       vrfCalculator <- VrfCalculator.make[F](
         skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
-        clock = null,
-        leaderElectionValidation = null,
         ed25519Resource,
-        vrfConfig = null,
         vrfCacheTtl
       )
 
@@ -54,10 +47,7 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
       vrfCalculator <- VrfCalculator.make[F](
         skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
-        clock = null,
-        leaderElectionValidation = null,
         ed25519Resource,
-        vrfConfig = null,
         vrfCacheTtl
       )
 
@@ -74,98 +64,6 @@ class VrfCalculatorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       _ <- vrfCalculator.rhoForSlot(slot, eta).assertEquals(expectedRho).toResource
     } yield ()
     resource.use_
-  }
-
-  test("ineligibleSlots: in empty inRange, no slots leader") {
-    withMock {
-      val epoch = 1L
-      val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
-      val relativeStake = Ratio.One
-      val vrfConfig =
-        VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-
-      val clock = mock[ClockAlgebra[F]]
-      val leaderElectionValidation = mock[LeaderElectionValidationAlgebra[F]]
-
-      (() => clock.slotsPerEpoch).expects().once().returning(10L.pure[F])
-
-      (leaderElectionValidation.getThreshold _)
-        .expects(relativeStake, vrfConfig.lddCutoff)
-        .once()
-        .returning(Ratio.One.pure[F])
-
-      (leaderElectionValidation
-        .isSlotLeaderForThreshold(_: Ratio)(_: Rho))
-        .expects(relativeStake, *)
-        .anyNumberOfTimes()
-        .returning(false.pure[F])
-
-      val resource = for {
-        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
-        vrfCalculator <- VrfCalculator.make[F](
-          skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
-          clock,
-          leaderElectionValidation,
-          ed25519Resource,
-          vrfConfig,
-          vrfCacheTtl
-        )
-
-        expectedSlot: Vector[Slot] = Vector(10, 11, 12, 13, 14, 15, 16, 17, 18, 19)
-
-        _ <- vrfCalculator
-          .ineligibleSlots(epoch, eta, inRange = None, relativeStake)
-          .assertEquals(expectedSlot)
-          .toResource
-      } yield ()
-      resource.use_
-
-    }
-  }
-
-  test("ineligibleSlots: in empty inRange, all slots leader") {
-    withMock {
-      val epoch = 1L
-      val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
-      val relativeStake = Ratio.One
-      val vrfConfig =
-        VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5))
-
-      val clock = mock[ClockAlgebra[F]]
-      val leaderElectionValidation = mock[LeaderElectionValidationAlgebra[F]]
-
-      (() => clock.slotsPerEpoch).expects().once().returning(10L.pure[F])
-
-      (leaderElectionValidation.getThreshold _)
-        .expects(relativeStake, vrfConfig.lddCutoff)
-        .once()
-        .returning(Ratio.One.pure[F])
-
-      (leaderElectionValidation
-        .isSlotLeaderForThreshold(_: Ratio)(_: Rho))
-        .expects(relativeStake, *)
-        .anyNumberOfTimes()
-        .returning(true.pure[F])
-
-      val resource = for {
-        ed25519Resource <- CatsUnsafeResource.make(new Ed25519VRF, 1).toResource
-        vrfCalculator <- VrfCalculator.make[F](
-          skVrf = ByteString.copyFrom(Array.fill[Byte](32)(0)),
-          clock,
-          leaderElectionValidation,
-          ed25519Resource,
-          vrfConfig,
-          vrfCacheTtl
-        )
-
-        _ <- vrfCalculator
-          .ineligibleSlots(epoch, eta, inRange = None, relativeStake)
-          .assertEquals(Vector.empty[Slot])
-          .toResource
-      } yield ()
-      resource.use_
-
-    }
   }
 
 }

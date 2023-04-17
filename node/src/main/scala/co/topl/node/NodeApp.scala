@@ -299,22 +299,20 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
 
       vrfCalculator <- VrfCalculator.make[F](
         initializer.vrfSK,
-        clock,
-        leaderElectionThreshold,
         ed25519VRFResource,
-        vrfConfig,
         protocol.vrfCacheSize
       )
 
       operationalKeys <- OperationalKeyMaker
         .make[F](
-          currentHead.slotId,
           operationalPeriodLength = protocol.operationalPeriodLength,
           activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
           initializer.stakingAddress,
+          vrfConfig,
           secureStore = secureStore,
           clock = clock,
           vrfCalculator = vrfCalculator,
+          leaderElectionThreshold,
           etaCalculation,
           consensusValidationState,
           kesProductResource,
