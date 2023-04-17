@@ -1,6 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
+import cats.implicits._
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
@@ -10,6 +11,7 @@ import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.node.models.BlockBody
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
+import co.topl.typeclasses.implicits._
 
 import scala.annotation.tailrec
 
@@ -71,8 +73,17 @@ object TestHelper extends TransactionGenerator {
       for {
         size    <- sizeGen
         headers <- arbitraryLinkedBlockHeaderChain(Gen.oneOf(List[Long](size))).arbitrary
-      } yield headers.map { h =>
-        (h.id, headerToSlotData(h), h, co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary.first)
-      }
+      } yield NonEmptyChain
+        .fromSeq(headers.foldLeft(List.empty[(BlockId, SlotData, BlockHeader, BlockBody)]) { case (blocks, header) =>
+          val body = co.topl.models.generators.node.ModelGenerators.arbitraryNodeBody.arbitrary.first
+          val headerWithTxRoot = header.copy(txRoot = body.merkleTreeRootHash.data)
+          if (blocks.isEmpty) {
+            List((headerWithTxRoot.id, headerToSlotData(headerWithTxRoot), headerWithTxRoot, body))
+          } else {
+            val headerWithParent = headerWithTxRoot.copy(parentHeaderId = blocks.last._2.slotId.blockId)
+            blocks.appended((headerWithParent.id, headerToSlotData(headerWithParent), headerWithParent, body))
+          }
+        })
+        .get
     )
 }

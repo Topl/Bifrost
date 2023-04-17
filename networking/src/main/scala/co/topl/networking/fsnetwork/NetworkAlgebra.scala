@@ -21,11 +21,12 @@ import org.typelevel.log4cats.Logger
 trait NetworkAlgebra[F[_]] {
 
   def makePeerManger(
-    networkAlgebra:   NetworkAlgebra[F],
-    localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, BlockId, SlotData],
-    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction],
-    blockIdTree:      ParentChildTree[F, BlockId]
+    networkAlgebra:         NetworkAlgebra[F],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeReputationAggregation(peersManager: PeersManagerActor[F]): Resource[F, ReputationAggregatorActor[F]]
@@ -38,7 +39,6 @@ trait NetworkAlgebra[F[_]] {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     headerValidation:            BlockHeaderValidationAlgebra[F],
-    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -56,18 +56,20 @@ trait NetworkAlgebra[F[_]] {
 class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
 
   override def makePeerManger(
-    networkAlgebra:   NetworkAlgebra[F],
-    localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, BlockId, SlotData],
-    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction],
-    blockIdTree:      ParentChildTree[F, BlockId]
+    networkAlgebra:         NetworkAlgebra[F],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeersManagerActor[F]] =
     PeersManager.makeActor(
       networkAlgebra,
       localChain,
       slotDataStore,
       transactionStore,
-      blockIdTree
+      blockIdTree,
+      headerToBodyValidation
     )
 
   override def makeReputationAggregation(
@@ -83,7 +85,6 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     headerValidation:            BlockHeaderValidationAlgebra[F],
-    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -97,7 +98,6 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
       headerStore,
       bodyStore,
       headerValidation,
-      headerToBodyValidation,
       bodySyntaxValidation,
       bodySemanticValidation,
       bodyAuthorizationValidation,
