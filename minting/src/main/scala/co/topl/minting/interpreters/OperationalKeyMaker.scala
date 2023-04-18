@@ -1,5 +1,6 @@
 package co.topl.minting.interpreters
 
+import cats.Traverse
 import cats.data._
 import cats.effect.Deferred
 import cats.effect.implicits._
@@ -97,7 +98,9 @@ object OperationalKeyMaker {
               .flatMapF(relativeStake =>
                 consumeEvolvePersist(
                   (operationalPeriod - activationOperationalPeriod).toInt,
-                  prepareOperationalPeriodKeys(_, slot, parentSlotId, relativeStake)
+                  parentSlotId,
+                  slot,
+                  relativeStake
                 )
               )
               .semiflatTap(newKeys => stateRef.set((operationalPeriod -> newKeys).some))
@@ -114,10 +117,12 @@ object OperationalKeyMaker {
      * If they key is behind the `currentOperationalPeriod`, it is first updated to the `currentOperationalPeriod`.  The
      * key for `timeStep + 1` is constructed and saved to disk.
      */
-    private[interpreters] def consumeEvolvePersist[T](
-      timeStep: Int,
-      use:      SecretKeyKesProduct => F[T]
-    ): F[Option[T]] =
+    private[interpreters] def consumeEvolvePersist(
+      timeStep:      Int,
+      parentSlotId:  SlotId,
+      slot:          Slot,
+      relativeStake: Ratio
+    ): F[Option[Map[Slot, Deferred[F, Option[OperationalKeyOut]]]]] =
       MonadCancelThrow[F].uncancelable(_ =>
         (
           for {
@@ -146,13 +151,16 @@ object OperationalKeyMaker {
                   )
               else
                 OptionT.liftF(kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.update(diskKey, timeStep))))
-            res <- OptionT.liftF(use(currentPeriodKey))
             nextTimeStep = timeStep + 1
-            _ <- OptionT.liftF(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
-            updated <- OptionT.liftF(
-              kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.update(currentPeriodKey, nextTimeStep)))
+            onComplete = for {
+              _ <- Sync[F].defer(Logger[F].info(show"Saving next key idx=$nextTimeStep"))
+              updated <-
+                kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.update(currentPeriodKey, nextTimeStep)))
+              _ <- secureStore.write(UUID.randomUUID().toString, updated)
+            } yield ()
+            res <- OptionT.liftF(
+              prepareOperationalPeriodKeys(currentPeriodKey, slot, parentSlotId, relativeStake)(onComplete)
             )
-            _ <- OptionT.liftF(secureStore.write(UUID.randomUUID().toString, updated))
           } yield res
         ).value
       )
@@ -168,7 +176,7 @@ object OperationalKeyMaker {
       fromSlot:      Slot,
       parentSlotId:  SlotId,
       relativeStake: Ratio
-    ): F[Map[Long, Deferred[F, Option[OperationalKeyOut]]]] =
+    )(onComplete: => F[Unit]): F[Map[Slot, Deferred[F, Option[OperationalKeyOut]]]] =
       for {
         epoch <- clock.epochOf(fromSlot)
         eta   <- etaCalculation.etaToBe(parentSlotId, fromSlot)
@@ -189,26 +197,36 @@ object OperationalKeyMaker {
         parentVK      <- kesProductResource.use(kesProduct => Sync[F].delay(kesProduct.getVerificationKey(parentSK)))
         deferredSlots <- operationalPeriodSlots.traverse(slot => Deferred[F, Option[OperationalKeyOut]].map((slot, _)))
         threshold     <- maximumThreshold(relativeStake)
-        _ <- Async[F].start(
-          fs2.Stream
-            .emits(deferredSlots)
-            .evalMap { case (slot, deferred) =>
-              potentiallyEligibleSlot(eta, slot, threshold)
-                .ifM(
-                  ifTrue = prepareOperationalPeriodKey(parentSK, parentVK, slot).map(_.some),
-                  ifFalse = none[OperationalKeyOut].pure[F]
-                )
-                .flatMap(deferred.complete)
-            }
-            .compile
-            .drain >> Logger[F].info(
-            show"Finished computing operational keys for" +
-            show" epoch=$epoch" +
-            show" eta=$eta" +
-            show" range=${operationalPeriodSlots.head}..${operationalPeriodSlots.last}"
-          )
-        )
+        // Launch a background fiber which will create the child keys for the new operational period.
+        // As each child key is created, the corresponding Deferred instance is completed.
+        _ <- (
+          fulfillDeferredSlots(epoch, eta, threshold, parentSK, parentVK, operationalPeriodSlots)(
+            deferredSlots
+          ).void >> onComplete
+        ).start
       } yield deferredSlots.toMap
+
+    private def fulfillDeferredSlots[G[_]: Traverse](
+      epoch:                  Epoch,
+      eta:                    Eta,
+      threshold:              Ratio,
+      parentSK:               SecretKeyKesProduct,
+      parentVK:               VerificationKeyKesProduct,
+      operationalPeriodSlots: Iterable[Slot]
+    )(deferredSlots: G[(Slot, Deferred[F, Option[OperationalKeyOut]])]) =
+      deferredSlots.traverse { case (slot, deferred) =>
+        potentiallyEligibleSlot(eta, slot, threshold)
+          .ifM(
+            ifTrue = prepareOperationalPeriodKey(parentSK, parentVK, slot).map(_.some),
+            ifFalse = none[OperationalKeyOut].pure[F]
+          )
+          .flatMap(deferred.complete)
+      } >> Logger[F].info(
+        show"Finished computing operational keys for" +
+        show" epoch=$epoch" +
+        show" eta=$eta" +
+        show" range=${operationalPeriodSlots.head}..${operationalPeriodSlots.last}"
+      )
 
     /**
      * From some "parent" KES keypair, create a single child key for the given slot

@@ -7,11 +7,9 @@ import cats.effect.IO.asyncForIO
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
-import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
 import co.topl.interpreters.CatsUnsafeResource
@@ -28,7 +26,6 @@ import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jFactory
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.util.concurrent.TimeUnit
@@ -54,7 +51,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       val address = arbitraryStakingAddress.arbitrary.first
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
-      val vrfProof = mock[VrfCalculatorAlgebra[F]]
+      val vrfCalculator = mock[VrfCalculatorAlgebra[F]]
       val leaderElection = mock[LeaderElectionValidationAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
@@ -93,7 +90,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         .once()
         .returning(eta.pure[F])
 
-      (vrfProof
+      (vrfCalculator
         .rhoForSlot(_: Slot, _: Eta))
         .expects(*, *)
         .anyNumberOfTimes()
@@ -135,7 +132,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
               vrfConfig,
               secureStore,
               clock,
-              vrfProof,
+              vrfCalculator,
               leaderElection,
               etaCalculation,
               consensusState,
@@ -167,7 +164,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       val address = arbitraryStakingAddress.arbitrary.first
       val secureStore = mock[SecureStore[F]]
       val clock = mock[ClockAlgebra[F]]
-      val vrfProof = mock[VrfCalculatorAlgebra[F]]
+      val vrfCalculator = mock[VrfCalculatorAlgebra[F]]
       val etaCalculation = mock[EtaCalculationAlgebra[F]]
       val leaderElection = mock[LeaderElectionValidationAlgebra[F]]
       val consensusState = mock[ConsensusValidationStateAlgebra[F]]
@@ -198,7 +195,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         .once()
         .returning(Applicative[F].unit)
 
-      (vrfProof
+      (vrfCalculator
         .rhoForSlot(_: Slot, _: Eta))
         .expects(*, *)
         .anyNumberOfTimes()
@@ -239,13 +236,16 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
             vrfConfig,
             secureStore,
             clock,
-            vrfProof,
+            vrfCalculator,
             leaderElection,
             etaCalculation,
             consensusState,
             kesProductResource,
             ed25519Resource
           )
+        // The keys are created in a background fiber, so we need to wait for that fiber to complete before
+        // verifying mocks
+        _ <- underTest.operationalKeyForSlot(operationalPeriodLength * 2 - 1, parentSlotId).toResource
         _ <- Range
           .Long(operationalPeriodLength, operationalPeriodLength * 2, 1)
           .toVector
