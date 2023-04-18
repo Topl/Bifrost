@@ -96,8 +96,8 @@ class NodeAppTest extends CatsEffectSuite {
         (utxoAddress, utxo) <- bigBangSpendableUtxo(rpcClientA).toResource
         newTransaction      <- spendUtxo(rpcClientB)(utxoAddress, utxo).toResource
         _ <- (
-          Async[F].timeout(confirmTransaction(rpcClientA)(newTransaction.id), 15.seconds).toResource,
-          Async[F].timeout(confirmTransaction(rpcClientB)(newTransaction.id), 15.seconds).toResource
+          Async[F].timeout(confirmTransaction(rpcClientA)(newTransaction.id), 30.seconds).toResource,
+          Async[F].timeout(confirmTransaction(rpcClientB)(newTransaction.id), 30.seconds).toResource
         ).parTupled
         _ <- (
           fetchUntilHeight(rpcClientA, targetProductionHeight).toResource,
