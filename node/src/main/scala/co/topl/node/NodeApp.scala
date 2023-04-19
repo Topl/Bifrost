@@ -242,13 +242,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock
         )
       )
-      _ <- GenusServer.make[F](
-        appConfig.genus.copy(orientDbDirectory =
-          Some(appConfig.genus.orientDbDirectory)
-            .filterNot(_.isEmpty)
-            .getOrElse(dataStores.baseDirectory./("orient-db").toString)
+      _ <- GenusServer
+        .make[F](
+          appConfig.genus.copy(orientDbDirectory =
+            Some(appConfig.genus.orientDbDirectory)
+              .filterNot(_.isEmpty)
+              .getOrElse(dataStores.baseDirectory./("orient-db").toString)
+          )
         )
-      )
+        .recoverWith { case e =>
+          Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
+        }
       // Finally, run the program
       _ <- Blockchain
         .make[F](

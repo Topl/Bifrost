@@ -8,44 +8,40 @@ import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
+import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
 
-import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object GraphVertexFetcher {
 
-  def make[F[_]: Async](
-    orientGraph: OrientGraphNoTx,
-    orientEC:    ExecutionContext
+  def make[F[_]: Async: OrientThread](
+    orientGraph: OrientGraphNoTx
   ): Resource[F, VertexFetcherAlgebra[F]] =
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
-        private def useGraph[T](f: OrientGraphNoTx => T): F[T] =
-          Async[F].evalOn(Async[F].delay(f(orientGraph)), orientEC)
-
         override def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
-          Async[F].blocking(
+          OrientThread[F].exec(
             Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
-          useGraph(orientGraph =>
+          OrientThread[F].exec(
             Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", tx))
           )
 
         def fetchHeaderByHeight(height: Long): F[Either[GE, Option[Vertex]]] =
-          useGraph(orientGraph =>
+          OrientThread[F].exec(
             Try(
               orientGraph
                 .getVertices(blockHeaderSchema.name, Array(SchemaBlockHeader.Field.Height), Array(height))
@@ -56,7 +52,7 @@ object GraphVertexFetcher {
           )
 
         def fetchHeaderByDepth(depth: Long): F[Either[GE, Option[Vertex]]] =
-          useGraph(orientGraph =>
+          OrientThread[F].exec(
             Try {
 
               /**
@@ -87,7 +83,7 @@ object GraphVertexFetcher {
           )
 
         override def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
-          useGraph(orientGraph =>
+          OrientThread[F].exec(
             Try(
               orientGraph
                 .getVertices(blockBodySchema.name, Array(SchemaBlockHeader.Field.BlockId), Array(headerVertex.getId))
@@ -98,7 +94,7 @@ object GraphVertexFetcher {
           )
 
         override def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
-          useGraph(orientGraph =>
+          OrientThread[F].exec(
             Try(
               orientGraph
                 .getVertices(
@@ -112,7 +108,7 @@ object GraphVertexFetcher {
           )
 
         def fetchTransaction(ioTransaction32: Identifier.IoTransaction32): F[Either[GE, Option[Vertex]]] =
-          useGraph(orientGraph =>
+          OrientThread[F].exec(
             Try(
               orientGraph
                 .getVertices(

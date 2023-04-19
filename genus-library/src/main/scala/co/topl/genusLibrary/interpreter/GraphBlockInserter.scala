@@ -5,35 +5,29 @@ import cats.implicits._
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
+import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
 
-import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 object GraphBlockInserter {
 
-  def make[F[_]: Async](graph: OrientGraph, orientEC: ExecutionContext): Resource[F, BlockInserterAlgebra[F]] =
+  def make[F[_]: Async: OrientThread](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
     Resource.pure(
       new BlockInserterAlgebra[F] {
 
-        private def useGraph[T](f: OrientGraph => T): F[T] =
-          Async[F].evalOn(Async[F].delay(f(graph)), orientEC)
-
         override def insert(block: BlockData): F[Either[GE, Unit]] =
-          useGraph { graph =>
+          OrientThread[F].exec {
             Try {
               val headerVertex = graph.addHeader(block.header)
 
+              graph.addCanonicalHead(headerVertex)
+
               val bodyVertex = graph.addBody(block.body)
               bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
-
-                graph.addCanonicalHead(headerVertex)
-
-                val bodyVertex = graph.addBody(block.body)
-                bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
               // Relationships between Header <-> TxIOs
               block.transactions.map { ioTx =>

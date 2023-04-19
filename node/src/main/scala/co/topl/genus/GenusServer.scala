@@ -1,17 +1,20 @@
 package co.topl.genus
 
+import cats.data.OptionT
 import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
+import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.interpreter._
 import co.topl.genusLibrary.orientDb.OrientDBFactory
+import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.grpc.ToplGrpc
 import co.topl.node.ApplicationConfig
+import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
 
@@ -21,16 +24,14 @@ object GenusServer {
     if (conf.enable) for {
       implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Genus"))
       // A dedicated single thread executor in which all OrientDB calls are expected to run
-      orientEC <- Resource
-        .make(Sync[F].delay(Executors.newSingleThreadExecutor()))(ec => Sync[F].delay(ec.shutdown()))
-        .map(ExecutionContext.fromExecutor)
-      orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword, orientEC)
+      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+      orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword)
 
-      dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => Async[F].delay(db.shutdown()))
-      dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => Async[F].delay(db.shutdown()))
+      dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => orientThread.exec(db.shutdown()))
+      dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => orientThread.exec(db.shutdown()))
 
-      graphBlockInserter <- GraphBlockInserter.make[F](dbTx, orientEC)
-      vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx, orientEC)
+      graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
+      vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
       blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
       transactionFetcher <- GraphTransactionFetcher.make(vertexFetcher)
 
@@ -44,9 +45,28 @@ object GenusServer {
         )
       // TODO: Live data
       // Delay replication by 20 seconds to allow Node RPC to launch
-      _ <- (fs2.Stream.sleep(20.seconds) >> fs2.Stream
-        .force(nodeBlockFetcher.fetch(startHeight = 1, endHeight = Long.MaxValue))
-        .evalMap(graphBlockInserter.insert)).compile.drain.background
+      processorStream: fs2.Stream[F, Unit] =
+        for {
+          _ <- fs2.Stream.sleep[F](20.seconds)
+          nodeLatestHeight <- fs2.Stream.eval(
+            OptionT(nodeBlockFetcher.fetchHeight()).getOrRaise(new IllegalStateException("Unknown node height"))
+          )
+          graphCurrentHeight <- fs2.Stream.eval(
+            OptionT(
+              blockFetcher
+                .fetchCanonicalHead()
+                .rethrow
+            ).fold(0L)(_.height)
+          )
+          _ <- fs2.Stream
+            .force[F, BlockData](
+              nodeBlockFetcher.fetch(startHeight = graphCurrentHeight + 1, endHeight = nodeLatestHeight)
+            )
+            .evalTap(blockData => Logger[F].info(s"Inserting block data ${blockData.header.id.show}"))
+            .evalMap(graphBlockInserter.insert)
+            .rethrow
+        } yield ()
+      _ <- processorStream.compile.drain.background
     } yield ()
     else Resource.unit[F]
 

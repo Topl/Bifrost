@@ -12,7 +12,6 @@ import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.ExecutionContext
 import scala.util.Try
 
 /**
@@ -24,15 +23,14 @@ import scala.util.Try
  */
 object OrientDBMetadataFactory {
 
-  private[orientDb] def make[F[_]: Async: Logger](
-    orientGraphFactory: OrientGraphFactory,
-    orientEC:           ExecutionContext
+  private[orientDb] def make[F[_]: Async: Logger: OrientThread](
+    orientGraphFactory: OrientGraphFactory
   ): Resource[F, Unit] =
     for {
       db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => Sync[F].delay(db.close()))
-      _  <- Async[F].evalOn(Sync[F].delay(db.activateOnCurrentThread()), orientEC).toResource
+      _  <- OrientThread[F].exec(db.activateOnCurrentThread()).toResource
       _ <- Resource.eval(
-        Async[F].evalOn(
+        OrientThread[F].execF(
           for {
             headerVertex        <- createVertex(db, blockHeaderSchema)
             bodyVertex          <- createVertex(db, blockBodySchema)
@@ -42,8 +40,7 @@ object OrientDBMetadataFactory {
             _                   <- createLinks(db, blockBodySchema, bodyVertex)
             _                   <- createLinks(db, ioTransactionSchema, transactionVertex)
             _                   <- createLinks(db, canonicalHeadSchema, canonicalHeadVertex)
-          } yield (),
-          orientEC
+          } yield ()
         )
       )
     } yield ()

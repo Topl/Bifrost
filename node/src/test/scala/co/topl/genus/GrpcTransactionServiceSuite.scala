@@ -1,4 +1,4 @@
-package co.topl.genusServer
+package co.topl.genus
 
 import cats.effect.IO
 import cats.implicits._
