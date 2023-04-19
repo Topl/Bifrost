@@ -10,7 +10,7 @@ object Dependencies {
   val catsEffectVersion = "3.4.8"
   val fs2Version = "3.6.1"
   val logback = "1.4.7"
-  val orientDbVersion = "3.2.17"
+  val orientDbVersion = "3.2.18"
   val protobufSpecsVersion = "b745cb1" // scala-steward:off
   val bramblScVersion = "5794d14" // scala-steward:off
   val quivr4sVersion = "8de3426" // scala-steward:off
