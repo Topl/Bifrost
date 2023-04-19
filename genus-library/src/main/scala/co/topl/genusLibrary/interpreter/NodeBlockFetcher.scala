@@ -14,6 +14,7 @@ import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.node.models.BlockBody
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+
 import scala.collection.immutable.ListSet
 
 object NodeBlockFetcher {
@@ -88,6 +89,12 @@ object NodeBlockFetcher {
           } map [Either[GE, Chain[IoTransaction]]] (_.left.map(
             GEs.TransactionsNotFound
           ))
+
+        def fetchHeight(): F[Option[Long]] =
+          (for {
+            headBlockId <- OptionT(toplRpc.blockIdAtDepth(depth = 0))
+            blockHeader <- OptionT(toplRpc.fetchBlockHeader(headBlockId))
+          } yield blockHeader.height).value
 
       }
     }

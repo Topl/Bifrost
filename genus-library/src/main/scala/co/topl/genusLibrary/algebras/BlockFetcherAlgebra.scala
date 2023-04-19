@@ -13,6 +13,13 @@ import co.topl.node.models.BlockBody
 trait BlockFetcherAlgebra[F[_]] {
 
   /**
+   * Fetch Canonical head vertex on the stored Ledger
+   *
+   * @return Optional header vertex, None if it was not found
+   */
+  def fetchCanonicalHead(): F[Either[GE, Option[BlockHeader]]]
+
+  /**
    * Fetch a BlockHeader on the stored Ledger
    * @param blockId  blockId filter by field
    * @return Optional BlockHeader, None if it was not found
