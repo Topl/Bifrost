@@ -6,15 +6,18 @@ import cats.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.model.{GE, GEs}
+import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientEdge, OrientGraph, OrientVertex}
+
 import java.lang
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
@@ -31,8 +34,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     PropF.forAllF { blockHeader: BlockHeader =>
       val res = for {
-        blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+        implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+        blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
+        graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
           graphHeaderInserter.insert(blockData),
           (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
@@ -52,8 +56,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     PropF.forAllF { blockHeader: BlockHeader =>
       val res = for {
-        blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+        implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+        blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
+        graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
         _ <- assertIO(
           graphHeaderInserter.insert(blockData),
           ().asRight[GE]
@@ -73,8 +78,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val res = for {
-          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
             (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
@@ -103,8 +109,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val res = for {
-          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
             ().asRight[GE]
@@ -131,8 +138,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val res = for {
-          blockData           <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter <- GraphBlockInserter.make[F](orientGraph)
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
+          graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
           _ <- assertIO(
             graphHeaderInserter.insert(blockData),
             (GEs.InternalMessage("boom!"): GE).asLeft[Unit]

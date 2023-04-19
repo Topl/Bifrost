@@ -28,24 +28,23 @@ object OrientDBMetadataFactory {
   ): Resource[F, Unit] =
     for {
       db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => Sync[F].delay(db.close()))
-      _  <- OrientThread[F].exec(db.activateOnCurrentThread()).toResource
+      _  <- OrientThread[F].delay(db.activateOnCurrentThread()).toResource
       _ <- Resource.eval(
-        OrientThread[F].execF(
+        OrientThread[F].defer(
           for {
-            headerVertex        <- createVertex(db, blockHeaderSchema)
-            bodyVertex          <- createVertex(db, blockBodySchema)
-            transactionVertex   <- createVertex(db, ioTransactionSchema)
-            canonicalHeadVertex <- createVertex(db, canonicalHeadSchema)
-            _                   <- createLinks(db, blockHeaderSchema, headerVertex)
-            _                   <- createLinks(db, blockBodySchema, bodyVertex)
-            _                   <- createLinks(db, ioTransactionSchema, transactionVertex)
-            _                   <- createLinks(db, canonicalHeadSchema, canonicalHeadVertex)
+            _ <- createVertex(db, blockHeaderSchema)
+            _ <- createVertex(db, blockBodySchema)
+            _ <- createVertex(db, ioTransactionSchema)
+            _ <- createVertex(db, canonicalHeadSchema)
           } yield ()
         )
       )
     } yield ()
 
   private[orientDb] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
+    // Even though the thread should already be active from the call up above, unit tests
+    // may directly invoke this method without first initializing
+    Sync[F].delay(db.activateOnCurrentThread()) >>
     Sync[F]
       .delay(Option(db.getClass(schema.name)))
       .flatMap {
@@ -58,6 +57,7 @@ object OrientDBMetadataFactory {
             .delay(db.createClass(schema.name, "V"))
             .flatTap(oClass => createProps(schema, oClass))
             .flatTap(oClass => createIndices(schema, oClass))
+            .flatTap(oClass => createLinks(db, schema, oClass))
       }
 
   private def createProps[F[_]: Sync: Logger](vs: VertexSchema[_], oClass: OClass): F[Unit] =

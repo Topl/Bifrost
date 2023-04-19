@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
-import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
@@ -27,21 +26,21 @@ object GraphVertexFetcher {
       new VertexFetcherAlgebra[F] {
 
         override def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", tx))
           )
 
         def fetchHeaderByHeight(height: Long): F[Either[GE, Option[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try(
               orientGraph
                 .getVertices(blockHeaderSchema.name, Array(SchemaBlockHeader.Field.Height), Array(height))
@@ -52,7 +51,7 @@ object GraphVertexFetcher {
           )
 
         def fetchHeaderByDepth(depth: Long): F[Either[GE, Option[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try {
 
               /**
@@ -83,7 +82,7 @@ object GraphVertexFetcher {
           )
 
         override def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try(
               orientGraph
                 .getVertices(blockBodySchema.name, Array(SchemaBlockHeader.Field.BlockId), Array(headerVertex.getId))
@@ -94,7 +93,7 @@ object GraphVertexFetcher {
           )
 
         override def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try(
               orientGraph
                 .getVertices(
@@ -108,7 +107,7 @@ object GraphVertexFetcher {
           )
 
         def fetchTransaction(ioTransaction32: Identifier.IoTransaction32): F[Either[GE, Option[Vertex]]] =
-          OrientThread[F].exec(
+          OrientThread[F].delay(
             Try(
               orientGraph
                 .getVertices(

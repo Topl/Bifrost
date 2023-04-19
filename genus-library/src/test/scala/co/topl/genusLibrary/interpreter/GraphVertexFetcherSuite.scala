@@ -7,6 +7,7 @@ import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.model.{GE, GEs}
+import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
@@ -32,6 +33,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (header: BlockHeader) =>
       withMock {
         val res = for {
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
@@ -54,6 +56,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (header: BlockHeader) =>
       withMock {
         val res = for {
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
@@ -77,6 +80,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (height: Long) =>
       withMock {
         val res = for {
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
@@ -100,6 +104,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     PropF.forAllF { (height: Long) =>
       withMock {
         val res = for {
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
           graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(graphVertexFetcher.fetchHeaderByHeight(height), Option.empty[Vertex].asRight[GE]).toResource
@@ -118,6 +123,7 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
     }
 
     val res = for {
+      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
       orientGraphNoTx <- Resource.make(Sync[F].blocking(g))(g =>
         Sync[F].delay {
           g.drop()
@@ -144,8 +150,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     withMock {
       val res = for {
-        orientGraphNoTx <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-        vertex          <- mock[Vertex].pure[F].toResource
+        implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+        orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+        vertex                                   <- mock[Vertex].pure[F].toResource
         _ = (() => vertex.getId).expects().once().returning(new Object())
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
@@ -169,8 +176,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     withMock {
       val res = for {
-        orientGraphNoTx <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-        vertex          <- mock[Vertex].pure[F].toResource
+        implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+        orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+        vertex                                   <- mock[Vertex].pure[F].toResource
         _ = (() => vertex.getId).expects().once().returning(new Object())
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(graphVertexFetcher.fetchBody(vertex), Option.empty[Vertex].asRight[GE]).toResource
@@ -191,8 +199,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     withMock {
       val res = for {
-        orientGraphNoTx <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-        vertex          <- mock[Vertex].pure[F].toResource
+        implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+        orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+        vertex                                   <- mock[Vertex].pure[F].toResource
         _ = (() => vertex.getId).expects().once().returning(new Object())
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
@@ -216,8 +225,9 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
 
     withMock {
       val res = for {
-        orientGraphNoTx <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-        vertex          <- mock[Vertex].pure[F].toResource
+        implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+        orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+        vertex                                   <- mock[Vertex].pure[F].toResource
         _ = (() => vertex.getId).expects().once().returning(new Object())
         graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
 

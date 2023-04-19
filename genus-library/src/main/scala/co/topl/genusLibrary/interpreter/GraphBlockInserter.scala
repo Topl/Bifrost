@@ -20,7 +20,7 @@ object GraphBlockInserter {
       new BlockInserterAlgebra[F] {
 
         override def insert(block: BlockData): F[Either[GE, Unit]] =
-          OrientThread[F].exec {
+          OrientThread[F].delay {
             Try {
               val headerVertex = graph.addHeader(block.header)
 

@@ -27,8 +27,8 @@ object GenusServer {
       implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
       orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword)
 
-      dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => orientThread.exec(db.shutdown()))
-      dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => orientThread.exec(db.shutdown()))
+      dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => orientThread.delay(db.shutdown()))
+      dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
 
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)

@@ -14,12 +14,12 @@ trait OrientThread[F[_]] {
   /**
    * Execute the given thunk on the dedicated thread
    */
-  def exec[O](t: => O): F[O]
+  def delay[O](t: => O): F[O]
 
   /**
    * Execute the given F-operation on the dedicated thread
    */
-  def execF[O](t: => F[O]): F[O]
+  def defer[O](t: => F[O]): F[O]
 
 }
 
@@ -32,9 +32,9 @@ object OrientThread {
       .make(Async[F].delay(Executors.newSingleThreadExecutor()))(ec => Async[F].delay(ec.shutdown()))
     ec = ExecutionContext.fromExecutor(executor)
     orientThread = new OrientThread[F] {
-      override def exec[O](t: => O): F[O] = execF(Async[F].delay(t))
+      override def delay[O](t: => O): F[O] = defer(Async[F].delay(t))
 
-      def execF[O](t: => F[O]): F[O] = Async[F].evalOn(Async[F].defer(t), ec)
+      def defer[O](t: => F[O]): F[O] = Async[F].evalOn(Async[F].defer(t), ec)
     }
   } yield orientThread
 
