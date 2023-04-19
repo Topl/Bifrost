@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect.kernel.Resource
 import cats.effect.{Async, IO}
 import cats.implicits._
+import cats.effect.implicits._
 import co.topl.common.application.IOBaseApp
 import com.comcast.ip4s._
 import fs2._
@@ -41,11 +42,11 @@ object NetworkDelayer
   private def serverForRoute(route: ApplicationConfig.Route): F[Unit] =
     (
       for {
-        serverStream   <- buildServerStream(route)
-        clientResource <- buildClientResource(route)
+        serverStream <- buildServerStream(route)
         _ <- Logger[F].info(s"Serving at binding=${route.bindHost}:${route.bindPort} with throttle=${route.throttle}")
         _ <- serverStream
-          .mapAsync(1)(handleSocket(route)(clientResource)(_).start)
+          .map(handleSocket(route)(buildClientResource(route))(_))
+          .parJoinUnbounded
           .compile
           .drain
       } yield ()
@@ -67,15 +68,18 @@ object NetworkDelayer
   /**
    * Validate the route's destination and construct a reusable destination connection resource.
    */
-  private def buildClientResource(route: ApplicationConfig.Route): F[Resource[F, Socket[F]]] =
+  private def buildClientResource(route: ApplicationConfig.Route): Resource[F, Socket[F]] =
     for {
       destinationHost <- OptionT
         .fromOption[F](Host.fromString(route.destinationHost))
         .getOrRaise(new IllegalArgumentException("Invalid destinationHost"))
+        .toResource
       destinationPort <- OptionT
         .fromOption[F](Port.fromInt(route.destinationPort))
         .getOrRaise(new IllegalArgumentException("Invalid destinationPort"))
-    } yield Network[F].client(SocketAddress(destinationHost, destinationPort))
+        .toResource
+      client <- Network[F].client(SocketAddress(destinationHost, destinationPort))
+    } yield client
 
   /**
    * Forward inbound data from the local socket to the destination.  Forward inbound data from the destination
@@ -83,40 +87,38 @@ object NetworkDelayer
    */
   private def handleSocket(route: ApplicationConfig.Route)(clientResource: Resource[F, Socket[F]])(
     localSocket: Socket[F]
-  ): F[Unit] =
-    Logger[F].info(s"Accepted inbound connection at binding=${route.bindHost}:${route.bindPort}") >>
-    clientResource
-      .use(clientSocket =>
+  ): Stream[F, Unit] =
+    Stream
+      .resource(clientResource)
+      .evalTap(_ =>
+        Logger[F].info(s"Accepted inbound connection at binding=${route.bindHost}:${route.bindPort}") >>
         Logger[F].info(
           s"Forwarding from binding=${route.bindHost}:${route.bindPort}" +
           s" to remote=${route.destinationHost}:${route.destinationPort}"
-        ) >>
-        (
-          download(route)(clientSocket.reads)(localSocket.writes),
-          upload(route)(localSocket.reads)(clientSocket.writes)
-        ).parTupled.void
+        )
       )
-      .handleErrorWith(Logger[F].error(_)("Connection failed"))
+      .flatMap(clientSocket =>
+        download(route)(clientSocket.reads)(localSocket.writes)
+          .merge(upload(route)(localSocket.reads)(clientSocket.writes))
+      )
+      .void
+      .handleErrorWith(e => Stream.exec(Logger[F].error(e)("Connection failed")))
 
   /**
    * Handle the "download" side of the socket, and impose throttling
    */
-  private def download(route: ApplicationConfig.Route)(in: Stream[F, Byte])(out: Pipe[F, Byte, Nothing]): F[Unit] =
+  private def download(route: ApplicationConfig.Route)(in: Stream[F, Byte])(out: Pipe[F, Byte, Nothing]) =
     route.throttle
       .foldLeft(in)(_ through downloadThrottler(_))
       .through(out)
-      .compile
-      .drain
 
   /**
    * Handle the "upload" side of the socket, and impose throttling
    */
-  private def upload(route: ApplicationConfig.Route)(in: Stream[F, Byte])(out: Pipe[F, Byte, Nothing]): F[Unit] =
+  private def upload(route: ApplicationConfig.Route)(in: Stream[F, Byte])(out: Pipe[F, Byte, Nothing]) =
     route.throttle
       .foldLeft(in)(_ through uploadThrottler(_))
       .through(out)
-      .compile
-      .drain
 
   private def downloadThrottler(throttle: ApplicationConfig.Route.Throttle): Pipe[F, Byte, Byte] =
     _.through(latencyThrottler(throttle.latency)).through(bandwidthThrottler(throttle.downloadBytesPerSecond))

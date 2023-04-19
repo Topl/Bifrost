@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.model
 
+import cats.implicits.catsSyntaxOptionId
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction.IoTransaction
 
@@ -13,7 +14,7 @@ object AddressUtil {
     Address(
       address.network,
       address.ledger,
-      address.index,
+      address.index.some,
       id = address.id match {
         case TransactionOutputAddress.Id.Empty                   => Identifier(Identifier.Value.Empty)
         case TransactionOutputAddress.Id.IoTransaction32(ioTx32) => Identifier(Identifier.Value.IoTransaction32(ioTx32))
@@ -25,7 +26,7 @@ object AddressUtil {
     Address(
       address.network,
       address.ledger,
-      index = 0, // TODO, should be None
+      index = None,
       id = address.id match {
         case LockAddress.Id.Empty          => Identifier(Identifier.Value.Empty)
         case LockAddress.Id.Lock32(lock32) => Identifier(Identifier.Value.Lock32(lock32))

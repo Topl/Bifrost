@@ -18,8 +18,10 @@ import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
+import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
 
 /**
@@ -274,7 +276,9 @@ object BlockHeaderValidation {
           )
           .leftWiden[BlockHeaderValidationFailure]
         // Warning: This is most likely a side effecting operation
-        isNewEligibility <- EitherT.liftF(eligibilityCache.tryInclude(header.eligibilityCertificate.vrfVK, header.slot))
+        isNewEligibility <- EitherT.liftF(
+          eligibilityCache.tryInclude(header.id, header.eligibilityCertificate.vrfVK, header.slot)
+        )
         _ <- EitherT
           .cond[F](
             isNewEligibility,
@@ -328,31 +332,36 @@ object BlockHeaderValidation {
 
   object WithCache {
 
+    /**
+     * Wraps an existing BlockHeaderValidation with a cache.  Valid block IDs are saved in the cache to avoid recomputing
+     * when switching branches.
+     *
+     * Invalid block IDs are not saved, but this is subject to change.  This is to avoid an adversary flooding the
+     * cache with invalid block IDs, but this comes at the risk of the adversary flooding compute resources.
+     *
+     * @param underlying The base header validation implementation
+     * @param cacheSize The maximum number of header IDs to store
+     */
     def make[F[_]: Sync](
-      underlying:       BlockHeaderValidationAlgebra[F],
-      blockHeaderStore: Store[F, BlockId, BlockHeader],
-      bigBangBlockId:   BlockId
+      underlying: BlockHeaderValidationAlgebra[F],
+      cacheSize:  Int = 512
     ): F[BlockHeaderValidationAlgebra[F]] =
-      CaffeineCache[F, BlockId, Unit].map(implicit cache =>
-        new BlockHeaderValidationAlgebra[F] {
+      Sync[F]
+        .delay(CaffeineCache[F, BlockId, Unit](Caffeine.newBuilder.maximumSize(cacheSize).build[BlockId, Entry[Unit]]))
+        .map(implicit cache =>
+          new BlockHeaderValidationAlgebra[F] {
 
-          def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
-            if (header.id === bigBangBlockId) header.asRight[BlockHeaderValidationFailure].pure[F]
-            else
+            def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
               cache
                 .cachingF(header.id)(ttl = None)(
-                  EitherT
-                    .liftF(Sync[F].defer(blockHeaderStore.getOrRaise(header.parentHeaderId)))
-                    .flatMapF(validate)
-                    .flatMapF(_ => underlying.validate(header))
-                    .void
+                  EitherT(Sync[F].defer(underlying.validate(header))).void
                     .leftMap(new WrappedFailure(_))
                     .rethrowT
                 )
                 .as(header.asRight[BlockHeaderValidationFailure])
                 .recover { case w: WrappedFailure => w.failure.asLeft[BlockHeader] }
-        }
-      )
+          }
+        )
 
     private class WrappedFailure(val failure: BlockHeaderValidationFailure) extends Exception
   }

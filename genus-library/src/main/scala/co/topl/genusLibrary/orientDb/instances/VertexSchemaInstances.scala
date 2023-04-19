@@ -5,12 +5,15 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Address, Evidence, Identifier, TransactionOutputAddress}
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
+import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
+import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
 import quivr.models.Digest
+
 import scala.jdk.CollectionConverters._
 
 /**
@@ -33,12 +36,27 @@ object VertexSchemaInstances {
 
       def addAddress(address: Address): OrientVertex =
         graph.addVertex(s"class:${addressSchema.name}", addressSchema.encode(address).asJava)
+
+      def addCanonicalHead(blockHeaderVertex: OrientVertex): Vertex =
+        // Is expected that Canonical head schema only contains 1 vertex, the head of the chain
+        graph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala.headOption match {
+          case Some(v) =>
+            v.setProperty(canonicalHeadSchema.links.head.propertyName, blockHeaderVertex.getId)
+            v
+          case None =>
+            val v =
+              graph.addVertex(s"class:${canonicalHeadSchema.name}", canonicalHeadSchema.encode(CanonicalHead).asJava)
+            v.setProperty(canonicalHeadSchema.links.head.propertyName, blockHeaderVertex.getId)
+            v
+        }
+
     }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
     private[genusLibrary] val addressSchema: VertexSchema[Address] = SchemaAddress.make()
+    private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
 
     // Note, From here to the end, VertexSchemas not tested
 

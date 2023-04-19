@@ -12,6 +12,13 @@ import com.tinkerpop.blueprints.Vertex
 trait VertexFetcherAlgebra[F[_]] {
 
   /**
+   * Fetch Canonical head vertex on the stored Ledger
+   *
+   * @return Optional header vertex, None if it was not found
+   */
+  def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]]
+
+  /**
    * Fetch a BlockHeader vertex on the stored Ledger
    * @param blockId  blockId filter by field
    * @return Optional header vertex, None if it was not found

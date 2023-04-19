@@ -39,20 +39,19 @@ object NetworkManager {
         localChain,
         slotDataStore,
         transactionStore,
-        blockIdTree
+        blockIdTree,
+        headerToBodyValidation
       )
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager)
       requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)
       blocksChecker <- networkAlgebra.makeBlockChecker(
         reputationAggregator,
-        peerManager,
         requestsProxy,
         localChain,
         slotDataStore,
         headerStore,
         bodyStore,
         headerValidation,
-        headerToBodyValidation,
         bodySyntaxValidation,
         bodySemanticValidation,
         bodyAuthorizationValidation,

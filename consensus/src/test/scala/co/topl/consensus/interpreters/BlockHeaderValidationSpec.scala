@@ -434,8 +434,8 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
             .returning(relativeStake.some.pure[F])
 
           (eligibilityCache
-            .tryInclude(_: Bytes, _: Slot))
-            .expects(*, *)
+            .tryInclude(_: BlockId, _: Bytes, _: Slot))
+            .expects(*, *, *)
             .once()
             .returning(false.pure[F])
 
@@ -489,8 +489,8 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
             .returning(relativeStake.some.pure[F])
 
           (eligibilityCache
-            .tryInclude(_: Bytes, _: Slot))
-            .expects(*, *)
+            .tryInclude(_: BlockId, _: Bytes, _: Slot))
+            .expects(*, *, *)
             .anyNumberOfTimes()
             .returning(true.pure[F])
 

@@ -9,15 +9,23 @@ import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, VertexFetcherAlgebra}
 import co.topl.genusLibrary.model.GE
+import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.Vertex
+import com.tinkerpop.blueprints.impls.orient.OrientVertex
 
 object GraphBlockFetcher {
 
   def make[F[_]: Async](vertexFetcher: VertexFetcherAlgebra[F]): Resource[F, BlockFetcherAlgebra[F]] =
     Resource.pure {
       new BlockFetcherAlgebra[F] {
+
+        override def fetchCanonicalHead(): F[Either[GE, Option[BlockHeader]]] =
+          EitherT(vertexFetcher.fetchCanonicalHead())
+            .map(_.map(_.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)))
+            .map(_.map(blockHeaderSchema.decodeVertex))
+            .value
 
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeader(blockId))

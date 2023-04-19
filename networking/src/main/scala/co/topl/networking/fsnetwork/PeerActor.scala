@@ -7,16 +7,14 @@ import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.Message.{DownloadBlockBodies, DownloadBlockHeaders, UpdateState}
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
@@ -39,17 +37,16 @@ object PeerActor {
 
     /**
      * Request to download block bodies from peer, downloaded bodies will be sent to block checker directly
-     * @param blockIds bodies block id to download
+     * @param blockData bodies block id to download
      */
-    case class DownloadBlockBodies(blockIds: NonEmptyChain[BlockId]) extends Message
+    case class DownloadBlockBodies(blockData: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
   }
 
   case class State[F[_]](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    reputationAggregator: ReputationAggregatorActor[F],
-    blockHeaderActor:     PeerBlockHeaderFetcherActor[F],
-    blockBodyActor:       PeerBlockBodyFetcherActor[F]
+    hostId:           HostId,
+    client:           BlockchainPeerClient[F],
+    blockHeaderActor: PeerBlockHeaderFetcherActor[F],
+    blockBodyActor:   PeerBlockBodyFetcherActor[F]
   )
 
   type Response[F[_]] = State[F]
@@ -62,20 +59,28 @@ object PeerActor {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    reputationAggregator: ReputationAggregatorActor[F],
-    blockChecker:         BlockCheckerActor[F],
-    requestsProxy:        RequestsProxyActor[F],
-    localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, BlockId, SlotData],
-    transactionStore:     Store[F, Identifier.IoTransaction32, IoTransaction],
-    blockIdTree:          ParentChildTree[F, BlockId]
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    blockChecker:           BlockCheckerActor[F],
+    requestsProxy:          RequestsProxyActor[F],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerActor[F]] =
     for {
-      header <- PeerBlockHeaderFetcher.makeActor(hostId, client, blockChecker, localChain, slotDataStore, blockIdTree)
-      body   <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore)
-      initialState = State(hostId, client, reputationAggregator, header, body)
+      header <- PeerBlockHeaderFetcher.makeActor(
+        hostId,
+        client,
+        blockChecker,
+        requestsProxy,
+        localChain,
+        slotDataStore,
+        blockIdTree
+      )
+      body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+      initialState = State(hostId, client, header, body)
       actor <- Actor.make(initialState, getFsm[F])
     } yield actor
 
@@ -100,9 +105,9 @@ object PeerActor {
     (state, state).pure[F]
 
   private def downloadBodies[F[_]: Concurrent](
-    state:    State[F],
-    blockIds: NonEmptyChain[BlockId]
+    state:     State[F],
+    blockData: NonEmptyChain[(BlockId, BlockHeader)]
   ): F[(State[F], Response[F])] =
-    state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.DownloadBlocks(blockIds)) >>
+    state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.DownloadBlocks(blockData)) >>
     (state, state).pure[F]
 }

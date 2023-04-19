@@ -17,6 +17,7 @@ import co.topl.quivr.algebras.SignatureVerifier
 import co.topl.quivr.runtime.DynamicContext
 import co.topl.quivr.runtime.QuivrRuntimeError
 import co.topl.quivr.runtime.QuivrRuntimeErrors
+import co.topl.typeclasses.implicits.arrayEq
 import quivr.models.DigestVerification
 import quivr.models.SignableBytes
 import quivr.models.SignatureVerification

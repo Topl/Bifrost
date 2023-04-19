@@ -41,7 +41,7 @@ object SchemaAddress {
         )
         .withProperty(
           Field.Index,
-          address => java.lang.Integer.valueOf(address.index),
+          address => java.lang.Integer.valueOf(address.index.getOrElse(0)),
           mandatory = false,
           readOnly = true,
           notNull = false

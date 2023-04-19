@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.MonadThrow
-import cats.data.{NonEmptyChain, OptionT}
+import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
@@ -9,11 +9,13 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
+import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockBodyDownloadError._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -29,17 +31,18 @@ object PeerBlockBodyFetcher {
     /**
      * Request to download block bodies from peer, downloaded bodies will be sent to block checker directly
      *
-     * @param blockIds bodies block id to download
+     * @param blockData bodies block id to download
      */
-    case class DownloadBlocks(blockIds: NonEmptyChain[BlockId]) extends Message
+    case class DownloadBlocks(blockData: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
 
   }
 
   case class State[F[_]](
-    hostId:           HostId,
-    client:           BlockchainPeerClient[F],
-    requestsProxy:    RequestsProxyActor[F],
-    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction]
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    requestsProxy:          RequestsProxyActor[F],
+    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   )
 
   type Response[F[_]] = State[F]
@@ -52,37 +55,41 @@ object PeerBlockBodyFetcher {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:           HostId,
-    client:           BlockchainPeerClient[F],
-    requestsProxy:    RequestsProxyActor[F],
-    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction]
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    requestsProxy:          RequestsProxyActor[F],
+    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
-    val initialState = State(hostId, client, requestsProxy, transactionStore)
+    val initialState = State(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
     Actor.make(initialState, getFsm[F])
   }
 
   private def downloadBodies[F[_]: Async: Logger](
     state:            State[F],
-    blocksToDownload: NonEmptyChain[BlockId]
+    blocksToDownload: NonEmptyChain[(BlockId, BlockHeader)]
   ): F[(State[F], Response[F])] =
     for {
       idToBody <- Stream.foldable(blocksToDownload).evalMap(downloadBlockBody(state)).compile.toList
-      messageToSend = RequestsProxy.Message.DownloadBlockResponse(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
+      messageToSend = RequestsProxy.Message.DownloadBodiesResponse(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
       _ <- state.requestsProxy.sendNoWait(messageToSend)
     } yield (state, state)
 
   private def downloadBlockBody[F[_]: Async: Logger](
     state: State[F]
-  )(blockId: BlockId): F[(BlockId, Either[BlockBodyDownloadError, BlockBody])] = {
-    val bodyEither: F[BlockBody] =
+  )(blockData: (BlockId, BlockHeader)): F[(BlockId, Either[BlockBodyDownloadError, BlockBody])] = {
+    val (blockId, blockHeader) = blockData
+
+    val body: F[BlockBody] =
       for {
         _    <- Logger[F].info(show"Fetching remote body id=$blockId")
         body <- downloadBlockBody(state, blockId)
-        _    <- Logger[F].debug(show"Fetched remote body id=$blockId")
+        _    <- Logger[F].info(show"Fetched remote body id=$blockId")
+        _    <- checkBody(state, Block(blockHeader, body))
         _    <- downloadingMissingTransactions(state, body)
       } yield body
 
-    bodyEither
+    body
       .map(blockBody => Either.right[BlockBodyDownloadError, BlockBody](blockBody))
       .handleError {
         case e: BlockBodyDownloadError => Either.left[BlockBodyDownloadError, BlockBody](e)
@@ -98,11 +105,16 @@ object PeerBlockBodyFetcher {
 
   }
 
-  private def downloadBlockBody[F[_]: Async](
-    state:   State[F],
-    blockId: BlockId
-  ): F[BlockBody] =
+  private def downloadBlockBody[F[_]: Async](state: State[F], blockId: BlockId): F[BlockBody] =
     OptionT(state.client.getRemoteBody(blockId)).getOrElseF(MonadThrow[F].raiseError(BodyNotFoundInPeer))
+
+  private def checkBody[F[_]: Async](state: State[F], block: Block): F[BlockBody] =
+    EitherT(state.headerToBodyValidation.validate(block))
+      .map(_.body)
+      .leftMap { case e: IncorrectTxRoot =>
+        BodyHaveIncorrectTxRoot(e.headerTxRoot, e.bodyTxRoot)
+      }
+      .rethrowT
 
   private def downloadingMissingTransactions[F[_]: Async: Logger](
     state:     State[F],

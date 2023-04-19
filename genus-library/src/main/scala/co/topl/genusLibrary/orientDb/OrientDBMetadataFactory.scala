@@ -29,6 +29,7 @@ package co.topl.genusLibrary.orientDb {
         _ <- createSchema(db, blockBodySchema).toResource
         _ <- createSchema(db, ioTransactionSchema).toResource
         _ <- createSchema(db, addressSchema).toResource
+        _ <- createSchema(db, canonicalHeadSchema).toResource
 
         _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge)
           .traverse(e => createEdgeSchema(db, e))

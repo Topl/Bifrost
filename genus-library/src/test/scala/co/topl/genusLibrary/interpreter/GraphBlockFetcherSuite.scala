@@ -22,6 +22,55 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
+  test("On fetchCanonicalHead with throwable response, a FailureMessageWithCause should be returned") {
+
+    withMock {
+
+      val res = for {
+        graphVertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+        expectedTh = new IllegalStateException("boom!")
+        _ = (() => graphVertexFetcher.fetchCanonicalHead())
+          .expects()
+          .once()
+          .returning(
+            (GEs
+              .InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", expectedTh): GE)
+              .asLeft[Option[Vertex]]
+              .pure[F]
+          )
+        graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
+        _ <- assertIO(
+          graphBlockFetcher.fetchCanonicalHead(),
+          (GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", expectedTh): GE)
+            .asLeft[Option[BlockHeader]]
+        ).toResource
+      } yield ()
+
+      res.use_
+    }
+
+  }
+
+  test("On fetchCanonicalHead if an empty iterator is returned, None BlockHeader should be returned") {
+
+    withMock {
+      val res = for {
+        graphVertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+        _ = (() => graphVertexFetcher.fetchCanonicalHead())
+          .expects()
+          .returning(Option.empty[Vertex].asRight[GE].pure[F])
+        graphBlockFetcher <- GraphBlockFetcher.make[F](graphVertexFetcher)
+        _ <- assertIO(
+          graphBlockFetcher.fetchCanonicalHead(),
+          Option.empty[BlockHeader].asRight[GE]
+        ).toResource
+      } yield ()
+
+      res.use_
+    }
+
+  }
+
   test("On fetchHeader with throwable response, a FailureMessageWithCause should be returned") {
 
     PropF.forAllF { (header: BlockHeader) =>

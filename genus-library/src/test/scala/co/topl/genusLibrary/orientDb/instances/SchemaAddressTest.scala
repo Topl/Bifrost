@@ -97,7 +97,7 @@ class SchemaAddressTest
           Address(
             lockAddress.network,
             lockAddress.ledger,
-            0, // None when https://github.com/Topl/protobuf-specs/pull/49
+            None,
             id = Identifier.of(Identifier.Value.Lock32(lockAddress.id.lock32.get))
           )
         )
@@ -124,7 +124,7 @@ class SchemaAddressTest
 
       _ <- assertIO(
         vertex.getProperty[Int](schema.properties.filter(_.name == Field.Index).head.name).pure[F],
-        address.index
+        0
       ).toResource
 
       _ <- assertIO(
@@ -170,7 +170,7 @@ class SchemaAddressTest
           Address(
             outputAddress.network,
             outputAddress.ledger,
-            outputAddress.index,
+            Some(outputAddress.index),
             id = Identifier.of(Identifier.Value.IoTransaction32(outputAddress.id.ioTransaction32.get))
           )
         )
@@ -197,7 +197,7 @@ class SchemaAddressTest
 
       _ <- assertIO(
         vertex.getProperty[Int](schema.properties.filter(_.name == Field.Index).head.name).pure[F],
-        address.index
+        address.index.getOrElse(0)
       ).toResource
 
       _ <- assertIO(
