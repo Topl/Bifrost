@@ -4,7 +4,7 @@ import cats.data.{Chain, EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
@@ -90,32 +90,11 @@ object NodeBlockFetcher {
             GEs.TransactionsNotFound
           ))
 
-        def fetchHeight(): F[Either[GE, Long]] =
-          for {
-            adoptionsStream <- toplRpc.synchronizationTraversal()
-            latestApplied <- adoptionsStream
-              .collectFirst { case SynchronizationTraversalSteps.Applied(blockId) =>
-                blockId
-              }
-              .last
-              .compile
-              .toList
-              .map(_.flatten)
-              .map(_.headOption)
-            latest <-
-              EitherT
-                .fromOptionF(latestApplied.pure[F], GEs.InternalMessage("Unable to fetch height Latest applied step"))
-                .flatMapF(blockId =>
-                  EitherT
-                    .fromOptionF(
-                      toplRpc.fetchBlockHeader(blockId),
-                      GEs.InternalMessage("Unable to fetch latest applied header"): GE
-                    )
-                    .map(_.height)
-                    .value
-                )
-                .value
-          } yield latest
+        def fetchHeight(): F[Option[Long]] =
+          (for {
+            headBlockId <- OptionT(toplRpc.blockIdAtDepth(depth = 0))
+            blockHeader <- OptionT(toplRpc.fetchBlockHeader(headBlockId))
+          } yield blockHeader.height).value
 
       }
     }

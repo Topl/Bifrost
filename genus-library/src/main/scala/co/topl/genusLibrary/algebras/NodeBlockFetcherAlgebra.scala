@@ -31,6 +31,6 @@ trait NodeBlockFetcherAlgebra[F[_], G[_]] {
    *
    * @return height
    */
-  def fetchHeight(): F[Either[GE, Long]]
+  def fetchHeight(): F[Option[Long]]
 
 }

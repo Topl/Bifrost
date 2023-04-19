@@ -1,5 +1,6 @@
 package co.topl.genusServer
 
+import cats.data.OptionT
 import cats.effect._
 import cats.effect.implicits.effectResourceOps
 import cats.syntax.all._
@@ -46,10 +47,10 @@ object GenusServerApp
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
       nodeEnabled <- Resource.pure(true) // maybe we can use a config
 
-      nodeLatestHeight <- nodeBlockFetcher
-        .fetchHeight()
-        .map(_.getOrElse(Integer.MAX_VALUE: Long))
-        .toResource
+      nodeLatestHeight <- OptionT(
+        nodeBlockFetcher
+          .fetchHeight()
+      ).getOrElse(1L).toResource
 
       graphCurrentHead <-
         blockFetcher
@@ -76,12 +77,7 @@ object GenusServerApp
 
       _ <-
         if (nodeEnabled)
-          inserter
-            .take(Integer.MAX_VALUE)
-            .compile
-            .toList
-            .void
-            .toResource
+          inserter.compile.toList.void.toResource
         else Resource.unit[F]
 
       _ <- GenusGrpc.Server
