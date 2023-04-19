@@ -185,6 +185,9 @@ case class TestNodeConfig(
        |    local-staker-index: $localStakerIndex
        |    timestamp: ${bigBangTimestamp.toEpochMilli}
        |    $stakesStr
+       |  protocols:
+       |    0:
+       |      slot-duration: 200 milli
        |""".stripMargin
   }
 
