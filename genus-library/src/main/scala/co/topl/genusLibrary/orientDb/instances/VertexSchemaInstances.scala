@@ -32,6 +32,16 @@ object VertexSchemaInstances {
 
       def addIoTx(ioTx: IoTransaction): OrientVertex =
         graph.addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(ioTx).asJava)
+
+      def addCanonicalHead(blockHeaderVertex: OrientVertex): OrientVertex = {
+        // Is expected that Canonical head schema only contains 1 vertex, the head of the chain
+        graph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala.foreach(graph.removeVertex)
+        val v = graph
+          .addVertex(s"class:${canonicalHeadSchema.name}", canonicalHeadSchema.encode(CanonicalHead).asJava)
+        v.setProperty(canonicalHeadSchema.links.head.propertyName, blockHeaderVertex.getId)
+        v
+      }
+
     }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()

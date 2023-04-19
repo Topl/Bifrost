@@ -3,12 +3,15 @@ package co.topl.genusServer
 import cats.effect._
 import cats.effect.implicits.effectResourceOps
 import cats.syntax.all._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.common.application.IOBaseApp
 import co.topl.genusLibrary.interpreter._
 import co.topl.genusLibrary.orientDb.OrientDBFactory
 import co.topl.grpc.ToplGrpc
+import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats._
 import org.typelevel.log4cats.slf4j._
+
 import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters._
 
@@ -41,12 +44,32 @@ object GenusServerApp
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
 
       // TODO this is just proof of concept, we need to add a lot of logic here, related to retries and handling errors
-      nodeEnabled <- Resource.pure(false) // maybe we can use a config
+      nodeEnabled <- Resource.pure(true) // maybe we can use a config
+
+      nodeLatestHeight <- nodeBlockFetcher
+        .fetchHeight()
+        .map(_.getOrElse(Integer.MAX_VALUE: Long))
+        .toResource
+
+      graphCurrentHead <-
+        blockFetcher
+          .fetchCanonicalHead()
+          .map(_.map(_.map(_.height)))
+          .map(
+            _.getOrElse(Some(1L))
+          )
+          .map(_.getOrElse(1L))
+          .toResource
+
+      _ <- Logger[F].info(s"Node height: $nodeLatestHeight").toResource
       inserter <- nodeBlockFetcher
-        .fetch(startHeight = 1, endHeight = 300)
+        .fetch(startHeight = graphCurrentHead + 1, endHeight = nodeLatestHeight)
         .map(_.spaced(50 millis))
         .map(
-          _.evalMap(graphBlockInserter.insert)
+          _.evalMap { blockData =>
+            Logger[F].info(s"Inserting block data ${blockData.header.id.show}") >>
+            graphBlockInserter.insert(blockData)
+          }
             .evalTap(res => Logger[F].info(res.leftMap(_.toString).swap.getOrElse("OK")))
         )
         .toResource
@@ -54,7 +77,7 @@ object GenusServerApp
       _ <-
         if (nodeEnabled)
           inserter
-            .take(300)
+            .take(Integer.MAX_VALUE)
             .compile
             .toList
             .void

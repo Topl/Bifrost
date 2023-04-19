@@ -22,6 +22,13 @@ object GraphVertexFetcher {
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
+        override def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
+          Async[F].blocking(
+            Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
+          )
+
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           Async[F].blocking(
             Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither

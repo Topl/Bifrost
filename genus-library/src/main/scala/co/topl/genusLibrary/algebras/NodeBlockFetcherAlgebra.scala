@@ -26,4 +26,11 @@ trait NodeBlockFetcherAlgebra[F[_], G[_]] {
    */
   def fetch(height: Long): F[Either[GE, Option[BlockData]]]
 
+  /**
+   * Look-up up to the node's current head height
+   *
+   * @return height
+   */
+  def fetchHeight(): F[Either[GE, Long]]
+
 }

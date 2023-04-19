@@ -24,6 +24,8 @@ object GraphBlockInserter {
               Try {
                 val headerVertex = graph.addHeader(block.header)
 
+                graph.addCanonicalHead(headerVertex)
+
                 val bodyVertex = graph.addBody(block.body)
                 bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
