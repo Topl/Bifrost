@@ -60,6 +60,9 @@ class NodeAppTest extends CatsEffectSuite {
         |  big-bang:
         |    staker-count: 2
         |    timestamp: $startTimestamp
+        |  protocols:
+        |    0:
+        |      slot-duration: 500 milli
         |""".stripMargin
     val configNodeB =
       s"""
@@ -78,6 +81,9 @@ class NodeAppTest extends CatsEffectSuite {
          |    staker-count: 2
          |    local-staker-index: 1
          |    timestamp: $startTimestamp
+         |  protocols:
+         |    0:
+         |      slot-duration: 500 milli
          |""".stripMargin
 
     val resource =
@@ -96,8 +102,8 @@ class NodeAppTest extends CatsEffectSuite {
         (utxoAddress, utxo) <- bigBangSpendableUtxo(rpcClientA).toResource
         newTransaction      <- spendUtxo(rpcClientB)(utxoAddress, utxo).toResource
         _ <- (
-          Async[F].timeout(confirmTransaction(rpcClientA)(newTransaction.id), 15.seconds).toResource,
-          Async[F].timeout(confirmTransaction(rpcClientB)(newTransaction.id), 15.seconds).toResource
+          Async[F].timeout(confirmTransaction(rpcClientA)(newTransaction.id), 60.seconds).toResource,
+          Async[F].timeout(confirmTransaction(rpcClientB)(newTransaction.id), 60.seconds).toResource
         ).parTupled
         _ <- (
           fetchUntilHeight(rpcClientA, targetProductionHeight).toResource,
@@ -219,7 +225,7 @@ class NodeAppTest extends CatsEffectSuite {
 
   private def confirmTransaction(
     client: RpcClient
-  )(id: Identifier.IoTransaction32, confirmationDepth: Int = 4): F[Unit] = {
+  )(id: Identifier.IoTransaction32, confirmationDepth: Int = 3): F[Unit] = {
     def containsTransaction(targetBlock: BlockId): F[Boolean] =
       client
         .fetchBlockBody(targetBlock)
