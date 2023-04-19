@@ -63,6 +63,8 @@ class NodeAppTest extends CatsEffectSuite {
         |  protocols:
         |    0:
         |      slot-duration: 500 milli
+        |genus:
+        |  rpc-node-port: 9151
         |""".stripMargin
     val configNodeB =
       s"""
@@ -84,6 +86,8 @@ class NodeAppTest extends CatsEffectSuite {
          |  protocols:
          |    0:
          |      slot-duration: 500 milli
+         |genus:
+         |  enable: false
          |""".stripMargin
 
     val resource =

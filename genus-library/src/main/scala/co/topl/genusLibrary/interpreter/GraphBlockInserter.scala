@@ -15,7 +15,7 @@ import scala.util.Try
 
 object GraphBlockInserter {
 
-  def make[F[_]: Async: OrientThread](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
+  def make[F[_]: OrientThread](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
     Resource.pure(
       new BlockInserterAlgebra[F] {
 

@@ -20,7 +20,7 @@ import scala.util.Try
 
 object GraphVertexFetcher {
 
-  def make[F[_]: Async: OrientThread](
+  def make[F[_]: OrientThread](
     orientGraph: OrientGraphNoTx
   ): Resource[F, VertexFetcherAlgebra[F]] =
     Resource.pure {
