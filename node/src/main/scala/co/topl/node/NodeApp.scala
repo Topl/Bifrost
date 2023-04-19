@@ -242,7 +242,13 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock
         )
       )
-      _ <- GenusServer.make[F](appConfig.genus)
+      _ <- GenusServer.make[F](
+        appConfig.genus.copy(orientDbDirectory =
+          Some(appConfig.genus.orientDbDirectory)
+            .filterNot(_.isEmpty)
+            .getOrElse(dataStores.baseDirectory./("orient-db").toString)
+        )
+      )
       // Finally, run the program
       _ <- Blockchain
         .make[F](

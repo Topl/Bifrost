@@ -8,6 +8,7 @@ import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.metadata.schema.OClass
+import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.typelevel.log4cats.Logger
 
@@ -94,10 +95,12 @@ object OrientDBMetadataFactory {
     SyncIO
       .fromTry(
         Try(
-          vs.links.foreach(l =>
+          vs.links.foreach { l =>
+            val property = Option(oClass.getProperty(l.propertyName))
+              .getOrElse(oClass.createProperty(l.propertyName, OType.LINK))
             if (oClass.getProperty(l.propertyName).getLinkedClass == null)
-              oClass.getProperty(l.propertyName).setLinkedClass(db.getClass(l.linkedClass))
-          )
+              property.setLinkedClass(db.getClass(l.linkedClass))
+          }
         )
       )
       .to[F]

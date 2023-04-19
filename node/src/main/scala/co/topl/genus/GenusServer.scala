@@ -20,6 +20,7 @@ object GenusServer {
   def make[F[_]: Async](conf: ApplicationConfig.Genus): Resource[F, Unit] =
     if (conf.enable) for {
       implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Genus"))
+      // A dedicated single thread executor in which all OrientDB calls are expected to run
       orientEC <- Resource
         .make(Sync[F].delay(Executors.newSingleThreadExecutor()))(ec => Sync[F].delay(ec.shutdown()))
         .map(ExecutionContext.fromExecutor)
