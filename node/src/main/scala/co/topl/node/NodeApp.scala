@@ -19,6 +19,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
+import co.topl.genus.GenusServer
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
@@ -241,6 +242,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock
         )
       )
+      _ <- GenusServer.make[F](appConfig.genus)
       // Finally, run the program
       _ <- Blockchain
         .make[F](

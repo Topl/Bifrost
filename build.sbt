@@ -216,7 +216,8 @@ lazy val node = project
     toplGrpc,
     blockchain,
     levelDbStore,
-    commonApplication
+    commonApplication,
+    genusLibrary
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)

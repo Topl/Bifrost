@@ -19,7 +19,11 @@ import scala.util.Try
 
 // $COVERAGE-OFF$
 @Lenses
-case class ApplicationConfig(bifrost: ApplicationConfig.Bifrost, kamon: ApplicationConfig.Kamon)
+case class ApplicationConfig(
+  bifrost: ApplicationConfig.Bifrost,
+  genus:   ApplicationConfig.Genus,
+  kamon:   ApplicationConfig.Kamon
+)
 
 object ApplicationConfig {
 
@@ -123,7 +127,24 @@ object ApplicationConfig {
 
     @Lenses
     case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
+
   }
+
+  @Lenses
+  case class Genus(
+    enable:            Boolean,
+    rpcHost:           String,
+    rpcPort:           Int,
+    rpcNodeHost:       String,
+    rpcNodePort:       Int,
+    rpcNodeTls:        Boolean,
+    orientDbDirectory: String,
+    orientDbUser:      String,
+    orientDbPassword:  String
+  )
+
+  @Lenses
+  case class Kamon(enable: Boolean)
 
   /**
    * Construct an ApplicationConfig based on the given command-line arguments and a merged HOCON config.
@@ -207,7 +228,5 @@ object ApplicationConfig {
 
   implicit val showApplicationConfig: Show[ApplicationConfig] =
     Show.fromToString
-
-  case class Kamon(enable: Boolean)
 }
 // $COVERAGE-ON$

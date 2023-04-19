@@ -1,11 +1,14 @@
 package co.topl.genusLibrary.orientDb
 
+import cats.effect.Async
 import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.model.GEs
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
+
+import scala.concurrent.ExecutionContext
 
 /**
  * DB Factory which has control over the following actions
@@ -18,10 +21,11 @@ import org.typelevel.log4cats.Logger
  */
 object OrientDBFactory {
 
-  def make[F[_]: Sync: Logger: Files](
+  def make[F[_]: Async: Logger: Files](
     directoryPath: String,
     user:          String,
-    password:      String
+    password:      String,
+    orientEC:      ExecutionContext
   ): Resource[F, OrientGraphFactory] =
     for {
       directory   <- Resource.pure(Path(directoryPath))
@@ -51,7 +55,7 @@ object OrientDBFactory {
       )(factory => Sync[F].delay(factory.close()))
 
       // If we need to recreate the schema from scratch backup, rename/move the db folder.
-      _ <- OrientDBMetadataFactory.make[F](orientGraphFactory)
+      _ <- OrientDBMetadataFactory.make[F](orientGraphFactory, orientEC)
 
     } yield orientGraphFactory
 }

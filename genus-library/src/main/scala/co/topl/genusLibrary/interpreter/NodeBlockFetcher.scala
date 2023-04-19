@@ -33,6 +33,7 @@ object NodeBlockFetcher {
               .range(startHeight, endHeight)
               .covary[F]
               .evalMap(fetch)
+              .takeWhile(_.exists(_.nonEmpty), takeFailure = true)
               .evalMapFilter {
                 case Left(ex) =>
                   Logger[F]
