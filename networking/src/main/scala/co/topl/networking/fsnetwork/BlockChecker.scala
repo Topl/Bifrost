@@ -6,13 +6,14 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.ledger.algebras._
 import co.topl.ledger.interpreters.QuivrContext
-import co.topl.ledger.models.StaticBodyValidationContext
+import co.topl.ledger.models.{BodyValidationError, StaticBodyValidationContext}
 import co.topl.networking.fsnetwork.BlockChecker.Message._
+import co.topl.networking.fsnetwork.BodyApplyException.BodyValidationException
+import co.topl.networking.fsnetwork.HeaderApplyException.HeaderValidationException
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
@@ -50,9 +51,13 @@ object BlockChecker {
      * @param idsAndBodies bodies to check
      */
     case class RemoteBlockBodies(source: HostId, idsAndBodies: NonEmptyChain[(BlockId, BlockBody)]) extends Message
-    // TODO implement it, in case if verification of some incoming data fot current best slot is failed
-    //  then we need to reset current best slot data (and request it again) to not stuck on incorrect slot data
-    // case class ClearSlotData() extends Message
+
+    /**
+     * Invalidate block because block is invalid by some reason, for example no block body available at any peer or
+     * validation of block had been failed
+     * @param blockId invalid blockId
+     */
+    case class InvalidateBlockId(blockId: BlockId) extends Message
   }
 
   case class State[F[_]](
@@ -81,6 +86,7 @@ object BlockChecker {
       case (state, RemoteSlotData(hostId, slotData))         => processSlotData(state, hostId, slotData)
       case (state, RemoteBlockHeaders(hostId, blockHeaders)) => processRemoteHeaders(state, hostId, blockHeaders)
       case (state, RemoteBlockBodies(hostId, blockBodies))   => processRemoteBodies(state, hostId, blockBodies)
+      case (state, InvalidateBlockId(invalidBlockId))        => processInvalidBlockId(state, invalidBlockId)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -122,8 +128,8 @@ object BlockChecker {
     candidateHostId: HostId,
     slotData:        NonEmptyChain[SlotData]
   ): F[(State[F], Response[F])] = {
-    val bestRemoteSlotData = slotData.last
-    val bestRemoteBlockId = bestRemoteSlotData.slotId.blockId
+    val bestRemoteSlotData: SlotData = slotData.last
+    val bestRemoteBlockId: BlockId = bestRemoteSlotData.slotId.blockId
 
     for {
       _ <- Logger[F].info(show"Received slot data proposal with best block id $bestRemoteBlockId")
@@ -144,7 +150,7 @@ object BlockChecker {
     remoteSlotData:  NonEmptyChain[SlotData],
     candidateHostId: HostId
   ): F[State[F]] = {
-    val remoteIds = remoteSlotData.map(_.slotId.blockId)
+    val remoteIds: NonEmptyChain[BlockId] = remoteSlotData.map(_.slotId.blockId)
     for {
       fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
       _            <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
@@ -197,64 +203,82 @@ object BlockChecker {
           .foreachF(state.requestsProxy.sendNoWait)
       }
       .getOrElse(().pure[F])
+      .handleErrorWith(e => Logger[F].error(show"Failed to request next headers due ${e.toString}"))
 
   private def processRemoteHeaders[F[_]: Async: Logger](
     state:        State[F],
     hostId:       HostId,
     blockHeaders: NonEmptyChain[(BlockId, BlockHeader)]
   ): F[(State[F], Response[F])] = {
-    val skipMessage = show"Skip validation for known headers ${blockHeaders.map(_._1)}"
+    val processedHeadersAndErrors =
+      Stream
+        .foldable(blockHeaders)
+        .covaryAll[F, (BlockId, BlockHeader)]
+        .evalDropWhile(knownBlockHeaderPredicate(state))
+        .evalMap(verifyOneBlockHeader(state))
+        .evalTap { case (id, header) => state.headerStore.put(id, header) }
+        .map { case (id, _) => Right(id) }
+        .handleErrorWith {
+          case e: HeaderValidationException => Stream.emit(Left(e: HeaderApplyException))
+          case e                            => Stream.emit(Left(HeaderApplyException.UnknownError(e)))
+        }
+        .evalTap(res => logHeaderValidationResult(res))
+        .compile
+        .toList
+        .map { list =>
+          val successfullyProcessed = list.collect { case Right(d) => d }
+          val error = list.collectFirst { case Left(e: HeaderApplyException) => e }
+          (successfullyProcessed, error)
+        }
 
-    val processResult =
-      for {
-        _                <- EitherT.right(Logger[F].info(show"Received headers: ${blockHeaders.map(_._1)}"))
-        newHeaders       <- EitherT.fromOptionF(dropKnownPrefix(blockHeaders.toList, state.headerStore), skipMessage)
-        (verifiedIds, _) <- verifyAndSaveHeaders(state, newHeaders)
-        _                <- EitherT.right[String](requestMissedBodiesForKnownHeaders(state, hostId, verifiedIds.last))
-        _                <- EitherT.right[String](requestNextHeaders(state))
-      } yield verifiedIds
-
-    processResult
-      .biSemiflatTap(
-        error => Logger[F].info(show"Failed to apply headers due: $error"),
-        newHeadersIds => Logger[F].info(show"Successfully adopted headers: $newHeadersIds")
-      )
-      .value as (state, state)
+    for {
+      (appliedBlockIds, error) <- processedHeadersAndErrors
+      newState                 <- processHeaderValidationError(state, error)
+      _                        <- requestMissedBodiesForKnownHeaders(newState, hostId, appliedBlockIds.lastOption)
+      _                        <- requestNextHeaders(newState)
+    } yield (newState, newState)
   }
 
-  private def verifyAndSaveHeaders[F[_]: Async: Logger](
-    state:        State[F],
-    blockHeaders: NonEmptyChain[(BlockId, BlockHeader)]
-  ): EitherT[F, HostId, (NonEmptyChain[BlockId], NonEmptyChain[BlockHeader])] = {
-    def verifyAndSaveHeader(headerId: BlockId, header: BlockHeader) =
-      for {
-        _ <- Logger[F].debug(show"Validating remote header id=$headerId")
-        _ <- EitherT(state.headerValidation.validate(header))
-          .leftSemiflatTap(error => Logger[F].warn(show"Received invalid block header id=$headerId error=$error"))
-          .leftMap(error => new IllegalArgumentException(error.show))
-          .rethrowT
-        _ <- state.headerStore.put(headerId, header)
-        _ <- Logger[F].info(show"Saved header id=$headerId")
-      } yield (headerId, header)
-
-    EitherT
-      .fromOptionF(
-        Stream
-          .foldable(blockHeaders)
-          .evalMap { case (headerId, header) => verifyAndSaveHeader(headerId, header) }
-          .compile
-          .toList
-          .handleError(_ => List.empty[(BlockId, BlockHeader)]) // @TODO return actual list of applied bodies
-          .map(b => NonEmptyChain.fromSeq(b)),
-        "No verified blocks headers had been found or some block headers are not correct"
-      )
-      .map(_.unzip)
+  private def knownBlockHeaderPredicate[F[_]: Async: Logger](
+    state: State[F]
+  ): ((BlockId, BlockHeader)) => F[Boolean] = { case (id, _) =>
+    state.headerStore.contains(id).flatTap {
+      case true  => Logger[F].info(show"Ignore know block header id $id")
+      case false => Logger[F].info(show"Start processing new header $id")
+    }
   }
+
+  private def verifyOneBlockHeader[F[_]: Async: Logger](state: State[F])(idAndHeader: (BlockId, BlockHeader)) = {
+    val (id, header) = idAndHeader
+    Logger[F].debug(show"Validating remote header id=$id") >>
+    EitherT(state.headerValidation.validate(header)).bimap(HeaderValidationException(id, _), (id, _)).rethrowT
+  }
+
+  private def logHeaderValidationResult[F[_]: Logger](res: Either[HeaderApplyException, BlockId]) =
+    res match {
+      case Right(id) =>
+        Logger[F].info(show"Successfully process header: $id")
+      case Left(HeaderValidationException(id, error)) =>
+        Logger[F].error(show"Failed to apply header $id due validation error: $error")
+      case Left(HeaderApplyException.UnknownError(error)) =>
+        Logger[F].error(show"Failed to apply header due next error: ${error.toString}")
+    }
+
+  private def processHeaderValidationError[F[_]: Async: Logger](
+    state: State[F],
+    error: Option[HeaderApplyException]
+  ): F[State[F]] =
+    error
+      .map {
+        case e: HeaderValidationException => invalidateBlockId(state, e.blockId)
+        case _                            => state.pure[F] // TODO any error message for underlying exception?
+      }
+      .getOrElse(state.pure[F])
 
   private def requestMissedBodiesForKnownHeaders[F[_]: Async: Logger](
-    state:        State[F],
-    hostId:       HostId,
-    bestKnownTip: BlockId
+    state:           State[F],
+    hostId:          HostId,
+    bestKnownTipOpt: Option[BlockId]
   ): F[Unit] = {
     def takeWithKnownHeaders(ids: NonEmptyChain[BlockId]) =
       OptionT(
@@ -270,6 +294,7 @@ object BlockChecker {
 
     val requestMissedBodiesCommand =
       for {
+        bestKnownTip  <- OptionT.fromOption[F](bestKnownTipOpt)
         unknownBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize)
         unknownBodiesWithHeaders <- takeWithKnownHeaders(unknownBodies)
         _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: ${unknownBodiesWithHeaders.map(_._1)}"))
@@ -277,7 +302,10 @@ object BlockChecker {
         _ <- OptionT.liftF(state.requestsProxy.sendNoWait(message))
       } yield ()
 
-    requestMissedBodiesCommand.getOrElse(().pure[F])
+    requestMissedBodiesCommand
+      .getOrElse(().pure[F])
+      .void
+      .handleErrorWith(e => Logger[F].error(show"Failed to request next bodies for known headers due ${e.toString}"))
   }
 
   private def processRemoteBodies[F[_]: Async: Logger](
@@ -285,108 +313,142 @@ object BlockChecker {
     hostId:      HostId,
     blockBodies: NonEmptyChain[(BlockId, BlockBody)]
   ): F[(State[F], Response[F])] = {
-    val skipMessage = show"Skip validation of known bodies ${blockBodies.map(_._1)}"
-
-    val processResult: EitherT[F, String, (State[F], BlockId)] =
-      for {
-        newBlockBodies      <- EitherT.fromOptionF(dropKnownPrefix(blockBodies.toList, state.bodyStore), skipMessage)
-        verifiedFullBlocks  <- verifyAndSaveBodies(state, newBlockBodies)
-        appliedNewHeadBlock <- tryToApplyBestBlock(state, verifiedFullBlocks.last.header.id)
-        _                   <- EitherT.liftF(requestNextBodies(state, hostId))
-        newState = updateState(state, appliedNewHeadBlock)
-      } yield (newState, appliedNewHeadBlock)
-
-    val loggedProcessResult =
-      processResult
-        .biSemiflatTap(
-          error => Logger[F].error(show"Failed to apply bodies due: $error"),
-          newStateAndBlock => Logger[F].info(show"Successfully adopted block: ${newStateAndBlock._2}")
-        )
-
-    // extract current state from Either
-    loggedProcessResult.map(_._1).value.map(_.getOrElse(state)).map(s => (s, s))
-  }
-
-  private def verifyAndSaveBodies[F[_]: Async: Logger](
-    state:         State[F],
-    idToBlockBody: NonEmptyChain[(BlockId, BlockBody)]
-  ): EitherT[F, String, NonEmptyChain[Block]] = {
-    def verifyAndSaveBody(blockId: BlockId, block: Block) =
-      for {
-        _ <- Logger[F].info(show"Start verification and applying block $blockId")
-        (verifiedId, verifiedBlock) <- verifyBlockBody(state, blockId, block)
-          .leftSemiflatTap(e => Logger[F].warn(show"Received invalid block body id=$blockId errors=$e"))
-          .leftMap((e: String) => new IllegalArgumentException(e))
-          .rethrowT
-        _ <- state.bodyStore.put(verifiedId, verifiedBlock.body)
-        _ <- Logger[F].info(show"Saved body id=$verifiedId")
-      } yield block
-
-    EitherT.fromOptionF(
-      idToBlockBody
-        .traverse { case (id, body) =>
-          Logger[F].info(show"For block: $id try to get header for body") >>
-          state.headerStore.getOrRaise(id).map(header => (id, Block(header, body)))
+    val processedBlocksAndError =
+      Stream
+        .foldable(blockBodies)
+        .covaryAll[F, (BlockId, BlockBody)]
+        .evalDropWhile(knownBlockBodyPredicate(state))
+        .evalMap(verifyOneBlockBody(state))
+        .evalTap { case (id, block) => state.bodyStore.put(id, block.body) }
+        .evalTap(applyOneBlockBody(state))
+        .map { case (id, _) => Right(id) }
+        .handleErrorWith {
+          case e: BodyValidationException => Stream.emit(Left(e: BodyApplyException))
+          case e                          => Stream.emit(Left(BodyApplyException.UnknownError(e)))
         }
-        .flatMap(blocksToApply =>
-          Stream
-            .foldable(blocksToApply)
-            .evalMap { case (blockId, block) => verifyAndSaveBody(blockId, block) }
-            .compile
-            .toList
-            .handleError(_ => List.empty[Block]) // @TODO return actual list of applied bodies
-            .map(b => NonEmptyChain.fromSeq(b))
-        ),
-      "No verified blocks bodies had been found or some block bodies are not correct"
-    )
+        .evalTap(res => logBodyValidationResult(res))
+        .compile
+        .toList
+        .map { list =>
+          val successfullyProcessed = list.collect { case Right(d) => d }
+          val error = list.collectFirst { case Left(e: BodyApplyException) => e }
+          (successfullyProcessed, error)
+        }
+
+    for {
+      (appliedBlockIds, error) <- processedBlocksAndError
+      stateAfterError          <- processBodyValidationError(state, error)
+      _                        <- requestNextBodies(stateAfterError, hostId)
+      newState                 <- updateState(stateAfterError, appliedBlockIds.lastOption).pure[F]
+    } yield (newState, newState)
   }
+
+  private def knownBlockBodyPredicate[F[_]: Async: Logger](state: State[F]): ((BlockId, BlockBody)) => F[Boolean] = {
+    case (id, _) =>
+      state.bodyStore.contains(id).flatTap {
+        case true  => Logger[F].info(show"Ignore know block body id $id")
+        case false => Logger[F].info(show"Start processing new block $id")
+      }
+  }
+
+  private def verifyOneBlockBody[F[_]: Async: Logger](state: State[F])(idAndBody: (BlockId, BlockBody)) = {
+    val (id, body) = idAndBody
+    for {
+      _     <- Logger[F].info(show"For block: $id try to get header for body")
+      block <- state.headerStore.getOrRaise(id).map(header => Block(header, body))
+      _     <- verifyBlockBody(state, id, block).leftMap(BodyValidationException(id, _)).rethrowT
+    } yield (id, block)
+  }
+
+  private def applyOneBlockBody[F[_]: Async: Logger](state: State[F])(idAndBody: (BlockId, Block)): F[Unit] = {
+    val (id, _) = idAndBody
+    for {
+      lastBlockSlotData <- state.slotDataStore.getOrRaise(id)
+      _ <- state.localChain
+        .isWorseThan(lastBlockSlotData)
+        .ifM(
+          ifTrue = state.localChain.adopt(Validated.Valid(lastBlockSlotData)) >>
+            Logger[F].info(show"Successfully adopted block: $id"),
+          ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
+        )
+    } yield ()
+  }
+
+  private def logBodyValidationResult[F[_]: Logger](res: Either[BodyApplyException, BlockId]) =
+    res match {
+      case Right(id) =>
+        Logger[F].info(show"Successfully process body: $id")
+      case Left(BodyValidationException(id, errors)) =>
+        Logger[F].error(show"Failed to apply body $id due validation error: ${errors.mkString_(",")}")
+      case Left(BodyApplyException.UnknownError(error)) =>
+        Logger[F].error(show"Failed to apply body due next error: ${error.toString}")
+    }
+
+  private def processBodyValidationError[F[_]: Async: Logger](
+    state: State[F],
+    error: Option[BodyApplyException]
+  ): F[State[F]] =
+    error
+      .map {
+        case e: BodyValidationException => invalidateBlockId(state, e.blockId)
+        case _                          => state.pure[F] // TODO any error message for underlying exception?
+      }
+      .getOrElse(state.pure[F])
 
   private def verifyBlockBody[F[_]: Async: Logger](
     state:   State[F],
     blockId: BlockId,
     block:   Block
-  ): EitherT[F, String, (BlockId, Block)] = {
+  ): EitherT[F, NonEmptyChain[BodyValidationError], (BlockId, Block)] = {
     val header = block.header
     val body = block.body
+
     for {
       _ <- EitherT.liftF(Logger[F].debug(show"Validating syntax of body id=$blockId"))
-      _ <- EitherT(state.bodySyntaxValidation.validate(body).map(_.toEither.leftMap(_.show)))
+      _ <- EitherT(state.bodySyntaxValidation.validate(body).map(_.toEither))
       _ <- EitherT.liftF(Logger[F].debug(show"Validating semantics of body id=$blockId"))
       validationContext = StaticBodyValidationContext(header.parentHeaderId, header.height, header.slot)
-      _ <- EitherT(state.bodySemanticValidation.validate(validationContext)(body).map(_.toEither.leftMap(_.show)))
+      _ <- EitherT(state.bodySemanticValidation.validate(validationContext)(body).map(_.toEither))
       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
       authValidation = state.bodyAuthorizationValidation.validate(QuivrContext.forConstructedBlock(header, _))(body)
-      _ <- EitherT(authValidation.map(_.toEither.leftMap(_.show)))
+      _ <- EitherT(authValidation.map(_.toEither.leftMap(e => e: NonEmptyChain[BodyValidationError])))
     } yield (blockId, block)
   }
 
-  private def tryToApplyBestBlock[F[_]: Async](
-    state:       BlockChecker.State[F],
-    newTopBlock: BlockId
-  ): EitherT[F, String, BlockId] = {
-    val localChain = state.localChain
-    // After fetching and validating all of the data, re-run the chain preference process
-    for {
-      lastBlockSlotData <- EitherT.fromOptionF(state.slotDataStore.get(newTopBlock), "Failed to get slot data")
-      appliedBlock <-
-        EitherTExt.condF(
-          test = localChain.isWorseThan(lastBlockSlotData),
-          ifTrue = localChain.adopt(Validated.Valid(lastBlockSlotData)) >> lastBlockSlotData.slotId.blockId.pure[F],
-          ifFalse = show"Ignoring weaker (or equal) block header id=$newTopBlock".pure[F]
-        )
-    } yield appliedBlock
-  }
-
   private def requestNextBodies[F[_]: Async: Logger](state: State[F], hostId: HostId): F[Unit] =
-    state.bestKnownRemoteSlotDataOpt
-      .map(bestChain => requestMissedBodiesForKnownHeaders(state, hostId, bestChain.lastId))
-      .getOrElse(().pure[F])
+    requestMissedBodiesForKnownHeaders(state, hostId, state.bestKnownRemoteSlotDataOpt.map(_.lastId))
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
-  private def updateState[F[_]](state: State[F], newTopBlock: BlockId): State[F] =
-    if (state.bestKnownRemoteSlotDataOpt.exists(_.isLastId(newTopBlock))) {
-      state.copy(bestKnownRemoteSlotDataOpt = None)
+  private def updateState[F[_]](state: State[F], newTopBlockOpt: Option[BlockId]): State[F] = {
+    for {
+      bestChain   <- state.bestKnownRemoteSlotDataOpt
+      newTopBlock <- newTopBlockOpt
+    } yield
+      if (bestChain.isLastId(newTopBlock))
+        state.copy(bestKnownRemoteSlotDataOpt = None, bestKnownRemoteSlotDataHost = None)
+      else
+        state
+  }.getOrElse(state)
+
+  private def processInvalidBlockId[F[_]: Async: Logger](
+    state:          State[F],
+    invalidBlockId: BlockId
+  ): F[(State[F], Response[F])] =
+    invalidateBlockId(state, invalidBlockId).map(s => (s, s))
+
+  private def invalidateBlockId[F[_]: Async: Logger](
+    state:          State[F],
+    invalidBlockId: BlockId
+  ): F[State[F]] = {
+    val invalidBlockOnCurrentBestChain =
+      state.bestKnownRemoteSlotDataOpt.exists(_.containsBlockId(invalidBlockId))
+
+    if (invalidBlockOnCurrentBestChain) {
+      val newState = state.copy(bestKnownRemoteSlotDataOpt = None, bestKnownRemoteSlotDataHost = None)
+      Logger[F].error("clean current best chain due error in validation") >>
+      newState.pure[F]
     } else {
-      state
+      state.pure[F]
     }
+  }
 }

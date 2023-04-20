@@ -59,7 +59,7 @@ object TestHelper extends TransactionGenerator {
       } yield (txs, BlockBody.of(txs.map(tx => tx.id)))
     )
 
-  private def headerToSlotData(header: BlockHeader): SlotData = {
+  def headerToSlotData(header: BlockHeader): SlotData = {
     val sampleSlotData = ModelGenerators.arbitrarySlotData.arbitrary.first
     val slotId = sampleSlotData.slotId.copy(blockId = header.id)
     val parentSlotId = sampleSlotData.parentSlotId.copy(blockId = header.parentHeaderId)
