@@ -29,6 +29,7 @@ import fs2.io.file.Path
 import org.typelevel.log4cats.Logger
 
 case class DataStores[F[_]](
+  baseDirectory:   Path,
   parentChildTree: Store[F, BlockId, (Long, BlockId)],
   currentEventIds: Store[F, Byte, BlockId],
   slotData:        Store[F, BlockId, SlotData],
@@ -111,6 +112,7 @@ object DataStores {
       )
 
       dataStores = DataStores(
+        dataDir,
         parentChildTree,
         currentEventIds,
         slotDataStore,

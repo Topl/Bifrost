@@ -1,8 +1,6 @@
 package co.topl.genusLibrary.orientDb.instances
 
 import cats.effect.implicits.effectResourceOps
-import cats.effect.kernel.Async
-import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
@@ -22,17 +20,17 @@ class SchemaBlockHeaderTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Block Header Schema Metadata") { odb =>
+  orientDbFixture.test("Block Header Schema Metadata") { case (odb, oThread) =>
     val res = for {
-      odbFactory <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      dbNoTx     <- Sync[F].blocking(odbFactory.getNoTx).toResource
-      _          <- Sync[F].blocking(dbNoTx.makeActive()).toResource
+      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
+      _          <- oThread.delay(dbNoTx.makeActive()).toResource
 
-      databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
-      schema             <- SchemaBlockHeader.make().pure[F].toResource
-      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema)
+      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
+      schema = SchemaBlockHeader.make()
+      _ <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema).toResource
 
-      oClass <- Async[F].delay(databaseDocumentTx.getClass(schema.name)).toResource
+      oClass <- oThread.delay(databaseDocumentTx.getClass(schema.name)).toResource
 
       _ <- assertIO(oClass.getName.pure[F], schema.name, s"${schema.name} Class was not created").toResource
 
@@ -150,22 +148,22 @@ class SchemaBlockHeaderTest
 
   }
 
-  orientDbFixture.test("Block Header Schema Add vertex") { odb =>
+  orientDbFixture.test("Block Header Schema Add vertex") { case (odb, oThread) =>
     val res = for {
-      odbFactory <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
 
-      dbNoTx <- Sync[F].blocking(odbFactory.getNoTx).toResource
-      _      <- Sync[F].blocking(dbNoTx.makeActive()).toResource
+      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
+      _      <- oThread.delay(dbNoTx.makeActive()).toResource
 
-      schema <- SchemaBlockHeader.make().pure[F].toResource
-      _      <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema)
+      schema = SchemaBlockHeader.make()
+      _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
 
-      dbTx <- Sync[F].blocking(odbFactory.getTx).toResource
-      _    <- Sync[F].blocking(dbTx.makeActive()).toResource
+      dbTx <- oThread.delay(odbFactory.getTx).toResource
+      _    <- oThread.delay(dbTx.makeActive()).toResource
 
       blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
-      vertex <- Sync[F]
-        .blocking(
+      vertex <- oThread
+        .delay(
           dbTx
             .addVertex(s"class:${schema.name}", schema.encode(blockHeader).asJava)
         )

@@ -1,12 +1,15 @@
-package co.topl.genusServer
+package co.topl.genus
 
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.Async
+import cats.effect.kernel.Resource
 import co.topl.genus.services._
-import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, TransactionFetcherAlgebra}
+import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
+import co.topl.genusLibrary.algebras.TransactionFetcherAlgebra
 import fs2.grpc.syntax.all._
 import io.grpc.Server
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.protobuf.services.ProtoReflectionService
+
 import java.net.InetSocketAddress
 
 object GenusGrpc {

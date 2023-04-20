@@ -1,8 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
 import cats.effect.implicits.effectResourceOps
-import cats.effect.kernel.Async
-import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
@@ -26,13 +24,13 @@ class VertexSchemaTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     v => TestClass(v(StringParamName): String)
   )
 
-  orientDbFixture.test("Test Schema Metadata") { odb =>
+  orientDbFixture.test("Test Schema Metadata") { case (odb, oThread) =>
     val res = for {
-      odbFactory         <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
-      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema)
+      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
+      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema).toResource
 
-      oClass <- Async[F].delay(databaseDocumentTx.getClass(testSchema.name)).toResource
+      oClass <- oThread.delay(databaseDocumentTx.getClass(testSchema.name)).toResource
 
       _ <- assertIO(oClass.getName.pure[F], testSchema.name, "Test Class was not created").toResource
       _ <- assertIO(oClass.getProperty(StringParamName).getName.pure[F], StringParamName).toResource
@@ -46,17 +44,17 @@ class VertexSchemaTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   }
 
-  orientDbFixture.test("Test Schema Add Vertex") { odb =>
+  orientDbFixture.test("Test Schema Add Vertex") { case (odb, oThread) =>
     val res = for {
-      odbFactory         <- Sync[F].blocking(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      databaseDocumentTx <- Resource.pure(odbFactory.getNoTx.getRawGraph)
-      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema)
+      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
+      _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema).toResource
 
-      dbTx <- Sync[F].blocking(odbFactory.getTx).toResource
-      _    <- Sync[F].blocking(dbTx.makeActive()).toResource
+      dbTx <- oThread.delay(odbFactory.getTx).toResource
+      _    <- oThread.delay(dbTx.makeActive()).toResource
 
-      vertex <- Sync[F]
-        .blocking(
+      vertex <- oThread
+        .delay(
           dbTx.addVertex(s"class:${testSchema.name}", testSchema.encode(TestClass("test string value")).asJava)
         )
         .toResource

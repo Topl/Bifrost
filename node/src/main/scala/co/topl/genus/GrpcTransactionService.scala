@@ -1,17 +1,17 @@
-package co.topl.genusServer
+package co.topl.genus
 
 import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
 import cats.implicits.catsSyntaxApplicativeId
-import co.topl.typeclasses.implicits._
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.TransactionFetcherAlgebra
 import co.topl.genusLibrary.model.GEs
+import co.topl.typeclasses.implicits._
 import io.grpc.Metadata
 import fs2._
 
-private[genusServer] class GrpcTransactionService[F[_]: Async](transactionFetcher: TransactionFetcherAlgebra[F])
+class GrpcTransactionService[F[_]: Async](transactionFetcher: TransactionFetcherAlgebra[F])
     extends TransactionServiceFs2Grpc[F, Metadata] {
 
   override def getTransactionById(request: GetTransactionByIdRequest, ctx: Metadata): F[TransactionResponse] =

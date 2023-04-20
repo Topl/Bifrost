@@ -179,7 +179,6 @@ lazy val bifrost = project
     commonApplication,
     networkDelayer,
     genusLibrary,
-    genusServer,
     transactionGenerator,
     testnetSimulationOrchestrator
   )
@@ -216,7 +215,8 @@ lazy val node = project
     toplGrpc,
     blockchain,
     levelDbStore,
-    commonApplication
+    commonApplication,
+    genusLibrary
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
@@ -617,25 +617,6 @@ lazy val catsAkka = project
     libraryDependencies ++= Dependencies.catsAkka
   )
   .settings(scalamacrosParadiseSettings)
-
-lazy val genusServer = project
-  .in(file("genus-server"))
-  .enablePlugins(BuildInfoPlugin)
-  .settings(
-    name := "genus-server",
-    commonSettings,
-    fork := true,
-    crossScalaVersions := Seq(scala213),
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.genusServer",
-    libraryDependencies ++= Dependencies.genusServer
-  )
-  .dependsOn(
-    genusLibrary,
-    commonApplication,
-    models % "compile->compile;test->test",
-    munitScalamock % "test->test"
-  )
 
 lazy val genusLibrary = project
   .in(file("genus-library"))

@@ -266,26 +266,15 @@ object Dependencies {
 
   lazy val orientDb: Seq[ModuleID] =
     Seq(
-      "com.orientechnologies"                  % "orientdb-core"               % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-server"             % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-client"             % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-tools"              % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-graphdb"            % orientDbVersion,
+      "com.orientechnologies" % "orientdb-core"   % orientDbVersion,
+      "com.orientechnologies" % "orientdb-server" % orientDbVersion,
+      "com.orientechnologies" % "orientdb-client" % orientDbVersion,
+      "com.orientechnologies" % "orientdb-tools"  % orientDbVersion,
+      "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude ("commons-beanutils", "commons-beanutils") exclude ("commons-beanutils", "commons-beanutils-core"),
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna
     )
-
-  lazy val genusServer: Seq[ModuleID] =
-    cats ++
-    catsEffect ++
-    mainargs ++
-    logging ++
-    monocle ++
-    Seq(
-      catsSlf4j
-    ) ++
-    mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++

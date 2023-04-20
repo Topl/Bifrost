@@ -1,15 +1,13 @@
 package co.topl
 
 import cats.ApplicativeThrow
-import cats.implicits._
-import co.topl.genusLibrary.model.{GE, GEs}
-import io.grpc.{Status, StatusException}
+import cats.implicits.catsSyntaxApplicativeError
+import co.topl.genusLibrary.model.GE
+import co.topl.genusLibrary.model.GEs
+import io.grpc.Status
+import io.grpc.StatusException
 
-/**
- * This package contains logic to run a Genus server. The Genus logic that the server runs comes from the genus-library
- * module.
- */
-package object genusServer {
+package object genus {
 
   implicit class ThrowableAdapter(throwable: Throwable) {
 
@@ -40,5 +38,4 @@ package object genusServer {
         e.asGrpcException
       }
   }
-
 }

@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
+import cats.effect.Async
 import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.model.GEs
@@ -18,7 +19,7 @@ import org.typelevel.log4cats.Logger
  */
 object OrientDBFactory {
 
-  def make[F[_]: Sync: Logger: Files](
+  def make[F[_]: Async: Logger: Files: OrientThread](
     directoryPath: String,
     user:          String,
     password:      String

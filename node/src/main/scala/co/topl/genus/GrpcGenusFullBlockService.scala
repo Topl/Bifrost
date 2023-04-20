@@ -1,4 +1,4 @@
-package co.topl.genusServer
+package co.topl.genus
 
 import cats.data.EitherT
 import cats.effect.kernel.Async
@@ -6,11 +6,12 @@ import cats.implicits._
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.model.GEs
-import co.topl.node.models.{FullBlock, FullBlockBody}
+import co.topl.node.models.FullBlock
+import co.topl.node.models.FullBlockBody
 import co.topl.typeclasses.implicits._
 import io.grpc.Metadata
 
-private[genusServer] class GrpcGenusFullBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
+class GrpcGenusFullBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
     extends GenusFullBlockServiceFs2Grpc[F, Metadata] {
 
   override def getBlockById(request: GetBlockByIdRequest, ctx: Metadata): F[BlockResponse] =
