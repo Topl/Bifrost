@@ -3,7 +3,6 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.Async
 import cats.effect.{Resource, Sync, SyncIO}
 import cats.implicits._
-import cats.effect.implicits._
 import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
@@ -27,8 +26,9 @@ object OrientDBMetadataFactory {
     orientGraphFactory: OrientGraphFactory
   ): Resource[F, Unit] =
     for {
-      db <- Resource.make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => Sync[F].delay(db.close()))
-      _  <- OrientThread[F].delay(db.activateOnCurrentThread()).toResource
+      db <- Resource
+        .make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => OrientThread[F].delay(db.close()))
+        .evalTap(db => OrientThread[F].delay(db.activateOnCurrentThread()).void)
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
