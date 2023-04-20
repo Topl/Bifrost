@@ -7,10 +7,10 @@ object Dependencies {
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.8"
+  val catsEffectVersion = "3.4.9"
   val fs2Version = "3.6.1"
-  val logback = "1.4.6"
-  val orientDbVersion = "3.2.17"
+  val logback = "1.4.7"
+  val orientDbVersion = "3.2.18"
   val protobufSpecsVersion = "b745cb1" // scala-steward:off
   val bramblScVersion = "5794d14" // scala-steward:off
   val quivr4sVersion = "8de3426" // scala-steward:off
@@ -89,7 +89,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.72"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.73"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -115,7 +115,7 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.3"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
@@ -163,7 +163,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.21.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.22.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -253,8 +253,8 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.54.0",
-      "io.grpc" % "grpc-services"     % "1.54.0"
+      "io.grpc" % "grpc-netty-shaded" % "1.54.1",
+      "io.grpc" % "grpc-services"     % "1.54.1"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
