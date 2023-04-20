@@ -198,11 +198,18 @@ object OperationalKeyMaker {
         threshold     <- maximumThreshold(relativeStake)
         // Launch a background fiber which will create the child keys for the new operational period.
         // As each child key is created, the corresponding Deferred instance is completed.
-        _ <- (
-          fulfillDeferredSlots(epoch, eta, threshold, parentSK, parentVK, operationalPeriodSlots)(
-            deferredSlots
-          ).void >> onComplete
-        ).start
+        _ <- Async[F]
+          .uncancelable(poll =>
+            // Allow cancelation of the child key creation
+            poll(
+              fulfillDeferredSlots(epoch, eta, threshold, parentSK, parentVK, operationalPeriodSlots)(
+                deferredSlots
+              ).void
+            ) >>
+            // But disable cancelation for the onComplete (evolve) action
+            onComplete
+          )
+          .start
       } yield deferredSlots.toMap
 
     private def fulfillDeferredSlots[G[_]: Traverse](
