@@ -169,6 +169,11 @@ object BlockHeaderValidation {
       header: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
+        message <- EitherT.liftF(
+          Sync[F].delay(
+            header.operationalCertificate.childVK.toByteArray ++ Longs.toByteArray(header.slot)
+          )
+        )
         parentCommitmentResult <- EitherT.liftF(
           kesProductResource
             .use(kesProduct =>
@@ -176,9 +181,7 @@ object BlockHeaderValidation {
                 kesProduct
                   .verify(
                     header.operationalCertificate.parentSignature,
-                    header.operationalCertificate.childVK
-                      .concat(ByteString.copyFrom(Longs.toByteArray(header.slot)))
-                      .toByteArray,
+                    message,
                     header.operationalCertificate.parentVK
                   )
               )
