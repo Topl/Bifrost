@@ -31,7 +31,6 @@ object OperationalKeyMaker {
   /**
    * Constructs an OperationalKeys interpreter using a SecureStore.
    *
-   * @param parentSlotId The initial parentSlotId to use when launching the node and forming the first set of operational keys
    * @param operationalPeriodLength     The number of slots in an operational period
    * @param activationOperationalPeriod The operational period number in which the staker becomes active
    * @param address                     The staker's address
