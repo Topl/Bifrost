@@ -12,8 +12,9 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.{BodyValidationError, StaticBodyValidationContext}
 import co.topl.networking.fsnetwork.BlockChecker.Message._
-import co.topl.networking.fsnetwork.BodyApplyException.BodyValidationException
-import co.topl.networking.fsnetwork.HeaderApplyException.HeaderValidationException
+import co.topl.networking.fsnetwork.BlockApplyError.BodyApplyException.BodyValidationException
+import co.topl.networking.fsnetwork.BlockApplyError.{BodyApplyException, HeaderApplyException}
+import co.topl.networking.fsnetwork.BlockApplyError.HeaderApplyException.HeaderValidationException
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._

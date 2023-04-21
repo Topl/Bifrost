@@ -8,14 +8,13 @@ import cats.{Applicative, MonadThrow}
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
-import co.topl.networking.fsnetwork.BlockHeaderDownloadError.{HeaderHaveIncorrectId, UnknownError}
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -93,7 +92,7 @@ object PeerBlockHeaderFetcher {
           betterSlotData <- compareWithLocalChain(remoteSlotData, state)
           _              <- OptionT.liftF(sendProposalToBlockChecker(state, betterSlotData))
         } yield ()
-      }.value.void
+      }.value.void.handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
     }
 
   private def isUnknownBlockOpt[F[_]: Async: Logger](
@@ -104,8 +103,8 @@ object PeerBlockHeaderFetcher {
       state.slotDataStore
         .contains(blockId)
         .flatTap {
-          case true  => Logger[F].info(show"Ignoring already-known block id=$blockId")
-          case false => Logger[F].info(show"Received unknown block id=$blockId")
+          case true  => Logger[F].info(show"Ignoring already-known slot data for block id=$blockId")
+          case false => Logger[F].info(show"Received unknown slot data for block id=$blockId")
         }
         .map(Option.unless(_)(blockId))
     )
@@ -141,7 +140,9 @@ object PeerBlockHeaderFetcher {
       id =>
         store.get(id).flatMap {
           case Some(sd) => sd.pure[F]
-          case None     => client.getRemoteSlotDataLogged(id)
+          case None =>
+            Logger[F].info(show"Fetching remote SlotData id=$id") >>
+            client.getSlotDataOrError(id, new NoSuchElementException(id.toString))
         }
 
     val tine = getFromChainUntil(
@@ -206,7 +207,7 @@ object PeerBlockHeaderFetcher {
     val headerEither =
       for {
         _                   <- Logger[F].info(show"Fetching remote header id=$blockId")
-        (fetchedId, header) <- client.getRemoteHeaderOrError(blockId).map(h => (h.id, h))
+        (fetchedId, header) <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer).map(h => (h.id, h))
         _                   <- Logger[F].info(show"Fetched remote header id=$blockId")
         _                   <- MonadThrow[F].raiseWhen(fetchedId =!= blockId)(HeaderHaveIncorrectId(blockId, fetchedId))
       } yield header
@@ -230,8 +231,7 @@ object PeerBlockHeaderFetcher {
     state:         State[F],
     headersEither: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
   ): F[Unit] = {
-    val message: RequestsProxy.Message =
-      RequestsProxy.Message.DownloadHeadersResponse(state.hostId, headersEither)
+    val message: RequestsProxy.Message = RequestsProxy.Message.DownloadHeadersResponse(state.hostId, headersEither)
     state.requestsProxy.sendNoWait(message)
   }
 
