@@ -36,6 +36,7 @@ object OrientDBMetadataFactory {
             _ <- createVertex(db, blockBodySchema)
             _ <- createVertex(db, ioTransactionSchema)
             _ <- createVertex(db, canonicalHeadSchema)
+            _ <- createVertex(db, addressSchema) // Todo add edge when #2923
           } yield ()
         )
       )
