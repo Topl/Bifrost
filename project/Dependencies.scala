@@ -16,7 +16,7 @@ object Dependencies {
   val quivr4sVersion = "8de3426" // scala-steward:off
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
+    "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
 
   val logging: Seq[ModuleID] = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
