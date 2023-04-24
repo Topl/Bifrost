@@ -4,7 +4,7 @@ import cats.data.{Chain, EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
@@ -53,13 +53,13 @@ object NodeBlockFetcher {
             .blockIdAtHeight(height)
             .flatMap {
               case Some(blockId) =>
-                EitherT(fetchBlock(blockId, toplRpc)).map(_.some).value
+                EitherT(fetch(blockId)).map(_.some).value
               case None =>
                 Option.empty[BlockData].asRight[GE].pure[F]
             }
 
         // TODO: TSDK-186 | Do calls concurrently.
-        private def fetchBlock(blockId: BlockId, toplRpc: ToplRpc[F, Stream[F, *]]): F[Either[GE, BlockData]] = (
+        override def fetch(blockId: BlockId): F[Either[GE, BlockData]] = (
           for {
             header       <- OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE)
             body         <- OptionT(toplRpc.fetchBlockBody(blockId)).toRight(GEs.BodyNotFound(blockId): GE)
@@ -96,6 +96,15 @@ object NodeBlockFetcher {
             headBlockId <- OptionT(toplRpc.blockIdAtDepth(depth = 0))
             blockHeader <- OptionT(toplRpc.fetchBlockHeader(headBlockId))
           } yield blockHeader.height).value
+
+        def fetchAdoptions(): F[Stream[F, BlockId]] =
+          for {
+            adoptions <- toplRpc
+              .synchronizationTraversal()
+              .map(_.collect { case SynchronizationTraversalSteps.Applied(blockId) =>
+                blockId
+              })
+          } yield adoptions
 
       }
     }

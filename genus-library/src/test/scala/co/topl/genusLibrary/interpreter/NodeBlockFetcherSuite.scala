@@ -21,6 +21,7 @@ import org.scalamock.munit.AsyncMockFactory
 import fs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import scala.collection.immutable.ListSet
 
 class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
