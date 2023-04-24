@@ -4,7 +4,7 @@ import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 import cats.effect.{Async, Resource}
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -108,12 +108,12 @@ object BlockchainPeerConnectionFlowFactory {
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
-          val remoteTransactionNotifications: F[Stream[F, Identifier.IoTransaction32]] =
+          val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
             remoteTransactionIdsSource.pure[F]
           def getRemoteSlotData(id: BlockId): F[Option[SlotData]] = slotDataReceivedCallback(id)
           def getRemoteHeader(id:   BlockId): F[Option[BlockHeader]] = headerReceivedCallback(id)
           def getRemoteBody(id:     BlockId): F[Option[BlockBody]] = bodyReceivedCallback(id)
-          def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]] =
+          def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] =
             transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(
             height:       Long,

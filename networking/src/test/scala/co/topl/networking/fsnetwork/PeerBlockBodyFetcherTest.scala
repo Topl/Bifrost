@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.generators.TransactionGenerator
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.{blockHeaderAsBlockHeaderOps, ioTransactionAsIoTransactionOps}
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
@@ -46,7 +46,7 @@ class PeerBlockBodyFetcherTest
     withMock {
       val client = mock[BlockchainPeerClient[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
-      val transactionStore = mock[Store[F, Identifier.IoTransaction32, IoTransaction]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, bodies) =
@@ -72,20 +72,19 @@ class PeerBlockBodyFetcherTest
       }
 
       val transactionStoreData = presentTxs.toMap
-      (transactionStore.contains _).expects(*).anyNumberOfTimes().onCall { id: Identifier.IoTransaction32 =>
+      (transactionStore.contains _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
         transactionStoreData.contains(id).pure[F]
       }
 
       val clientTxsData = missedTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: Identifier.IoTransaction32 =>
+      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
         clientTxsData.get(id).pure[F]
       }
 
       val downloadedTxs =
-        mutable.Map.empty[Identifier.IoTransaction32, IoTransaction]
-      (transactionStore.put _).expects(*, *).anyNumberOfTimes().onCall {
-        case (id: Identifier.IoTransaction32, tx: IoTransaction) =>
-          downloadedTxs.put(id, tx).pure[F].void
+        mutable.Map.empty[TransactionId, IoTransaction]
+      (transactionStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: TransactionId, tx: IoTransaction) =>
+        downloadedTxs.put(id, tx).pure[F].void
       }
 
       (headerToBodyValidation.validate _).expects(*).rep(presentBlockIdAndBodies.size).onCall { block: Block =>
@@ -127,7 +126,7 @@ class PeerBlockBodyFetcherTest
     withMock {
       val client = mock[BlockchainPeerClient[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
-      val transactionStore = mock[Store[F, Identifier.IoTransaction32, IoTransaction]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, bodies) =
@@ -155,20 +154,19 @@ class PeerBlockBodyFetcherTest
       }
 
       val transactionStoreData = presentTxs.toMap
-      (transactionStore.contains _).expects(*).anyNumberOfTimes().onCall { id: Identifier.IoTransaction32 =>
+      (transactionStore.contains _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
         transactionStoreData.contains(id).pure[F]
       }
 
       val clientTxsData = missedTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: Identifier.IoTransaction32 =>
+      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
         clientTxsData.get(id).pure[F]
       }
 
       val downloadedTxs =
-        mutable.Map.empty[Identifier.IoTransaction32, IoTransaction]
-      (transactionStore.put _).expects(*, *).anyNumberOfTimes().onCall {
-        case (id: Identifier.IoTransaction32, tx: IoTransaction) =>
-          downloadedTxs.put(id, tx).pure[F].void
+        mutable.Map.empty[TransactionId, IoTransaction]
+      (transactionStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: TransactionId, tx: IoTransaction) =>
+        downloadedTxs.put(id, tx).pure[F].void
       }
 
       val incorrectTxRoot: TxRoot = ModelGenerators.txRoot.first
@@ -217,7 +215,7 @@ class PeerBlockBodyFetcherTest
     withMock {
       val client = mock[BlockchainPeerClient[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
-      val transactionStore = mock[Store[F, Identifier.IoTransaction32, IoTransaction]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val transactionsAndBody =
@@ -234,7 +232,7 @@ class PeerBlockBodyFetcherTest
 
       val idAndBody = idBodyTxIdTx.map(d => (d._1, d._2))
 
-      def transactionIsMissed(id:  Identifier.IoTransaction32): Boolean = id.hashCode() % 7 == 0
+      def transactionIsMissed(id:  TransactionId): Boolean = id.hashCode() % 7 == 0
       def blockIsMissed(blockBody: BlockBody): Boolean = blockBody.transactionIds.exists(transactionIsMissed)
 
       val presentBlockIdAndBodies = idAndBody.toList
@@ -250,7 +248,7 @@ class PeerBlockBodyFetcherTest
       (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(false.pure[F])
 
       val clientTxsData = txIdsAndTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: Identifier.IoTransaction32 =>
+      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
         if (transactionIsMissed(id)) {
           Option.empty[IoTransaction].pure[F]
         } else {
@@ -298,7 +296,7 @@ class PeerBlockBodyFetcherTest
     withMock {
       val client = mock[BlockchainPeerClient[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
-      val transactionStore = mock[Store[F, Identifier.IoTransaction32, IoTransaction]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val transactionsAndBody =
@@ -313,7 +311,7 @@ class PeerBlockBodyFetcherTest
             (id, body, txs.map(tx => (tx.id, tx)))
           }
 
-      def transactionHaveIncorrectId(id: Identifier.IoTransaction32): Boolean = id.hashCode() % 7 == 0
+      def transactionHaveIncorrectId(id: TransactionId): Boolean = id.hashCode() % 7 == 0
 
       def blockIsMissed(blockBody: BlockBody): Boolean = blockBody.transactionIds.exists(transactionHaveIncorrectId)
 
@@ -335,7 +333,7 @@ class PeerBlockBodyFetcherTest
       (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(false.pure[F])
 
       val clientTxsData = txIdsAndTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: Identifier.IoTransaction32 =>
+      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
         if (transactionHaveIncorrectId(id)) {
           Option(incorrectTransaction).pure[F]
         } else {
@@ -385,7 +383,7 @@ class PeerBlockBodyFetcherTest
     withMock {
       val client = mock[BlockchainPeerClient[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
-      val transactionStore = mock[Store[F, Identifier.IoTransaction32, IoTransaction]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, bodies) =
@@ -408,20 +406,19 @@ class PeerBlockBodyFetcherTest
       }
 
       val transactionStoreData = presentTxs.toMap
-      (transactionStore.contains _).expects(*).rep(txIdsAndTxs.size).onCall { id: Identifier.IoTransaction32 =>
+      (transactionStore.contains _).expects(*).rep(txIdsAndTxs.size).onCall { id: TransactionId =>
         transactionStoreData.contains(id).pure[F]
       }
 
       val clientTxsData = missedTxs.toMap
-      (client.getRemoteTransaction _).expects(*).rep(missedTxs.size).onCall { id: Identifier.IoTransaction32 =>
+      (client.getRemoteTransaction _).expects(*).rep(missedTxs.size).onCall { id: TransactionId =>
         clientTxsData.get(id).pure[F]
       }
 
       val downloadedTxs =
-        mutable.Map.empty[Identifier.IoTransaction32, IoTransaction]
-      (transactionStore.put _).expects(*, *).rep(missedTxs.size).onCall {
-        case (id: Identifier.IoTransaction32, tx: IoTransaction) =>
-          downloadedTxs.put(id, tx).pure[F].void
+        mutable.Map.empty[TransactionId, IoTransaction]
+      (transactionStore.put _).expects(*, *).rep(missedTxs.size).onCall { case (id: TransactionId, tx: IoTransaction) =>
+        downloadedTxs.put(id, tx).pure[F].void
       }
 
       (headerToBodyValidation.validate _).expects(*).rep(blockIdsAndBodies.size.toInt).onCall { block: Block =>

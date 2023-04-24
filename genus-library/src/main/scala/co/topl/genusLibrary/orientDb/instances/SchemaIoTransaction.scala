@@ -27,7 +27,7 @@ object SchemaIoTransaction {
         // transactionID is not stored in a transaction, but computed
         .withProperty(
           Field.TransactionId,
-          _.id.evidence.digest.value.toByteArray,
+          _.id.value.toByteArray,
           mandatory = false,
           readOnly = true,
           notNull = true

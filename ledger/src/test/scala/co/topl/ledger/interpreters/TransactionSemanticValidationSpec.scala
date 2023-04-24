@@ -26,14 +26,12 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
         withMock {
           val transactionB = _transactionB.clearInputs
             .addInputs(
-              input.copy(address =
-                TransactionOutputAddress(0, 0, 0, TransactionOutputAddress.Id.IoTransaction32(transactionA.id))
-              )
+              input.copy(address = transactionA.id.outputAddress(0, 0, 0))
             )
             .update(_.datum.event.schedule.min.set(0))
             .update(_.datum.event.schedule.max.set(4))
           for {
-            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
+            fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
             boxState         <- mock[BoxStateAlgebra[F]].pure[F]
             underTest        <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             _ <- underTest
@@ -50,17 +48,10 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
       (blockId: BlockId, transactionA: IoTransaction, _transactionB: IoTransaction, input: SpentTransactionOutput) =>
         withMock {
           val transactionB = _transactionB.clearInputs.addInputs(
-            input.copy(
-              TransactionOutputAddress(
-                0,
-                0,
-                Short.MaxValue,
-                TransactionOutputAddress.Id.IoTransaction32(transactionA.id)
-              )
-            )
+            input.copy(transactionA.id.outputAddress(0, 0, Short.MaxValue))
           )
           for {
-            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
+            fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
             boxState         <- mock[BoxStateAlgebra[F]].pure[F]
             _ = fetchTransaction.expects(transactionA.id).once().returning(transactionA.pure[F])
             _ = (boxState
@@ -90,7 +81,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
         input:         SpentTransactionOutput
       ) =>
         withMock {
-          val lockAddress = input.attestation.getPredicate.lock.address(0, 0)
+          val lockAddress = input.attestation.getPredicate.lock.lockAddress(0, 0)
           val transactionA = _transactionA.update(
             _.outputs.set(
               List(
@@ -102,15 +93,13 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             _.inputs.set(
               List(
                 input.update(
-                  _.address.set(
-                    TransactionOutputAddress(0, 0, 0, TransactionOutputAddress.Id.IoTransaction32(transactionA.id))
-                  )
+                  _.address.set(transactionA.id.outputAddress(0, 0, 0))
                 )
               )
             )
           )
           for {
-            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
+            fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
             boxState         <- mock[BoxStateAlgebra[F]].pure[F]
             _ = fetchTransaction.expects(transactionA.id).once().returning(transactionA.pure[F])
             _ = (boxState
@@ -149,13 +138,12 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             List(
               input.copy(
                 value = Value.defaultInstance,
-                address =
-                  TransactionOutputAddress(0, 0, 0, TransactionOutputAddress.Id.IoTransaction32(transactionA.id))
+                address = transactionA.id.outputAddress(0, 0, 0)
               )
             )
           )
           for {
-            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
+            fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
             boxState         <- mock[BoxStateAlgebra[F]].pure[F]
             _ = fetchTransaction.expects(transactionA.id).once().returning(transactionA.pure[F])
             _ = (boxState
@@ -189,7 +177,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             outputs = List(
               output.copy(
                 value = Value.defaultInstance,
-                address = input.attestation.getPredicate.lock.address(0, 0)
+                address = input.attestation.getPredicate.lock.lockAddress(0, 0)
               )
             )
           )
@@ -197,13 +185,12 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             List(
               input.copy(
                 value = Value.defaultInstance,
-                address =
-                  TransactionOutputAddress(0, 0, 0, TransactionOutputAddress.Id.IoTransaction32(transactionA.id))
+                address = transactionA.id.outputAddress(0, 0, 0)
               )
             )
           )
           for {
-            fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
+            fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
             boxState         <- mock[BoxStateAlgebra[F]].pure[F]
             _ = fetchTransaction.expects(transactionA.id).once().returning(transactionA.pure[F])
             _ = (boxState

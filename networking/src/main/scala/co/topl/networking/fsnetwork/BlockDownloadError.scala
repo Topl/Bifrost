@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import co.topl.models.TxRoot
 import co.topl.typeclasses.implicits._
@@ -44,11 +44,11 @@ object BlockDownloadError {
       override def toString: String = show"Peer returns body with bad txRoot: expected $headerTxRoot, got $bodyTxRoot"
     }
 
-    case class TransactionNotFoundInPeer(transactionId: Identifier.IoTransaction32) extends BlockBodyDownloadError {
+    case class TransactionNotFoundInPeer(transactionId: TransactionId) extends BlockBodyDownloadError {
       override def toString: String = show"Peer have no transaction $transactionId despite having appropriate block"
     }
 
-    case class TransactionHaveIncorrectId(expected: Identifier.IoTransaction32, actual: Identifier.IoTransaction32)
+    case class TransactionHaveIncorrectId(expected: TransactionId, actual: TransactionId)
         extends BlockBodyDownloadError {
       override def toString: String = show"Peer returns transaction with bad id: expected $expected, actual $actual"
     }

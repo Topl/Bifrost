@@ -8,7 +8,7 @@ import cats.Applicative
 import cats.Monad
 import cats.MonadThrow
 import co.topl.algebras.Store
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
@@ -35,8 +35,8 @@ case class DataStores[F[_]](
   slotData:        Store[F, BlockId, SlotData],
   headers:         Store[F, BlockId, BlockHeader],
   bodies:          Store[F, BlockId, BlockBody],
-  transactions:    Store[F, Identifier.IoTransaction32, IoTransaction], // TODO replace old Transaction model
-  spendableBoxIds: Store[F, Identifier.IoTransaction32, NonEmptySet[Short]],
+  transactions:    Store[F, TransactionId, IoTransaction], // TODO replace old Transaction model
+  spendableBoxIds: Store[F, TransactionId, NonEmptySet[Short]],
   epochBoundaries: Store[F, Long, BlockId],
   operatorStakes:  Store[F, StakingAddress, BigInt],
   activeStake:     Store[F, Unit, BigInt],
@@ -74,15 +74,15 @@ object DataStores {
         appConfig.bifrost.cache.bodies,
         _.value
       )
-      transactionStore <- makeCachedDb[F, Identifier.IoTransaction32, ByteString, IoTransaction](dataDir)(
+      transactionStore <- makeCachedDb[F, TransactionId, ByteString, IoTransaction](dataDir)(
         "transactions",
         appConfig.bifrost.cache.transactions,
-        _.evidence.digest.value
+        _.value
       )
-      spendableBoxIdsStore <- makeCachedDb[F, Identifier.IoTransaction32, ByteString, NonEmptySet[Short]](dataDir)(
+      spendableBoxIdsStore <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](dataDir)(
         "spendable-box-ids",
         appConfig.bifrost.cache.spendableBoxIds,
-        _.evidence.digest.value
+        _.value
       )
       epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir)(
         "epoch-boundaries",

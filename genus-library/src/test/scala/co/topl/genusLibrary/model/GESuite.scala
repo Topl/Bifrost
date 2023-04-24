@@ -1,9 +1,9 @@
 package co.topl.genusLibrary.model
 
-import co.topl.brambl.models.{Evidence, Identifier}
+import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import com.google.protobuf.ByteString
-import quivr.models.Digest
+
 import scala.collection.immutable.ListSet
 
 class GESuite extends munit.FunSuite {
@@ -58,14 +58,10 @@ class GESuite extends munit.FunSuite {
 
   test("Genus Exception TransactionsNotFound") {
     val ioTxId_1 =
-      Identifier.IoTransaction32.of(
-        Evidence.Sized32.of(Digest.Digest32.of(value = ByteString.copyFrom(Array.fill[Byte](32)(1))))
-      )
+      TransactionId(ByteString.copyFrom(Array.fill[Byte](32)(1)))
 
     val ioTxId_2 =
-      Identifier.IoTransaction32.of(
-        Evidence.Sized32.of(Digest.Digest32.of(value = ByteString.copyFrom(Array.fill[Byte](32)(2))))
-      )
+      TransactionId(ByteString.copyFrom(Array.fill[Byte](32)(2)))
 
     val ioTx32s = ListSet.from(ListSet(ioTxId_1, ioTxId_2))
 

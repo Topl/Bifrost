@@ -2,7 +2,7 @@ package co.topl.typeclasses
 
 import cats.Eq
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.models._
 import co.topl.models.utility.Sized
@@ -32,8 +32,8 @@ trait EqInstances {
   implicit val blockIdEq: Eq[BlockId] =
     (a, b) => a.value === b.value
 
-  implicit val transactionIdEq: Eq[Identifier.IoTransaction32] =
-    (a, b) => a.evidence.digest.value === b.evidence.digest.value
+  implicit val transactionIdEq: Eq[TransactionId] =
+    (a, b) => a.value === b.value
 
   implicit val eqSlotData: Eq[SlotData] =
     Eq.fromUniversalEquals

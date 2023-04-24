@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.typeclasses.implicits._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.brambl.models.TransactionId
 import co.topl.genus.services.{TransactionReceipt, _}
 import co.topl.genusLibrary.algebras.TransactionFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
@@ -19,19 +19,19 @@ class GrpcTransactionServiceSuite extends CatsEffectSuite with ScalaCheckEffectS
   type F[A] = IO[A]
 
   test("getTransactionById: Exceptions") {
-    PropF.forAllF { (ioTransaction32: IoTransaction32) =>
+    PropF.forAllF { (transactionId: TransactionId) =>
       withMock {
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
         val underTest = new GrpcTransactionService[F](transactionFetcher)
 
         (transactionFetcher.fetchTransactionReceipt _)
-          .expects(ioTransaction32)
+          .expects(transactionId)
           .once()
           .returning((GEs.Internal(new IllegalStateException("Boom!")): GE).asLeft[Option[TransactionReceipt]].pure[F])
 
         for {
           _ <- interceptMessageIO[StatusException]("INTERNAL: Boom!")(
-            underTest.getTransactionById(GetTransactionByIdRequest(ioTransaction32), new Metadata())
+            underTest.getTransactionById(GetTransactionByIdRequest(transactionId), new Metadata())
           )
         } yield ()
       }
@@ -40,19 +40,19 @@ class GrpcTransactionServiceSuite extends CatsEffectSuite with ScalaCheckEffectS
   }
 
   test("getTransactionById: Not Found") {
-    PropF.forAllF { (ioTransaction32: IoTransaction32) =>
+    PropF.forAllF { (transactionId: TransactionId) =>
       withMock {
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
         val underTest = new GrpcTransactionService[F](transactionFetcher)
 
         (transactionFetcher.fetchTransactionReceipt _)
-          .expects(ioTransaction32)
+          .expects(transactionId)
           .once()
           .returning(Option.empty[TransactionReceipt].asRight[GE].pure[F])
 
         for {
-          _ <- interceptMessageIO[StatusException](s"NOT_FOUND: TransactionId:${ioTransaction32.show}")(
-            underTest.getTransactionById(GetTransactionByIdRequest(ioTransaction32), new Metadata())
+          _ <- interceptMessageIO[StatusException](s"NOT_FOUND: TransactionId:${transactionId.show}")(
+            underTest.getTransactionById(GetTransactionByIdRequest(transactionId), new Metadata())
           )
         } yield ()
       }
@@ -61,7 +61,7 @@ class GrpcTransactionServiceSuite extends CatsEffectSuite with ScalaCheckEffectS
   }
 
   test("getTransactionById: Ok") {
-    PropF.forAllF { (ioTransaction32: IoTransaction32) =>
+    PropF.forAllF { (transactionId: TransactionId) =>
       withMock {
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
         val underTest = new GrpcTransactionService[F](transactionFetcher)
@@ -76,12 +76,12 @@ class GrpcTransactionServiceSuite extends CatsEffectSuite with ScalaCheckEffectS
         )
 
         (transactionFetcher.fetchTransactionReceipt _)
-          .expects(ioTransaction32)
+          .expects(transactionId)
           .once()
           .returning(transactionReceipt.some.asRight[GE].pure[F])
 
         for {
-          res <- underTest.getTransactionById(GetTransactionByIdRequest(ioTransaction32), new Metadata())
+          res <- underTest.getTransactionById(GetTransactionByIdRequest(transactionId), new Metadata())
           _ = assert(res.transactionReceipt.blockId == blockId)
         } yield ()
       }

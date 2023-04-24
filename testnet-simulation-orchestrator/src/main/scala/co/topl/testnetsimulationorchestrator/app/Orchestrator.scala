@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
@@ -189,7 +189,7 @@ object Orchestrator
 
   private def publishBlockBodiesAndAssignTransactions(publisher: Publisher, nodes: NodeRpcs)(
     blockAssignments: List[(NodeName, BlockId, BlockHeader)]
-  ): F[Map[Identifier.IoTransaction32, NodeName]] =
+  ): F[Map[TransactionId, NodeName]] =
     for {
       // Create a topic which is expected to contain two subscribers
       blockDatumTopic <- Topic[F, (NodeName, BlockDatum)]
@@ -206,7 +206,7 @@ object Orchestrator
       assignTransactionsStream =
         blockDatumTopic
           .subscribe(128)
-          .fold(Map.empty[Identifier.IoTransaction32, NodeName]) { case (assignments, (node, datum)) =>
+          .fold(Map.empty[TransactionId, NodeName]) { case (assignments, (node, datum)) =>
             assignments ++ datum.body.transactionIds.tupleRight(node)
           }
       // Publish the block data results

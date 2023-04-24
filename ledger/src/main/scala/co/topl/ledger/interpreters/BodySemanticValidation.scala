@@ -3,7 +3,7 @@ package co.topl.ledger.interpreters
 import cats.data.{NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
@@ -12,7 +12,7 @@ import co.topl.node.models.BlockBody
 object BodySemanticValidation {
 
   def make[F[_]: Sync](
-    fetchTransaction:              Identifier.IoTransaction32 => F[IoTransaction],
+    fetchTransaction:              TransactionId => F[IoTransaction],
     transactionSemanticValidation: TransactionSemanticValidationAlgebra[F]
   ): F[BodySemanticValidationAlgebra[F]] =
     Sync[F].delay {
@@ -40,7 +40,7 @@ object BodySemanticValidation {
         private def validateTransaction(
           context: BodyValidationContext,
           prefix:  Seq[IoTransaction]
-        )(transactionId: Identifier.IoTransaction32) =
+        )(transactionId: TransactionId) =
           for {
             transaction <- fetchTransaction(transactionId)
             transactionValidationContext = StaticTransactionValidationContext(

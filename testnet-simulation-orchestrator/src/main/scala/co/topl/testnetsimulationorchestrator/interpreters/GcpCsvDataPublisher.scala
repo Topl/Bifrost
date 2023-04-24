@@ -123,7 +123,7 @@ object GcpCsvDataPublisher {
       datum.transaction.inputs
         .map(input =>
           List(
-            s"${input.address.getIoTransaction32.show}[${input.address.index}]",
+            s"${input.address.id.show}[${input.address.index}]",
             ByteString.EMPTY,
             ByteString.EMPTY,
             input.value.value match {
@@ -139,7 +139,7 @@ object GcpCsvDataPublisher {
       datum.transaction.outputs
         .map(output =>
           List(
-            output.address.getLock32.evidence.digest.value.show,
+            output.address.id.value.show,
             output.value.value match {
               case Value.Value.Empty    => "E"
               case v: Value.Value.Lvl   => s"L(${v.value.quantity: BigInt})"
