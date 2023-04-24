@@ -4,8 +4,7 @@ import cats.Applicative
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
-import co.topl.brambl.common.ContainsEvidence
-import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
+import co.topl.brambl.syntax._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction._
@@ -34,16 +33,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
     )
   val lock: Lock = Lock().withPredicate(Lock.Predicate())
 
-  val lockAddress: LockAddress =
-    LockAddress(
-      0,
-      0,
-      LockAddress.Id.Lock32(
-        Identifier.Lock32(
-          ContainsEvidence[Lock].sized32Evidence(lock)
-        )
-      )
-    )
+  val lockAddress: LockAddress = lock.lockAddress(0, 0)
 
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {
@@ -66,7 +56,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
         bodyStore        <- TestStore.make[F, BlockId, BlockBody]
-        transactionStore <- TestStore.make[F, Identifier.IoTransaction32, IoTransaction]
+        transactionStore <- TestStore.make[F, TransactionId, IoTransaction]
         underTest <- ConsensusDataEventSourcedState.make[F](
           bigBangParentId.pure[F],
           parentChildTree,
@@ -93,7 +83,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         transaction2 = IoTransaction(
           List(
             SpentTransactionOutput(
-              txOutputAddressFrom(bigBangBlockTransaction.id, 0),
+              bigBangBlockTransaction.id.outputAddress(0, 0, 0),
               Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               bigBangBlockTransaction.outputs(0).value
             )
@@ -107,7 +97,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         transaction3 = IoTransaction(
           List(
             SpentTransactionOutput(
-              txOutputAddressFrom(transaction2.id, 0),
+              transaction2.id.outputAddress(0, 0, 0),
               Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               transaction2.outputs(0).value
             )
@@ -138,12 +128,12 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         transaction4 = IoTransaction(
           List(
             SpentTransactionOutput(
-              txOutputAddressFrom(transaction2.id, 1),
+              transaction2.id.outputAddress(0, 0, 1),
               Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               transaction2.outputs(1).value
             ),
             SpentTransactionOutput(
-              txOutputAddressFrom(transaction3.id, 1),
+              transaction3.id.outputAddress(0, 0, 1),
               Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               transaction3.outputs(1).value
             )
@@ -209,7 +199,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         )
         _                <- initialState.totalActiveStake.put((), 0)
         bodyStore        <- TestStore.make[F, BlockId, BlockBody]
-        transactionStore <- TestStore.make[F, Identifier.IoTransaction32, IoTransaction]
+        transactionStore <- TestStore.make[F, TransactionId, IoTransaction]
         underTest <- ConsensusDataEventSourcedState.make[F](
           bigBangParentId.pure[F],
           parentChildTree,
@@ -234,7 +224,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         transaction2 = IoTransaction(
           List(
             SpentTransactionOutput(
-              txOutputAddressFrom(bigBangBlockTransaction.id, 0),
+              bigBangBlockTransaction.id.outputAddress(0, 0, 0),
               Attestation().withPredicate(Attestation.Predicate.defaultInstance),
               bigBangBlockTransaction.outputs(0).value
             )
@@ -264,13 +254,5 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
       } yield ()
     }
   }
-
-  private def txOutputAddressFrom(id: Identifier.IoTransaction32, index: Int) =
-    TransactionOutputAddress(
-      0,
-      0,
-      index,
-      TransactionOutputAddress.Id.IoTransaction32(id)
-    )
 
 }

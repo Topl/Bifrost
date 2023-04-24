@@ -1,6 +1,6 @@
 package co.topl.algebras
 
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
@@ -15,13 +15,13 @@ import co.topl.node.models.BlockBody
 trait ToplRpc[F[_], S[_]] {
   def broadcastTransaction(transaction: IoTransaction): F[Unit]
 
-  def currentMempool(): F[Set[Identifier.IoTransaction32]]
+  def currentMempool(): F[Set[TransactionId]]
 
   def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]]
 
   def fetchBlockBody(blockId: BlockId): F[Option[BlockBody]]
 
-  def fetchTransaction(transactionId: Identifier.IoTransaction32): F[Option[IoTransaction]]
+  def fetchTransaction(transactionId: TransactionId): F[Option[IoTransaction]]
 
   def blockIdAtHeight(height: Long): F[Option[BlockId]]
 

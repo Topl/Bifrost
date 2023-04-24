@@ -6,7 +6,7 @@ import cats.implicits._
 import cats.effect.Async
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
@@ -43,7 +43,7 @@ object ToplRpcServer {
   def make[F[_]: Async](
     headerStore:               Store[F, BlockId, BlockHeader],
     bodyStore:                 Store[F, BlockId, BlockBody],
-    transactionStore:          Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:          Store[F, TransactionId, IoTransaction],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxVerifier[F],
     localChain:                LocalChainAlgebra[F],
@@ -70,7 +70,7 @@ object ToplRpcServer {
             )
         }
 
-        def currentMempool(): F[Set[Identifier.IoTransaction32]] =
+        def currentMempool(): F[Set[TransactionId]] =
           localChain.head.map(_.slotId.blockId).flatMap(blockId => mempool.read(blockId))
 
         def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
@@ -79,7 +79,7 @@ object ToplRpcServer {
         def fetchBlockBody(blockId: BlockId): F[Option[BlockBody]] =
           bodyStore.get(blockId)
 
-        def fetchTransaction(transactionId: Identifier.IoTransaction32): F[Option[IoTransaction]] =
+        def fetchTransaction(transactionId: TransactionId): F[Option[IoTransaction]] =
           transactionStore
             .get(transactionId)
 
@@ -135,7 +135,7 @@ object ToplRpcServer {
     }
 
   private def processValidTransaction[F[_]: Monad: Logger](
-    transactionStore: Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore: Store[F, TransactionId, IoTransaction],
     mempool:          MempoolAlgebra[F]
   )(transaction: IoTransaction) =
     for {

@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.genus.services.TransactionReceipt
 import co.topl.genusLibrary.model.GE
@@ -17,7 +17,7 @@ trait TransactionFetcherAlgebra[F[_]] {
    * @param ioTransaction32  Transaction Identifier filter by field
    * @return Optional Transaction, None if it was not found
    */
-  def fetchTransaction(ioTransaction32: IoTransaction32): F[Either[GE, Option[IoTransaction]]]
+  def fetchTransaction(transactionId: TransactionId): F[Either[GE, Option[IoTransaction]]]
 
   /**
    * Fetch a Transaction TransactionReceipt (includes ioTx, blockId, chain distance,...) on the stored Ledger
@@ -25,6 +25,6 @@ trait TransactionFetcherAlgebra[F[_]] {
    * @param ioTransaction32 Transaction Identifier filter by field
    * @return Optional Transaction, None if it was not found
    */
-  def fetchTransactionReceipt(ioTransaction32: IoTransaction32): F[Either[GE, Option[TransactionReceipt]]]
+  def fetchTransactionReceipt(transactionId: TransactionId): F[Either[GE, Option[TransactionReceipt]]]
 
 }

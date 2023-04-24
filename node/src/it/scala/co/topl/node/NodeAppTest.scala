@@ -9,16 +9,11 @@ import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.blockchain.PrivateTestnet
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
-import co.topl.brambl.models.Datum
-import co.topl.brambl.models.Event
-import co.topl.brambl.models.Identifier
-import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models._
 import co.topl.brambl.models.box.Attestation
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.brambl.models.transaction._
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.ToplGrpc
 import co.topl.quivr.api.Prover
@@ -185,7 +180,7 @@ class NodeAppTest extends CatsEffectSuite {
       .map(_.get)
       .map { t =>
         val index = t.outputs.indexWhere(_.address == PrivateTestnet.HeightLockOneSpendingAddress)
-        val address = TransactionOutputAddress(0, 0, index, TransactionOutputAddress.Id.IoTransaction32(t.id))
+        val address = t.id.outputAddress(0, 0, index)
         (address, t.outputs(index))
       }
 
@@ -229,7 +224,7 @@ class NodeAppTest extends CatsEffectSuite {
 
   private def confirmTransaction(
     client: RpcClient
-  )(id: Identifier.IoTransaction32, confirmationDepth: Int = 3): F[Unit] = {
+  )(id: TransactionId, confirmationDepth: Int = 3): F[Unit] = {
     def containsTransaction(targetBlock: BlockId): F[Boolean] =
       client
         .fetchBlockBody(targetBlock)

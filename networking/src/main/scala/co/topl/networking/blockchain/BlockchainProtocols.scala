@@ -1,6 +1,6 @@
 package co.topl.networking.blockchain
 
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.BlockHeader
@@ -49,7 +49,7 @@ object BlockchainProtocols {
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object Transaction extends RequestResponseProtocol[Identifier.IoTransaction32, IoTransaction]
+  object Transaction extends RequestResponseProtocol[TransactionId, IoTransaction]
 
   /**
    * Request the Block ID at some height.  The request also includes the client node's Block ID at the given height.
@@ -70,6 +70,6 @@ object BlockchainProtocols {
    *
    * This protocol runs a server and client in parallel for each connection.
    */
-  object TransactionBroadcasts extends NotificationProtocol[Identifier.IoTransaction32]
+  object TransactionBroadcasts extends NotificationProtocol[TransactionId]
 
 }

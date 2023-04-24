@@ -11,9 +11,9 @@ object Dependencies {
   val fs2Version = "3.6.1"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.18"
-  val protobufSpecsVersion = "b745cb1" // scala-steward:off
-  val bramblScVersion = "5794d14" // scala-steward:off
-  val quivr4sVersion = "8de3426" // scala-steward:off
+  val protobufSpecsVersion = "ba616f0" // scala-steward:off
+  val bramblScVersion = "ddc8bd1" // scala-steward:off
+  val quivr4sVersion = "30bb9d2" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -124,7 +124,7 @@ object Dependencies {
   val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
-    "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
+    "com.github.Topl.protobuf-specs" %% "protobuf-fs2" % protobufSpecsVersion
   )
 
   // For NTP-UDP

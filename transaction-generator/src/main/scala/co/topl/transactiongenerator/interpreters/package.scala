@@ -1,10 +1,9 @@
 package co.topl.transactiongenerator
 
-import co.topl.brambl.common.ContainsEvidence
-import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.transactiongenerator.models.Wallet
 import quivr.models._
@@ -32,18 +31,7 @@ package object interpreters {
     )
 
   val HeightLockOneSpendingAddress: LockAddress =
-    lockAddressOf(HeightLockOneLock)
-
-  def lockAddressOf(lock: Lock): LockAddress =
-    LockAddress(
-      0,
-      0,
-      LockAddress.Id.Lock32(
-        Identifier.Lock32(
-          ContainsEvidence[Lock].sized32Evidence(lock)
-        )
-      )
-    )
+    HeightLockOneLock.lockAddress(0, 0)
 
   val emptyWallet: Wallet =
     Wallet(
@@ -63,7 +51,7 @@ package object interpreters {
         .get(output.address)
         .map(lock =>
           (
-            TransactionOutputAddress(0, 0, index, TransactionOutputAddress.Id.IoTransaction32(transactionId)),
+            transactionId.outputAddress(0, 0, index),
             Box(lock, output.value)
           )
         )

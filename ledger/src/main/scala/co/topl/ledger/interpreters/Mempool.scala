@@ -6,7 +6,7 @@ import cats.effect.kernel.Spawn
 import cats.effect.{Async, Deferred, Fiber, Ref, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
@@ -20,7 +20,7 @@ import co.topl.typeclasses.implicits._
 // TODO: Non-minting nodes?
 object Mempool {
   private case class MempoolEntry[F[_]](expirationFiber: Fiber[F, _, _], inputBoxIds: Set[TransactionOutputAddress])
-  private type State[F[_]] = Ref[F, Map[Identifier.IoTransaction32, MempoolEntry[F]]]
+  private type State[F[_]] = Ref[F, Map[TransactionId, MempoolEntry[F]]]
 
   /**
    * @param defaultExpirationLimit The maximum number of slots in the future allowed by a transaction expiration
@@ -31,16 +31,16 @@ object Mempool {
   def make[F[_]: Async](
     currentBlockId:               F[BlockId],
     fetchBlockBody:               BlockId => F[BlockBody],
-    fetchTransaction:             Identifier.IoTransaction32 => F[IoTransaction],
+    fetchTransaction:             TransactionId => F[IoTransaction],
     parentChildTree:              ParentChildTree[F, BlockId],
     currentEventChanged:          BlockId => F[Unit],
     clock:                        ClockAlgebra[F],
-    onExpiration:                 Identifier.IoTransaction32 => F[Unit],
+    onExpiration:                 TransactionId => F[Unit],
     defaultExpirationLimit:       Long,
     duplicateSpenderSlotLifetime: Long
   ): Resource[F, MempoolAlgebra[F]] =
     for {
-      state <- Resource.make(Ref.of(Map.empty[Identifier.IoTransaction32, MempoolEntry[F]]))(
+      state <- Resource.make(Ref.of(Map.empty[TransactionId, MempoolEntry[F]]))(
         _.get.flatMap(_.values.toList.traverse(_.expirationFiber.cancel).void)
       )
       // A function which inserts a transaction into the mempool and schedules its expiration using a Fiber
@@ -109,18 +109,18 @@ object Mempool {
       finalizing <- Resource.make(Deferred[F, Unit])(_.complete(()).void)
     } yield new MempoolAlgebra[F] {
 
-      def read(blockId: BlockId): F[Set[Identifier.IoTransaction32]] =
+      def read(blockId: BlockId): F[Set[TransactionId]] =
         whenNotTerminated(
           eventSourcedState.stateAt(blockId).flatMap(_.get).map(_.keySet)
         )
 
       // TODO: Check for double-spends along current canonical chain?
-      def add(transactionId: Identifier.IoTransaction32): F[Unit] =
+      def add(transactionId: TransactionId): F[Unit] =
         whenNotTerminated(
           fetchTransaction(transactionId).flatMap(addTransactionWithDefaultExpiration)
         )
 
-      def remove(transactionId: Identifier.IoTransaction32): F[Unit] =
+      def remove(transactionId: TransactionId): F[Unit] =
         whenNotTerminated(
           state
             .getAndUpdate(_ - transactionId)

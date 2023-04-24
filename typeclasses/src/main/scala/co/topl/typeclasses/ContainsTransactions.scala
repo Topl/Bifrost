@@ -3,7 +3,7 @@ package co.topl.typeclasses
 import cats.Foldable
 import cats.data.ValidatedNec
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
 import co.topl.crypto.accumulators.LeafData
@@ -23,7 +23,7 @@ import simulacrum.op
 import simulacrum.typeclass
 
 @typeclass trait ContainsTransactionIds[T] {
-  @op("transactionIds") def transactionIds(t: T): Seq[Identifier.IoTransaction32]
+  @op("transactionIds") def transactionIds(t: T): Seq[TransactionId]
 
   @op("merkleTree") def merkleTreeOf(t: T): MerkleTree[Blake2b, Digest32] = {
     // The current MerkleTree implementation will, by default, use a shared digest and hash instance,
@@ -36,7 +36,7 @@ import simulacrum.typeclass
       override def bytes(d: Digest32): Array[Byte] = d.value
     }
     implicit val hash: Blake2bHash[Digest32] = new Blake2bHash[Digest32] {}
-    MerkleTree[Blake2b, Digest32](transactionIds(t).map(id => LeafData(id.evidence.digest.value.toByteArray)))
+    MerkleTree[Blake2b, Digest32](transactionIds(t).map(id => LeafData(id.value.toByteArray)))
   }
 
   @op("merkleTreeRootHash") def merkleTreeRootHashOf(t: T): TxRoot =

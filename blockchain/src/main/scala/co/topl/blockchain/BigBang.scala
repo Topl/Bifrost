@@ -56,8 +56,7 @@ object BigBang {
       Sized.strictUnsafe(
         new Blake2b256().hash(
           (config.etaPrefix +:
-          transactions.map(_.id.evidence.digest.value))
-            .map(v => v: Array[Byte]): _*
+          transactions.map(_.id.value)).map(v => v: Array[Byte]): _*
         )
       )
 

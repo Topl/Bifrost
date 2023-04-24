@@ -6,7 +6,7 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
@@ -42,7 +42,7 @@ object PeerBlockBodyFetcher {
     hostId:                 HostId,
     client:                 BlockchainPeerClient[F],
     requestsProxy:          RequestsProxyActor[F],
-    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   )
 
@@ -59,7 +59,7 @@ object PeerBlockBodyFetcher {
     hostId:                 HostId,
     client:                 BlockchainPeerClient[F],
     requestsProxy:          RequestsProxyActor[F],
-    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
     val initialState = State(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
@@ -120,9 +120,9 @@ object PeerBlockBodyFetcher {
   private def downloadingMissingTransactions[F[_]: Async: Logger](
     state:     State[F],
     blockBody: BlockBody
-  ): F[List[Identifier.IoTransaction32]] =
+  ): F[List[TransactionId]] =
     Stream
-      .iterable[F, Identifier.IoTransaction32](blockBody.transactionIds)
+      .iterable[F, TransactionId](blockBody.transactionIds)
       .evalMap(transactionId =>
         state.transactionStore
           .contains(transactionId)
@@ -136,8 +136,8 @@ object PeerBlockBodyFetcher {
 
   private def downloadAndCheckTransaction[F[_]: Async: Logger](
     state:         State[F],
-    transactionId: Identifier.IoTransaction32
-  ): F[Identifier.IoTransaction32] =
+    transactionId: TransactionId
+  ): F[TransactionId] =
     for {
       _                     <- Logger[F].debug(show"Fetching remote transaction id=$transactionId")
       downloadedTransaction <- downloadTransaction(state, transactionId)
@@ -147,7 +147,7 @@ object PeerBlockBodyFetcher {
     } yield transactionId
 
   private def checkTransaction[F[_]: Async](
-    transactionId:         Identifier.IoTransaction32,
+    transactionId:         TransactionId,
     downloadedTransaction: IoTransaction
   ): F[IoTransaction] = {
     val downloadedTransactionId = downloadedTransaction.id
@@ -160,7 +160,7 @@ object PeerBlockBodyFetcher {
 
   private def downloadTransaction[F[_]: Async](
     state:         State[F],
-    transactionId: Identifier.IoTransaction32
+    transactionId: TransactionId
   ): F[IoTransaction] =
     OptionT(state.client.getRemoteTransaction(transactionId))
       .getOrElseF(MonadThrow[F].raiseError(TransactionNotFoundInPeer(transactionId)))

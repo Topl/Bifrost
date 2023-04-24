@@ -5,7 +5,7 @@ import cats.effect.std.Queue
 import cats.effect.Async
 import cats.effect.Sync
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
@@ -31,8 +31,8 @@ object BlockPacker {
 
   def make[F[_]: Async](
     mempool:                  MempoolAlgebra[F],
-    fetchTransaction:         Identifier.IoTransaction32 => F[IoTransaction],
-    transactionExistsLocally: Identifier.IoTransaction32 => F[Boolean],
+    fetchTransaction:         TransactionId => F[IoTransaction],
+    transactionExistsLocally: TransactionId => F[Boolean],
     validateBody:             TransactionValidationContext => F[Boolean]
   ): F[BlockPackerAlgebra[F]] =
     Sync[F].delay {
@@ -55,7 +55,7 @@ object BlockPacker {
             // Not all transactions in the mempool may have a complete parent graph (yet), so filter out any "orphans"
             transactionsWithLocalParents <- unsortedTransactions.traverseFilter(transaction =>
               transaction.inputs
-                .map(_.address.getIoTransaction32)
+                .map(_.address.id)
                 .toList
                 .distinct
                 .forallM(transactionExistsLocally)

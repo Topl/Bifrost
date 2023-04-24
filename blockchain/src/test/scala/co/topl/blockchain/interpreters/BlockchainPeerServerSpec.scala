@@ -15,7 +15,7 @@ import fs2._
 import fs2.concurrent.Topic
 import org.scalacheck.effect.PropF
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.networking.NetworkGen._
@@ -69,9 +69,9 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   }
 
   test("serve transactions") {
-    PropF.forAllF { (transaction: IoTransaction, id: Identifier.IoTransaction32) =>
+    PropF.forAllF { (transaction: IoTransaction, id: TransactionId) =>
       withMock {
-        val f = mockFunction[Identifier.IoTransaction32, F[Option[IoTransaction]]]
+        val f = mockFunction[TransactionId, F[Option[IoTransaction]]]
         (f.expects(id).once().returning(transaction.some.pure[F]))
         for {
           _ <- makeServer(fetchTransaction = f)
@@ -122,21 +122,21 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     PropF.forAllF {
       (
         head:       SlotData,
-        mempoolTxA: Identifier.IoTransaction32,
-        mempoolTxB: Identifier.IoTransaction32,
-        mempoolTxC: Identifier.IoTransaction32,
-        adoptionA:  Identifier.IoTransaction32,
-        adoptionB:  Identifier.IoTransaction32,
-        adoptionC:  Identifier.IoTransaction32
+        mempoolTxA: TransactionId,
+        mempoolTxB: TransactionId,
+        mempoolTxC: TransactionId,
+        adoptionA:  TransactionId,
+        adoptionB:  TransactionId,
+        adoptionC:  TransactionId
       ) =>
         withMock {
-          val currentMempoolSet: Set[Identifier.IoTransaction32] = ListSet(mempoolTxA, mempoolTxB, mempoolTxC)
+          val currentMempoolSet: Set[TransactionId] = ListSet(mempoolTxA, mempoolTxB, mempoolTxC)
           val mempool = mock[MempoolAlgebra[F]]
           (mempool.read _).expects(head.slotId.blockId).once().returning(currentMempoolSet.pure[F])
           val localChain = mock[LocalChainAlgebra[F]]
           (() => localChain.head).expects().once().returning(head.pure[F])
           for {
-            topic <- Topic[F, Identifier.IoTransaction32]
+            topic <- Topic[F, TransactionId]
             publisher = Stream(adoptionA, adoptionB, adoptionC).through(topic.publish)
             result <- makeServer(localChain = localChain, mempool = mempool, newTransactionIds = topic.pure[F])
               .use(server => Stream.force(server.localTransactionNotifications).concurrently(publisher).compile.toList)
@@ -150,13 +150,13 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     fetchSlotData:    BlockId => F[Option[SlotData]] = _ => ???,
     fetchHeader:      BlockId => F[Option[BlockHeader]] = _ => ???,
     fetchBody:        BlockId => F[Option[BlockBody]] = _ => ???,
-    fetchTransaction: Identifier.IoTransaction32 => F[Option[IoTransaction]] = _ => ???,
+    fetchTransaction: TransactionId => F[Option[IoTransaction]] = _ => ???,
     blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
       mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
     localChain:        LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
     mempool:           MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
     newBlockIds:       F[Topic[F, BlockId]] = Topic[F, BlockId],
-    newTransactionIds: F[Topic[F, Identifier.IoTransaction32]] = Topic[F, Identifier.IoTransaction32]
+    newTransactionIds: F[Topic[F, TransactionId]] = Topic[F, TransactionId]
   ) =
     (Resource.eval(newBlockIds), Resource.eval(newTransactionIds)).tupled
       .flatMap { case (newBlockIds, newTransactionIds) =>

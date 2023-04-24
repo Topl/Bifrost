@@ -6,7 +6,7 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SignatureKesProduct
@@ -41,7 +41,7 @@ object ConsensusDataEventSourcedState {
     currentEventChanged: BlockId => F[Unit],
     initialState:        F[ConsensusData[F]],
     fetchBlockBody:      BlockId => F[BlockBody],
-    fetchTransaction:    Identifier.IoTransaction32 => F[IoTransaction]
+    fetchTransaction:    TransactionId => F[IoTransaction]
   ): F[EventSourcedState[F, ConsensusData[F], BlockId]] =
     EventSourcedState.OfTree.make(
       initialState = initialState,
@@ -54,7 +54,7 @@ object ConsensusDataEventSourcedState {
 
   private class ApplyBlock[F[_]: MonadThrow](
     fetchBlockBody:   BlockId => F[BlockBody],
-    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+    fetchTransaction: TransactionId => F[IoTransaction]
   ) extends ((ConsensusData[F], BlockId) => F[ConsensusData[F]]) {
 
     def apply(state: ConsensusData[F], blockId: BlockId): F[ConsensusData[F]] =
@@ -112,7 +112,7 @@ object ConsensusDataEventSourcedState {
 
   private class UnapplyBlock[F[_]: MonadThrow](
     fetchBlockBody:   BlockId => F[BlockBody],
-    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+    fetchTransaction: TransactionId => F[IoTransaction]
   ) extends ((ConsensusData[F], BlockId) => F[ConsensusData[F]]) {
 
     def apply(state: ConsensusData[F], blockId: BlockId): F[ConsensusData[F]] =

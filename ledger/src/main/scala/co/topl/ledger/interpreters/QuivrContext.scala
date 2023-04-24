@@ -77,7 +77,7 @@ object QuivrContext {
       def validate(t: DigestVerification): F[Either[QuivrRuntimeError, DigestVerification]] =
         Sync[F].delay(
           Either.cond(
-            blake2b256.hash(t.preimage.input.concat(t.preimage.salt)) === t.digest.getDigest32.value,
+            blake2b256.hash(t.preimage.input.concat(t.preimage.salt)) === t.digest.value,
             t,
             QuivrRuntimeErrors.ValidationError.UserProvidedInterfaceFailure // TODO
           )
