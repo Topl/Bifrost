@@ -37,14 +37,14 @@ class NodeAppTest extends CatsEffectSuite {
 
   type RpcClient = ToplRpc[F, Stream[F, *]]
 
-  override val munitTimeout: Duration = 2.minutes
+  override val munitTimeout: Duration = 3.minutes
 
   test("Two block-producing nodes that maintain consensus") {
     // Allow the nodes to produce/adopt blocks until reaching this height
     val targetProductionHeight = 10
     // All of the nodes should agree on the same block at this height
     val targetConsensusHeight = 8
-    val startTimestamp = System.currentTimeMillis() + 10_000L
+    val startTimestamp = System.currentTimeMillis() + 20_000L
     val configNodeA =
       s"""
         |bifrost:

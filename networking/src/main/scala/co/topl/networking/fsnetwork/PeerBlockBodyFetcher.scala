@@ -13,7 +13,8 @@ import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockBodyDownloadError._
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._

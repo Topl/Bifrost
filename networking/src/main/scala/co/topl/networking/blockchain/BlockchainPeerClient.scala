@@ -42,12 +42,24 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteSlotData(id: BlockId): F[Option[SlotData]]
 
   /**
+   * A Lookup to retrieve a remote slot data by ID, or throw specified Error
+   */
+  def getSlotDataOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[SlotData] =
+    OptionT(getRemoteSlotData(id)).getOrRaise(error)
+
+  /**
    * A Lookup to retrieve a remote block header by ID
    */
   def getRemoteHeader(id: BlockId): F[Option[BlockHeader]]
 
   /**
-   * A Lookup to retrieve a remot block body by ID
+   * A Lookup to retrieve a remote block header by ID, or throw specified Error
+   */
+  def getHeaderOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[BlockHeader] =
+    OptionT(getRemoteHeader(id)).getOrRaise(error)
+
+  /**
+   * A Lookup to retrieve a remote block body by ID
    */
   def getRemoteBody(id: BlockId): F[Option[BlockBody]]
 
