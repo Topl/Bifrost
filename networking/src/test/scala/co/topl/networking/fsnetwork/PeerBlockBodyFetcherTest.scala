@@ -15,6 +15,7 @@ import co.topl.models.TxRoot
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
 import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops}

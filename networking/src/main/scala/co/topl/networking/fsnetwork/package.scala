@@ -1,18 +1,14 @@
 package co.topl.networking
 
-import cats.data.{EitherT, NonEmptyChain, OptionT}
+import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.implicits._
 import cats.{Monad, MonadThrow, Show}
 import co.topl.algebras.Store
-import co.topl.brambl.models.Identifier
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
-import co.topl.models.TxRoot
-import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
-import org.typelevel.log4cats.Logger
 
 package object fsnetwork {
 
@@ -24,31 +20,6 @@ package object fsnetwork {
   val chunkSize = 1
 
   val requestCacheSize = 100
-
-  implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
-
-    def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
-      optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
-  }
-
-  implicit class BlockchainPeerClientOps[F[_]: MonadThrow: Logger](client: BlockchainPeerClient[F]) {
-
-    def getRemoteHeaderOrError(id: BlockId): F[BlockHeader] =
-      OptionT(client.getRemoteHeader(id)).getOrRaise(BlockHeaderDownloadError.HeaderNotFoundInPeer)
-
-    def getRemoteSlotDataLogged(id: BlockId): F[SlotData] =
-      Logger[F].info(show"Fetching remote SlotData id=$id") >>
-      OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
-  }
-
-  object EitherTExt {
-
-    def condF[F[_]: Monad, S, E](test: F[Boolean], ifTrue: => F[S], ifFalse: => F[E]): EitherT[F, E, S] =
-      EitherT.liftF(test).flatMap {
-        case true  => EitherT.right[E](ifTrue)
-        case false => EitherT.left[S](ifFalse)
-      }
-  }
 
   implicit class CacheOps[K, V](cache: Cache[K, V]) {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
@@ -99,7 +70,8 @@ package object fsnetwork {
   implicit val showHeaderToBodyError: Show[BlockHeaderToBodyValidationFailure] =
     Show.fromToString
 
-  // Return A1 -> A2 -> ... -> AN -> from, where terminateOn(A1) === true
+  implicit val showBodyValidationError: Show[BodyValidationError] =
+    Show.fromToString
 
   /**
    * Get some T from chain until reach terminateOn condition, f.e.
@@ -158,98 +130,4 @@ package object fsnetwork {
     store: Store[F, BlockId, T]
   ): F[Option[NonEmptyChain[(BlockId, T)]]] =
     data.dropWhileF(idAndBody => store.contains(idAndBody._1)).map(NonEmptyChain.fromSeq)
-
-  implicit val showBodyValidationError: Show[BodyValidationError] =
-    Show.fromToString
-
-  sealed abstract class HeaderApplyException extends Exception
-
-  object HeaderApplyException {
-
-    case class HeaderValidationException(blockId: BlockId, error: BlockHeaderValidationFailure)
-        extends HeaderApplyException
-
-    case class UnknownError(ex: Throwable) extends HeaderApplyException {
-      this.initCause(ex)
-
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during applying block header due next throwable $name : $message"
-      }
-    }
-  }
-
-  sealed trait BlockHeaderDownloadError extends Exception
-
-  object BlockHeaderDownloadError {
-
-    case object HeaderNotFoundInPeer extends BlockBodyDownloadError {
-      override def toString: String = "Block body has not found in peer"
-    }
-
-    case class HeaderHaveIncorrectId(expected: BlockId, actual: BlockId) extends BlockBodyDownloadError {
-      override def toString: String = show"Peer returns header with bad id: expected $expected, actual $actual"
-    }
-
-    case class UnknownError(ex: Throwable) extends BlockHeaderDownloadError {
-      this.initCause(ex)
-
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during getting header from peer due next throwable $name : $message"
-      }
-    }
-  }
-
-  sealed abstract class BodyApplyException extends Exception
-
-  object BodyApplyException {
-
-    case class BodyValidationException(blockId: BlockId, errors: NonEmptyChain[BodyValidationError])
-        extends BodyApplyException
-
-    case class UnknownError(ex: Throwable) extends BodyApplyException {
-      this.initCause(ex)
-
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during applying block body due next throwable $name : $message"
-      }
-    }
-  }
-
-  sealed trait BlockBodyDownloadError extends Exception
-
-  object BlockBodyDownloadError {
-
-    case object BodyNotFoundInPeer extends BlockBodyDownloadError {
-      override def toString: String = "Block body has not found in peer"
-    }
-
-    case class BodyHaveIncorrectTxRoot(headerTxRoot: TxRoot, bodyTxRoot: TxRoot) extends BlockBodyDownloadError {
-      override def toString: String = show"Peer returns body with bad txRoot: expected $headerTxRoot, got $bodyTxRoot"
-    }
-
-    case class TransactionNotFoundInPeer(transactionId: Identifier.IoTransaction32) extends BlockBodyDownloadError {
-      override def toString: String = show"Peer have no transaction $transactionId despite having appropriate block"
-    }
-
-    case class TransactionHaveIncorrectId(expected: Identifier.IoTransaction32, actual: Identifier.IoTransaction32)
-        extends BlockBodyDownloadError {
-      override def toString: String = show"Peer returns transaction with bad id: expected $expected, actual $actual"
-    }
-
-    case class UnknownError(ex: Throwable) extends BlockBodyDownloadError {
-      this.initCause(ex)
-
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during getting block from peer due next throwable $name : $message"
-      }
-    }
-  }
 }
