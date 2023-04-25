@@ -6,11 +6,22 @@ import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.blockchain.PrivateTestnet
+import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
+import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
+import co.topl.brambl.models._
+import co.topl.brambl.models.box.Attestation
+import co.topl.brambl.models.transaction._
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.consensus.models.BlockId
 import co.topl.grpc.ToplGrpc
+import co.topl.quivr.api.Prover
 import co.topl.typeclasses.implicits._
 import fs2._
 import fs2.io.file.{Files, Path}
 import munit._
+import quivr.models.SmallData
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
@@ -21,12 +32,14 @@ class NodeAppTest extends CatsEffectSuite {
 
   type RpcClient = ToplRpc[F, Stream[F, *]]
 
+  override val munitTimeout: Duration = 3.minutes
+
   test("Two block-producing nodes that maintain consensus") {
     // Allow the nodes to produce/adopt blocks until reaching this height
-    val targetProductionHeight = 8
+    val targetProductionHeight = 10
     // All of the nodes should agree on the same block at this height
-    val targetConsensusHeight = 5
-    val startTimestamp = System.currentTimeMillis() + 10_000L
+    val targetConsensusHeight = 8
+    val startTimestamp = System.currentTimeMillis() + 20_000L
     val configNodeA =
       s"""
         |bifrost:
@@ -42,6 +55,12 @@ class NodeAppTest extends CatsEffectSuite {
         |  big-bang:
         |    staker-count: 2
         |    timestamp: $startTimestamp
+        |  protocols:
+        |    0:
+        |      slot-duration: 500 milli
+        |genus:
+        |  enable: true
+        |  rpc-node-port: 9151
         |""".stripMargin
     val configNodeB =
       s"""
@@ -60,6 +79,11 @@ class NodeAppTest extends CatsEffectSuite {
          |    staker-count: 2
          |    local-staker-index: 1
          |    timestamp: $startTimestamp
+         |  protocols:
+         |    0:
+         |      slot-duration: 500 milli
+         |genus:
+         |  enable: false
          |""".stripMargin
 
     val resource =
@@ -71,6 +95,16 @@ class NodeAppTest extends CatsEffectSuite {
         rpcClientA  <- ToplGrpc.Client.make[F]("localhost", 9151, tls = false)
         rpcClientB  <- ToplGrpc.Client.make[F]("localhost", 9153, tls = false)
         _           <- (awaitNodeReady(rpcClientA).toResource, awaitNodeReady(rpcClientB).toResource).parTupled
+        _ <- (
+          fetchUntilHeight(rpcClientA, 3).toResource,
+          fetchUntilHeight(rpcClientB, 3).toResource
+        ).parTupled
+        (utxoAddress, utxo) <- bigBangSpendableUtxo(rpcClientA).toResource
+        newTransaction      <- spendUtxo(rpcClientB)(utxoAddress, utxo).toResource
+        _ <- (
+          Async[F].timeout(confirmTransaction(rpcClientA)(newTransaction.id), 60.seconds).toResource,
+          Async[F].timeout(confirmTransaction(rpcClientB)(newTransaction.id), 60.seconds).toResource
+        ).parTupled
         _ <- (
           fetchUntilHeight(rpcClientA, targetProductionHeight).toResource,
           fetchUntilHeight(rpcClientB, targetProductionHeight).toResource
@@ -108,9 +142,13 @@ class NodeAppTest extends CatsEffectSuite {
   private def launch(configFile: Path): Resource[F, Unit] =
     for {
       app1 <- Sync[F].delay(new AbstractNodeApp {}).toResource
-      _    <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
-      bg   <- app1.run.start.toResource
-      _    <- Resource.onFinalize(bg.cancel)
+      _ <- Sync[F]
+        .delay(
+          app1.initialize(Array("--config", configFile.toString))
+        )
+        .toResource
+      bg <- app1.run.start.toResource
+      _  <- Resource.onFinalize(bg.cancel)
     } yield ()
 
   private def awaitNodeReady(client: ToplRpc[F, Stream[F, *]]) =
@@ -131,4 +169,84 @@ class NodeAppTest extends CatsEffectSuite {
       )
       .compile
       .drain
+
+  private def bigBangSpendableUtxo(client: RpcClient): F[(TransactionOutputAddress, UnspentTransactionOutput)] =
+    client
+      .blockIdAtHeight(1)
+      .map(_.get)
+      .flatMap(client.fetchBlockBody)
+      .map(_.get)
+      .map(_.transactionIds.head)
+      .flatMap(client.fetchTransaction)
+      .map(_.get)
+      .map { t =>
+        val index = t.outputs.indexWhere(_.address == PrivateTestnet.HeightLockOneSpendingAddress)
+        val address = t.id.outputAddress(0, 0, index)
+        (address, t.outputs(index))
+      }
+
+  private def spendUtxo(
+    client: RpcClient
+  )(address: TransactionOutputAddress, output: UnspentTransactionOutput) =
+    for {
+      predicate <- Attestation.Predicate(PrivateTestnet.HeightLockOneLock.getPredicate, Nil).pure[F]
+      unprovenTransaction <- IoTransaction(
+        inputs = List(
+          SpentTransactionOutput(
+            address,
+            Attestation(Attestation.Value.Predicate(predicate)),
+            output.value
+          )
+        ),
+        outputs = List(
+          UnspentTransactionOutput(
+            PrivateTestnet.HeightLockOneSpendingAddress,
+            output.value
+          )
+        ),
+        Datum.IoTransaction(
+          Event.IoTransaction(Schedule(0, Long.MaxValue, System.currentTimeMillis()), SmallData.defaultInstance)
+        )
+      ).pure[F]
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      provenTransaction = unprovenTransaction.copy(
+        inputs = unprovenTransaction.inputs.map(
+          _.copy(attestation =
+            Attestation(
+              Attestation.Value.Predicate(
+                predicate.copy(responses = List(proof))
+              )
+            )
+          )
+        )
+      )
+      _ <- client.broadcastTransaction(provenTransaction)
+    } yield provenTransaction
+
+  private def confirmTransaction(
+    client: RpcClient
+  )(id: TransactionId, confirmationDepth: Int = 3): F[Unit] = {
+    def containsTransaction(targetBlock: BlockId): F[Boolean] =
+      client
+        .fetchBlockBody(targetBlock)
+        .map(_.get.transactionIds.contains(id))
+        .ifM(
+          true.pure[F],
+          client
+            .fetchBlockHeader(targetBlock)
+            .map(_.get)
+            .flatMap(header =>
+              if (header.height > 1) containsTransaction(header.parentHeaderId)
+              else false.pure[F]
+            )
+        )
+
+    client
+      .blockIdAtDepth(confirmationDepth)
+      .iterateUntil(_.nonEmpty)
+      .map(_.get)
+      .flatMap(containsTransaction)
+      .iterateUntil(identity)
+      .void
+  }
 }

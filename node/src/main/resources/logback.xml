@@ -10,8 +10,6 @@
         <appender-ref ref="STDOUT" />
     </appender>
 
-    <logger name="co.topl" level="INFO" />
-
     <root level="INFO">
         <appender-ref ref="STDOUT" />
     </root>

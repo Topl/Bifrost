@@ -53,6 +53,12 @@ object RatioOps {
           ratio.denominator
         )
 
+      def *(that: BigInt) =
+        Ratio(
+          ratio.numerator * that,
+          ratio.denominator
+        )
+
       def /(that: Long) =
         Ratio(
           ratio.numerator,

@@ -6,11 +6,12 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.ChainSelectionAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b512
-import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models._
 import co.topl.models.utility._
 import co.topl.consensus.models.SlotData
+import co.topl.consensus.rhoToRhoTestHash
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -25,21 +26,21 @@ object ChainSelection {
   import NonEmpty.instances._
   import Prepend.instances._
 
+  private val heightOrder = Order.by[SlotData, Long](_.height)
+  private val slotOrder = Order.by[SlotData, Slot](-_.slotId.slot)
+
+  private def rhoTestHashOrderSlotData(implicit blake2b512: Blake2b512) =
+    Order.reverse(
+      Order.by[SlotData, BigInt](h => BigInt(rhoToRhoTestHash(h.rho).toArray))
+    )
+
   /**
    * The normal ordering to use between tines with a recent common ancestor
    */
-  private def standardOrder(implicit blake2b512: Blake2b512): Order[NonEmptyChain[SlotData]] = {
-    val lengthOrder = Order.by[NonEmptyChain[SlotData], Long](_.length)
-    val slotOrder = Order.by[NonEmptyChain[SlotData], Slot](-_.last.slotId.slot)
-    val rhoTestHashOrder =
-      Order.reverse(
-        Order.by[NonEmptyChain[SlotData], BigInt](h => BigInt(Ed25519VRF.rhoToRhoTestHash(h.last.rho).toArray))
-      )
-
-    lengthOrder
+  private def standardOrder(implicit blake2b512: Blake2b512): Order[SlotData] =
+    heightOrder
       .tiebreakWith(slotOrder)
-      .tiebreakWith(rhoTestHashOrder)
-  }
+      .tiebreakWith(rhoTestHashOrderSlotData)
 
   /**
    * Between two tines, determines which one is "better"
@@ -47,7 +48,7 @@ object ChainSelection {
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
   def make[F[_]: Sync](
-    fetchSlotData:      TypedIdentifier => F[SlotData],
+    fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
@@ -58,7 +59,7 @@ object ChainSelection {
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
   private class ChainSelectionImpl[F[_]: Sync](
-    fetchSlotData:      TypedIdentifier => F[SlotData],
+    fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: UnsafeResource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
@@ -174,7 +175,9 @@ object ChainSelection {
         xSegment.head === ySegment.head
 
       def comparisonResult: F[Int] =
-        blake2b512Resource.use(implicit blake2b512 => standardOrder.compare(xSegment, ySegment).pure[F])
+        blake2b512Resource.use(implicit blake2b512 =>
+          Sync[F].delay(standardOrder.compare(xSegment.last, ySegment.last))
+        )
     }
 
     /**
@@ -194,7 +197,14 @@ object ChainSelection {
         xSegment.head === ySegment.head
 
       def comparisonResult: F[Int] =
-        xSegment.length.compare(ySegment.length).pure[F]
+        Sync[F].delay(xSegment.length.compare(ySegment.length)).flatMap {
+          case 0 =>
+            // When the two chains have equal density, fallback to a rhoTestHash comparison on the latest blocks
+            // in the density segments
+            blake2b512Resource
+              .use(implicit blake2b512 => Sync[F].delay(rhoTestHashOrderSlotData.compare(xSegment.last, ySegment.last)))
+          case r => r.pure[F]
+        }
 
       /**
        * In cases where a common-ancestor search traces back more than `kLookback` blocks, we only need to aggregate

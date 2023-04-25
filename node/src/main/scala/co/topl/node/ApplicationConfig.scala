@@ -19,7 +19,11 @@ import scala.util.Try
 
 // $COVERAGE-OFF$
 @Lenses
-case class ApplicationConfig(bifrost: ApplicationConfig.Bifrost, kamon: ApplicationConfig.Kamon)
+case class ApplicationConfig(
+  bifrost: ApplicationConfig.Bifrost,
+  genus:   ApplicationConfig.Genus,
+  kamon:   ApplicationConfig.Kamon
+)
 
 object ApplicationConfig {
 
@@ -32,7 +36,8 @@ object ApplicationConfig {
     mempool:   Bifrost.Mempool,
     bigBang:   Bifrost.BigBang,
     protocols: Map[Slot, Bifrost.Protocol],
-    cache:     Bifrost.Cache
+    cache:     Bifrost.Cache,
+    ntp:       Bifrost.Ntp
   )
 
   object Bifrost {
@@ -66,6 +71,7 @@ object ApplicationConfig {
       case class Private(
         timestamp:        Long = System.currentTimeMillis() + 5_000L,
         stakerCount:      Int,
+        stakes:           Option[List[BigInt]],
         localStakerIndex: Option[Int]
       ) extends BigBang
     }
@@ -109,7 +115,8 @@ object ApplicationConfig {
       epochBoundaries: Cache.CacheConfig,
       operatorStakes:  Cache.CacheConfig,
       registrations:   Cache.CacheConfig,
-      blockHeightTree: Cache.CacheConfig
+      blockHeightTree: Cache.CacheConfig,
+      eligibilities:   Cache.CacheConfig
     )
 
     object Cache {
@@ -117,7 +124,27 @@ object ApplicationConfig {
       @Lenses
       case class CacheConfig(maximumEntries: Long, ttl: Option[FiniteDuration])
     }
+
+    @Lenses
+    case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
+
   }
+
+  @Lenses
+  case class Genus(
+    enable:            Boolean,
+    rpcHost:           String,
+    rpcPort:           Int,
+    rpcNodeHost:       String,
+    rpcNodePort:       Int,
+    rpcNodeTls:        Boolean,
+    orientDbDirectory: String,
+    orientDbUser:      String,
+    orientDbPassword:  String
+  )
+
+  @Lenses
+  case class Kamon(enable: Boolean)
 
   /**
    * Construct an ApplicationConfig based on the given command-line arguments and a merged HOCON config.
@@ -149,9 +176,9 @@ object ApplicationConfig {
         simpleArgApplications.bifrost.bigBang match {
           case p: Bifrost.BigBangs.Private =>
             p.copy(
-              cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
-              cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
-              cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
+              timestamp = cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
+              stakerCount = cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
+              localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
             )
         }
       genLens(_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
@@ -159,6 +186,9 @@ object ApplicationConfig {
       simpleArgApplications
     }
   }
+
+  implicit val bigIntConfigReader: ConfigReader[BigInt] =
+    ConfigReader.fromNonEmptyStringTry(str => Try(BigInt(str)))
 
   implicit val ratioConfigReader: ConfigReader[Ratio] =
     ConfigReader.fromNonEmptyStringTry { str =>
@@ -198,7 +228,5 @@ object ApplicationConfig {
 
   implicit val showApplicationConfig: Show[ApplicationConfig] =
     Show.fromToString
-
-  case class Kamon(enable: Boolean)
 }
 // $COVERAGE-ON$

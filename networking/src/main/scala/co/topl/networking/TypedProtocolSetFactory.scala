@@ -19,7 +19,6 @@ import co.topl.networking.typedprotocols.TypedProtocol.CommonStates
 import co.topl.networking.typedprotocols._
 import fs2._
 import org.typelevel.log4cats.Logger
-import scodec.bits.ByteVector
 
 import java.util.concurrent.TimeoutException
 import scala.concurrent.duration._
@@ -98,9 +97,12 @@ object TypedProtocolSetFactory {
   ): Sink[ByteString, NotUsed] =
     MessageParserFramer()
       .map { case (prefix, data) =>
-        multiplexedSubHandler.codec.decode(prefix)(ByteVector(data.toArray)) match {
-          case Right(value)  => value
-          case Left(failure) => throw new IllegalArgumentException(failure.toString)
+        val protoByteString = com.google.protobuf.ByteString.copyFrom(data.asByteBuffer)
+        multiplexedSubHandler.codec.decode(prefix)(protoByteString) match {
+          case Right(value) =>
+            value
+          case Left(failure) =>
+            throw new IllegalArgumentException(failure.toString)
         }
       }
       .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
@@ -125,12 +127,12 @@ object TypedProtocolSetFactory {
       )
       .evalTap(o => Logger[F].debug(s"Sending outbound message in protocolInstanceId=$protocolInstanceId. ${o.data}"))
       .map { o =>
-        val (prefix, byteVector) =
+        val (prefix, protobufByteString) =
           multiplexedSubHandler.codec.encode(o.data)(o.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]) match {
             case Right(value)  => value
             case Left(failure) => throw new IllegalArgumentException(failure.toString)
           }
-        prefix -> ByteString(byteVector.toArray)
+        prefix -> ByteString(protobufByteString.asReadOnlyByteBuffer())
       }
       .map(MessageSerializerFramer.functionTupled)
 

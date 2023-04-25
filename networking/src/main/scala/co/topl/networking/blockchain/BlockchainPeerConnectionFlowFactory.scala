@@ -4,10 +4,11 @@ import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 import cats.effect.{Async, Resource}
 import cats.implicits._
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.{models => legacyModels}
-import legacyModels.{Transaction, TypedIdentifier}
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking._
@@ -86,7 +87,7 @@ object BlockchainPeerConnectionFlowFactory {
 
     val idAtHeightRecipF =
       TypedProtocolSetFactory.CommonProtocols
-        .requestResponseReciprocated[F, (Long, Option[TypedIdentifier]), TypedIdentifier](
+        .requestResponseReciprocated[F, (Long, Option[BlockId]), BlockId](
           BlockchainProtocols.BlockIdAtHeight,
           t => protocolServer.getLocalBlockAtHeight(t._1),
           13: Byte,
@@ -106,16 +107,18 @@ object BlockchainPeerConnectionFlowFactory {
         (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
-          val remotePeerAdoptions: F[Stream[F, TypedIdentifier]] = remoteBlockIdsSource.pure[F]
-          val remoteTransactionNotifications: F[Stream[F, TypedIdentifier]] = remoteTransactionIdsSource.pure[F]
-          def getRemoteSlotData(id:    TypedIdentifier): F[Option[SlotData]] = slotDataReceivedCallback(id)
-          def getRemoteHeader(id:      TypedIdentifier): F[Option[BlockHeader]] = headerReceivedCallback(id)
-          def getRemoteBody(id:        TypedIdentifier): F[Option[BlockBody]] = bodyReceivedCallback(id)
-          def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]] = transactionReceivedCallback(id)
+          val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
+          val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
+            remoteTransactionIdsSource.pure[F]
+          def getRemoteSlotData(id: BlockId): F[Option[SlotData]] = slotDataReceivedCallback(id)
+          def getRemoteHeader(id:   BlockId): F[Option[BlockHeader]] = headerReceivedCallback(id)
+          def getRemoteBody(id:     BlockId): F[Option[BlockBody]] = bodyReceivedCallback(id)
+          def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] =
+            transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(
             height:       Long,
-            localBlockId: Option[TypedIdentifier]
-          ): F[Option[TypedIdentifier]] =
+            localBlockId: Option[BlockId]
+          ): F[Option[BlockId]] =
             heightIdReceivedCallback((height, localBlockId))
         }
         subHandlers =

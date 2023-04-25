@@ -2,37 +2,37 @@ package co.topl.ledger.interpreters
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.validation.TransactionSyntaxError
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
-import co.topl.ledger.algebras.TransactionSyntaxValidationAlgebra
-import co.topl.ledger.models._
-import co.topl.models.ModelGenerators._
-import co.topl.models.utility.ReplaceModelUtil
-import co.topl.models.{Transaction, TypedIdentifier}
-import co.topl.typeclasses.implicits._
+import co.topl.node.models.BlockBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import scala.collection.immutable.ListSet
 
 class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
   test("validation should fail if any transaction is syntactically invalid") {
-    PropF.forAllF { transaction: Transaction =>
+    PropF.forAllF { transaction: IoTransaction =>
       withMock {
-        val body = ListSet(transaction.id.asTypedBytes)
+        val body = BlockBody(List(transaction.id))
         for {
-          fetchTransaction <- mockFunction[TypedIdentifier, F[Transaction]].pure[F]
-          _ = fetchTransaction.expects(transaction.id.asTypedBytes).once().returning(transaction.pure[F])
-          transactionSyntaxValidation = mock[TransactionSyntaxValidationAlgebra[F]]
+          fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
+          _ = fetchTransaction.expects(transaction.id).once().returning(transaction.pure[F])
+          transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
           _ = (transactionSyntaxValidation.validate _)
             .expects(transaction)
             .once()
-            .returning((TransactionSyntaxErrors.EmptyInputs: TransactionSyntaxError).invalidNec[Transaction].pure[F])
+            .returning(
+              (TransactionSyntaxError.EmptyInputs: TransactionSyntaxError).invalidNec[IoTransaction].toEither.pure[F]
+            )
           underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation)
-          result    <- underTest.validate(ReplaceModelUtil.nodeBlock(body)) // TODO removeModel Util
+          result    <- underTest.validate(body)
           _         <- IO(result.isInvalid).assert
         } yield ()
       }

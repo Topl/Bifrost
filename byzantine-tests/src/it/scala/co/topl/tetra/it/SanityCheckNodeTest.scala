@@ -10,9 +10,9 @@ class SanityCheckNodeTest extends IntegrationSuite {
   test("A single node is successfully started, id of the genesis block is available through RPC") {
     val resource =
       for {
-        (dockerSupport, _dockerClient) <- DockerSupport.make[F]
+        (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
-        node1       <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", DefaultConfig())
+        node1       <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", TestNodeConfig().yaml)
         _           <- node1.startContainer[F].toResource
         node1Client <- node1.rpcClient[F]
         _           <- node1Client.waitForRpcStartUp.toResource

@@ -9,7 +9,11 @@ import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
 import fs2._
 import fs2.io.file.Files
+import fs2.io.file.Flags
+import fs2.io.file.Path
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
+import scala.jdk.CollectionConverters._
 
 import java.nio.charset.StandardCharsets
 
@@ -24,7 +28,16 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _  <- Sync[F].blocking(dockerClient.startContainer(containerId))
       _  <- awaitContainerStart
       ip <- ipAddress
-      _  <- Logger[F].info(s"Successfully started container $containerId on IP $ip")
+      _  <- Logger[F].info(s"Successfully started container on IP $ip")
+    } yield ()
+
+  def restartContainer[F[_]: Async]: F[Unit] =
+    for {
+      _  <- Logger[F].info("Restarting")
+      _  <- Sync[F].blocking(dockerClient.restartContainer(containerId))
+      _  <- awaitContainerStart
+      ip <- ipAddress
+      _  <- Logger[F].info(s"Successfully restarted container on IP $ip")
     } yield ()
 
   def stop[F[_]: Async]: F[Unit] =
@@ -48,9 +61,15 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _ <- Files[F].tempDirectory.use(tmpConfigDir =>
         for {
           tmpConfigFile <- (tmpConfigDir / "node.yaml").pure[F]
+          tmpLogFile    <- (tmpConfigDir / "logback.xml").pure[F]
           _ <- Stream
             .chunk(Chunk.array(configYaml.getBytes(StandardCharsets.UTF_8)))
             .through(Files[F].writeAll(tmpConfigFile))
+            .compile
+            .drain
+          _ <- fs2.io
+            .readClassLoaderResource("logback-container.xml")
+            .through(Files[F].writeAll(tmpLogFile))
             .compile
             .drain
           _ <- Sync[F].blocking(
@@ -63,6 +82,28 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
         } yield ()
       )
     } yield ()
+
+  def containerLogs[F[_]: Async]: Stream[F, Byte] =
+    Stream
+      .fromAutoCloseable(
+        Sync[F].blocking(
+          dockerClient.logs(containerId, DockerClient.LogsParam.stdout(), DockerClient.LogsParam.stderr())
+        )
+      )
+      .map(_.asScala)
+      .flatMap(Stream.fromBlockingIterator[F](_, 1))
+      .map(_.content())
+      .map(Chunk.byteBuffer)
+      .unchunks
+
+  def saveContainerLogs[F[_]: Async](file: Path): F[Unit] =
+    Sync[F].defer(
+      Logger[F].info(s"Writing container logs to $file") >>
+      containerLogs[F]
+        .through(Files[F].writeAll(file, Flags.Write))
+        .compile
+        .drain
+    )
 
   private def awaitContainerStart[F[_]: Async]: F[Unit] = {
     def go(remainingAttempts: Int): F[Unit] =

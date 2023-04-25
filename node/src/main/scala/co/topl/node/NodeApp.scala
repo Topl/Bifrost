@@ -10,19 +10,22 @@ import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{SlotData, VerificationKeyVrfEd25519, VrfConfig}
+import co.topl.consensus.models.{SlotData, VrfConfig}
 import co.topl.consensus.interpreters._
+import co.topl.consensus.models.BlockId
+import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
+import co.topl.genus.GenusServer
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
@@ -32,6 +35,7 @@ import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
 import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
@@ -82,14 +86,16 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         .delay(
           PrivateTestnet.config(
             privateBigBang.timestamp,
-            stakerInitializers
+            stakerInitializers,
+            privateBigBang.stakes
           )
         )
         .toResource
       bigBangBlock = BigBang.block
-      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=${bigBangBlock.header.id.asTypedBytes}"))
+      bigBangBlockId = bigBangBlock.header.id
+      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=$bigBangBlockId"))
 
-      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlock.header.id.asTypedBytes.show
+      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlockId.show
       _ <- Resource.eval(Files[F].createDirectories(stakingDir))
       _ <- Resource.eval(Logger[F].info(show"Using stakingDir=$stakingDir"))
 
@@ -100,16 +106,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
 
       canonicalHeadId       <- Resource.eval(currentEventIdGetterSetters.canonicalHead.get())
       canonicalHeadSlotData <- Resource.eval(dataStores.slotData.getOrRaise(canonicalHeadId))
+      canonicalHead         <- Resource.eval(dataStores.headers.getOrRaise(canonicalHeadId))
       _                     <- Resource.eval(Logger[F].info(show"Canonical head id=$canonicalHeadId"))
 
       blockIdTree <- Resource.eval(
         ParentChildTree.FromReadWrite
-          .make[F, TypedIdentifier](
+          .make[F, BlockId](
             dataStores.parentChildTree.get,
             dataStores.parentChildTree.put,
             bigBangBlock.header.parentHeaderId
           )
-          .flatTap(_.associate(bigBangBlock.header.id, bigBangBlock.header.parentHeaderId))
+          .flatTap(_.associate(bigBangBlockId, bigBangBlock.header.parentHeaderId))
       )
 
       // Start the supporting interpreters
@@ -130,11 +137,15 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         bigBangProtocol.vrfBaselineDifficulty,
         bigBangProtocol.vrfAmplitude
       )
-      clock = SchedulerClock.Eval.make[F](
+      ntpClockSkewer <- NtpClockSkewer
+        .make[F](appConfig.bifrost.ntp.server, appConfig.bifrost.ntp.refreshInterval, appConfig.bifrost.ntp.timeout)
+      clock <- SchedulerClock.make[F](
         bigBangProtocol.slotDuration,
         bigBangProtocol.epochLength,
+        bigBangProtocol.operationalPeriodLength,
         Instant.ofEpochMilli(bigBangBlock.header.timestamp),
-        bigBangProtocol.forwardBiasedSlotWindow
+        bigBangProtocol.forwardBiasedSlotWindow,
+        ntpClockSkewer
       )
       _ <- Resource.eval(
         clock.globalSlot.flatMap(globalSlot =>
@@ -145,7 +156,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         EtaCalculation.make(
           dataStores.slotData.getOrRaise,
           clock,
-          bigBangBlock.header.eligibilityCertificate.eta,
+          Sized.strictUnsafe(bigBangBlock.header.eligibilityCertificate.eta),
           cryptoResources.blake2b256,
           cryptoResources.blake2b512
         )
@@ -156,7 +167,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock,
           dataStores,
           currentEventIdGetterSetters,
-          bigBangBlock,
+          bigBangBlockId,
           blockIdTree
         )
       )
@@ -198,16 +209,31 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
             consensusValidationState,
             leaderElectionThreshold,
             cryptoResources.ed25519,
+            cryptoResources.blake2b256,
             cryptoResources.ed25519VRF,
             cryptoResources.kesProduct,
             bigBangProtocol,
             vrfConfig
           ).map(_.some)
         )
+
+      eligibilityCache <-
+        EligibilityCache
+          .make[F](appConfig.bifrost.cache.eligibilities.maximumEntries.toInt)
+          .evalTap(
+            EligibilityCache.repopulate(
+              _,
+              appConfig.bifrost.cache.eligibilities.maximumEntries.toInt,
+              canonicalHead,
+              dataStores.headers.getOrRaise
+            )
+          )
       validators <- Resource.eval(
         Validators.make[F](
           cryptoResources,
           dataStores,
+          bigBangBlockId,
+          eligibilityCache,
           currentEventIdGetterSetters,
           blockIdTree,
           etaCalculation,
@@ -216,6 +242,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock
         )
       )
+      _ <- GenusServer
+        .make[F](
+          appConfig.genus.copy(orientDbDirectory =
+            Some(appConfig.genus.orientDbDirectory)
+              .filterNot(_.isEmpty)
+              .getOrElse(dataStores.baseDirectory./("orient-db").toString)
+          )
+        )
+        .recoverWith { case e =>
+          Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
+        }
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -256,64 +293,63 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElectionThreshold:  LeaderElectionValidationAlgebra[F],
     ed25519Resource:          UnsafeResource[F, Ed25519],
+    blake2b256Resource:       UnsafeResource[F, Blake2b256],
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
     protocol:                 ApplicationConfig.Bifrost.Protocol,
     vrfConfig:                VrfConfig
   ) =
-    // Initialize a persistent secure store
-    CatsSecureStore
-      .make[F](stakingDir.toNioPath)
-      .evalMap(secureStore =>
-        for {
-          // Determine if a key has already been initialized
-          _ <- secureStore.list
-            .map(_.isEmpty)
-            // If uninitialized, generate a new key.  Otherwise, move on.
-            .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
-          vrfCalculator <- VrfCalculator.make[F](
-            initializer.vrfSK,
-            clock,
-            leaderElectionThreshold,
-            ed25519VRFResource,
-            vrfConfig,
-            protocol.vrfCacheSize
-          )
-          currentSlot <- clock.globalSlot.map(_.max(0L))
+    for {
+      // Initialize a persistent secure store
+      secureStore <- CatsSecureStore.make[F](stakingDir.toNioPath)
+      // Determine if a key has already been initialized
+      _ <- secureStore.list
+        .map(_.isEmpty)
+        // If uninitialized, generate a new key.  Otherwise, move on.
+        .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
+        .toResource
 
-          operationalKeys <- OperationalKeyMaker.make[F](
-            initialSlot = currentSlot,
-            currentHead.slotId,
-            operationalPeriodLength = protocol.operationalPeriodLength,
-            activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
-            initializer.stakingAddress,
-            secureStore = secureStore,
-            clock = clock,
-            vrfCalculator = vrfCalculator,
-            etaCalculation,
-            consensusValidationState,
-            kesProductResource,
-            ed25519Resource
-          )
-          staking = Staking.make(
-            initializer.stakingAddress,
-            VerificationKeyVrfEd25519.of(initializer.vrfVK.bytes.data),
-            operationalKeys,
-            consensusValidationState,
-            etaCalculation,
-            ed25519Resource,
-            vrfCalculator,
-            leaderElectionThreshold
-          )
-        } yield staking
+      vrfCalculator <- VrfCalculator.make[F](
+        initializer.vrfSK,
+        ed25519VRFResource,
+        protocol.vrfCacheSize
       )
+
+      operationalKeys <- OperationalKeyMaker
+        .make[F](
+          operationalPeriodLength = protocol.operationalPeriodLength,
+          activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
+          initializer.stakingAddress,
+          vrfConfig,
+          secureStore = secureStore,
+          clock = clock,
+          vrfCalculator = vrfCalculator,
+          leaderElectionThreshold,
+          etaCalculation,
+          consensusValidationState,
+          kesProductResource,
+          ed25519Resource
+        )
+
+      staking <- Staking.make(
+        initializer.stakingAddress,
+        initializer.vrfVK,
+        operationalKeys,
+        consensusValidationState,
+        etaCalculation,
+        ed25519Resource,
+        blake2b256Resource,
+        vrfCalculator,
+        leaderElectionThreshold
+      )
+    } yield staking
 
   private def makeConsensusValidationState(
     clock:                       ClockAlgebra[F],
     dataStores:                  DataStores[F],
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    bigBangBlock:                Block.Full,
-    blockIdTree:                 ParentChildTree[F, TypedIdentifier]
+    bigBangBlockId:              BlockId,
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ) =
     for {
       epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
@@ -332,14 +368,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
           .pure[F],
         dataStores.bodies.getOrRaise,
-        dataStores.transactions.getOrRaise,
-        boxId =>
-          dataStores.transactions
-            .getOrRaise(boxId.transactionId)
-            .map(_.outputs.get(boxId.transactionOutputIndex.toLong).get)
+        dataStores.transactions.getOrRaise
       )
       consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlock.header.id, epochBoundariesState, consensusDataState, clock)
+        .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
     } yield consensusValidationState
 
   private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =

@@ -2,21 +2,23 @@ package co.topl.networking.p2p
 
 import akka.NotUsed
 import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Flow, Keep}
-import akka.stream.testkit.scaladsl.{TestSink, TestSource}
+import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Keep
+import akka.stream.testkit.scaladsl.TestSink
+import akka.stream.testkit.scaladsl.TestSource
 import akka.testkit.TestKitBase
 import akka.util.ByteString
 import cats.effect.IO
 import co.topl.crypto.hash.Blake2b256
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.Sized
-import co.topl.models.{Bytes, Evidence}
 import co.topl.networking.multiplexer._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.EitherValues
+import org.scalatest.OptionValues
+import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.util.Random
 
@@ -42,22 +44,21 @@ class ConnectionLeaderFlowSpec
     implicit val random1 = new Random(0)
     val random2 = new Random(0)
     val expectedPublishedInt = random2.nextInt()
-    val expectedPublishedEvidence = new Blake2b256().hash(Bytes(intToBytestring(expectedPublishedInt).toArray))
+    val expectedPublishedEvidence =
+      new Blake2b256().hash(intToBytestring(expectedPublishedInt).toArray)
 
     val remoteInt = expectedPublishedInt + 1
-    val remoteIntEvidence = new Blake2b256().hash(Bytes(intToBytestring(remoteInt).toArray))
+    val remoteIntEvidence = new Blake2b256().hash(intToBytestring(remoteInt).toArray)
 
     val expectedConnectionLeader =
       if (
         BigInt(
           new Blake2b256()
-            .hash(Bytes(intToBytestring(expectedPublishedInt).toArray ++ intToBytestring(remoteInt).toArray))
-            .toArray
+            .hash(intToBytestring(expectedPublishedInt).toArray ++ intToBytestring(remoteInt).toArray)
         ) >
         BigInt(
           new Blake2b256()
-            .hash(Bytes(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray))
-            .toArray
+            .hash(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray)
         )
       ) ConnectionLeaders.Local
       else ConnectionLeaders.Remote
@@ -72,9 +73,9 @@ class ConnectionLeaderFlowSpec
       TestSource.probe[ByteString].via(underTest).toMat(TestSink[ByteString]())(Keep.both).run()
 
     sub.request(1)
-    val evidence: Evidence = Sized.strictUnsafe(Bytes(sub.expectNext().toArray))
-    evidence.data shouldBe expectedPublishedEvidence
-    pub.sendNext(ByteString(remoteIntEvidence.toArray))
+    val evidence = sub.expectNext().toArray
+    evidence shouldBe expectedPublishedEvidence
+    pub.sendNext(ByteString(remoteIntEvidence))
 
     sub.request(1)
     bytestringToInt(sub.expectNext()) shouldBe expectedPublishedInt

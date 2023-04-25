@@ -8,17 +8,17 @@ import cats.{Applicative, MonadThrow}
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.TypedIdentifier
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import co.topl.models.utility._
 
 object PeerBlockHeaderFetcher {
   sealed trait Message
@@ -32,17 +32,18 @@ object PeerBlockHeaderFetcher {
      *
      * @param blockIds headers block id to download
      */
-    case class DownloadBlockHeaders(blockIds: NonEmptyChain[TypedIdentifier]) extends Message
+    case class DownloadBlockHeaders(blockIds: NonEmptyChain[BlockId]) extends Message
   }
 
   case class State[F[_]](
-    hostId:              HostId,
-    client:              BlockchainPeerClient[F],
-    blockHeadersChecker: BlockCheckerActor[F],
-    localChain:          LocalChainAlgebra[F],
-    slotDataStore:       Store[F, TypedIdentifier, SlotData],
-    blockIdTree:         ParentChildTree[F, TypedIdentifier],
-    fetchingFiber:       Option[Fiber[F, Throwable, Unit]]
+    hostId:        HostId,
+    client:        BlockchainPeerClient[F],
+    blockChecker:  BlockCheckerActor[F],
+    requestsProxy: RequestsProxyActor[F],
+    localChain:    LocalChainAlgebra[F],
+    slotDataStore: Store[F, BlockId, SlotData],
+    blockIdTree:   ParentChildTree[F, BlockId],
+    fetchingFiber: Option[Fiber[F, Throwable, Unit]]
   )
 
   type Response[F[_]] = State[F]
@@ -55,14 +56,15 @@ object PeerBlockHeaderFetcher {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:              HostId,
-    client:              BlockchainPeerClient[F],
-    blockHeadersChecker: BlockCheckerActor[F],
-    localChain:          LocalChainAlgebra[F],
-    slotDataStore:       Store[F, TypedIdentifier, SlotData],
-    blockIdTree:         ParentChildTree[F, TypedIdentifier]
+    hostId:        HostId,
+    client:        BlockchainPeerClient[F],
+    blockChecker:  BlockCheckerActor[F],
+    requestsProxy: RequestsProxyActor[F],
+    localChain:    LocalChainAlgebra[F],
+    slotDataStore: Store[F, BlockId, SlotData],
+    blockIdTree:   ParentChildTree[F, BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
-    val initialState = State(hostId, client, blockHeadersChecker, localChain, slotDataStore, blockIdTree, None)
+    val initialState = State(hostId, client, blockChecker, requestsProxy, localChain, slotDataStore, blockIdTree, None)
     Actor.make(initialState, getFsm[F])
   }
 
@@ -79,37 +81,37 @@ object PeerBlockHeaderFetcher {
 
   private def slotDataFetcher[F[_]: Async: Logger](
     state:             State[F],
-    newBlockIdsStream: Stream[F, TypedIdentifier]
+    newBlockIdsStream: Stream[F, BlockId]
   ): Stream[F, Unit] =
     newBlockIdsStream.evalMap { blockId =>
       {
         for {
-          _                    <- OptionT.liftF(Logger[F].info(show"Got block with id from remote host $blockId"))
-          newBlockId           <- isUnknownBlockOpt(state, blockId)
-          remoteSlotData       <- adoptRemoteSlotData(state, newBlockId)
-          betterBlocksSlotData <- compareWithLocalChain(remoteSlotData, state)
-          _                    <- OptionT.liftF(sendProposalToBlockChecker(state, betterBlocksSlotData))
+          _              <- OptionT.liftF(Logger[F].info(show"Got slot for $blockId from remote host ${state.hostId}"))
+          newBlockId     <- isUnknownBlockOpt(state, blockId)
+          remoteSlotData <- adoptRemoteSlotData(state, newBlockId)
+          betterSlotData <- compareWithLocalChain(remoteSlotData, state)
+          _              <- OptionT.liftF(sendProposalToBlockChecker(state, betterSlotData))
         } yield ()
-      }.value.void
+      }.value.void.handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
     }
 
   private def isUnknownBlockOpt[F[_]: Async: Logger](
     state:   State[F],
-    blockId: TypedIdentifier
-  ): OptionT[F, TypedIdentifier] =
+    blockId: BlockId
+  ): OptionT[F, BlockId] =
     OptionT(
       state.slotDataStore
         .contains(blockId)
         .flatTap {
-          case true  => Logger[F].info(show"Ignoring already-known block id=$blockId")
-          case false => Logger[F].info(show"Received unknown block id=$blockId")
+          case true  => Logger[F].info(show"Ignoring already-known slot data for block id=$blockId")
+          case false => Logger[F].info(show"Received unknown slot data for block id=$blockId")
         }
         .map(Option.unless(_)(blockId))
     )
 
   private def adoptRemoteSlotData[F[_]: Async: Logger](
     state:   State[F],
-    blockId: TypedIdentifier
+    blockId: BlockId
   ): OptionT[F, NonEmptyChain[SlotData]] = {
     def adoptSlotData(slotData: SlotData) = {
       val slotBlockId = slotData.slotId.blockId
@@ -129,16 +131,29 @@ object PeerBlockHeaderFetcher {
   }
 
   // return: recent (current) block is the last
-  private def buildTine[F[_]: MonadThrow: Logger](
-    store:  Store[F, TypedIdentifier, SlotData],
+  private def buildTine[F[_]: Async: Logger](
+    store:  Store[F, BlockId, SlotData],
     client: BlockchainPeerClient[F],
-    from:   TypedIdentifier
+    from:   BlockId
   ): OptionT[F, NonEmptyChain[SlotData]] = {
+    val getSlotData: BlockId => F[SlotData] =
+      id =>
+        store.get(id).flatMap {
+          case Some(sd) => sd.pure[F]
+          case None =>
+            Logger[F].info(show"Fetching remote SlotData id=$id") >>
+            client.getSlotDataOrError(id, new NoSuchElementException(id.toString))
+        }
+
     val tine = getFromChainUntil(
       (s: SlotData) => s.pure[F],
-      client.getRemoteSlotDataLogged,
+      getSlotData,
       (sd: SlotData) => store.contains(sd.slotId.blockId)
     )(from)
+      .handleErrorWith { error =>
+        Logger[F].error(show"Failed to get remote slot data due to ${error.getLocalizedMessage}") >>
+        List.empty[SlotData].pure[F] // TODO send information about error to reputation handler
+      }
 
     OptionT(tine.map(NonEmptyChain.fromSeq(_)))
   }
@@ -161,52 +176,63 @@ object PeerBlockHeaderFetcher {
 
   private def sendProposalToBlockChecker[F[_]](state: State[F], slotData: NonEmptyChain[SlotData]) = {
     val message = BlockChecker.Message.RemoteSlotData(state.hostId, slotData)
-    state.blockHeadersChecker.sendNoWait(message)
+    state.blockChecker.sendNoWait(message)
   }
 
   private def downloadHeaders[F[_]: Async: Logger](
     state:    State[F],
-    blockIds: NonEmptyChain[TypedIdentifier]
-  ): F[(State[F], Response[F])] = {
+    blockIds: NonEmptyChain[BlockId]
+  ): F[(State[F], Response[F])] =
     for {
-      remoteHeaders <- getHeadersFromRemotePeer(state.client, blockIds)
-      _             <- OptionT.liftF(sendHeadersToBlockChecker(state, remoteHeaders))
-    } yield ()
-  }.value as (state, state)
+      remoteHeaders <- getHeadersFromRemotePeer(state.client, state.hostId, blockIds)
+      _             <- sendHeadersToProxy(state, NonEmptyChain.fromSeq(remoteHeaders).get)
+    } yield (state, state)
 
   private def getHeadersFromRemotePeer[F[_]: Async: Logger](
     client:   BlockchainPeerClient[F],
-    blockIds: NonEmptyChain[TypedIdentifier]
-  ): OptionT[F, NonEmptyChain[(TypedIdentifier, BlockHeader)]] =
-    OptionT(
-      Stream
-        .foldable[F, NonEmptyChain, TypedIdentifier](blockIds)
-        .parEvalMapUnbounded(downloadHeader(client, _))
-        .compile
-        .toList
-        .map(NonEmptyChain.fromSeq(_))
-    )
+    hostId:   HostId,
+    blockIds: NonEmptyChain[BlockId]
+  ): F[List[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]] =
+    Stream
+      .foldable[F, NonEmptyChain, BlockId](blockIds)
+      .parEvalMapUnbounded(downloadHeader(client, hostId, _))
+      .compile
+      .toList
 
   private def downloadHeader[F[_]: Async: Logger](
     client:  BlockchainPeerClient[F],
-    blockId: TypedIdentifier
-  ): F[(TypedIdentifier, BlockHeader)] = {
-    val InconsistentHeaderId =
-      new IllegalArgumentException("Claimed block ID did not match provided header")
+    hostId:  HostId,
+    blockId: BlockId
+  ): F[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])] = {
+    val headerEither =
+      for {
+        _                   <- Logger[F].info(show"Fetching remote header id=$blockId")
+        (fetchedId, header) <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer).map(h => (h.id, h))
+        _                   <- Logger[F].info(show"Fetched remote header id=$blockId")
+        _                   <- MonadThrow[F].raiseWhen(fetchedId =!= blockId)(HeaderHaveIncorrectId(blockId, fetchedId))
+      } yield header
 
-    for {
-      _      <- Logger[F].info(show"Fetching remote header id=$blockId")
-      header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
-      _      <- MonadThrow[F].raiseWhen(header.id.asTypedBytes =!= blockId)(InconsistentHeaderId)
-    } yield (blockId, header)
+    headerEither
+      .map(blockHeader => Either.right[BlockHeaderDownloadError, BlockHeader](blockHeader))
+      .handleError {
+        case e: BlockHeaderDownloadError => Either.left[BlockHeaderDownloadError, BlockHeader](e)
+        case unknownError                => Either.left(UnknownError(unknownError))
+      }
+      .flatTap {
+        case Right(_) =>
+          Logger[F].debug(show"Successfully download block header $blockId from peer $hostId")
+        case Left(error) =>
+          Logger[F].error(show"Failed download block $blockId from peer $hostId because of: ${error.toString}")
+      }
+      .map((blockId, _))
   }
 
-  private def sendHeadersToBlockChecker[F[_]](
-    state:   State[F],
-    headers: NonEmptyChain[(TypedIdentifier, BlockHeader)]
-  ) = {
-    val message = BlockChecker.Message.RemoteBlockHeader(state.hostId, headers)
-    state.blockHeadersChecker.sendNoWait(message)
+  private def sendHeadersToProxy[F[_]](
+    state:         State[F],
+    headersEither: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+  ): F[Unit] = {
+    val message: RequestsProxy.Message = RequestsProxy.Message.DownloadHeadersResponse(state.hostId, headersEither)
+    state.requestsProxy.sendNoWait(message)
   }
 
   private def stopActor[F[_]: Applicative](state: State[F]): F[(State[F], Response[F])] = {

@@ -8,8 +8,5 @@ trait BlockHeaderValidationAlgebra[F[_]] {
   /**
    * Indicates if the claimed child is a valid descendent of the parent
    */
-  def validate(
-    child:  BlockHeader,
-    parent: BlockHeader
-  ): F[Either[BlockHeaderValidationFailure, BlockHeader]]
+  def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]]
 }

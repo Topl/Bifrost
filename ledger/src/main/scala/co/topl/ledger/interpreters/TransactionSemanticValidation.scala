@@ -4,15 +4,23 @@ import cats.data.{EitherT, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect._
 import cats.implicits._
 import cats.{Applicative, Functor, Monad}
+import co.topl.brambl.common.ContainsEvidence
+import co.topl.brambl.common.ContainsEvidence.blake2bEvidenceFromImmutable
+import co.topl.brambl.common.ContainsImmutable.instances._
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.box.Lock
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.transaction.Schedule
+import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.models._
-import co.topl.typeclasses.implicits._
 
 object TransactionSemanticValidation {
 
   def make[F[_]: Sync](
-    fetchTransaction: TypedIdentifier => F[Transaction],
+    fetchTransaction: TransactionId => F[IoTransaction],
     boxState:         BoxStateAlgebra[F]
   ): F[TransactionSemanticValidationAlgebra[F]] =
     Sync[F].delay(
@@ -25,7 +33,7 @@ object TransactionSemanticValidation {
          */
         def validate(
           context: TransactionValidationContext
-        )(transaction: Transaction): F[ValidatedNec[TransactionSemanticError, Transaction]] =
+        )(transaction: IoTransaction): F[ValidatedNec[TransactionSemanticError, IoTransaction]] =
           AugmentedBoxState
             .make(boxState)(
               context.prefix.foldLeft(AugmentedBoxState.StateAugmentation.empty)(_.augment(_))
@@ -36,7 +44,7 @@ object TransactionSemanticValidation {
                 .foldM(transaction.validNec[TransactionSemanticError]) {
                   case (Validated.Valid(_), input) =>
                     (
-                      EitherT(scheduleValidation[F](context.slot)(transaction.schedule).map(_.toEither)) >>
+                      EitherT(scheduleValidation[F](context.slot)(transaction.datum.event.schedule).map(_.toEither)) >>
                       EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>
                       EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
                     ).toNestedValidatedNec.value
@@ -54,21 +62,24 @@ object TransactionSemanticValidation {
    * with the Spending Address which owns the box being spent?
    */
   private def dataValidation[F[_]: Functor](
-    fetchTransaction: TypedIdentifier => F[Transaction]
-  )(input: Transaction.Input): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
-    fetchTransaction(input.boxId.transactionId)
+    fetchTransaction: TransactionId => F[IoTransaction]
+  )(input: SpentTransactionOutput): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
+    fetchTransaction(input.address.id)
       .map(spentTransaction =>
         // Did the output referenced by this input ever exist?  (Not a spend-ability check, just existence)
         spentTransaction.outputs
-          .get(input.boxId.transactionOutputIndex)
-          .toValidNec[TransactionSemanticError](TransactionSemanticErrors.UnspendableBox(input.boxId))
+          .get(input.address.index)
+          .toValidNec[TransactionSemanticError](TransactionSemanticErrors.UnspendableBox(input.address))
           .ensure(NonEmptyChain(TransactionSemanticErrors.InputDataMismatch(input)))(spentOutput =>
             // Does the box value claimed on the input of _this_ transaction match the
             // box value (in state) from the spent output?
-            spentOutput.value === input.value &&
+            spentOutput.value == input.value &&
             // Does the proposition claimed in the input contain the same evidence that is defined on the
             // spent output's address?
-            spentOutput.address.spendingAddress.typedEvidence === input.proposition.typedEvidence
+            spentOutput.address.id.value == ContainsEvidence[Lock.Predicate]
+              .sizedEvidence(input.attestation.getPredicate.lock)
+              .digest
+              .value
           )
           .void
       )
@@ -78,12 +89,12 @@ object TransactionSemanticValidation {
    */
   private def spendableValidation[F[_]: Monad](
     boxState: BoxStateAlgebra[F]
-  )(blockId: TypedIdentifier)(input: Transaction.Input): F[ValidatedNec[TransactionSemanticError, Unit]] =
+  )(blockId: BlockId)(input: SpentTransactionOutput): F[ValidatedNec[TransactionSemanticError, Unit]] =
     boxState
-      .boxExistsAt(blockId)(input.boxId)
+      .boxExistsAt(blockId)(input.address)
       .ifM(
         ().validNec[TransactionSemanticError].pure[F],
-        (TransactionSemanticErrors.UnspendableBox(input.boxId): TransactionSemanticError).invalidNec[Unit].pure[F]
+        (TransactionSemanticErrors.UnspendableBox(input.address): TransactionSemanticError).invalidNec[Unit].pure[F]
       )
 
   /**
@@ -91,10 +102,10 @@ object TransactionSemanticValidation {
    */
   private def scheduleValidation[F[_]: Applicative](
     slot: Slot
-  )(schedule: Transaction.Schedule): F[ValidatedNec[TransactionSemanticError, Unit]] =
+  )(schedule: Schedule): F[ValidatedNec[TransactionSemanticError, Unit]] =
     Validated
       .condNec(
-        slot >= schedule.minimumSlot && slot <= schedule.maximumSlot,
+        slot >= schedule.min && slot <= schedule.max,
         (),
         TransactionSemanticErrors.UnsatisfiedSchedule(slot, schedule): TransactionSemanticError
       )

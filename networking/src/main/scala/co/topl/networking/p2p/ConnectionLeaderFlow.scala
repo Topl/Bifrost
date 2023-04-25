@@ -6,9 +6,6 @@ import akka.stream.{Attributes, FlowShape, Inlet, Outlet}
 import akka.util.ByteString
 import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
-import co.topl.models.utility.HasLength.instances.bytesLength
-import co.topl.models.utility.{Lengths, Sized}
-import co.topl.models.{Bytes, Evidence}
 import co.topl.networking.multiplexer.{bytestringToInt, intToBytestring}
 
 import scala.concurrent.{Future, Promise}
@@ -42,23 +39,23 @@ object ConnectionLeaderFlow {
       .fromMaterializer { (_, _) =>
         val localValue = random.nextInt()
         val localValueBytes = intToBytestring(localValue).toArray
-        val localValueEvidence = new Blake2b256().hash(Bytes(localValueBytes))
+        val localValueEvidence = ByteString(new Blake2b256().hash(localValueBytes))
         evidenceFlow(
-          Sized.strictUnsafe(localValueEvidence),
+          localValueEvidence,
           remoteEvidence => {
-            if (remoteEvidence.data == localValueEvidence)
+            if (remoteEvidence == localValueEvidence)
               throw new IllegalStateException("Remote party selected the same int value")
             intFlow(
               localValue,
               remoteInt => {
                 val remoteValueBytes = intToBytestring(remoteInt).toArray
-                val remoteValueHash = new Blake2b256().hash(Bytes(remoteValueBytes))
-                if (remoteEvidence.data != remoteValueHash)
+                val remoteValueHash = ByteString(new Blake2b256().hash(remoteValueBytes))
+                if (remoteEvidence != remoteValueHash)
                   throw new IllegalStateException("Remote evidence did not match remote value")
                 val connectionLeader =
                   if (
-                    BigInt(new Blake2b256().hash(Bytes(localValueBytes ++ remoteValueBytes)).toArray) >
-                    BigInt(new Blake2b256().hash(Bytes(remoteValueBytes ++ localValueBytes)).toArray)
+                    BigInt(new Blake2b256().hash(localValueBytes ++ remoteValueBytes)) >
+                    BigInt(new Blake2b256().hash(remoteValueBytes ++ localValueBytes))
                   )
                     ConnectionLeaders.Local
                   else ConnectionLeaders.Remote
@@ -82,13 +79,13 @@ object ConnectionLeaderFlow {
       f
     )
 
-  private def evidenceFlow[Mat](localValue: Evidence, f: Evidence => Flow[ByteString, ByteString, Mat]) =
-    ValueExchanger[Evidence, Mat](
+  private def evidenceFlow[Mat](localValue: ByteString, f: ByteString => Flow[ByteString, ByteString, Mat]) =
+    ValueExchanger[ByteString, Mat](
       localValue,
-      evidence => ByteString(evidence.data.toArray),
+      identity,
       byteString =>
         Option.when(byteString.length >= 32)(
-          Sized.strictUnsafe[Bytes, Lengths.`32`.type](Bytes(byteString.take(32).toArray)) -> byteString.drop(32)
+          byteString.take(32) -> byteString.drop(32)
         ),
       f
     )

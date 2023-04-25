@@ -1,7 +1,8 @@
 package co.topl.codecs.bytes.typeclasses
 
-import scodec.{Attempt, Encoder}
-import scodec.bits.ByteVector
+import com.google.protobuf.ByteString
+import scodec.Attempt
+import scodec.Encoder
 import simulacrum.typeclass
 
 /**
@@ -16,14 +17,14 @@ import simulacrum.typeclass
    * @param value the value to convert into bytes
    * @return an array of bytes representing the signable data of T
    */
-  def signableBytes(value: T): ByteVector
+  def signableBytes(value: T): ByteString
 }
 
 object Signable {
 
   def fromScodecEncoder[T: Encoder]: Signable[T] = t =>
     Encoder[T].encode(t) match {
-      case Attempt.Successful(value) => value.toByteVector
+      case Attempt.Successful(value) => ByteString.copyFrom(value.toByteBuffer)
       case Attempt.Failure(cause)    => throw new IllegalArgumentException(cause.messageWithContext)
     }
 }

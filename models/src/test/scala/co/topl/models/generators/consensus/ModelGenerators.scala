@@ -1,10 +1,13 @@
 package co.topl.models.generators.consensus
 
+import cats.data.{Chain, NonEmptyChain}
 import co.topl.consensus.models._
 import co.topl.models.generators.common.ModelGenerators._
-import co.topl.models.utility.{Lengths, Sized}
+import co.topl.models.utility._
 import com.google.protobuf.ByteString
 import org.scalacheck.{Arbitrary, Gen}
+
+import scala.annotation.tailrec
 
 trait ModelGenerators {
 
@@ -18,20 +21,26 @@ trait ModelGenerators {
     genSizedStrictByteString[Lengths.`64`.type]()
 
   // Signatures
-  def signatureVrfEd25519Gen: Gen[SignatureVrfEd25519] =
-    genSizedStrictByteString[Lengths.`80`.type]().map(s => SignatureVrfEd25519.of(s.data))
+  def signatureVrfEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`80`.type]().map(_.data)
 
   def witnessGen: Gen[Sized.Strict[ByteString, Lengths.`32`.type]] =
     genSizedStrictByteString[Lengths.`32`.type]()
 
-  def verificationKeyEd25519Gen: Gen[VerificationKeyEd25519] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => VerificationKeyEd25519.of(s.data))
+  def verificationKeyEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
 
-  def secretKeyEd25519Gen: Gen[SecretKeyEd25519] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => SecretKeyEd25519.of(s.data))
+  def secretKeyEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
 
-  def signatureEd25519Gen: Gen[SignatureEd25519] =
-    genSizedStrictByteString[Lengths.`64`.type]().map(s => SignatureEd25519.of(s.data))
+  def signatureEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`64`.type]().map(_.data)
+
+  def txRoot: Gen[Sized.Strict[ByteString, Lengths.`32`.type]] =
+    genSizedStrictByteString[Lengths.`32`.type]()
+
+  implicit val arbitraryStakingAddress: Arbitrary[StakingAddress] =
+    Arbitrary(genSizedStrictByteString[Lengths.`32`.type]().map(_.data).map(StakingAddress(_)))
 
   implicit val signatureKesSumArbitrary: Arbitrary[SignatureKesSum] =
     Arbitrary(
@@ -60,8 +69,8 @@ trait ModelGenerators {
     )
 
   // Verifications
-  def vkVrfEd25519Gen: Gen[VerificationKeyVrfEd25519] =
-    genSizedStrictByteString[Lengths.`32`.type]().map(s => VerificationKeyVrfEd25519(s.data))
+  def vkVrfEd25519Gen: Gen[ByteString] =
+    genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
 
   implicit val arbitraryEligibilityCertificate: Arbitrary[EligibilityCertificate] =
     Arbitrary(
@@ -122,7 +131,7 @@ trait ModelGenerators {
     eligibilityCertificateGen: Gen[EligibilityCertificate] = arbitraryEligibilityCertificate.arbitrary,
     operationalCertificateGen: Gen[OperationalCertificate] = arbitraryOperationalCertificate.arbitrary,
     metadataGen:               Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
-    addressGen:                Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data)
+    addressGen:                Gen[StakingAddress] = arbitraryStakingAddress.arbitrary
   ): Gen[BlockHeader] =
     for {
       parentHeaderID <- parentHeaderIdGen
@@ -171,5 +180,30 @@ trait ModelGenerators {
       } yield SlotData.of(slotId, parentSlotId, rho.data, eta.data, height)
     )
 
+  @tailrec
+  private def addSlotDataToChain(
+    slotData: NonEmptyChain[SlotData],
+    gen:      Gen[SlotData],
+    count:    Long
+  ): NonEmptyChain[SlotData] =
+    count match {
+      case 0 => slotData
+      case _ =>
+        addSlotDataToChain(slotData.append(gen.sample.get.copy(parentSlotId = slotData.last.slotId)), gen, count - 1)
+    }
+
+  implicit val arbitraryLinkedSlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =
+    Arbitrary(
+      for {
+        size <- Gen.posNum[Long]
+        root <- arbitrarySlotData.arbitrary
+      } yield addSlotDataToChain(NonEmptyChain.one(root), arbitrarySlotData.arbitrary, size)
+    )
+
+  implicit def chainArbOf[T](implicit a: Arbitrary[T]): Arbitrary[Chain[T]] =
+    Arbitrary(Gen.listOf[T](a.arbitrary).map(Chain.apply))
+
+  implicit def nonEmptyChainArbOf[T](implicit a: Arbitrary[T]): Arbitrary[NonEmptyChain[T]] =
+    Arbitrary(Gen.nonEmptyListOf[T](a.arbitrary).map(NonEmptyChain.fromSeq(_).get))
 }
 object ModelGenerators extends ModelGenerators

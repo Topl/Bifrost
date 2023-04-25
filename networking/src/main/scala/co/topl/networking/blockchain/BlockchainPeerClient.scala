@@ -4,10 +4,11 @@ import cats._
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.{models => legacyModels}
-import legacyModels._
-import legacyModels.utility.Ratio
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.models.utility.Ratio
 import co.topl.node.models.BlockBody
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._
@@ -28,32 +29,44 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A Source of block IDs that were adopted by the remote node
    */
-  def remotePeerAdoptions: F[Stream[F, TypedIdentifier]]
+  def remotePeerAdoptions: F[Stream[F, BlockId]]
 
   /**
    * A Source of transaction IDs that were observed by the remote node
    */
-  def remoteTransactionNotifications: F[Stream[F, TypedIdentifier]]
+  def remoteTransactionNotifications: F[Stream[F, TransactionId]]
 
   /**
    * A Lookup to retrieve a remote SlotData by ID
    */
-  def getRemoteSlotData(id: TypedIdentifier): F[Option[SlotData]]
+  def getRemoteSlotData(id: BlockId): F[Option[SlotData]]
+
+  /**
+   * A Lookup to retrieve a remote slot data by ID, or throw specified Error
+   */
+  def getSlotDataOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[SlotData] =
+    OptionT(getRemoteSlotData(id)).getOrRaise(error)
 
   /**
    * A Lookup to retrieve a remote block header by ID
    */
-  def getRemoteHeader(id: TypedIdentifier): F[Option[BlockHeader]]
+  def getRemoteHeader(id: BlockId): F[Option[BlockHeader]]
 
   /**
-   * A Lookup to retrieve a remot block body by ID
+   * A Lookup to retrieve a remote block header by ID, or throw specified Error
    */
-  def getRemoteBody(id: TypedIdentifier): F[Option[BlockBody]]
+  def getHeaderOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[BlockHeader] =
+    OptionT(getRemoteHeader(id)).getOrRaise(error)
+
+  /**
+   * A Lookup to retrieve a remote block body by ID
+   */
+  def getRemoteBody(id: BlockId): F[Option[BlockBody]]
 
   /**
    * A lookup to retrieve a remote transaction by ID
    */
-  def getRemoteTransaction(id: TypedIdentifier): F[Option[Transaction]]
+  def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]]
 
   /**
    * A lookup to retrieve the remote node's block ID associated with the given height.
@@ -61,15 +74,15 @@ trait BlockchainPeerClient[F[_]] {
    * @param localBlockId The block ID of the local node at the requested height (the remote peer can cache this to avoid
    *                     an extra lookup from their end)
    */
-  def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[TypedIdentifier]): F[Option[TypedIdentifier]]
+  def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]]
 
   /**
    * Find the common ancestor block ID between the local node and the remote peer.
    */
   def findCommonAncestor(
-    getLocalBlockIdAtHeight: Long => F[TypedIdentifier],
+    getLocalBlockIdAtHeight: Long => F[BlockId],
     currentHeight:           () => F[Long]
-  )(implicit syncF: Sync[F], loggerF: Logger[F]): F[TypedIdentifier] =
+  )(implicit syncF: Sync[F], loggerF: Logger[F]): F[BlockId] =
     Sync[F]
       .defer(
         for {

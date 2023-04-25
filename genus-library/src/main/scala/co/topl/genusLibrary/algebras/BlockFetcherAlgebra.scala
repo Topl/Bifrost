@@ -1,20 +1,63 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.genusLibrary.failure.Failure
-import co.topl.genusLibrary.model.HeightData
+import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.genus.services.BlockData
+import co.topl.genusLibrary.model.GE
+import co.topl.node.models.BlockBody
 
 /**
- * Fetcher of blocks on the chain.
+ * Algebra which defines fetch operations of blocks against the stored Ledger.
+ *
  * @tparam F the effect-ful context to retrieve the value in
  */
 trait BlockFetcherAlgebra[F[_]] {
 
   /**
-   * Look-up a block on the chain with a given height
-   * @param height The height to lookup
-   * @return the full block
+   * Fetch Canonical head vertex on the stored Ledger
+   *
+   * @return Optional header vertex, None if it was not found
    */
-  // TODO: TSDK-216 | Create protobuf files
-  def fetch(height: Long): F[Either[Failure, HeightData]]
+  def fetchCanonicalHead(): F[Either[GE, Option[BlockHeader]]]
+
+  /**
+   * Fetch a BlockHeader on the stored Ledger
+   * @param blockId  blockId filter by field
+   * @return Optional BlockHeader, None if it was not found
+   */
+  def fetchHeader(blockId: BlockId): F[Either[GE, Option[BlockHeader]]]
+
+  /**
+   * Fetch a BlockBody on the stored Ledger
+   *
+   * @param blockId blockId filter by field
+   * @return Optional BlockBody, None if it was not found
+   */
+  def fetchBody(blockId: BlockId): F[Either[GE, Option[BlockBody]]]
+
+  /**
+   * Fetch a Block on the stored Ledger given a blockId
+   *
+   * @param blockId fetch a BlockData on the stored Ledger given a blockId
+   * @return Optional BlockData, None if it was not found
+   */
+  def fetchBlock(blockId: BlockId): F[Either[GE, Option[BlockData]]]
+
+  /**
+   * Fetch a BlockHeader with height filter on the stored Ledger
+   *
+   * @param height height filter by field
+   * @return Optional BlockHeader, None if it was not found
+   */
+  def fetchHeaderByHeight(height: Long): F[Either[GE, Option[BlockHeader]]]
+
+  /**
+   * Fetch a BlockData with height filter on the stored Ledger
+   *
+   * @param height filter by field
+   * @return Optional BlockData, None if it was not found
+   */
+  def fetchBlockByHeight(height: Long): F[Either[GE, Option[BlockData]]]
+
+  def fetchBlockByDepth(height: Long): F[Either[GE, Option[BlockData]]]
 
 }

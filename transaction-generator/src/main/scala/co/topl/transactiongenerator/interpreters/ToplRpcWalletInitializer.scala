@@ -1,13 +1,12 @@
 package co.topl.transactiongenerator.interpreters
 
+import cats.MonadThrow
 import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.proto.models.Transaction
-import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels.TypedIdentifier
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.models.BlockId
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
@@ -20,7 +19,6 @@ object ToplRpcWalletInitializer {
    */
   def make[F[_]: Async](
     toplRpc:                     ToplRpc[F, Stream[F, *]],
-    fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
   ): F[WalletInitializer[F]] =
@@ -30,12 +28,12 @@ object ToplRpcWalletInitializer {
           for {
             transactionStream <- transactionStream(
               toplRpc,
-              fetchHeaderParallelism,
               fetchBodyParallelism,
               fetchTransactionParallelism
             )
-            wallet <- transactionStream.scan(emptyWallet)(applyTransaction(_)(_)).compile.last
-          } yield wallet.get
+            wallet <- transactionStream.scan(emptyWallet)(applyTransaction(_)(_)).compile.lastOrError
+            _      <- MonadThrow[F].raiseWhen(wallet.spendableBoxes.isEmpty)(new IllegalStateException("Empty wallet"))
+          } yield wallet
       }
     }
 
@@ -44,12 +42,11 @@ object ToplRpcWalletInitializer {
    */
   private def transactionStream[F[_]: Async](
     toplRpc:                     ToplRpc[F, Stream[F, *]],
-    fetchHeaderParallelism:      Int,
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
-  ): F[Stream[F, Transaction]] =
+  ): F[Stream[F, IoTransaction]] =
     for {
-      blockIds <- blockIdStream(toplRpc, fetchHeaderParallelism)
+      blockIds <- blockIdStream(toplRpc)
       stream = blockIds
         .parEvalMap(fetchBodyParallelism)(blockId =>
           OptionT(toplRpc.fetchBlockBody(blockId))
@@ -67,26 +64,12 @@ object ToplRpcWalletInitializer {
    * Start from the big-bang block, and emit a stream of forward-traversing block IDs
    */
   private def blockIdStream[F[_]: Async, S[_]](
-    toplRpc:                ToplRpc[F, S],
-    fetchHeaderParallelism: Int
-  ): F[Stream[F, TypedIdentifier]] =
-    for {
-      bigBangId <- OptionT(toplRpc.blockIdAtHeight(1))
-        .getOrRaise(new IllegalStateException("Unknown Big Bang ID"))
-      headId <- OptionT(toplRpc.blockIdAtDepth(0)).getOrRaise(new IllegalStateException("Unknown Canonical Head ID"))
-      head <- OptionT(toplRpc.fetchBlockHeader(headId))
-        .getOrRaise(new IllegalStateException("Unknown Canonical Head Block"))
-      stream =
-        if (bigBangId != headId)
-          Stream(bigBangId) ++
-          Stream
-            .range[F, Long](2, head.height)
-            .parEvalMap(fetchHeaderParallelism)(height =>
-              OptionT(toplRpc.blockIdAtHeight(height))
-                .getOrRaise(new IllegalStateException("Block not found at height"))
-            ) ++
-          Stream(headId)
-        else Stream(headId)
-    } yield stream
+    toplRpc: ToplRpc[F, S]
+  ): F[Stream[F, BlockId]] =
+    Stream
+      .iterate(1L)(_ + 1)
+      .evalMap(toplRpc.blockIdAtHeight)
+      .unNoneTerminate
+      .pure[F]
 
 }

@@ -1,13 +1,17 @@
 package co.topl.blockchain
 
-import cats.data.Chain
+import co.topl.brambl.models._
+import co.topl.brambl.models.transaction._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances.bytesLength
+import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
+import co.topl.node.models._
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
+import quivr.models.SmallData
 
 /**
  * The beginning of everything.  ("everything" of course just means the first block of a blockchain)
@@ -25,36 +29,34 @@ object BigBang {
    */
   case class Config(
     timestamp: Timestamp,
-    outputs:   Chain[Transaction.Output],
+    outputs:   List[UnspentTransactionOutput],
     etaPrefix: Bytes = Config.DefaultEtaPrefix
   )
 
   object Config {
 
-    val DefaultEtaPrefix: Bytes =
-      Bytes.encodeUtf8("genesis").toOption.get
+    val DefaultEtaPrefix: Bytes = ByteString.copyFromUtf8("genesis")
 
   }
 
   /**
    * Constructs a full block using the given Big Bang Configuration
    */
-  def block(implicit config: Config): Block.Full = { // TODO move to Block.FullConsensus
-    val transactions: Chain[Transaction] =
-      Chain(
-        Transaction(
-          inputs = Chain.empty,
+  def block(implicit config: Config): FullBlock = { // TODO move to Block.FullConsensus
+    val transactions: List[IoTransaction] =
+      List(
+        IoTransaction(
+          inputs = Nil,
           outputs = config.outputs,
-          schedule = Transaction.Schedule(0L, Slot, Slot), // This transaction is only valid at the BigBang slot
-          data = None
+          datum = Datum.IoTransaction(Event.IoTransaction(Schedule(Slot, Slot, 0L), SmallData.defaultInstance))
         )
       )
 
     val eta: Eta =
       Sized.strictUnsafe(
         new Blake2b256().hash(
-          config.etaPrefix +:
-          transactions.map(_.immutableBytes).toList: _*
+          (config.etaPrefix +:
+          transactions.map(_.id.value)).map(v => v: Array[Byte]): _*
         )
       )
 
@@ -62,52 +64,50 @@ object BigBang {
       BlockHeader(
         parentHeaderId = ParentId,
         parentSlot = ParentSlot,
-        txRoot = transactions.merkleTreeRootHash,
-        bloomFilter = transactions.bloomFilter,
+        txRoot = transactions.merkleTreeRootHash.data,
+        bloomFilter = transactions.bloomFilter.data,
         timestamp = config.timestamp,
         height = Height,
         slot = Slot,
         eligibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
-        metadata = None,
-        address = StakingAddresses.Operator(
-          VerificationKeys.Ed25519(zeroBytes(Lengths.`32`))
-        )
+        metadata = ByteString.EMPTY,
+        address = StakingAddress(zeroBytes(Lengths.`32`).data)
       )
-    Block.Full(header, transactions)
+    FullBlock(header, FullBlockBody(transactions))
   }
 
-  val ParentId: TypedIdentifier = TypedBytes(IdentifierTypes.Block.HeaderV2, Bytes(Array.fill[Byte](32)(0)))
+  val ParentId: BlockId = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))
   val ParentSlot: Slot = -1
   val Slot = 0
   val Height = 1
 
   def vrfCertificate(eta: Eta): EligibilityCertificate = EligibilityCertificate(
-    Proofs.Knowledge.VrfEd25519(zeroBytes(Lengths.`80`)),
-    VerificationKeys.VrfEd25519(VerificationKeys.Ed25519(zeroBytes[VerificationKeys.VrfEd25519.Length]).bytes),
-    thresholdEvidence = Sized.strictUnsafe(Bytes(Array.fill[Byte](32)(0))),
-    eta = eta
+    ByteString.copyFrom(Array.fill[Byte](80)(0)),
+    ByteString.copyFrom(Array.fill[Byte](32)(0)),
+    ByteString.copyFrom(Array.fill[Byte](32)(0)),
+    eta = eta.data
   )
 
   val kesCertificate: OperationalCertificate = OperationalCertificate(
-    VerificationKeys.KesProduct(zeroBytes(Lengths.`32`), 0),
-    Proofs.Knowledge.KesProduct(
-      Proofs.Knowledge.KesSum(
-        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
+    VerificationKeyKesProduct(ByteString.copyFrom(Array.fill[Byte](32)(0)), 0),
+    SignatureKesProduct(
+      SignatureKesSum(
+        ByteString.copyFrom(Array.fill[Byte](32)(0)),
+        ByteString.copyFrom(Array.fill[Byte](64)(0)),
         Vector.empty
       ),
-      Proofs.Knowledge.KesSum(
-        VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-        Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`)),
+      SignatureKesSum(
+        ByteString.copyFrom(Array.fill[Byte](32)(0)),
+        ByteString.copyFrom(Array.fill[Byte](64)(0)),
         Vector.empty
       ),
-      zeroBytes(Lengths.`32`)
+      ByteString.copyFrom(Array.fill[Byte](32)(0))
     ),
-    VerificationKeys.Ed25519(zeroBytes(Lengths.`32`)),
-    Proofs.Knowledge.Ed25519(zeroBytes(Lengths.`64`))
+    ByteString.copyFrom(Array.fill[Byte](32)(0)),
+    ByteString.copyFrom(Array.fill[Byte](64)(0))
   )
 
   def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
-    Sized.strictUnsafe[Bytes, L](Bytes(Array.fill(l.value)(0: Byte)))
+    Sized.strictUnsafe[Bytes, L](ByteString.copyFrom(Array.fill(l.value)(0: Byte)))
 }

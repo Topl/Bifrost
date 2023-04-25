@@ -1,19 +1,20 @@
 package co.topl.testnetsimulationorchestrator.interpreters
 
-import fs2._
-import cats.implicits._
 import cats.effect._
-import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
-import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
-import com.google.cloud.storage._
-import co.topl.typeclasses.implicits._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import cats.implicits._
+import co.topl.brambl.models.box.Value
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.models.{Box, TypedIdentifier}
-import co.topl.models.utility._
+import co.topl.numerics.implicits._
+import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
+import co.topl.testnetsimulationorchestrator.models.AdoptionDatum
+import co.topl.testnetsimulationorchestrator.models.BlockDatum
+import co.topl.testnetsimulationorchestrator.models.TransactionDatum
+import co.topl.typeclasses.implicits._
+import com.google.cloud.storage._
+import com.google.protobuf.ByteString
+import fs2._
 
 import java.nio.charset.StandardCharsets
-import scodec.bits.ByteVector
 
 object GcpCsvDataPublisher {
 
@@ -101,36 +102,36 @@ object GcpCsvDataPublisher {
 
   private def blockDatumToRow(datum: BlockDatum): List[String] =
     List(
-      datum.header.id.asTypedBytes.show,
-      (datum.header.parentHeaderId: TypedIdentifier).show,
+      datum.header.id.show,
+      datum.header.parentHeaderId.show,
       datum.header.parentSlot.show,
       datum.header.timestamp.show,
       datum.header.height.show,
       datum.header.slot.show,
-      (datum.header.address: ByteVector).toBase58,
-      (datum.header.txRoot: ByteVector).toBase58,
-      (datum.header.bloomFilter: ByteVector).toBase58,
-      datum.header.eligibilityCertificate.immutableBytes.toBase58,
-      datum.header.operationalCertificate.immutableBytes.toBase58,
+      datum.header.address.show,
+      datum.header.txRoot.show,
+      datum.header.bloomFilter.show,
+      datum.header.eligibilityCertificate.toByteString.show,
+      datum.header.operationalCertificate.toByteString.show,
       datum.header.metadata.toString,
-      datum.body.transactionIds.map(t => t: TypedIdentifier).map(_.show).mkString(";")
+      datum.body.transactionIds.map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =
     List(
-      datum.transaction.id.asTypedBytes.show,
+      datum.transaction.id.show,
       datum.transaction.inputs
         .map(input =>
           List(
-            s"${input.boxId.transactionId.show}[${input.boxId.transactionOutputIndex}]",
-            input.proposition.immutableBytes.toBase58,
-            input.proof.immutableBytes.toBase58,
-            input.value match {
-              case Box.Values.Empty      => "E"
-              case v: Box.Values.Poly    => s"P(${v.quantity.data})"
-              case v: Box.Values.Arbit   => s"Ar(${v.quantity.data})"
-              case v: Box.Values.AssetV1 => s"As(${v.quantity.data})"
-              case _                     => s"O"
+            s"${input.address.id.show}[${input.address.index}]",
+            ByteString.EMPTY,
+            ByteString.EMPTY,
+            input.value.value match {
+              case Value.Value.Empty    => "E"
+              case v: Value.Value.Lvl   => s"L(${v.value.quantity: BigInt})"
+              case v: Value.Value.Topl  => s"T(${v.value.quantity: BigInt})"
+              case v: Value.Value.Asset => s"A(${v.value.quantity: BigInt})"
+              case _                    => s"O"
             }
           ).mkString(":")
         )
@@ -138,23 +139,22 @@ object GcpCsvDataPublisher {
       datum.transaction.outputs
         .map(output =>
           List(
-            output.address.immutableBytes.toBase58,
-            output.value match {
-              case Box.Values.Empty      => "E"
-              case v: Box.Values.Poly    => s"P(${v.quantity.data})"
-              case v: Box.Values.Arbit   => s"Ar(${v.quantity.data})"
-              case v: Box.Values.AssetV1 => s"As(${v.quantity.data})"
-              case _                     => s"O"
-            },
-            output.minting.show
+            output.address.id.value.show,
+            output.value.value match {
+              case Value.Value.Empty    => "E"
+              case v: Value.Value.Lvl   => s"L(${v.value.quantity: BigInt})"
+              case v: Value.Value.Topl  => s"T(${v.value.quantity: BigInt})"
+              case v: Value.Value.Asset => s"A(${v.value.quantity: BigInt})"
+              case _                    => s"O"
+            }
           ).mkString(":")
         )
         .mkString_(";"),
       List(
-        datum.transaction.schedule.creation,
-        datum.transaction.schedule.minimumSlot,
-        datum.transaction.schedule.maximumSlot
+        datum.transaction.datum.event.schedule.timestamp,
+        datum.transaction.datum.event.schedule.min,
+        datum.transaction.datum.event.schedule.max
       ).mkString(":"),
-      datum.transaction.data.fold(0L)(_.length).toString
+      datum.transaction.datum.event.metadata.value.show
     )
 }

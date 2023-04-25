@@ -1,77 +1,59 @@
 package co.topl.codecs.bytes.tetra
 
-import cats.data.{NonEmptyChain, NonEmptySet}
+import cats.data.NonEmptySet
+import cats.implicits._
 import co.topl.codecs.bytes.scodecs._
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.models._
-import co.topl.consensus.{models => consensusModels}
-import scodec.bits.ByteVector
+import co.topl.consensus.models.BlockId
+import co.topl.crypto.models.SecretKeyKesProduct
+import com.google.protobuf.ByteString
+import scalapb.GeneratedMessage
+import scalapb.GeneratedMessageCompanion
+
+import scala.collection.immutable.SortedSet
+import scala.util.Try
 
 trait TetraPersistableCodecs {
   import TetraScodecCodecs._
 
-  implicit val persistableCurve25519SecretKey: Persistable[SecretKeys.Curve25519] = Persistable.instanceFromCodec
-  implicit val persistableEd25519SecretKey: Persistable[SecretKeys.Ed25519] = Persistable.instanceFromCodec
+  implicit def persistableProtobufMessage[T <: GeneratedMessage: GeneratedMessageCompanion]: Persistable[T] =
+    new Persistable[T] {
+      def persistedBytes(value: T): ByteString = value.toByteString
 
-  implicit val persistableExtendedEd25519SecretKey: Persistable[SecretKeys.ExtendedEd25519] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableKesProductSecretKey: Persistable[SecretKeys.KesProduct] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableTypedIdentifier: Persistable[TypedIdentifier] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableSlotData: Persistable[SlotDataLegacy] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableConsensusSlotData: Persistable[consensusModels.SlotData] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableBlockHeader: Persistable[BlockHeader] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableBlockConsensusHeader: Persistable[consensusModels.BlockHeader] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableBlockBody: Persistable[BlockBody] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableNodeBlockBody: Persistable[co.topl.node.models.BlockBody] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableTransaction: Persistable[Transaction] =
-    Persistable.instanceFromCodec
+      def fromPersistedBytes(bytes: ByteString): Either[String, T] =
+        Try(implicitly[GeneratedMessageCompanion[T]].parseFrom(bytes.newCodedInput())).toEither
+          .leftMap(_.getMessage)
+    }
 
   implicit val persistableTransactionOutputIndices: Persistable[NonEmptySet[Short]] =
     Persistable.instanceFromCodec(
-      nonEmptyChainCodec[Short].xmap(_.toNes, s => NonEmptyChain.fromNonEmptyList(s.toNonEmptyList))
+      seqCodec[Short].xmap(s => NonEmptySet.fromSetUnsafe(SortedSet.from(s)), _.toList)
     )
 
   implicit val persistableLong: Persistable[Long] =
     Persistable.instanceFromCodec(longCodec)
 
-  implicit val persistableStakingAddressesOperator: Persistable[StakingAddresses.Operator] =
-    Persistable.instanceFromCodec
-
-  implicit val persistableInt128: Persistable[Int128] =
+  implicit val persistableBigInt: Persistable[BigInt] =
     Persistable.instanceFromCodec
 
   implicit val persistableUnit: Persistable[Unit] =
     new Persistable[Unit] {
-      def persistedBytes(value: Unit): Bytes = ByteVector.fromByte(0)
+      def persistedBytes(value: Unit): ByteString = ByteString.copyFrom(Array[Byte](0))
 
-      def fromPersistedBytes(bytes: Bytes): Either[String, Unit] =
-        Either.cond(bytes.length == 1 && bytes.head == (0: Byte), (), "Invalid Unit")
+      def fromPersistedBytes(bytes: ByteString): Either[String, Unit] =
+        Either.cond(bytes.size() == 1 && bytes.byteAt(0) == (0: Byte), (), "Invalid Unit")
     }
 
-  implicit val persistableHeightIdTuple: Persistable[(Long, TypedIdentifier)] =
-    Persistable.instanceFromCodec((longCodec :: typedBytesCodec).as[(Long, TypedIdentifier)])
-
-  implicit val persistableBoxValueOperatorRegistration: Persistable[Box.Values.Registrations.Operator] =
-    Persistable.instanceFromCodec
+  implicit val persistableHeightIdTuple: Persistable[(Long, BlockId)] =
+    Persistable.instanceFromCodec(tupleCodec(longCodec, blockIdCodec))
 
   implicit val persistableByte: Persistable[Byte] =
+    Persistable.instanceFromCodec
+
+  implicit val persistableByteString: Persistable[ByteString] =
+    Persistable.instanceFromCodec
+
+  implicit val persistableKesProductSecretKey: Persistable[SecretKeyKesProduct] =
     Persistable.instanceFromCodec
 }
 

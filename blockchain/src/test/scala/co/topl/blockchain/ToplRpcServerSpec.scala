@@ -3,16 +3,16 @@ package co.topl.blockchain
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSyntaxValidationAlgebra}
-import co.topl.models.ModelGenerators._
-import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
-import co.topl.models.utility._
+import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
-import co.topl.{models => legacyModels}
-import legacyModels.{Transaction, TypedIdentifier}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -28,19 +28,19 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   type F[A] = IO[A]
 
   test("Fetch Block ID At Height") {
-    PropF.forAllF { (_canonicalHead: SlotData, targetBlockId: TypedIdentifier) =>
+    PropF.forAllF { (_canonicalHead: SlotData, targetBlockId: BlockId) =>
       val canonicalHead = _canonicalHead.copy(height = 10)
       // Test where requested height is less than canonical head height
       withMock {
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
+          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
           _ = (blockHeights
-            .useStateAt[Option[TypedIdentifier]](_: TypedIdentifier)(
-              _: (Long => F[Option[TypedIdentifier]]) => F[Option[TypedIdentifier]]
+            .useStateAt[Option[BlockId]](_: BlockId)(
+              _: (Long => F[Option[BlockId]]) => F[Option[BlockId]]
             ))
-            .expects(canonicalHead.slotId.blockId: TypedIdentifier, *)
+            .expects(canonicalHead.slotId.blockId, *)
             .once()
             .onCall { case (_, _) =>
               targetBlockId.some.pure[F]
@@ -54,21 +54,21 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
+          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
           underTest <- ToplRpcServer.make[F](
-            mock[Store[F, TypedIdentifier, BlockHeader]],
-            mock[Store[F, TypedIdentifier, BlockBody]],
-            mock[Store[F, TypedIdentifier, Transaction]],
+            mock[Store[F, BlockId, BlockHeader]],
+            mock[Store[F, BlockId, BlockBody]],
+            mock[Store[F, TransactionId, IoTransaction]],
             mock[MempoolAlgebra[F]],
-            mock[TransactionSyntaxValidationAlgebra[F]],
+            mock[TransactionSyntaxVerifier[F]],
             localChain,
             blockHeights,
-            mock[ParentChildTree[F, TypedIdentifier]],
+            mock[ParentChildTree[F, BlockId]],
             Stream.empty
           )
           _ <- underTest
             .blockIdAtHeight(canonicalHead.height)
-            .assertEquals((canonicalHead.slotId.blockId: TypedIdentifier).some)
+            .assertEquals((canonicalHead.slotId.blockId).some)
         } yield ()
       } >>
       // Test where requested height is greater than canonical head height
@@ -76,16 +76,16 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
+          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
           underTest <- ToplRpcServer.make[F](
-            mock[Store[F, TypedIdentifier, BlockHeader]],
-            mock[Store[F, TypedIdentifier, BlockBody]],
-            mock[Store[F, TypedIdentifier, Transaction]],
+            mock[Store[F, BlockId, BlockHeader]],
+            mock[Store[F, BlockId, BlockBody]],
+            mock[Store[F, TransactionId, IoTransaction]],
             mock[MempoolAlgebra[F]],
-            mock[TransactionSyntaxValidationAlgebra[F]],
+            mock[TransactionSyntaxVerifier[F]],
             localChain,
             blockHeights,
-            mock[ParentChildTree[F, TypedIdentifier]],
+            mock[ParentChildTree[F, BlockId]],
             Stream.empty
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
@@ -95,16 +95,16 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       withMock {
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
+          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
           underTest <- ToplRpcServer.make[F](
-            mock[Store[F, TypedIdentifier, BlockHeader]],
-            mock[Store[F, TypedIdentifier, BlockBody]],
-            mock[Store[F, TypedIdentifier, Transaction]],
+            mock[Store[F, BlockId, BlockHeader]],
+            mock[Store[F, BlockId, BlockBody]],
+            mock[Store[F, TransactionId, IoTransaction]],
             mock[MempoolAlgebra[F]],
-            mock[TransactionSyntaxValidationAlgebra[F]],
+            mock[TransactionSyntaxVerifier[F]],
             localChain,
             blockHeights,
-            mock[ParentChildTree[F, TypedIdentifier]],
+            mock[ParentChildTree[F, BlockId]],
             Stream.empty
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
@@ -115,19 +115,19 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   }
 
   test("Fetch Block ID At Depth") {
-    PropF.forAllF { (_canonicalHead: SlotData, targetBlockId: TypedIdentifier) =>
+    PropF.forAllF { (_canonicalHead: SlotData, targetBlockId: BlockId) =>
       val canonicalHead = _canonicalHead.copy(height = 10)
       // Test where requested depth is greater than 0 but less than chain height
       withMock {
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]]
+          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
           _ = (blockHeights
-            .useStateAt[Option[TypedIdentifier]](_: TypedIdentifier)(
-              _: (Long => F[Option[TypedIdentifier]]) => F[Option[TypedIdentifier]]
+            .useStateAt[Option[BlockId]](_: BlockId)(
+              _: (Long => F[Option[BlockId]]) => F[Option[BlockId]]
             ))
-            .expects(canonicalHead.slotId.blockId: TypedIdentifier, *)
+            .expects(canonicalHead.slotId.blockId, *)
             .once()
             .onCall { case (_, _) =>
               targetBlockId.some.pure[F]
@@ -142,7 +142,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
           underTest <- createServer(localChain = localChain)
-          _         <- underTest.blockIdAtDepth(0).assertEquals((canonicalHead.slotId.blockId: TypedIdentifier).some)
+          _         <- underTest.blockIdAtDepth(0).assertEquals(canonicalHead.slotId.blockId.some)
         } yield ()
       } >>
       // Test where requested depth is greater than chain height
@@ -173,25 +173,25 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(slotHead.pure[F])
-          parentChildTree <- mock[ParentChildTree[F, TypedIdentifier]].pure[F]
+          parentChildTree <- mock[ParentChildTree[F, BlockId]].pure[F]
           _ = (
             (
               a,
               b
             ) => parentChildTree.findCommonAncestor(a, b)
-          ).expects(slotHead.slotId.blockId: TypedIdentifier, slotA.slotId.blockId: TypedIdentifier)
+          ).expects(slotHead.slotId.blockId, slotA.slotId.blockId)
             .once()
             .returning(
               (
-                NonEmptyChain.one(slotA.slotId.blockId: TypedIdentifier),
-                NonEmptyChain(slotA.slotId.blockId: TypedIdentifier, slotB.slotId.blockId: TypedIdentifier)
+                NonEmptyChain.one(slotA.slotId.blockId),
+                NonEmptyChain(slotA.slotId.blockId, slotB.slotId.blockId)
               )
                 .pure[F]
             )
           underTest <- createServer(
             localChain = localChain,
             blockIdTree = parentChildTree,
-            localBlockAdoptionsStream = Stream.eval((slotA.slotId.blockId: TypedIdentifier).pure[F])
+            localBlockAdoptionsStream = Stream.eval((slotA.slotId.blockId).pure[F])
           )
           stream <- underTest.synchronizationTraversal()
           // find common ancestor is inclusive, and synchronizationTraversal tail results
@@ -203,16 +203,16 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
   }
 
   private def createServer(
-    headerStore:         Store[F, TypedIdentifier, BlockHeader] = mock[Store[F, TypedIdentifier, BlockHeader]],
-    bodyStore:           Store[F, TypedIdentifier, BlockBody] = mock[Store[F, TypedIdentifier, BlockBody]],
-    transactionStore:    Store[F, TypedIdentifier, Transaction] = mock[Store[F, TypedIdentifier, Transaction]],
+    headerStore:         Store[F, BlockId, BlockHeader] = mock[Store[F, BlockId, BlockHeader]],
+    bodyStore:           Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
+    transactionStore:    Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
     mempool:             MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
-    syntacticValidation: TransactionSyntaxValidationAlgebra[F] = mock[TransactionSyntaxValidationAlgebra[F]],
+    syntacticValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
     localChain:          LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
-    blockHeights: EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier] =
-      mock[EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier]],
-    blockIdTree:               ParentChildTree[F, TypedIdentifier] = mock[ParentChildTree[F, TypedIdentifier]],
-    localBlockAdoptionsStream: Stream[F, TypedIdentifier] = Stream.empty
+    blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
+      mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
+    blockIdTree:               ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
+    localBlockAdoptionsStream: Stream[F, BlockId] = Stream.empty
   ) =
     ToplRpcServer
       .make[F](

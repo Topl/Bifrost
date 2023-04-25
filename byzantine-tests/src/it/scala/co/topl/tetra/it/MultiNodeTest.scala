@@ -15,18 +15,18 @@ class MultiNodeTest extends IntegrationSuite {
   override def munitTimeout: Duration = 15.minutes
 
   test("Multiple nodes launch and maintain consensus for three epochs") {
-    val epochSlotLength = 500 // (50/4) * (100/15) * 6
+    val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
-    val config0 = DefaultConfig(bigBang, 3, 0, Nil)
-    val config1 = DefaultConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
-    val config2 = DefaultConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
+    val config0 = TestNodeConfig(bigBang, 3, 0, Nil)
+    val config1 = TestNodeConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
+    val config2 = TestNodeConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
     val resource =
       for {
-        (dockerSupport, _dockerClient) <- DockerSupport.make[F]
+        (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
-        node1 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0)
-        node2 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1)
-        node3 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
+        node1 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0.yaml)
+        node2 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1.yaml)
+        node3 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2.yaml)
         nodes = List(node1, node2, node3)
         _ <- nodes.parTraverse(_.startContainer[F]).toResource
         _ <- nodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource

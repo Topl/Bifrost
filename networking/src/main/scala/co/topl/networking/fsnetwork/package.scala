@@ -1,16 +1,14 @@
 package co.topl.networking
 
-import cats.data.{EitherT, NonEmptyChain, OptionT}
+import cats.data.{NonEmptyChain, OptionT}
+import cats.effect.Async
 import cats.implicits._
-import cats.{Applicative, Monad, MonadThrow, Show}
+import cats.{Monad, MonadThrow, Show}
 import co.topl.algebras.Store
-import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure, SlotData}
-import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError}
-import co.topl.models.TypedIdentifier
-import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.consensus.models._
+import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.Logger
-import co.topl.models.utility._
+import com.github.benmanes.caffeine.cache.Cache
 
 package object fsnetwork {
 
@@ -21,41 +19,39 @@ package object fsnetwork {
   // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
   val chunkSize = 1
 
-  implicit class OptionTOps[F[_], T](optionT: OptionT[F, T]) {
+  val requestCacheSize = 100
 
-    def getOrNoSuchElement(id: Any)(implicit M: MonadThrow[F]): F[T] =
-      optionT.toRight(new NoSuchElementException(id.toString)).rethrowT
+  implicit class CacheOps[K, V](cache: Cache[K, V]) {
+    def contains(key: K): Boolean = cache.getIfPresent(key) != null
+
+    def get(key: K): Option[V] = Option(cache.getIfPresent(key))
   }
 
-  implicit class BlockchainPeerClientOps[F[_]: MonadThrow: Logger](client: BlockchainPeerClient[F]) {
+  implicit class StreamOps[T, F[_]: Async](stream: fs2.Stream[F, T]) {
 
-    def getRemoteSlotDataLogged(id: TypedIdentifier): F[SlotData] =
-      Logger[F].info(show"Fetching remote SlotData id=$id") >>
-      OptionT(client.getRemoteSlotData(id)).getOrNoSuchElement(id)
+    def evalDropWhile(p: T => F[Boolean]): fs2.Stream[F, T] =
+      stream.evalMap(a => p(a).map(b => (b, a))).dropWhile(_._1).map(_._2)
   }
 
-  implicit class StoreOps[F[_]: Applicative, Key, T](store: Store[F, Key, T]) {
+  implicit class SeqFOps[T, F[_]: Async](seq: Seq[T]) {
 
-    def filterKnown(key: Key, value: T): F[Option[(Key, T)]] =
-      store.contains(key).map {
-        case true  => None
-        case false => Option(key, value)
-      }
+    def takeWhileF(p: T => F[Boolean]): F[List[T]] =
+      fs2.Stream
+        .emits(seq)
+        .evalMap(data => p(data).map((data, _)))
+        .takeWhile(_._2)
+        .map(_._1)
+        .compile
+        .toList
 
-    def filterKnownBlocks(blocks: NonEmptyChain[(Key, T)]): F[Option[NonEmptyChain[(Key, T)]]] =
-      blocks.toList
-        .traverse { case (key, value) => store.filterKnown(key, value) }
-        .map(_.flatten)
-        .map(NonEmptyChain.fromSeq)
-  }
-
-  object EitherTExt {
-
-    def condF[F[_]: Monad, S, E](test: F[Boolean], ifTrue: => F[S], ifFalse: => F[E]): EitherT[F, E, S] =
-      EitherT.liftF(test).flatMap {
-        case true  => EitherT.right[E](ifTrue)
-        case false => EitherT.left[S](ifFalse)
-      }
+    def dropWhileF(p: T => F[Boolean]): F[List[T]] =
+      fs2.Stream
+        .emits(seq)
+        .evalMap(data => p(data).map((data, _)))
+        .dropWhile(_._2)
+        .map(_._1)
+        .compile
+        .toList
   }
 
   // TODO move Show instances to separate file
@@ -74,7 +70,8 @@ package object fsnetwork {
   implicit val showHeaderToBodyError: Show[BlockHeaderToBodyValidationFailure] =
     Show.fromToString
 
-  // Return A1 -> A2 -> ... -> AN -> from, where terminateOn(A1) === true
+  implicit val showBodyValidationError: Show[BodyValidationError] =
+    Show.fromToString
 
   /**
    * Get some T from chain until reach terminateOn condition, f.e.
@@ -92,16 +89,14 @@ package object fsnetwork {
    */
   def getFromChainUntil[F[_]: Monad, T](
     getSlotDataFromT: T => F[SlotData],
-    getT:             TypedIdentifier => F[T],
+    getT:             BlockId => F[T],
     terminateOn:      T => F[Boolean]
-  )(from: TypedIdentifier): F[List[T]] = {
-    def iteration(acc: List[T], blockId: TypedIdentifier): F[List[T]] =
+  )(from: BlockId): F[List[T]] = {
+    def iteration(acc: List[T], blockId: BlockId): F[List[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
           acc.pure[F],
-          getSlotDataFromT(t).flatMap { slotData =>
-            iteration(acc.appended(t), slotData.parentSlotId.blockId: TypedIdentifier)
-          }
+          getSlotDataFromT(t).flatMap(slotData => iteration(acc.appended(t), slotData.parentSlotId.blockId))
         )
       }
 
@@ -119,14 +114,20 @@ package object fsnetwork {
    * @return missed ids for "store"
    */
   def getFirstNMissedInStore[F[_]: MonadThrow, T](
-    store:     Store[F, TypedIdentifier, T],
-    slotStore: Store[F, TypedIdentifier, SlotData],
-    from:      SlotData,
+    store:     Store[F, BlockId, T],
+    slotStore: Store[F, BlockId, SlotData],
+    from:      BlockId,
     size:      Int
-  ): OptionT[F, NonEmptyChain[TypedIdentifier]] =
+  ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from.slotId.blockId)
+      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )
+
+  def dropKnownPrefix[F[_]: Async, T](
+    data:  Seq[(BlockId, T)],
+    store: Store[F, BlockId, T]
+  ): F[Option[NonEmptyChain[(BlockId, T)]]] =
+    data.dropWhileF(idAndBody => store.contains(idAndBody._1)).map(NonEmptyChain.fromSeq)
 }

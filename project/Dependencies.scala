@@ -3,24 +3,26 @@ import sbt._
 object Dependencies {
 
   val akkaVersion = "2.6.20"
-  val circeVersion = "0.14.4"
+  val circeVersion = "0.14.5"
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.8"
+  val catsEffectVersion = "3.4.9"
   val fs2Version = "3.6.1"
-  val logback = "1.4.5"
-  val orientDbVersion = "3.2.16"
-  val protobufSpecsVersion = "c226e4c" // scala-steward:off
+  val logback = "1.4.7"
+  val orientDbVersion = "3.2.18"
+  val protobufSpecsVersion = "ba616f0" // scala-steward:off
+  val bramblScVersion = "ddc8bd1" // scala-steward:off
+  val quivr4sVersion = "30bb9d2" // scala-steward:off
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.5.0"
+    "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
 
   val logging: Seq[ModuleID] = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.4",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.7",
     catsSlf4j
   )
 
@@ -87,7 +89,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.72"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.73"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -113,17 +115,20 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.2"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.14.2"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "17.0.1"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.3"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
-  val bramblScCrypto = "com.github.Topl"        % "BramblSc"   % "v2.0.3"
-  val bramblScSdk = "com.github.Topl.bramblsc" %% "brambl-sdk" % "652cdaa7a7" // scala-steward:off
-  val quivr4s = "com.github.Topl"               % "quivr4s"    % "3bcc730" // scala-steward:off
+  val bramblScCrypto = "com.github.Topl.BramblSc" %% "crypto"     % bramblScVersion
+  val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
+  val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
-    "com.github.Topl" % "protobuf-specs" % protobufSpecsVersion
+    "com.github.Topl.protobuf-specs" %% "protobuf-fs2" % protobufSpecsVersion
   )
+
+  // For NTP-UDP
+  val commonsNet = "commons-net" % "commons-net" % "3.9.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -158,7 +163,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.19.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.22.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -184,7 +189,7 @@ object Dependencies {
     externalCrypto ++
     cats ++
     test ++
-    Seq(bramblScCrypto) ++
+    Seq(bramblScCrypto, bramblScCrypto.classifier("tests") % Test) ++
     circe.map(_ % Test)
 
   lazy val eventTree: Seq[ModuleID] =
@@ -197,8 +202,8 @@ object Dependencies {
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
-    Seq(bramblScSdk).map(_ classifier ("tests")).map(_ % Test) ++
-    Seq(quivr4s).map(_ classifier ("tests")).map(_ % Test)
+    Seq(bramblScSdk, bramblScSdk.classifier("tests") % Test) ++
+    Seq(quivr4s, quivr4s.classifier("tests") % Test)
 
   lazy val consensus: Seq[ModuleID] =
     Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
@@ -216,7 +221,8 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
 
   lazy val ledger: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++
+    Seq(Dependencies.bramblScSdk, Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(
@@ -226,12 +232,13 @@ object Dependencies {
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++
-    Seq(
-      catsSlf4j % "test"
-    ) ++
     cats ++
     catsEffect ++
-    scalacache
+    scalacache ++
+    Seq(
+      commonsNet,
+      catsSlf4j % Test
+    )
 
   lazy val byteCodecs: Seq[sbt.ModuleID] =
     test ++
@@ -246,7 +253,8 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.53.0"
+      "io.grpc" % "grpc-netty-shaded" % "1.54.1",
+      "io.grpc" % "grpc-services"     % "1.54.1"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
@@ -258,26 +266,15 @@ object Dependencies {
 
   lazy val orientDb: Seq[ModuleID] =
     Seq(
-      "com.orientechnologies"                  % "orientdb-core"               % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-server"             % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-client"             % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-tools"              % orientDbVersion,
-      "com.orientechnologies"                  % "orientdb-graphdb"            % orientDbVersion,
+      "com.orientechnologies" % "orientdb-core"   % orientDbVersion,
+      "com.orientechnologies" % "orientdb-server" % orientDbVersion,
+      "com.orientechnologies" % "orientdb-client" % orientDbVersion,
+      "com.orientechnologies" % "orientdb-tools"  % orientDbVersion,
+      "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude ("commons-beanutils", "commons-beanutils") exclude ("commons-beanutils", "commons-beanutils-core"),
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna
     )
-
-  lazy val genusServer: Seq[ModuleID] =
-    cats ++
-    catsEffect ++
-    mainargs ++
-    logging ++
-    monocle ++
-    Seq(
-      catsSlf4j
-    ) ++
-    mUnitTest
 
   lazy val genusLibrary: Seq[ModuleID] =
     logging ++

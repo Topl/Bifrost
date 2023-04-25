@@ -14,9 +14,6 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
-import co.topl.{models => legacyModels}
-import co.topl.models.utility._
-import legacyModels._
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.BlockBody
 import co.topl.networking.blockchain._
@@ -25,6 +22,10 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.interpreters.BlockchainPeerServer
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.consensus.models.BlockId
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
@@ -42,17 +43,17 @@ object Blockchain {
   def make[F[_]: Parallel: Async: FToFuture](
     clock:                       ClockAlgebra[F],
     stakerOpt:                   Option[StakingAlgebra[F]],
-    slotDataStore:               Store[F, TypedIdentifier, SlotData],
-    headerStore:                 Store[F, TypedIdentifier, BlockHeader],
-    bodyStore:                   Store[F, TypedIdentifier, BlockBody],
-    transactionStore:            Store[F, TypedIdentifier, Transaction],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    headerStore:                 Store[F, BlockId, BlockHeader],
+    bodyStore:                   Store[F, BlockId, BlockBody],
+    transactionStore:            Store[F, TransactionId, IoTransaction],
     _localChain:                 LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
-    blockIdTree:                 ParentChildTree[F, TypedIdentifier],
-    blockHeights:                EventSourcedState[F, Long => F[Option[TypedIdentifier]], TypedIdentifier],
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     blockHeaderToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    transactionSyntaxValidation: TransactionSyntaxValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -73,7 +74,6 @@ object Blockchain {
         blockAdoptionsTopic.subscribeUnbounded
           .evalMap(id => bodyStore.getOrRaise(id))
           .flatMap(b => Stream.iterable(b.transactionIds))
-          .map(t => t: TypedIdentifier)
           .through(transactionAdoptionsTopic.publish)
           .compile
           .drain
@@ -152,21 +152,21 @@ object Blockchain {
           clientHandler,
           peerServerF
         )
-      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
-        .flatMap(_.subscribeAwaitUnbounded)
-        .evalMap(
-          ToplRpcServer.make(
-            headerStore,
-            bodyStore,
-            transactionStore,
-            mempool,
-            transactionSyntaxValidation,
-            localChain,
-            blockHeights,
-            blockIdTree,
-            _
-          )
+
+      droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
+      rpcInterpreter <- Resource.eval(
+        ToplRpcServer.make(
+          headerStore,
+          bodyStore,
+          transactionStore,
+          mempool,
+          transactionSyntaxValidation,
+          localChain,
+          blockHeights,
+          blockIdTree,
+          droppingBlockAdoptionsTopic.subscribeUnbounded
         )
+      )
       _ <- ToplGrpc.Server
         .serve(rpcHost, rpcPort, rpcInterpreter)
         .evalTap(rpcServer =>
@@ -208,15 +208,15 @@ object Blockchain {
         } yield block
       _ <- Async[F].background(
         mintedBlockStream
-          .evalMap(block =>
-            blockIdTree.associate(block.header.id, block.header.parentHeaderId) &>
-            headerStore.put(block.header.id, block.header) &>
-            bodyStore.put(block.header.id, block.body) &>
+          .evalMap { block =>
+            val id = block.header.id
+            blockIdTree.associate(id, block.header.parentHeaderId) &>
+            headerStore.put(id, block.header) &>
+            bodyStore.put(id, block.body) &>
             ed25519VrfResource
-              .use(implicit e => block.header.slotData.pure[F])
-              .map(ReplaceModelUtil.slotDataFromLegacy)
-              .flatTap(slotDataStore.put(block.header.id, _))
-          )
+              .use(implicit e => Sync[F].delay(block.header.slotData))
+              .flatTap(slotDataStore.put(id, _))
+          }
           .map(Validated.Valid(_))
           .evalTap(localChain.adopt)
           .compile

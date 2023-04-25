@@ -4,10 +4,11 @@ import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
+import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.ParentChildTree
 import co.topl.models._
-import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 
 /**
@@ -22,30 +23,30 @@ import co.topl.typeclasses.implicits._
 object EpochBoundariesEventSourcedState {
 
   // Captures the _last_ block ID of each epoch
-  type EpochBoundaries[F[_]] = Store[F, Epoch, TypedIdentifier]
+  type EpochBoundaries[F[_]] = Store[F, Epoch, BlockId]
 
   def make[F[_]: Async](
     clock:               ClockAlgebra[F],
-    currentBlockId:      F[TypedIdentifier],
-    parentChildTree:     ParentChildTree[F, TypedIdentifier],
-    currentEventChanged: TypedIdentifier => F[Unit],
+    currentBlockId:      F[BlockId],
+    parentChildTree:     ParentChildTree[F, BlockId],
+    currentEventChanged: BlockId => F[Unit],
     initialState:        F[EpochBoundaries[F]],
-    fetchSlotData:       TypedIdentifier => F[SlotData]
-  ): F[EventSourcedState[F, EpochBoundaries[F], TypedIdentifier]] = {
-    def applyBlock(state: EpochBoundaries[F], blockId: TypedIdentifier) =
+    fetchSlotData:       BlockId => F[SlotData]
+  ): F[EventSourcedState[F, EpochBoundaries[F], BlockId]] = {
+    def applyBlock(state: EpochBoundaries[F], blockId: BlockId) =
       for {
         slotData <- fetchSlotData(blockId)
         epoch    <- clock.epochOf(slotData.slotId.slot)
         _        <- state.put(epoch, blockId)
       } yield state
 
-    def unapplyBlock(state: EpochBoundaries[F], blockId: TypedIdentifier) =
+    def unapplyBlock(state: EpochBoundaries[F], blockId: BlockId) =
       for {
         slotData    <- fetchSlotData(blockId)
         epoch       <- clock.epochOf(slotData.slotId.slot)
         parentEpoch <- clock.epochOf(slotData.parentSlotId.slot)
         _ <-
-          if (epoch === parentEpoch) state.put(epoch, slotData.parentSlotId.blockId: TypedIdentifier)
+          if (epoch === parentEpoch) state.put(epoch, slotData.parentSlotId.blockId)
           else state.remove(epoch).as(state)
       } yield state
 

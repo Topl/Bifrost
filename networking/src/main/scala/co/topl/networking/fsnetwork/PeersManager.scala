@@ -2,19 +2,23 @@ package co.topl.networking.fsnetwork
 
 import cats.Applicative
 import cats.data.NonEmptyChain
-import cats.effect.{Async, Resource}
+import cats.effect.Async
+import cats.effect.Resource
 import cats.implicits._
-import co.topl.actor.{Actor, Fsm}
+import co.topl.actor.Actor
+import co.topl.actor.Fsm
 import co.topl.algebras.Store
-import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.SlotData
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
-import co.topl.models.{Transaction, TypedIdentifier}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
+import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
 /**
@@ -42,6 +46,14 @@ object PeersManager {
     case class SetupBlockChecker[F[_]](blockChecker: BlockCheckerActor[F]) extends Message
 
     /**
+     * Set requests proxy actor, can't be done in constructor due cyclic references
+     *
+     * @param requestsProxy block checker
+     * @tparam F effect
+     */
+    case class SetupRequestsProxy[F[_]](requestsProxy: RequestsProxyActor[F]) extends Message
+
+    /**
      * Set reputation aggregator actor, can't be done in constructor due cyclic references
      * @param aggregator reputation aggregator
      * @tparam F effect
@@ -59,14 +71,14 @@ object PeersManager {
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> headers
      * @param blockHeaders requested headers
      */
-    case class BlockHeadersRequest(hostId: HostId, blockHeaders: NonEmptyChain[TypedIdentifier]) extends Message
+    case class BlockHeadersRequest(hostId: HostId, blockHeaders: NonEmptyChain[BlockId]) extends Message
 
     /**
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> blocks
      *               and send requests to many peers
-     * @param blockBodies requested bodies
+     * @param blocks requested bodies
      */
-    case class BlockDownloadRequest(hostId: HostId, blockBodies: NonEmptyChain[TypedIdentifier]) extends Message
+    case class BlockBodyDownloadRequest(hostId: HostId, blocks: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
   }
 
   // actor is option, because in future we shall be able to spawn actor without SetupPeer message,
@@ -81,14 +93,16 @@ object PeersManager {
   }
 
   case class State[F[_]](
-    networkAlgebra:       NetworkAlgebra[F],
-    reputationAggregator: Option[ReputationAggregatorActor[F]],
-    blocksChecker:        Option[BlockCheckerActor[F]],
-    peers:                Map[HostId, Peer[F]],
-    localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, TypedIdentifier, SlotData],
-    transactionStore:     Store[F, TypedIdentifier, Transaction],
-    blockIdTree:          ParentChildTree[F, TypedIdentifier]
+    networkAlgebra:         NetworkAlgebra[F],
+    reputationAggregator:   Option[ReputationAggregatorActor[F]],
+    blocksChecker:          Option[BlockCheckerActor[F]],
+    requestsProxy:          Option[RequestsProxyActor[F]],
+    peers:                  Map[HostId, Peer[F]],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   )
 
   type Response[F[_]] = State[F]
@@ -101,33 +115,38 @@ object PeersManager {
           setupPeer(thisActor, state, newPeer)
         case (state, checker: SetupBlockChecker[F] @unchecked) =>
           setupBlockChecker(state, checker.blockChecker)
+        case (state, checker: SetupRequestsProxy[F] @unchecked) =>
+          setupRequestsProxy(state, checker.requestsProxy)
         case (state, aggregator: SetupReputationAggregator[F] @unchecked) =>
           setupRepAggregator(state, aggregator.aggregator)
         case (state, update: UpdatePeerStatus) =>
           updatePeerStatus(state, update)
         case (state, BlockHeadersRequest(hostId, blocks)) =>
           blockHeadersRequest(state, hostId, blocks)
-        case (state, BlockDownloadRequest(hostId, blocks)) =>
+        case (state, BlockBodyDownloadRequest(hostId, blocks)) =>
           blockDownloadRequest(state, hostId, blocks)
       }
 
   def makeActor[F[_]: Async: Logger](
-    networkAlgebra:   NetworkAlgebra[F],
-    localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, TypedIdentifier, SlotData],
-    transactionStore: Store[F, TypedIdentifier, Transaction],
-    blockIdTree:      ParentChildTree[F, TypedIdentifier]
+    networkAlgebra:         NetworkAlgebra[F],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeersManagerActor[F]] = {
     val initialState =
       PeersManager.State[F](
         networkAlgebra,
-        None,
-        None,
+        reputationAggregator = None,
+        blocksChecker = None,
+        requestsProxy = None,
         Map.empty[HostId, Peer[F]],
         localChain,
         slotDataStore,
         transactionStore,
-        blockIdTree
+        blockIdTree,
+        headerToBodyValidation
       )
     Actor.makeFull(initialState, getFsm[F], finalizeActor[F])
   }
@@ -142,18 +161,20 @@ object PeersManager {
 
     require(state.blocksChecker.isDefined)
     require(state.reputationAggregator.isDefined)
+    require(state.blocksChecker.isDefined)
 
     val peerActorF: F[PeerActor[F]] =
       thisActor.acquireActor(() =>
         PeerActor.makeActor(
           hostId,
           client,
-          state.reputationAggregator.get,
           state.blocksChecker.get,
+          state.requestsProxy.get,
           state.localChain,
           state.slotDataStore,
           state.transactionStore,
-          state.blockIdTree
+          state.blockIdTree,
+          state.headerToBodyValidation
         )
       )
 
@@ -169,7 +190,16 @@ object PeersManager {
     blocksChecker: BlockCheckerActor[F]
   ): F[(State[F], Response[F])] = {
     val newState = state.copy(blocksChecker = Option(blocksChecker))
-    Logger[F].info("Setup block checker") >>
+    Logger[F].info("Setup block checker for PeerManager") >>
+    (newState, newState).pure[F]
+  }
+
+  private def setupRequestsProxy[F[_]: Async: Logger](
+    state:         State[F],
+    requestsProxy: RequestsProxyActor[F]
+  ): F[(State[F], Response[F])] = {
+    val newState = state.copy(requestsProxy = Option(requestsProxy))
+    Logger[F].info("Setup requests proxy for PeerManager") >>
     (newState, newState).pure[F]
   }
 
@@ -202,7 +232,7 @@ object PeersManager {
   private def blockDownloadRequest[F[_]: Async](
     state:           State[F],
     requestedHostId: HostId,
-    blocks:          NonEmptyChain[TypedIdentifier]
+    blocks:          NonEmptyChain[(BlockId, BlockHeader)]
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>
@@ -215,7 +245,7 @@ object PeersManager {
   private def blockHeadersRequest[F[_]: Async](
     state:           State[F],
     requestedHostId: HostId,
-    blocks:          NonEmptyChain[TypedIdentifier]
+    blocks:          NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>

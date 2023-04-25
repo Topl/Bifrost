@@ -1,24 +1,32 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{Chain, NonEmptyChain}
-import cats.effect.{Deferred, IO, MonadCancel}
+import cats.Applicative
+import cats.MonadThrow
+import cats.data.NonEmptyChain
+import cats.effect.Deferred
+import cats.effect.IO
+import cats.effect.MonadCancel
 import cats.implicits._
-import cats.{Applicative, MonadThrow}
 import co.topl.algebras.ClockAlgebra
+import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.transaction.Schedule
+import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
+import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
-import co.topl.{models => legacyModels}
-import legacyModels.ModelGenerators._
-import legacyModels.utility.ReplaceModelUtil
-import legacyModels.{Slot, Transaction, TypedIdentifier}
+import co.topl.models.ModelGenerators._
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
-import org.scalacheck.{Gen, Test}
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
+import org.scalacheck.Gen
+import org.scalacheck.Test
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import scala.collection.immutable.ListSet
+
 import scala.concurrent.duration._
 
 class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -32,40 +40,29 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
 
   test("expose a Set of Transaction IDs at a specific block") {
     PropF.forAllF(
-      nonEmptyChainOf[(TypedIdentifier, NonEmptyChain[Transaction])](
-        Gen.zip(arbitraryTypedIdentifier.arbitrary, nonEmptyChainOf(arbitraryTransaction.arbitrary))
+      nonEmptyChainOf[(BlockId, NonEmptyChain[IoTransaction])](
+        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(arbitraryIoTransaction.arbitrary))
       ),
-      arbitraryTransaction.arbitrary
-    ) { case (bodies, newTx) =>
+      arbitraryIoTransaction.arbitrary
+    ) { case (bodies, newTx: IoTransaction) =>
       withMock {
         val bodiesMap = bodies.toList.toMap
-        val transactions = bodies.flatMap(_._2).toList.map(t => t.id.asTypedBytes -> t).toMap.updated(newTx.id, newTx)
+        val transactions = bodies.flatMap(_._2).toList.map(t => t.id -> t).toMap.updated(newTx.id, newTx)
         val fetchBody =
-          (id: TypedIdentifier) =>
-            BlockBody(
-              ListSet
-                .from(
-                  bodiesMap(id)
-                    .map(_.id: TypedIdentifier)
-                    .map(ReplaceModelUtil.ioTransaction32)
-                    .toIterable
-                )
-                .toSeq
-            )
-              .pure[F] // TODO removeModel Util
-        val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
+          (id: BlockId) => BlockBody(bodiesMap(id).map(_.id).toList).pure[F]
+        val fetchTransaction = (id: TransactionId) => transactions(id).pure[F]
         val clock = mock[ClockAlgebra[F]]
         (() => clock.globalSlot)
           .expects()
           .anyNumberOfTimes()
           .returning(0L.pure[F])
         (clock
-          .delayedUntilSlot(_: Slot))
+          .delayedUntilSlot(_: Long))
           .expects(*)
           .anyNumberOfTimes()
           .returning(MonadCancel[F].never[Unit])
         for {
-          tree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
+          tree <- ParentChildTree.FromRef.make[F, BlockId]
           _    <- bodies.map(_._1).sliding2.traverse { case (id1, id2) => tree.associate(id2, id1) }
           _ <- Mempool
             .make[F](
@@ -81,16 +78,16 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             )
             .use(underTest =>
               for {
-                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TypedIdentifier])
+                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TransactionId])
                 _ <- underTest.add(newTx.id)
-                _ <- underTest.read(bodies.last._1).assertEquals(Set(newTx.id.asTypedBytes))
+                _ <- underTest.read(bodies.last._1).assertEquals(Set(newTx.id))
                 _ <- underTest.remove(newTx.id)
-                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TypedIdentifier])
+                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TransactionId])
                 _ <- underTest
                   .read(bodies.head._1)
                   .assertEquals(
                     bodies.tail.toList
-                      .flatMap(_._2.toList.map(_.id.asTypedBytes))
+                      .flatMap(_._2.toList.map(_.id))
                       .toSet
                   )
               } yield ()
@@ -101,11 +98,11 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   }
 
   test("allow transactions to be added externally") {
-    PropF.forAllF { (currentBlockId: TypedIdentifier, transaction: Transaction) =>
+    PropF.forAllF { (currentBlockId: BlockId, transaction: IoTransaction) =>
       withMock {
-        val fetchTransaction = mockFunction[TypedIdentifier, F[Transaction]]
+        val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
-          .expects(transaction.id: TypedIdentifier)
+          .expects(transaction.id)
           .once()
           .returning(transaction.pure[F])
         val clock = mock[ClockAlgebra[F]]
@@ -114,7 +111,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .once()
           .returning(0L.pure[F])
         (clock
-          .delayedUntilSlot(_: Slot))
+          .delayedUntilSlot(_: Long))
           .expects(*)
           .once()
           .returning(MonadCancel[F].never[Unit])
@@ -122,9 +119,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           _ <- Mempool
             .make[F](
               currentBlockId.pure[F],
-              mockFunction[TypedIdentifier, F[BlockBody]],
+              mockFunction[BlockId, F[BlockBody]],
               fetchTransaction,
-              mock[ParentChildTree[F, TypedIdentifier]],
+              mock[ParentChildTree[F, BlockId]],
               _ => Applicative[F].unit,
               clock,
               _ => Applicative[F].unit,
@@ -138,13 +135,12 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   }
 
   test("expire transactions at the user-defined slot") {
-    PropF.forAllF { (currentBlockId: TypedIdentifier, transactionWithRandomTime: Transaction) =>
+    PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
-        val transaction =
-          transactionWithRandomTime.copy(schedule = transactionWithRandomTime.schedule.copy(maximumSlot = 2))
-        val fetchTransaction = mockFunction[TypedIdentifier, F[Transaction]]
+        val transaction = transactionWithRandomTime.update(_.datum.event.schedule.max.set(2))
+        val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
-          .expects(transaction.id: TypedIdentifier)
+          .expects(transaction.id)
           .once()
           .returning(transaction.pure[F])
         val clock = mock[ClockAlgebra[F]]
@@ -156,18 +152,18 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           deferred <- Deferred[F, Unit]
           _ =
             (clock
-              .delayedUntilSlot(_: Slot))
+              .delayedUntilSlot(_: Long))
               // This is the real thing being tested here
-              .expects(transaction.schedule.maximumSlot)
+              .expects(transaction.datum.event.schedule.max)
               .once()
               .returning(deferred.get)
           _ <-
             Mempool
               .make[F](
                 currentBlockId.pure[F],
-                mockFunction[TypedIdentifier, F[BlockBody]],
+                mockFunction[BlockId, F[BlockBody]],
                 fetchTransaction,
-                mock[ParentChildTree[F, TypedIdentifier]],
+                mock[ParentChildTree[F, BlockId]],
                 _ => Applicative[F].unit,
                 clock,
                 _ => Applicative[F].unit,
@@ -177,9 +173,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               .use(underTest =>
                 for {
                   _ <- underTest.add(transaction.id)
-                  _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id.asTypedBytes))
+                  _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id))
                   _ <- deferred.complete(())
-                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TypedIdentifier]))
+                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]))
                 } yield ()
               )
         } yield ()
@@ -188,15 +184,13 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   }
 
   test("expire transactions at the node-configured slot if the user-defined slot is too high") {
-    PropF.forAllF { (currentBlockId: TypedIdentifier, transactionWithRandomTime: Transaction) =>
+    PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
         val transaction =
-          transactionWithRandomTime.copy(schedule =
-            transactionWithRandomTime.schedule.copy(maximumSlot = Long.MaxValue)
-          )
-        val fetchTransaction = mockFunction[TypedIdentifier, F[Transaction]]
+          transactionWithRandomTime.update(_.datum.event.schedule.max.set(Long.MaxValue))
+        val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
-          .expects(transaction.id: TypedIdentifier)
+          .expects(transaction.id)
           .once()
           .returning(transaction.pure[F])
         val clock = mock[ClockAlgebra[F]]
@@ -208,7 +202,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           deferred <- Deferred[F, Unit]
           _ =
             (clock
-              .delayedUntilSlot(_: Slot))
+              .delayedUntilSlot(_: Long))
               // This is the real thing being tested here
               .expects(100L)
               .once()
@@ -217,9 +211,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             Mempool
               .make[F](
                 currentBlockId.pure[F],
-                mockFunction[TypedIdentifier, F[BlockBody]],
+                mockFunction[BlockId, F[BlockBody]],
                 fetchTransaction,
-                mock[ParentChildTree[F, TypedIdentifier]],
+                mock[ParentChildTree[F, BlockId]],
                 _ => Applicative[F].unit,
                 clock,
                 _ => Applicative[F].unit,
@@ -229,9 +223,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               .use(underTest =>
                 for {
                   _ <- underTest.add(transaction.id)
-                  _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id.asTypedBytes))
+                  _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id))
                   _ <- deferred.complete(())
-                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TypedIdentifier]))
+                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]))
                 } yield ()
               )
 
@@ -243,25 +237,23 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("expire a transaction more aggressively when a double-spend is detected") {
     PropF.forAllF {
       (
-        baseTransaction: Transaction,
-        input:           Transaction.Input,
-        ancestorBlockId: TypedIdentifier,
-        blockIdA:        TypedIdentifier,
-        blockIdB:        TypedIdentifier
+        baseTransaction: IoTransaction,
+        input:           SpentTransactionOutput,
+        ancestorBlockId: BlockId,
+        blockIdA:        BlockId,
+        blockIdB:        BlockId
       ) =>
         withMock {
-          val transactionWithSingleInput = baseTransaction.copy(inputs = Chain(input))
-          // Transaction A and Transaction B are exactly the same, except for the creation timestamp to force a different ID
-          val transactionA =
-            transactionWithSingleInput.copy(schedule = transactionWithSingleInput.schedule.copy(creation = 0))
-          val transactionAId = transactionA.id.asTypedBytes
-          val transactionB =
-            transactionWithSingleInput.copy(schedule = transactionWithSingleInput.schedule.copy(creation = 1))
-          val transactionBId = transactionB.id.asTypedBytes
+          val transactionWithSingleInput = baseTransaction.addInputs(input)
+          // Transaction A and Transaction B are exactly the same, except for the creation schedule to force a different ID
+          val transactionA = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(0, 100)))
+          val transactionAId = transactionA.id
+          val transactionB = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(1, 100)))
+          val transactionBId = transactionB.id
           val bodies =
             Map(
-              blockIdA -> ListSet(transactionAId),
-              blockIdB -> ListSet(transactionBId)
+              blockIdA -> List(transactionAId),
+              blockIdB -> List(transactionBId)
             )
           val transactions =
             Map(
@@ -269,16 +261,15 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               transactionBId -> transactionB
             )
 
-          val fetchBody =
-            (id: TypedIdentifier) => BlockBody(bodies(id).toSeq.map(ReplaceModelUtil.ioTransaction32)).pure[F]
-          val fetchTransaction = (id: TypedIdentifier) => transactions(id).pure[F]
+          val fetchBody = (id: BlockId) => BlockBody(bodies(id)).pure[F]
+          val fetchTransaction = (id: TransactionId) => transactions(id).pure[F]
           val clock = mock[ClockAlgebra[F]]
           (() => clock.globalSlot)
             .expects()
             .anyNumberOfTimes()
             .returning(0L.pure[F])
           for {
-            tree <- ParentChildTree.FromRef.make[F, TypedIdentifier]
+            tree <- ParentChildTree.FromRef.make[F, BlockId]
             _    <- tree.associate(blockIdA, ancestorBlockId)
             _    <- tree.associate(blockIdB, ancestorBlockId)
             _ <- Mempool
@@ -295,19 +286,19 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               )
               .use(underTest =>
                 for {
-                  _ <- underTest.read(blockIdA).assertEquals(Set.empty[TypedIdentifier])
+                  _ <- underTest.read(blockIdA).assertEquals(Set.empty[TransactionId])
                   _ <-
                     inSequence {
-                      if (transactionA.schedule.maximumSlot != 1L) {
+                      if (transactionA.datum.event.schedule.max != 1L) {
                         // The "unapply" operation will schedule a normal expiration
                         (clock
-                          .delayedUntilSlot(_: Slot))
-                          .expects(transactionA.schedule.maximumSlot)
+                          .delayedUntilSlot(_: Long))
+                          .expects(transactionA.datum.event.schedule.max)
                           .once()
                           .returning(MonadCancel[F].never[Unit])
                         // But the "apply" operation will re-schedule the expiration
                         (clock
-                          .delayedUntilSlot(_: Slot))
+                          .delayedUntilSlot(_: Long))
                           .expects(1L)
                           .once()
                           .returning(MonadCancel[F].never[Unit])
@@ -315,7 +306,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                         // This is just an edge-case where the Schedule generator produces a maximum slot of 1L,
                         // so the scalamock expectation needs to expect the value twice instead of just once
                         (clock
-                          .delayedUntilSlot(_: Slot))
+                          .delayedUntilSlot(_: Long))
                           .expects(1L)
                           .twice()
                           .returning(MonadCancel[F].never[Unit])

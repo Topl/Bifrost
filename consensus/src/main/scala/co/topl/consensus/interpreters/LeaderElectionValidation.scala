@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.consensus.models.VrfConfig
-import co.topl.crypto.signing.Ed25519VRF
+import co.topl.consensus.rhoToRhoTestHash
 import co.topl.crypto.hash.Blake2b512
 import co.topl.models._
 import co.topl.models.utility.Ratio
@@ -13,6 +13,9 @@ import co.topl.numerics.algebras.{Exp, Log1p}
 import co.topl.numerics.implicits._
 import scalacache.caffeine.CaffeineCache
 
+/**
+ * Credit to Aaron Schutza
+ */
 object LeaderElectionValidation {
 
   /**
@@ -50,13 +53,12 @@ object LeaderElectionValidation {
        * @return true if elected slot leader and false otherwise
        */
       def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] =
-        blake2b512Resource.use(implicit blake2b512 =>
-          Sync[F].delay {
-            val testRhoHashBytes = Ed25519VRF.rhoToRhoTestHash(rho.sizedBytes.data).toArray
+        blake2b512Resource
+          .use(implicit blake2b512 => Sync[F].delay(rhoToRhoTestHash(rho.sizedBytes.data).toByteArray))
+          .map { testRhoHashBytes =>
             val test = Ratio(BigInt(Array(0x00.toByte) ++ testRhoHashBytes), NormalizationConstant, BigInt(1))
             (threshold > test)
           }
-        )
     }
 
   def makeCached[F[_]: Sync](alg: LeaderElectionValidationAlgebra[F]): F[LeaderElectionValidationAlgebra[F]] =
