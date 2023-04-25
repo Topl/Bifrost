@@ -10,12 +10,13 @@ import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
+import org.typelevel.log4cats.Logger
 
 import scala.util.Try
 
 object GraphBlockInserter {
 
-  def make[F[_]: OrientThread](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
+  def make[F[_]: OrientThread: Logger](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
     Resource.pure(
       new BlockInserterAlgebra[F] {
 
