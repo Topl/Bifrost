@@ -5,7 +5,7 @@ import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.algebras.Store
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
@@ -23,7 +23,7 @@ object BoxState {
    * Store Key: Transaction ID
    * Store Value: Array of Shorts, representing the currently spendable indices of the original transaction output array
    */
-  type State[F[_]] = Store[F, Identifier.IoTransaction32, NonEmptySet[Short]]
+  type State[F[_]] = Store[F, TransactionId, NonEmptySet[Short]]
 
   /**
    * Creates a BoxStateAlgebra interpreter that is backed by an event-sourced tree
@@ -31,7 +31,7 @@ object BoxState {
   def make[F[_]: Async](
     currentBlockId:      F[BlockId],
     fetchBlockBody:      BlockId => F[BlockBody],
-    fetchTransaction:    Identifier.IoTransaction32 => F[IoTransaction],
+    fetchTransaction:    TransactionId => F[IoTransaction],
     parentChildTree:     ParentChildTree[F, BlockId],
     currentEventChanged: BlockId => F[Unit],
     initialState:        F[State[F]]
@@ -49,7 +49,7 @@ object BoxState {
 
       def boxExistsAt(blockId: BlockId)(boxId: TransactionOutputAddress): F[Boolean] =
         eventSourcedState
-          .useStateAt(blockId)(_.get(boxId.id.ioTransaction32.get))
+          .useStateAt(blockId)(_.get(boxId.id))
           .map(_.exists(_.contains(boxId.index.toShort)))
     }
 
@@ -62,14 +62,14 @@ object BoxState {
    */
   private def applyBlock[F[_]: MonadThrow](
     fetchBlockBody:   BlockId => F[BlockBody],
-    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+    fetchTransaction: TransactionId => F[IoTransaction]
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
       body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         transaction.inputs.traverse { input =>
-          val txId = input.address.id.ioTransaction32.get
+          val txId = input.address.id
           state
             .getOrRaise(txId)
             .flatMap(unspentIndices =>
@@ -96,7 +96,7 @@ object BoxState {
    */
   private def unapplyBlock[F[_]: MonadThrow](
     fetchBlockBody:   BlockId => F[BlockBody],
-    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+    fetchTransaction: TransactionId => F[IoTransaction]
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
       body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
@@ -104,7 +104,7 @@ object BoxState {
       _ <- transactions.traverse(transaction =>
         state.remove(transaction.id) >>
         transaction.inputs.traverse { input =>
-          val txId = input.address.id.ioTransaction32.get
+          val txId = input.address.id
           OptionT(state.get(txId))
             .fold(NonEmptySet.one(input.address.index.toShort))(
               _.add(input.address.index.toShort)

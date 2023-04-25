@@ -1,13 +1,11 @@
 package co.topl.blockchain
 
-import co.topl.brambl.common.ContainsEvidence
-import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
-import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.Challenge
 import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.syntax.lockAsLockSyntaxOps
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
@@ -90,15 +88,6 @@ object PrivateTestnet {
       )
     )
 
-  val HeightLockOneSpendingAddress: LockAddress =
-    LockAddress(
-      0,
-      0,
-      LockAddress.Id.Lock32(
-        Identifier.Lock32(
-          ContainsEvidence[Lock].sized32Evidence(HeightLockOneLock)
-        )
-      )
-    )
+  val HeightLockOneSpendingAddress: LockAddress = HeightLockOneLock.lockAddress(0, 0)
 
 }

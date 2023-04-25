@@ -5,7 +5,7 @@ import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.Identifier.IoTransaction32
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
@@ -125,7 +125,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
         height:        Long,
         blockId:       BlockId,
         blockHeader:   BlockHeader,
-        transactionId: IoTransaction32
+        transactionId: TransactionId
       ) =>
         withMock {
 
@@ -174,9 +174,9 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
         height:           Long,
         blockId:          BlockId,
         blockHeader:      BlockHeader,
-        transactionId_01: IoTransaction32,
-        transactionId_02: IoTransaction32,
-        transactionId_03: IoTransaction32,
+        transactionId_01: TransactionId,
+        transactionId_02: TransactionId,
+        transactionId_03: TransactionId,
         transaction_01:   IoTransaction
       ) =>
         withMock {
@@ -247,9 +247,9 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
         height:           Long,
         blockId:          BlockId,
         blockHeader:      BlockHeader,
-        transactionId_01: IoTransaction32,
-        transactionId_02: IoTransaction32,
-        transactionId_03: IoTransaction32
+        transactionId_01: TransactionId,
+        transactionId_02: TransactionId,
+        transactionId_03: TransactionId
       ) =>
         withMock {
 

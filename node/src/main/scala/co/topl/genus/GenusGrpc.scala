@@ -23,7 +23,7 @@ object GenusGrpc {
       transactionFetcherAlgebra: TransactionFetcherAlgebra[F]
     ): Resource[F, Server] =
       for {
-        fullBlockService <- GenusFullBlockServiceFs2Grpc.bindServiceResource(
+        fullBlockService <- BlockServiceFs2Grpc.bindServiceResource(
           new GrpcGenusFullBlockService(blockFetcher)
         )
         transactionService <- TransactionServiceFs2Grpc.bindServiceResource(

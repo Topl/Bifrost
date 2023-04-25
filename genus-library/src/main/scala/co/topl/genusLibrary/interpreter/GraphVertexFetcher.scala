@@ -2,7 +2,7 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
@@ -106,13 +106,13 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", tx))
           )
 
-        def fetchTransaction(ioTransaction32: Identifier.IoTransaction32): F[Either[GE, Option[Vertex]]] =
+        def fetchTransaction(ioTransaction32: TransactionId): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(
               orientGraph
                 .getVertices(
                   SchemaIoTransaction.Field.TransactionId,
-                  ioTransaction32.id.evidence.digest.value.toByteArray
+                  ioTransaction32.id.value.toByteArray
                 )
                 .asScala
             ).toEither

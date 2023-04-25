@@ -5,7 +5,7 @@ import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
@@ -80,7 +80,7 @@ object NodeBlockFetcher {
               .fetchTransaction(ioTx32)
               .map(maybeTransaction => (ioTx32, maybeTransaction))
           ) map { e =>
-            e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[Identifier.IoTransaction32]]) {
+            e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[TransactionId]]) {
               case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
               case (Right(_), (ioTx32, None))                        => ListSet(ioTx32).asLeft
               case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions

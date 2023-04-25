@@ -1,14 +1,14 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
-import co.topl.brambl.models.Identifier
 import co.topl.brambl.models.common.ImmutableBytes
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
-
 import co.topl.brambl.common._
+import co.topl.brambl.models.TransactionId
+
 import scala.language.implicitConversions
 
 trait ProtoIdentifiableOps {
@@ -22,12 +22,12 @@ trait ProtoIdentifiableOps {
 
 class IoTransactionIdOps(val transaction: IoTransaction) extends AnyVal {
 
-  def id: Identifier.IoTransaction32 = {
+  def id: TransactionId = {
     import IoTransactionIdOps._
     val signableBytes = ContainsSignable[IoTransaction].signableBytes(transaction)
     val immutable = ImmutableBytes(signableBytes.value)
-    val evidence = ContainsEvidence[ImmutableBytes].sized32Evidence(immutable)
-    Identifier.IoTransaction32(evidence)
+    val evidence = ContainsEvidence[ImmutableBytes].sizedEvidence(immutable)
+    TransactionId(evidence.digest.value)
   }
 
 }

@@ -6,7 +6,7 @@ import cats.effect.Sync
 import cats.implicits._
 import cats.Foldable
 import cats.Order
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
@@ -20,18 +20,18 @@ import scala.collection.immutable.SortedSet
 object BodySyntaxValidation {
 
   implicit private val orderBoxId: Order[TransactionOutputAddress] = {
-    implicit val orderTypedIdentifier: Order[Identifier.IoTransaction32] =
-      Order.by[Identifier.IoTransaction32, ByteString](_.evidence.digest.value)(
+    implicit val orderTypedIdentifier: Order[TransactionId] =
+      Order.by[TransactionId, ByteString](_.value)(
         Order.from(ByteString.unsignedLexicographicalComparator().compare)
       )
     Order.whenEqual(
-      Order.by(_.id.asInstanceOf[TransactionOutputAddress.Id.IoTransaction32].value),
+      Order.by(_.id),
       Order.by(_.index)
     )
   }
 
   def make[F[_]: Sync](
-    fetchTransaction:               Identifier.IoTransaction32 => F[IoTransaction],
+    fetchTransaction:               TransactionId => F[IoTransaction],
     transactionSyntacticValidation: TransactionSyntaxVerifier[F]
   ): F[BodySyntaxValidationAlgebra[F]] =
     Sync[F].delay {

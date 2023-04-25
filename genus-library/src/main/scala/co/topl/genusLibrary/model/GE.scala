@@ -2,7 +2,7 @@ package co.topl.genusLibrary.model
 
 import cats.implicits._
 import co.topl.typeclasses.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import scala.collection.immutable.ListSet
 
@@ -19,7 +19,7 @@ object GEs {
 
   case class BodyNotFound(blockId: BlockId) extends GE(s"Block body wasn't found. BlockId=[${blockId.show}]")
 
-  case class TransactionsNotFound(ioTx32s: ListSet[Identifier.IoTransaction32])
+  case class TransactionsNotFound(ioTx32s: ListSet[TransactionId])
       extends GE(s"Transactions weren't found. Transactions=[${ioTx32s.map(_.show)}]")
 
   case class NotFound(msg: String) extends GE(msg)

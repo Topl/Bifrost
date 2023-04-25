@@ -4,7 +4,7 @@ import cats.data.ValidatedNec
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models.Datum
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 import co.topl.ledger.algebras._
@@ -15,7 +15,7 @@ import co.topl.quivr.runtime.DynamicContext
 object BodyAuthorizationValidation {
 
   def make[F[_]: Sync](
-    fetchTransaction:                   Identifier.IoTransaction32 => F[IoTransaction],
+    fetchTransaction:                   TransactionId => F[IoTransaction],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F]
   ): F[BodyAuthorizationValidationAlgebra[F]] =
     Sync[F].delay {

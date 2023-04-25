@@ -2,7 +2,7 @@ package co.topl.ledger.interpreters
 
 import cats.effect.IO
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.validation.TransactionSyntaxError
@@ -22,7 +22,7 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
       withMock {
         val body = BlockBody(List(transaction.id))
         for {
-          fetchTransaction <- mockFunction[Identifier.IoTransaction32, F[IoTransaction]].pure[F]
+          fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
           _ = fetchTransaction.expects(transaction.id).once().returning(transaction.pure[F])
           transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
           _ = (transactionSyntaxValidation.validate _)

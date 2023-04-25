@@ -2,7 +2,7 @@ package co.topl.blockchain.interpreters
 
 import cats.effect.{Async, Resource}
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsakka.DroppingTopic
 import co.topl.consensus.algebras.LocalChainAlgebra
@@ -25,12 +25,12 @@ object BlockchainPeerServer {
     fetchSlotData:           BlockId => F[Option[SlotData]],
     fetchHeader:             BlockId => F[Option[BlockHeader]],
     fetchBody:               BlockId => F[Option[BlockBody]],
-    fetchTransaction:        Identifier.IoTransaction32 => F[Option[IoTransaction]],
+    fetchTransaction:        TransactionId => F[Option[IoTransaction]],
     blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MempoolAlgebra[F],
     newBlockIds:             Topic[F, BlockId],
-    newTransactionIds:       Topic[F, Identifier.IoTransaction32],
+    newTransactionIds:       Topic[F, TransactionId],
     blockIdBufferSize:       Int = 8,
     transactionIdBufferSize: Int = 64
   )(peer: ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
@@ -61,7 +61,7 @@ object BlockchainPeerServer {
            * Serves a stream containing all _current_ mempool transactions plus a stream containing
            * any new mempool transaction as-it-happens
            */
-          def localTransactionNotifications: F[Stream[F, Identifier.IoTransaction32]] =
+          def localTransactionNotifications: F[Stream[F, TransactionId]] =
             Async[F].delay(
               Stream
                 .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
@@ -79,7 +79,7 @@ object BlockchainPeerServer {
           def getLocalBody(id: BlockId): F[Option[BlockBody]] =
             fetchBody(id)
 
-          def getLocalTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]] =
+          def getLocalTransaction(id: TransactionId): F[Option[IoTransaction]] =
             fetchTransaction(id)
 
           def getLocalBlockAtHeight(height: Long): F[Option[BlockId]] =
