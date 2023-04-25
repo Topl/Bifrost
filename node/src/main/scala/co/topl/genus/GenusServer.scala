@@ -17,8 +17,8 @@ import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import scala.jdk.CollectionConverters._
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 
 object GenusServer {
 
@@ -29,8 +29,12 @@ object GenusServer {
       implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
       orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword)
 
-      dbTx   <- Resource.make(Async[F].delay(orientdb.getTx))(db => orientThread.delay(db.shutdown()))
-      dbNoTx <- Resource.make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
+      dbTx <- Resource
+        .make(Async[F].delay(orientdb.getTx))(db => orientThread.delay(db.shutdown()))
+        .evalTap(db => orientThread.delay(db.makeActive()))
+      dbNoTx <- Resource
+        .make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
+        .evalTap(db => orientThread.delay(db.makeActive()))
 
       graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
