@@ -152,21 +152,21 @@ object Blockchain {
           clientHandler,
           peerServerF
         )
-      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
-        .flatMap(_.subscribeAwaitUnbounded)
-        .evalMap(
-          ToplRpcServer.make(
-            headerStore,
-            bodyStore,
-            transactionStore,
-            mempool,
-            transactionSyntaxValidation,
-            localChain,
-            blockHeights,
-            blockIdTree,
-            _
-          )
+
+      droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
+      rpcInterpreter <- Resource.eval(
+        ToplRpcServer.make(
+          headerStore,
+          bodyStore,
+          transactionStore,
+          mempool,
+          transactionSyntaxValidation,
+          localChain,
+          blockHeights,
+          blockIdTree,
+          droppingBlockAdoptionsTopic.subscribeUnbounded
         )
+      )
       _ <- ToplGrpc.Server
         .serve(rpcHost, rpcPort, rpcInterpreter)
         .evalTap(rpcServer =>
