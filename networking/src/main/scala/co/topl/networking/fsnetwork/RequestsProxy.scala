@@ -51,10 +51,8 @@ object RequestsProxy {
     blockCheckerOpt:      Option[BlockCheckerActor[F]],
     headerStore:          Store[F, BlockId, BlockHeader],
     bodyStore:            Store[F, BlockId, BlockBody],
-    headerRequests: Cache[BlockId, Option[BlockHeader]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[BlockHeader]](),
-    bodyRequests: Cache[BlockId, Option[BlockBody]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[BlockBody]]()
+    headerRequests:       Cache[BlockId, Option[BlockHeader]],
+    bodyRequests:         Cache[BlockId, Option[BlockBody]]
   )
 
   type Response[F[_]] = State[F]
@@ -78,10 +76,22 @@ object RequestsProxy {
     reputationAggregator: ReputationAggregatorActor[F],
     peersManager:         PeersManagerActor[F],
     headerStore:          Store[F, BlockId, BlockHeader],
-    bodyStore:            Store[F, BlockId, BlockBody]
+    bodyStore:            Store[F, BlockId, BlockBody],
+    headerRequests: Cache[BlockId, Option[BlockHeader]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[BlockHeader]](),
+    bodyRequests: Cache[BlockId, Option[BlockBody]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[BlockBody]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
-      State(reputationAggregator, peersManager, blockCheckerOpt = None, headerStore, bodyStore)
+      State(
+        reputationAggregator,
+        peersManager,
+        blockCheckerOpt = None,
+        headerStore,
+        bodyStore,
+        headerRequests,
+        bodyRequests
+      )
     Actor.make(initialState, getFsm[F])
   }
 
@@ -116,8 +126,15 @@ object RequestsProxy {
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[Seq[BlockId]] = {
-    val definedPrefix: Seq[(BlockId, BlockHeader)] = getDefinedPrefixFrom(state.headerRequests, blockIds)
-    sendHeaders(state, hostId, definedPrefix).getOrElse(List.empty)
+    val availablePrefix: Seq[(BlockId, BlockHeader)] = getAvailablePrefixFrom(state.headerRequests, blockIds)
+
+    val sentIdsOpt =
+      for {
+        newIdAndHeader <- OptionT(dropKnownPrefix(availablePrefix, state.headerStore))
+        sentIds        <- sendHeaders(state, hostId, newIdAndHeader)
+      } yield sentIds
+
+    sentIdsOpt.getOrElse(List.empty)
   }
 
   // send block download request only for new headers
@@ -141,11 +158,14 @@ object RequestsProxy {
     hostId:   HostId,
     response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
   ): F[(State[F], Response[F])] = {
+    val responseLog =
+      response.map { case (id, res) => show"$id with res ${res.isRight}" }.mkString_(", ")
+
     val successfullyDownloadedHeaders =
       response.collect { case (id, Right(header)) => (id, header) }.toList
 
     for {
-      _       <- Logger[F].info(show"Successfully download next headers: ${successfullyDownloadedHeaders.map(_._1)}")
+      _       <- Logger[F].info(show"Download next headers: $responseLog")
       _       <- processHeaderDownloadErrors(state.reputationAggregator, state.peersManager, hostId, response)
       sentIds <- sendSuccessfulHeadersPrefix(state, hostId, response)
       _       <- Logger[F].info(show"Send headers prefix to block checker $sentIds")
@@ -163,7 +183,6 @@ object RequestsProxy {
       NonEmptyChain.fromChain(response.collect { case (id, Left(error)) => (id, error) })
 
     errorsOpt match {
-
       case Some(errors) =>
         // TODO translate error to reputation value or send error itself?
         val reputationMessage: ReputationAggregator.Message =
@@ -179,21 +198,24 @@ object RequestsProxy {
     }
   }
 
-  // We send prefix to block checker if parent of first block in response is already in storage
+  // Send to block checker first available header for checking,
+  // i.e. successfully downloaded header with already stored parent.
+  // We can't send whole response at once because some parents could be missing
   private def sendSuccessfulHeadersPrefix[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
     response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
   ): F[Seq[BlockId]] = {
-    val firstBlock = response.head._1
+    val successfullyDownloadedHeaders = response.collect { case (id, Right(header)) => (id, header) }
 
     val sendMessage =
       for {
-        idAndHeaders <- OptionT.fromOption[F](NonEmptyChain.fromSeq(getDefinedPrefix(response)))
-        firstBlockHeader = idAndHeaders.head._2
-        _       <- OptionT(state.headerStore.get(firstBlockHeader.parentHeaderId))
-        _       <- OptionT.liftF(Logger[F].debug(show"Parent of header $firstBlock is already adopted"))
-        sentIds <- sendHeaders(state, source, idAndHeaders.toList)
+        idAndHeaders    <- OptionT.fromOption[F](NonEmptyChain.fromChain(successfullyDownloadedHeaders))
+        newIdAndHeaders <- OptionT(dropKnownPrefix(idAndHeaders.toList, state.headerStore))
+        (firstNewId, firstNewHeader) = newIdAndHeaders.head
+        _       <- OptionT(state.headerStore.get(firstNewHeader.parentHeaderId))
+        _       <- OptionT.liftF(Logger[F].debug(show"Parent of header $firstNewId is already adopted"))
+        sentIds <- sendHeaders(state, source, NonEmptyChain.one((firstNewId, firstNewHeader)))
       } yield sentIds
 
     sendMessage.getOrElse(List.empty[BlockId])
@@ -224,8 +246,15 @@ object RequestsProxy {
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[Seq[BlockId]] = {
-    val dataToSend = getDefinedPrefixFrom(state.bodyRequests, blockIds)
-    sendBodies(state, hostId, dataToSend).getOrElse(List.empty)
+    val dataToSend = getAvailablePrefixFrom(state.bodyRequests, blockIds)
+
+    val sentIdsOpt =
+      for {
+        newBlockIdAndData <- OptionT(dropKnownPrefix(dataToSend, state.bodyStore))
+        sentIds           <- sendBodies(state, hostId, newBlockIdAndData)
+      } yield sentIds
+
+    sentIdsOpt.getOrElse(List.empty)
   }
 
   // send block download request only for new bodies
@@ -238,7 +267,7 @@ object RequestsProxy {
     NonEmptyChain
       .fromChain(newBlockData)
       .map { blockData =>
-        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyDownloadRequest(hostId, blockData)) >>
+        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyRequest(hostId, blockData)) >>
         blockData.map(_._1).toList.pure[F]
       }
       .getOrElse(List.empty[BlockId].pure[F])
@@ -249,11 +278,14 @@ object RequestsProxy {
     hostId:   HostId,
     response: NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
   ): F[(State[F], Response[F])] = {
+    val responseLog =
+      response.map { case (id, res) => show"$id with res ${res.isRight}" }.mkString_(", ")
+
     val successfullyDownloadedBodies =
       response.collect { case (id, Right(body)) => (id, body) }.toList
 
     for {
-      _       <- Logger[F].info(show"Successfully download next bodies: ${successfullyDownloadedBodies.map(_._1)}")
+      _       <- Logger[F].info(show"Download next bodies: $responseLog")
       _       <- processBlockDownloadErrors(state, hostId, response)
       sentIds <- sendSuccessfulBodiesPrefix(state, hostId, response)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
@@ -281,34 +313,37 @@ object RequestsProxy {
         for {
           _      <- OptionT.liftF(reputationAggregator.sendNoWait(reputationMessage))
           header <- OptionT(state.headerStore.get(id))
-          message = PeersManager.Message.BlockBodyDownloadRequest(source, NonEmptyChain.one((id, header)))
+          message = PeersManager.Message.BlockBodyRequest(source, NonEmptyChain.one((id, header)))
           _ <- OptionT.liftF(peersManager.sendNoWait(message))
         } yield ()
       }.getOrElse(())
     }
 
     errorsOpt match {
-
       case Some(errors) => errors.traverse { case (id, _) => processError(id) }.void
       case None         => ().pure[F]
     }
   }
 
-  // If parent of first block in response is already in storage then we send prefix to block checker
+  // Send to block checker first available body for checking,
+  // i.e. successfully downloaded body with already stored parent.
+  // We can't send whole response at once because some parents could be missing
   private def sendSuccessfulBodiesPrefix[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
     response: NonEmptyChain[(BlockId, Either[BlockBodyDownloadError, BlockBody])]
   ): F[Seq[BlockId]] = {
-    val firstBlock = response.head._1
+    val successfullyDownloadedBodies = response.collect { case (id, Right(body)) => (id, body) }
 
     val sendMessage =
       for {
-        idAndBodies      <- OptionT.fromOption[F](NonEmptyChain.fromSeq(getDefinedPrefix(response)))
-        firstBlockHeader <- OptionT(state.headerStore.get(firstBlock))
+        idAndBodies    <- OptionT.fromOption[F](NonEmptyChain.fromChain(successfullyDownloadedBodies))
+        newIdAndBodies <- OptionT(dropKnownPrefix(idAndBodies.toList, state.bodyStore))
+        (firstNewBlockId, firstNewBlockBody) = newIdAndBodies.head
+        firstBlockHeader <- OptionT(state.headerStore.get(firstNewBlockId))
         _                <- OptionT(state.bodyStore.get(firstBlockHeader.parentHeaderId))
-        _                <- OptionT.liftF(Logger[F].debug(show"Parent of block body $firstBlock is already adopted"))
-        sentIds          <- sendBodies(state, source, idAndBodies.toList)
+        _       <- OptionT.liftF(Logger[F].debug(show"Parent of block body $firstNewBlockId is already adopted"))
+        sentIds <- sendBodies(state, source, NonEmptyChain.one((firstNewBlockId, firstNewBlockBody)))
       } yield sentIds
 
     sendMessage.getOrElse(List.empty[BlockId])
@@ -317,10 +352,9 @@ object RequestsProxy {
   private def sendHeaders[F[_]: Async](
     state:  State[F],
     hostId: HostId,
-    toSend: Seq[(BlockId, BlockHeader)]
+    toSend: NonEmptyChain[(BlockId, BlockHeader)]
   ): OptionT[F, Seq[BlockId]] =
     for {
-      toSend       <- OptionT(dropKnownPrefix(toSend, state.headerStore))
       blockChecker <- OptionT.fromOption[F](state.blockCheckerOpt)
       _            <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(hostId, toSend)))
     } yield toSend.toList.map(_._1)
@@ -328,18 +362,14 @@ object RequestsProxy {
   private def sendBodies[F[_]: Async](
     state:  State[F],
     hostId: HostId,
-    toSend: Seq[(BlockId, BlockBody)]
+    toSend: NonEmptyChain[(BlockId, BlockBody)]
   ): OptionT[F, Seq[BlockId]] =
     for {
-      toSend       <- OptionT(dropKnownPrefix(toSend, state.bodyStore))
       blockChecker <- OptionT.fromOption[F](state.blockCheckerOpt)
       _            <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockBodies(hostId, toSend)))
     } yield toSend.toList.map(_._1)
 
-  private def getDefinedPrefix[T, E](blocks: NonEmptyChain[(BlockId, Either[E, T])]): Seq[(BlockId, T)] =
-    blocks.takeWhile_ { case (_, res) => res.isRight }.collect { case (id, Right(body)) => (id, body) }
-
-  private def getDefinedPrefixFrom[T](
+  private def getAvailablePrefixFrom[T](
     requestsMap: Cache[BlockId, Option[T]],
     request:     NonEmptyChain[BlockId]
   ): Seq[(BlockId, T)] =
