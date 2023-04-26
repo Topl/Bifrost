@@ -48,7 +48,7 @@ object VertexSchemaInstances {
         }
 
       def addAddress(address: LockAddress): OrientVertex =
-        graph.addVertex(s"class:${addressSchema.name}", addressSchema.encode(address).asJava)
+        graph.addVertex(s"class:${lockAddressSchema.name}", lockAddressSchema.encode(address).asJava)
 
     }
 
@@ -56,7 +56,7 @@ object VertexSchemaInstances {
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
     private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
-    private[genusLibrary] val addressSchema: VertexSchema[LockAddress] = SchemaAddress.make()
+    private[genusLibrary] val lockAddressSchema: VertexSchema[LockAddress] = SchemaAddress.make()
 
     // Note, From here to the end, VertexSchemas not tested
     /**
