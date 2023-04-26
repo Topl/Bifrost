@@ -3,7 +3,7 @@ package co.topl.networking.fsnetwork
 import cats.effect.Async
 import cats.effect.Resource
 import co.topl.algebras.Store
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
@@ -24,7 +24,7 @@ trait NetworkAlgebra[F[_]] {
     networkAlgebra:         NetworkAlgebra[F],
     localChain:             LocalChainAlgebra[F],
     slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeersManagerActor[F]]
@@ -59,7 +59,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     networkAlgebra:         NetworkAlgebra[F],
     localChain:             LocalChainAlgebra[F],
     slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeersManagerActor[F]] =

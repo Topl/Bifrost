@@ -2,7 +2,8 @@ package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.{Address, Evidence, Identifier, TransactionOutputAddress}
+import co.topl.brambl.models.{LockAddress, TransactionId}
+import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
@@ -12,7 +13,6 @@ import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
-import quivr.models.Digest
 
 import scala.jdk.CollectionConverters._
 
@@ -47,7 +47,7 @@ object VertexSchemaInstances {
             v
         }
 
-      def addAddress(address: Address): OrientVertex =
+      def addAddress(address: LockAddress): OrientVertex =
         graph.addVertex(s"class:${addressSchema.name}", addressSchema.encode(address).asJava)
 
     }
@@ -56,7 +56,7 @@ object VertexSchemaInstances {
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
     private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
-    private[genusLibrary] val addressSchema: VertexSchema[Address] = SchemaAddress.make()
+    private[genusLibrary] val addressSchema: VertexSchema[LockAddress] = SchemaAddress.make()
 
     // Note, From here to the end, VertexSchemas not tested
     /**
@@ -77,13 +77,11 @@ object VertexSchemaInstances {
         GraphDataEncoder[Txo]
           .withProperty(
             "transactionId",
-            _.outputAddress.get.getIoTransaction32.evidence.digest.value.toByteArray,
+            _.outputAddress.get.id.value.toByteArray,
             mandatory = false,
             readOnly = false,
             notNull = true
-          )(
-            byteArrayOrientDbTypes
-          )
+          )(byteArrayOrientDbTypes)
           .withProperty(
             "transactionOutputIndex",
             txo => java.lang.Short.valueOf(txo.outputAddress.get.index.toShort),
@@ -101,7 +99,7 @@ object VertexSchemaInstances {
           )
           .withProperty(
             "address",
-            _.lockAddress.map(_.getLock32.evidence.digest.value.toByteArray).orNull,
+            _.lockAddress.map(_.id.value.toByteArray).orNull,
             mandatory = false,
             readOnly = false,
             notNull = false
@@ -111,11 +109,8 @@ object VertexSchemaInstances {
         // .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel")
         ,
         v => {
-          val transactionIdBytes: Array[Byte] = v("transactionId")
-          val transactionId = TransactionOutputAddress.Id.IoTransaction32(
-            Identifier.IoTransaction32(Evidence.Sized32(Digest.Digest32(ByteString.copyFrom(transactionIdBytes))))
-          )
-          val txoAddress = TransactionOutputAddress(0, 0, v("transactionOutputIndex"), transactionId)
+          val transactionId = TransactionId(ByteString.copyFrom(v("transactionId"): Array[Byte]))
+          val txoAddress = transactionId.outputAddress(0, 0, v("transactionOutputIndex"))
           Txo(
             Box.parseFrom(v("box")),
             TxoState.values.find(_.name == v("state")).get,

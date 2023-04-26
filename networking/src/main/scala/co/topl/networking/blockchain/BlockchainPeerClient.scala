@@ -4,7 +4,7 @@ import cats._
 import cats.data.OptionT
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
@@ -34,7 +34,7 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A Source of transaction IDs that were observed by the remote node
    */
-  def remoteTransactionNotifications: F[Stream[F, Identifier.IoTransaction32]]
+  def remoteTransactionNotifications: F[Stream[F, TransactionId]]
 
   /**
    * A Lookup to retrieve a remote SlotData by ID
@@ -42,19 +42,31 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteSlotData(id: BlockId): F[Option[SlotData]]
 
   /**
+   * A Lookup to retrieve a remote slot data by ID, or throw specified Error
+   */
+  def getSlotDataOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[SlotData] =
+    OptionT(getRemoteSlotData(id)).getOrRaise(error)
+
+  /**
    * A Lookup to retrieve a remote block header by ID
    */
   def getRemoteHeader(id: BlockId): F[Option[BlockHeader]]
 
   /**
-   * A Lookup to retrieve a remot block body by ID
+   * A Lookup to retrieve a remote block header by ID, or throw specified Error
+   */
+  def getHeaderOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[BlockHeader] =
+    OptionT(getRemoteHeader(id)).getOrRaise(error)
+
+  /**
+   * A Lookup to retrieve a remote block body by ID
    */
   def getRemoteBody(id: BlockId): F[Option[BlockBody]]
 
   /**
    * A lookup to retrieve a remote transaction by ID
    */
-  def getRemoteTransaction(id: Identifier.IoTransaction32): F[Option[IoTransaction]]
+  def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]]
 
   /**
    * A lookup to retrieve the remote node's block ID associated with the given height.

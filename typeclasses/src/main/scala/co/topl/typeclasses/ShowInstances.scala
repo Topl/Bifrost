@@ -2,6 +2,7 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
@@ -22,8 +23,8 @@ trait ShowInstances {
   implicit def showSizedBytes[Data: Show, L <: Length](implicit l: L): Show[Sized.Strict[Data, L]] =
     sized => show"[${l.value}](${sized.data})"
 
-  implicit val showIoTransaction32Id: Show[co.topl.brambl.models.Identifier.IoTransaction32] =
-    t => show"t_${t.evidence.digest.value: Bytes}"
+  implicit val showIoTransactionId: Show[TransactionId] =
+    t => show"t_${t.value: Bytes}"
 
   implicit val showBlockId: Show[co.topl.consensus.models.BlockId] =
     b => show"b_${b.value: Bytes}"
@@ -55,11 +56,6 @@ trait ShowInstances {
 
   implicit val showNodeBlockBody: Show[BlockBody] =
     body => show"${body.transactionIds}"
-
-  implicit val showTransactionOutputAddressId: Show[TransactionOutputAddress.Id] = {
-    case TransactionOutputAddress.Id.IoTransaction32(value) => value.show
-    case t                                                  => throw new MatchError(t)
-  }
 
   implicit val showBoxId: Show[TransactionOutputAddress] =
     boxId => show"${boxId.id}.outputs[${boxId.index}]"

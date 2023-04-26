@@ -4,7 +4,7 @@ import cats.data.EitherT
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt}
@@ -12,6 +12,7 @@ import co.topl.genusLibrary.algebras.{TransactionFetcherAlgebra, VertexFetcherAl
 import co.topl.genusLibrary.model.GE
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.tinkerpop.blueprints.impls.orient.OrientVertex
+
 import scala.util.Try
 
 object GraphTransactionFetcher {
@@ -21,17 +22,17 @@ object GraphTransactionFetcher {
       new TransactionFetcherAlgebra[F] {
 
         override def fetchTransaction(
-          ioTransaction32: Identifier.IoTransaction32
+          transactionId: TransactionId
         ): F[Either[GE, Option[IoTransaction]]] =
-          EitherT(vertexFetcher.fetchTransaction(ioTransaction32))
+          EitherT(vertexFetcher.fetchTransaction(transactionId))
             .map(_.map(ioTransactionSchema.decodeVertex))
             .value
 
         override def fetchTransactionReceipt(
-          ioTransaction32: Identifier.IoTransaction32
+          transactionId: TransactionId
         ): F[Either[GE, Option[TransactionReceipt]]] = {
           val res = (for {
-            ioTxVertex <- EitherT(vertexFetcher.fetchTransaction(ioTransaction32))
+            ioTxVertex <- EitherT(vertexFetcher.fetchTransaction(transactionId))
             blockHeaderVertex <- EitherT.fromEither[F](
               ioTxVertex.flatMap(v => Try(v.getProperty[OrientVertex]("blockId")).toOption).asRight[GE]
             )

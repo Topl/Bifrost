@@ -122,7 +122,7 @@ class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuit
           )
           .toSeq
           .pure[F],
-        transaction.id.evidence.digest.value.toByteArray.toSeq
+        transaction.id.value.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(

@@ -7,7 +7,7 @@ import cats.{Applicative, Functor, Monad}
 import co.topl.brambl.common.ContainsEvidence
 import co.topl.brambl.common.ContainsEvidence.blake2bEvidenceFromImmutable
 import co.topl.brambl.common.ContainsImmutable.instances._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.box.Lock
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.Schedule
@@ -20,7 +20,7 @@ import co.topl.models._
 object TransactionSemanticValidation {
 
   def make[F[_]: Sync](
-    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction],
+    fetchTransaction: TransactionId => F[IoTransaction],
     boxState:         BoxStateAlgebra[F]
   ): F[TransactionSemanticValidationAlgebra[F]] =
     Sync[F].delay(
@@ -62,9 +62,9 @@ object TransactionSemanticValidation {
    * with the Spending Address which owns the box being spent?
    */
   private def dataValidation[F[_]: Functor](
-    fetchTransaction: Identifier.IoTransaction32 => F[IoTransaction]
+    fetchTransaction: TransactionId => F[IoTransaction]
   )(input: SpentTransactionOutput): F[Validated[NonEmptyChain[TransactionSemanticError], Unit]] =
-    fetchTransaction(input.address.getIoTransaction32)
+    fetchTransaction(input.address.id)
       .map(spentTransaction =>
         // Did the output referenced by this input ever exist?  (Not a spend-ability check, just existence)
         spentTransaction.outputs
@@ -76,8 +76,10 @@ object TransactionSemanticValidation {
             spentOutput.value == input.value &&
             // Does the proposition claimed in the input contain the same evidence that is defined on the
             // spent output's address?
-            spentOutput.address.getLock32.evidence == ContainsEvidence[Lock.Predicate]
-              .sized32Evidence(input.attestation.getPredicate.lock)
+            spentOutput.address.id.value == ContainsEvidence[Lock.Predicate]
+              .sizedEvidence(input.attestation.getPredicate.lock)
+              .digest
+              .value
           )
           .void
       )

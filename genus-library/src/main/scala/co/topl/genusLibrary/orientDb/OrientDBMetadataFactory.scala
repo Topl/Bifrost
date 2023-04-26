@@ -3,8 +3,13 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.Async
 import cats.effect.{Resource, Sync, SyncIO}
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.schema.VertexSchema
+import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{
+  blockHeaderBodyEdge,
+  blockHeaderEdge,
+  blockHeaderTxIOEdge
+}
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -37,6 +42,15 @@ object OrientDBMetadataFactory {
             _ <- createVertex(db, ioTransactionSchema)
             _ <- createVertex(db, canonicalHeadSchema)
             _ <- createVertex(db, addressSchema) // Todo add edge when #2923
+          } yield ()
+        )
+      )
+      _ <- Resource.eval(
+        OrientThread[F].defer(
+          for {
+            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge)
+              .traverse(e => createEdge(db, e))
+              .void
           } yield ()
         )
       )
@@ -104,4 +118,18 @@ object OrientDBMetadataFactory {
       .to[F]
       .onError { case e => Logger[F].error(e)(s"Failed to create link on ${vs.name}") }
       .void
+
+  private[orientDb] def createEdge[F[_]: Sync: Logger: OrientThread](
+    db:   ODatabaseDocumentInternal,
+    edge: EdgeSchema
+  ) =
+    OrientThread[F].delay(db.activateOnCurrentThread()) >>
+    OrientThread[F]
+      .delay(Option(db.getClass(edge.label)))
+      .flatMap {
+        case Some(oClass) =>
+          Logger[F].info(s"${oClass.getName} class found, schema remains equals")
+        case _ =>
+          OrientThread[F].delay(db.createClass(edge.label, "E")).void
+      }
 }

@@ -6,15 +6,16 @@ import co.topl.genusLibrary.orientDb.instances.SchemaAddress.Field
 import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
-import co.topl.brambl.models.{Address, Identifier}
+import co.topl.brambl.models.LockAddress
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import scala.jdk.CollectionConverters._
-import scodec.bits.ByteVector
 
-class SchemaAddressTest
+import scala.jdk.CollectionConverters._
+import scodec.bits.{BitVector, ByteVector}
+
+class SchemaLockAddressTest
     extends CatsEffectSuite
     with ScalaCheckEffectSuite
     with AsyncMockFactory
@@ -53,15 +54,6 @@ class SchemaAddressTest
         assertIO(ledgerProperty.getType.pure[F], OType.INTEGER)
       ).toResource
 
-      indexProperty <- oClass.getProperty(Field.Index).pure[F].toResource
-      _ <- (
-        assertIO(indexProperty.getName.pure[F], Field.Index) &>
-        assertIO(indexProperty.isMandatory.pure[F], false) &>
-        assertIO(indexProperty.isReadonly.pure[F], true) &>
-        assertIO(indexProperty.isNotNull.pure[F], false) &>
-        assertIO(indexProperty.getType.pure[F], OType.INTEGER)
-      ).toResource
-
       idProperty <- oClass.getProperty(Field.AddressId).pure[F].toResource
       _ <- (
         assertIO(idProperty.getName.pure[F], Field.AddressId) &>
@@ -69,6 +61,15 @@ class SchemaAddressTest
         assertIO(idProperty.isReadonly.pure[F], true) &>
         assertIO(idProperty.isNotNull.pure[F], true) &>
         assertIO(idProperty.getType.pure[F], OType.BINARY)
+      ).toResource
+
+      idProperty <- oClass.getProperty(Field.AddressEncodedId).pure[F].toResource
+      _ <- (
+        assertIO(idProperty.getName.pure[F], Field.AddressEncodedId) &>
+        assertIO(idProperty.isMandatory.pure[F], true) &>
+        assertIO(idProperty.isReadonly.pure[F], true) &>
+        assertIO(idProperty.isNotNull.pure[F], true) &>
+        assertIO(idProperty.getType.pure[F], OType.STRING)
       ).toResource
 
     } yield ()
@@ -92,11 +93,10 @@ class SchemaAddressTest
 
       address <- BramblGens.arbitraryLockAddress.arbitrary
         .map(lockAddress =>
-          Address(
+          LockAddress(
             lockAddress.network,
             lockAddress.ledger,
-            None,
-            id = Identifier.of(Identifier.Value.Lock32(lockAddress.id.lock32.get))
+            lockAddress.id
           )
         )
         .first
@@ -121,13 +121,13 @@ class SchemaAddressTest
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Index).head.name).pure[F],
-        0
+        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
+        address.id.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
-        address.id.toByteArray.toSeq
+        vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
+        BitVector(address.id.toByteArray).toBase58
       ).toResource
 
       _ <- logger.info(ByteVector(vertex.getProperty[Array[Byte]](Field.AddressId)).toBase64).toResource
@@ -142,64 +142,6 @@ class SchemaAddressTest
             .getProperty[Array[Byte]](Field.AddressId)
             .toSeq
         ),
-        address.id.toByteArray.toSeq
-      ).toResource
-
-    } yield ()
-    res.use_
-
-  }
-
-  orientDbFixture.test("Address Schema Add vertex Transaction Output Address") { case (odb, oThread) =>
-    val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-
-      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-      _      <- oThread.delay(dbNoTx.makeActive()).toResource
-
-      schema = SchemaAddress.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
-
-      dbTx <- oThread.delay(odbFactory.getTx).toResource
-      _    <- oThread.delay(dbTx.makeActive()).toResource
-
-      address <- BramblGens.arbitraryTransactionOutputAddress.arbitrary
-        .map(outputAddress =>
-          Address(
-            outputAddress.network,
-            outputAddress.ledger,
-            Some(outputAddress.index),
-            id = Identifier.of(Identifier.Value.IoTransaction32(outputAddress.id.ioTransaction32.get))
-          )
-        )
-        .first
-        .pure[F]
-        .toResource
-
-      vertex <- oThread
-        .delay(
-          dbTx
-            .addVertex(s"class:${schema.name}", schema.encode(address).asJava)
-        )
-        .toResource
-
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Network).head.name).pure[F],
-        address.network
-      ).toResource
-
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Ledger).head.name).pure[F],
-        address.ledger
-      ).toResource
-
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Index).head.name).pure[F],
-        address.index.getOrElse(0)
-      ).toResource
-
-      _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
         address.id.toByteArray.toSeq
       ).toResource
 

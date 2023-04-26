@@ -7,6 +7,7 @@ import co.topl.algebras.testInterpreters.TestStore
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
@@ -29,13 +30,7 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         blockId2: BlockId
       ) =>
         val transaction1 = IoTransaction.defaultInstance.withOutputs(List(output))
-        val outputBoxId =
-          TransactionOutputAddress(
-            0,
-            0,
-            transaction1.outputs.length - 1,
-            TransactionOutputAddress.Id.IoTransaction32(transaction1.id)
-          )
+        val outputBoxId = transaction1.id.outputAddress(0, 0, transaction1.outputs.length - 1)
 
         val transaction2 = IoTransaction.defaultInstance.withInputs(List(input.copy(address = outputBoxId)))
 
@@ -55,7 +50,7 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
             ),
             parentChildTree,
             _ => IO.unit,
-            TestStore.make[IO, Identifier.IoTransaction32, NonEmptySet[Short]].widen
+            TestStore.make[IO, TransactionId, NonEmptySet[Short]].widen
           )
           _ <- underTest.boxExistsAt(blockId1)(outputBoxId).assert
           _ <- underTest.boxExistsAt(blockId2)(outputBoxId).map(!_).assert

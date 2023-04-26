@@ -1,9 +1,10 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import co.topl.brambl.models.{Address, Identifier}
+import co.topl.brambl.models.{LockAddress, LockId}
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import scodec.bits.BitVector
 
 object SchemaAddress {
 
@@ -15,36 +16,29 @@ object SchemaAddress {
     val SchemaName = "Address"
     val Network = "network"
     val Ledger = "ledger"
-    val Index = "index"
     // id on proto models, do not use id, Property key is reserved for all elements: id
     val AddressId = "addressId"
+    val AddressEncodedId = "addressEncodedId"
     val AddressIndex = "addressIndex"
   }
 
-  def make(): VertexSchema[Address] =
+  def make(): VertexSchema[LockAddress] =
     VertexSchema.create(
       Field.SchemaName,
-      GraphDataEncoder[Address]
+      GraphDataEncoder[LockAddress]
         .withProperty(
           Field.Network,
-          address => java.lang.Integer.valueOf(address.network),
+          lockAddress => java.lang.Integer.valueOf(lockAddress.network),
           mandatory = true,
           readOnly = true,
           notNull = true
         )
         .withProperty(
           Field.Ledger,
-          address => java.lang.Integer.valueOf(address.ledger),
+          lockAddress => java.lang.Integer.valueOf(lockAddress.ledger),
           mandatory = true,
           readOnly = true,
           notNull = true
-        )
-        .withProperty(
-          Field.Index,
-          address => java.lang.Integer.valueOf(address.index.getOrElse(0)),
-          mandatory = false,
-          readOnly = true,
-          notNull = false
         )
         .withProperty(
           Field.AddressId,
@@ -53,13 +47,20 @@ object SchemaAddress {
           readOnly = true,
           notNull = true
         )
-        .withIndex[Address](Field.AddressIndex, Field.AddressId),
+        .withProperty(
+          Field.AddressEncodedId,
+          // TODO replace encoder for BramblSc implementation
+          lockAddress => BitVector(lockAddress.id.toByteArray).toBase58,
+          mandatory = true,
+          readOnly = true,
+          notNull = true
+        )
+        .withIndex[LockAddress](Field.AddressIndex, Field.AddressId),
       v =>
-        Address(
+        LockAddress(
           network = v(Field.Network),
           ledger = v(Field.Ledger),
-          index = v(Field.Index),
-          id = Identifier.parseFrom(v(Field.AddressId): Array[Byte])
+          id = LockId.parseFrom(v(Field.AddressId))
         )
     )
 }

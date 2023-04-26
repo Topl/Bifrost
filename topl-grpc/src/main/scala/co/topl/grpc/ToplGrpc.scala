@@ -9,7 +9,7 @@ import cats.Now
 import co.topl.algebras.SynchronizationTraversalStep
 import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.algebras.ToplRpc
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
 import co.topl.node.models.BlockBody
@@ -58,7 +58,7 @@ object ToplGrpc {
                 )
                 .void
 
-            def currentMempool(): F[Set[Identifier.IoTransaction32]] =
+            def currentMempool(): F[Set[TransactionId]] =
               client
                 .currentMempool(
                   CurrentMempoolReq(),
@@ -66,9 +66,7 @@ object ToplGrpc {
                 )
                 .map(_.transactionIds.toSet)
 
-            def fetchBlockHeader(
-              blockId: BlockId
-            ): F[Option[BlockHeader]] =
+            def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
               client
                 .fetchBlockHeader(
                   FetchBlockHeaderReq(blockId),
@@ -84,9 +82,7 @@ object ToplGrpc {
                 )
                 .map(_.body)
 
-            def fetchTransaction(
-              transactionId: Identifier.IoTransaction32
-            ): F[Option[IoTransaction]] =
+            def fetchTransaction(transactionId: TransactionId): F[Option[IoTransaction]] =
               client
                 .fetchTransaction(FetchTransactionReq(transactionId), new Metadata())
                 .map(_.transaction)

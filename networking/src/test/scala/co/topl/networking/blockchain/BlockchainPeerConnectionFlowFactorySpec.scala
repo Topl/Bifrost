@@ -3,7 +3,7 @@ package co.topl.networking.blockchain
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import co.topl.networking.NetworkGen._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
@@ -45,7 +45,7 @@ class BlockchainPeerConnectionFlowFactorySpec
       (() => server.localTransactionNotifications)
         .expects()
         .once()
-        .returning(Stream.never[F].pure[F]: F[Stream[F, Identifier.IoTransaction32]])
+        .returning(Stream.never[F].pure[F]: F[Stream[F, TransactionId]])
 
       val factory = BlockchainPeerConnectionFlowFactory.createFactory[F](server)
 

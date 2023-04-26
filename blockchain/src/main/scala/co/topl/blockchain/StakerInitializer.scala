@@ -1,11 +1,10 @@
 package co.topl.blockchain
 
 import cats.implicits._
-import co.topl.brambl.common.ContainsEvidence
-import co.topl.brambl.common.ContainsImmutable.instances.lockImmutable
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.syntax.lockAsLockSyntaxOps
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
@@ -65,32 +64,22 @@ object StakerInitializers {
     )
 
     val lockAddress: LockAddress =
-      LockAddress(
-        0,
-        0,
-        LockAddress.Id.Lock32(
-          Identifier.Lock32(
-            ContainsEvidence[Lock].sized32Evidence(
-              Lock(
-                Lock.Value.Predicate(
-                  Lock.Predicate(
-                    List(
-                      Challenge().withRevealed(
-                        Proposition(
-                          Proposition.Value.DigitalSignature(
-                            Proposition.DigitalSignature("ed25519", VerificationKey(Vk.Ed25519(Ed25519Vk(spendingVK))))
-                          )
-                        )
-                      )
-                    ),
-                    1
+      Lock(
+        Lock.Value.Predicate(
+          Lock.Predicate(
+            List(
+              Challenge().withRevealed(
+                Proposition(
+                  Proposition.Value.DigitalSignature(
+                    Proposition.DigitalSignature("ed25519", VerificationKey(Vk.Ed25519(Ed25519Vk(spendingVK))))
                   )
                 )
               )
-            )
+            ),
+            1
           )
         )
-      )
+      ).lockAddress(0, 0)
 
     /**
      * This staker's initial stake in the network

@@ -7,6 +7,7 @@ import co.topl.algebras.testInterpreters.TestStore
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.consensus.models.BlockId
@@ -30,18 +31,8 @@ class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         blockId1:         BlockId
       ) =>
         val transaction1 = txBase1.addOutputs(txOutput10, txOutput11)
-        val outputBoxId10 = TransactionOutputAddress(
-          0,
-          0,
-          transaction1.outputs.length - 2,
-          TransactionOutputAddress.Id.IoTransaction32(transaction1.id)
-        )
-        val outputBoxId11 = TransactionOutputAddress(
-          0,
-          0,
-          transaction1.outputs.length - 1,
-          TransactionOutputAddress.Id.IoTransaction32(transaction1.id)
-        )
+        val outputBoxId10 = transaction1.id.outputAddress(0, 0, transaction1.outputs.length - 2)
+        val outputBoxId11 = transaction1.id.outputAddress(0, 0, transaction1.outputs.length - 1)
         val transaction2 = transaction2Base.addInputs(input.copy(address = outputBoxId11))
 
         for {
@@ -59,7 +50,7 @@ class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
             ),
             parentChildTree,
             _ => IO.unit,
-            TestStore.make[IO, Identifier.IoTransaction32, NonEmptySet[Short]].widen
+            TestStore.make[IO, TransactionId, NonEmptySet[Short]].widen
           )
 
           stateAugmentation <-

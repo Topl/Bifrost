@@ -23,7 +23,7 @@ class ChainSelectionTest extends IntegrationSuite {
   override def munitTimeout: Duration = 12.minutes
 
   test("Disconnected nodes can forge independently and later sync up to a proper chain") {
-    val epochSlotLength = 500 // (50/4) * (100/15) * 6
+    val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
     val stakes = List(BigInt(500), BigInt(400), BigInt(300)).some
     val config0 =

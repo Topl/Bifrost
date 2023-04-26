@@ -9,16 +9,11 @@ import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.blockchain.PrivateTestnet
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
-import co.topl.brambl.models.Datum
-import co.topl.brambl.models.Event
-import co.topl.brambl.models.Identifier
-import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models._
 import co.topl.brambl.models.box.Attestation
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.brambl.models.transaction._
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.ToplGrpc
 import co.topl.quivr.api.Prover
@@ -37,14 +32,14 @@ class NodeAppTest extends CatsEffectSuite {
 
   type RpcClient = ToplRpc[F, Stream[F, *]]
 
-  override val munitTimeout: Duration = 2.minutes
+  override val munitTimeout: Duration = 3.minutes
 
   test("Two block-producing nodes that maintain consensus") {
     // Allow the nodes to produce/adopt blocks until reaching this height
     val targetProductionHeight = 10
     // All of the nodes should agree on the same block at this height
     val targetConsensusHeight = 8
-    val startTimestamp = System.currentTimeMillis() + 10_000L
+    val startTimestamp = System.currentTimeMillis() + 20_000L
     val configNodeA =
       s"""
         |bifrost:
@@ -64,6 +59,7 @@ class NodeAppTest extends CatsEffectSuite {
         |    0:
         |      slot-duration: 500 milli
         |genus:
+        |  enable: true
         |  rpc-node-port: 9151
         |""".stripMargin
     val configNodeB =
@@ -185,7 +181,7 @@ class NodeAppTest extends CatsEffectSuite {
       .map(_.get)
       .map { t =>
         val index = t.outputs.indexWhere(_.address == PrivateTestnet.HeightLockOneSpendingAddress)
-        val address = TransactionOutputAddress(0, 0, index, TransactionOutputAddress.Id.IoTransaction32(t.id))
+        val address = t.id.outputAddress(0, 0, index)
         (address, t.outputs(index))
       }
 
@@ -229,7 +225,7 @@ class NodeAppTest extends CatsEffectSuite {
 
   private def confirmTransaction(
     client: RpcClient
-  )(id: Identifier.IoTransaction32, confirmationDepth: Int = 3): F[Unit] = {
+  )(id: TransactionId, confirmationDepth: Int = 3): F[Unit] = {
     def containsTransaction(targetBlock: BlockId): F[Boolean] =
       client
         .fetchBlockBody(targetBlock)

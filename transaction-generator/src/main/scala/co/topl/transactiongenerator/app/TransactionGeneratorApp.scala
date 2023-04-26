@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.ToplRpc
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application._
@@ -122,8 +122,8 @@ object TransactionGeneratorApp
       .compile
       .drain
 
-  implicit private val showMempool: Show[Set[Identifier.IoTransaction32]] =
-    catsStdShowForSet(showIoTransaction32Id)
+  implicit private val showMempool: Show[Set[TransactionId]] =
+    catsStdShowForSet(showIoTransactionId)
 
   /**
    * Periodically poll and log the state of the mempool.

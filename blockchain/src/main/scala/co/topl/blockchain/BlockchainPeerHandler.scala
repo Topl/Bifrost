@@ -8,7 +8,7 @@ import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
 import fs2._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
@@ -68,7 +68,7 @@ object BlockchainPeerHandler {
       slotDataStore:               Store[F, BlockId, SlotData],
       headerStore:                 Store[F, BlockId, BlockHeader],
       bodyStore:                   Store[F, BlockId, BlockBody],
-      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
+      transactionStore:            Store[F, TransactionId, IoTransaction],
       blockIdTree:                 ParentChildTree[F, BlockId]
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
@@ -243,7 +243,7 @@ object BlockchainPeerHandler {
       slotDataStore:               Store[F, BlockId, SlotData],
       headerStore:                 Store[F, BlockId, BlockHeader],
       bodyStore:                   Store[F, BlockId, BlockBody],
-      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction]
+      transactionStore:            Store[F, TransactionId, IoTransaction]
     )(from: BlockId) =
       determineMissingValues(
         bodyStore.contains,
@@ -257,7 +257,7 @@ object BlockchainPeerHandler {
                 _    <- Logger[F].info(show"Fetching remote body id=$blockId")
                 body <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
                 _ <- Stream
-                  .iterable[F, co.topl.brambl.models.Identifier.IoTransaction32](body.transactionIds)
+                  .iterable[F, co.topl.brambl.models.TransactionId](body.transactionIds)
                   .parEvalMapUnordered(16)(transactionId =>
                     transactionStore
                       .contains(transactionId)
@@ -374,7 +374,7 @@ object BlockchainPeerHandler {
 
     def make[F[_]: Async](
       transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
+      transactionStore:            Store[F, TransactionId, IoTransaction],
       mempool:                     MempoolAlgebra[F]
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
@@ -393,9 +393,9 @@ object BlockchainPeerHandler {
 
     private def processTransactionId[F[_]: Async: Logger](
       transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-      transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
+      transactionStore:            Store[F, TransactionId, IoTransaction],
       mempool:                     MempoolAlgebra[F]
-    )(client: BlockchainPeerClient[F])(id: Identifier.IoTransaction32) =
+    )(client: BlockchainPeerClient[F])(id: TransactionId) =
       for {
         _             <- Logger[F].debug(show"Received transaction notification from remote peer id=$id")
         alreadyExists <- transactionStore.contains(id)

@@ -9,7 +9,7 @@ import cats.effect.MonadCancel
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.Schedule
 import co.topl.brambl.models.transaction.SpentTransactionOutput
@@ -50,7 +50,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         val transactions = bodies.flatMap(_._2).toList.map(t => t.id -> t).toMap.updated(newTx.id, newTx)
         val fetchBody =
           (id: BlockId) => BlockBody(bodiesMap(id).map(_.id).toList).pure[F]
-        val fetchTransaction = (id: Identifier.IoTransaction32) => transactions(id).pure[F]
+        val fetchTransaction = (id: TransactionId) => transactions(id).pure[F]
         val clock = mock[ClockAlgebra[F]]
         (() => clock.globalSlot)
           .expects()
@@ -78,11 +78,11 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             )
             .use(underTest =>
               for {
-                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[Identifier.IoTransaction32])
+                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TransactionId])
                 _ <- underTest.add(newTx.id)
                 _ <- underTest.read(bodies.last._1).assertEquals(Set(newTx.id))
                 _ <- underTest.remove(newTx.id)
-                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[Identifier.IoTransaction32])
+                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TransactionId])
                 _ <- underTest
                   .read(bodies.head._1)
                   .assertEquals(
@@ -100,7 +100,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("allow transactions to be added externally") {
     PropF.forAllF { (currentBlockId: BlockId, transaction: IoTransaction) =>
       withMock {
-        val fetchTransaction = mockFunction[Identifier.IoTransaction32, F[IoTransaction]]
+        val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
           .once()
@@ -138,7 +138,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
         val transaction = transactionWithRandomTime.update(_.datum.event.schedule.max.set(2))
-        val fetchTransaction = mockFunction[Identifier.IoTransaction32, F[IoTransaction]]
+        val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
           .once()
@@ -175,7 +175,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                   _ <- underTest.add(transaction.id)
                   _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id))
                   _ <- deferred.complete(())
-                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[Identifier.IoTransaction32]))
+                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]))
                 } yield ()
               )
         } yield ()
@@ -188,7 +188,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
       withMock {
         val transaction =
           transactionWithRandomTime.update(_.datum.event.schedule.max.set(Long.MaxValue))
-        val fetchTransaction = mockFunction[Identifier.IoTransaction32, F[IoTransaction]]
+        val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
           .once()
@@ -225,7 +225,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                   _ <- underTest.add(transaction.id)
                   _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id))
                   _ <- deferred.complete(())
-                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[Identifier.IoTransaction32]))
+                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]))
                 } yield ()
               )
 
@@ -262,7 +262,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             )
 
           val fetchBody = (id: BlockId) => BlockBody(bodies(id)).pure[F]
-          val fetchTransaction = (id: Identifier.IoTransaction32) => transactions(id).pure[F]
+          val fetchTransaction = (id: TransactionId) => transactions(id).pure[F]
           val clock = mock[ClockAlgebra[F]]
           (() => clock.globalSlot)
             .expects()
@@ -286,7 +286,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               )
               .use(underTest =>
                 for {
-                  _ <- underTest.read(blockIdA).assertEquals(Set.empty[Identifier.IoTransaction32])
+                  _ <- underTest.read(blockIdA).assertEquals(Set.empty[TransactionId])
                   _ <-
                     inSequence {
                       if (transactionA.datum.event.schedule.max != 1L) {

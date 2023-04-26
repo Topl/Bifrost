@@ -15,7 +15,7 @@ class MultiNodeTest extends IntegrationSuite {
   override def munitTimeout: Duration = 15.minutes
 
   test("Multiple nodes launch and maintain consensus for three epochs") {
-    val epochSlotLength = 500 // (50/4) * (100/15) * 6
+    val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
     val config0 = TestNodeConfig(bigBang, 3, 0, Nil)
     val config1 = TestNodeConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))

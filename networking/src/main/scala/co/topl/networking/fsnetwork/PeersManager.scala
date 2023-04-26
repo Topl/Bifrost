@@ -8,7 +8,7 @@ import cats.implicits._
 import co.topl.actor.Actor
 import co.topl.actor.Fsm
 import co.topl.algebras.Store
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
@@ -100,7 +100,7 @@ object PeersManager {
     peers:                  Map[HostId, Peer[F]],
     localChain:             LocalChainAlgebra[F],
     slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   )
@@ -131,7 +131,7 @@ object PeersManager {
     networkAlgebra:         NetworkAlgebra[F],
     localChain:             LocalChainAlgebra[F],
     slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeersManagerActor[F]] = {

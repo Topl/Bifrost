@@ -22,7 +22,7 @@ import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import co.topl.blockchain.interpreters.BlockchainPeerServer
-import co.topl.brambl.models.Identifier
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.models.BlockId
@@ -46,7 +46,7 @@ object Blockchain {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    transactionStore:            Store[F, Identifier.IoTransaction32, IoTransaction],
+    transactionStore:            Store[F, TransactionId, IoTransaction],
     _localChain:                 LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     blockIdTree:                 ParentChildTree[F, BlockId],
@@ -152,21 +152,21 @@ object Blockchain {
           clientHandler,
           peerServerF
         )
-      rpcInterpreter <- DroppingTopic(blockAdoptionsTopic, 10)
-        .flatMap(_.subscribeAwaitUnbounded)
-        .evalMap(
-          ToplRpcServer.make(
-            headerStore,
-            bodyStore,
-            transactionStore,
-            mempool,
-            transactionSyntaxValidation,
-            localChain,
-            blockHeights,
-            blockIdTree,
-            _
-          )
+
+      droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
+      rpcInterpreter <- Resource.eval(
+        ToplRpcServer.make(
+          headerStore,
+          bodyStore,
+          transactionStore,
+          mempool,
+          transactionSyntaxValidation,
+          localChain,
+          blockHeights,
+          blockIdTree,
+          droppingBlockAdoptionsTopic.subscribeUnbounded
         )
+      )
       _ <- ToplGrpc.Server
         .serve(rpcHost, rpcPort, rpcInterpreter)
         .evalTap(rpcServer =>

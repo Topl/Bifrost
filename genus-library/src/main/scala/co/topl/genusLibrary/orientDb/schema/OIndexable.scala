@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.orientDb.schema
 
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.Address
+import co.topl.brambl.models.LockAddress
 import co.topl.consensus.models.BlockHeader
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
@@ -23,7 +23,7 @@ object OIndexable {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val address: OIndexable[Address] = new OIndexable[Address] {
+    implicit val address: OIndexable[LockAddress] = new OIndexable[LockAddress] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
   }

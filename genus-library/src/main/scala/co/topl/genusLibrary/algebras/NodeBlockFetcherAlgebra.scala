@@ -1,5 +1,6 @@
 package co.topl.genusLibrary.algebras
 
+import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.model.GE
 
@@ -27,10 +28,25 @@ trait NodeBlockFetcherAlgebra[F[_], G[_]] {
   def fetch(height: Long): F[Either[GE, Option[BlockData]]]
 
   /**
+   * Look-up a block on the chain with a given a blockId
+   *
+   * @param blockId The block id to lookup
+   * @return the full block
+   */
+  def fetch(blockId: BlockId): F[Either[GE, BlockData]]
+
+  /**
    * Look-up up to the node's current head height
    *
    * @return height
    */
   def fetchHeight(): F[Option[Long]]
+
+  /**
+   * Look-up up node's applied blocks ids
+   *
+   * @return height
+   */
+  def fetchAdoptions(): F[G[BlockId]]
 
 }
