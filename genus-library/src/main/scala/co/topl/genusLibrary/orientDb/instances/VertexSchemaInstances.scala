@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import co.topl.brambl.models.LockId
 import co.topl.brambl.models.box.Box
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{LockAddress, TransactionId}
@@ -48,48 +47,18 @@ object VertexSchemaInstances {
             v
         }
 
+      def addAddress(address: LockAddress): OrientVertex =
+        graph.addVertex(s"class:${lockAddressSchema.name}", lockAddressSchema.encode(address).asJava)
+
     }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
     private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
+    private[genusLibrary] val lockAddressSchema: VertexSchema[LockAddress] = SchemaAddress.make()
 
     // Note, From here to the end, VertexSchemas not tested
-    /**
-     * Schema for Address nodes
-     */
-    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[LockAddress] =
-      VertexSchema.create(
-        "LockAddress",
-        GraphDataEncoder[LockAddress]
-          .withProperty(
-            "network",
-            v => java.lang.Integer.valueOf(v.network),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )
-          .withProperty(
-            "ledger",
-            v => java.lang.Integer.valueOf(v.ledger),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )
-          .withProperty(
-            "id",
-            _.id.value.toByteArray,
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          ),
-        v => {
-          val id = LockId.parseFrom(v("id"))
-          LockAddress(v("network"), v("ledger"), id)
-        }
-      )
-
     /**
      * Schema for TxO state vertexes
      * <p>

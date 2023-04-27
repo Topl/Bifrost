@@ -5,11 +5,7 @@ import cats.effect.{Resource, Sync, SyncIO}
 import cats.implicits._
 import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{
-  blockHeaderBodyEdge,
-  blockHeaderEdge,
-  blockHeaderTxIOEdge
-}
+import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -41,13 +37,14 @@ object OrientDBMetadataFactory {
             _ <- createVertex(db, blockBodySchema)
             _ <- createVertex(db, ioTransactionSchema)
             _ <- createVertex(db, canonicalHeadSchema)
+            _ <- createVertex(db, lockAddressSchema)
           } yield ()
         )
       )
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge)
+            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge)
               .traverse(e => createEdge(db, e))
               .void
           } yield ()
