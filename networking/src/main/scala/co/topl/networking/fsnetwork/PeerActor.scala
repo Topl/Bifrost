@@ -12,7 +12,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
-import co.topl.networking.fsnetwork.PeerActor.Message.{DownloadBlockBodies, DownloadBlockHeaders, UpdateState}
+import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
@@ -40,6 +40,11 @@ object PeerActor {
      * @param blockData bodies block id to download
      */
     case class DownloadBlockBodies(blockData: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+
+    /**
+     * Request current tip from remote peer
+     */
+    case object GetCurrentTip extends Message
   }
 
   case class State[F[_]](
@@ -56,6 +61,7 @@ object PeerActor {
     case (state, UpdateState(newState))          => updateState(state, newState)
     case (state, DownloadBlockHeaders(blockIds)) => downloadHeaders(state, blockIds)
     case (state, DownloadBlockBodies(blockIds))  => downloadBodies(state, blockIds)
+    case (state, GetCurrentTip)                  => getCurrentTip(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -109,5 +115,9 @@ object PeerActor {
     blockData: NonEmptyChain[(BlockId, BlockHeader)]
   ): F[(State[F], Response[F])] =
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.DownloadBlocks(blockData)) >>
+    (state, state).pure[F]
+
+  private def getCurrentTip[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
+    state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.GetCurrentTip) >>
     (state, state).pure[F]
 }

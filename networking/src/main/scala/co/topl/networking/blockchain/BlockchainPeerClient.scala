@@ -37,6 +37,12 @@ trait BlockchainPeerClient[F[_]] {
   def remoteTransactionNotifications: F[Stream[F, TransactionId]]
 
   /**
+   * A lookup to retrieve a remote best slot data for block
+   * @return
+   */
+  def remoteCurrentTip(): F[Option[SlotData]]
+
+  /**
    * A Lookup to retrieve a remote SlotData by ID
    */
   def getRemoteSlotData(id: BlockId): F[Option[SlotData]]

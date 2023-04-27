@@ -79,6 +79,16 @@ object PeersManager {
      * @param blocks requested bodies
      */
     case class BlockBodyRequest(hostId: HostId, blocks: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+
+    /**
+     * Request current tips from all connected hot peers
+     */
+    case object GetCurrentTips extends Message
+
+    /**
+     * Request current tip for particular peer
+     */
+    case class GetCurrentTip(hostId: HostId) extends Message
   }
 
   // actor is option, because in future we shall be able to spawn actor without SetupPeer message,
@@ -111,20 +121,15 @@ object PeersManager {
   def getFsm[F[_]: Async: Logger]: PeersManagerActor[F] => Fsm[F, State[F], Message, Response[F]] =
     (thisActor: PeersManagerActor[F]) =>
       Fsm {
-        case (state, newPeer: SetupPeer[F] @unchecked) =>
-          setupPeer(thisActor, state, newPeer)
-        case (state, checker: SetupBlockChecker[F] @unchecked) =>
-          setupBlockChecker(state, checker.blockChecker)
-        case (state, checker: SetupRequestsProxy[F] @unchecked) =>
-          setupRequestsProxy(state, checker.requestsProxy)
-        case (state, aggregator: SetupReputationAggregator[F] @unchecked) =>
-          setupRepAggregator(state, aggregator.aggregator)
-        case (state, update: UpdatePeerStatus) =>
-          updatePeerStatus(state, update)
-        case (state, BlockHeadersRequest(hostId, blocks)) =>
-          blockHeadersRequest(state, hostId, blocks)
-        case (state, BlockBodyRequest(hostId, blocks)) =>
-          blockDownloadRequest(state, hostId, blocks)
+        case (state, newPeer: SetupPeer[F] @unchecked)             => setupPeer(thisActor, state, newPeer)
+        case (state, checker: SetupBlockChecker[F] @unchecked)     => setupBlockChecker(state, checker.blockChecker)
+        case (state, checker: SetupRequestsProxy[F] @unchecked)    => setupRequestsProxy(state, checker.requestsProxy)
+        case (state, agr: SetupReputationAggregator[F] @unchecked) => setupRepAggregator(state, agr.aggregator)
+        case (state, update: UpdatePeerStatus)                     => updatePeerStatus(state, update)
+        case (state, BlockHeadersRequest(hostId, blocks))          => blockHeadersRequest(state, hostId, blocks)
+        case (state, BlockBodyRequest(hostId, blocks))             => blockDownloadRequest(state, hostId, blocks)
+        case (state, GetCurrentTips)                               => getCurrentTips(state)
+        case (state, GetCurrentTip(hostId))                        => getCurrentTip(state, hostId)
       }
 
   def makeActor[F[_]: Async: Logger](
@@ -179,7 +184,7 @@ object PeersManager {
       )
 
     for {
-      peer <- peerActorF.map(peerActor => Peer(PeerState.Cold, Option(peerActor)))
+      peer <- peerActorF.map(peerActor => Peer(PeerState.Hot, Option(peerActor)))
       newPeers = state.peers + (hostId -> peer)
       newState = state.copy(peers = newPeers)
     } yield (newState, newState)
@@ -253,6 +258,18 @@ object PeersManager {
         (state, state).pure[F]
       case None => ???
     }
+
+  private def getCurrentTips[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+    state.peers.values.filter(_.state.networkLevel).toSeq.traverse(_.sendNoWait(PeerActor.Message.GetCurrentTip)) >>
+    (state, state).pure[F]
+
+  private def getCurrentTip[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] =
+    state.peers
+      .get(hostId)
+      .filter(_.state.networkLevel)
+      .map(_.sendNoWait(PeerActor.Message.GetCurrentTip))
+      .getOrElse(().pure[F]) >>
+    (state, state).pure[F]
 
   private def finalizeActor[F[_]: Applicative](currentState: State[F]): F[Unit] = ().pure[F]
 }
