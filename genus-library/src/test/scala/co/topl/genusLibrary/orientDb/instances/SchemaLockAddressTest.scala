@@ -127,6 +127,7 @@ class SchemaLockAddressTest
 
       _ <- assertIO(
         vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
+        // TODO it should be updated to use the new address encoding scheme.
         BitVector(address.id.toByteArray).toBase58
       ).toResource
 

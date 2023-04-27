@@ -49,7 +49,7 @@ object SchemaAddress {
         )
         .withProperty(
           Field.AddressEncodedId,
-          // TODO replace encoder for BramblSc implementation
+          // TODO it should be updated to use the new address encoding scheme.
           lockAddress => BitVector(lockAddress.id.toByteArray).toBase58,
           mandatory = true,
           readOnly = true,
