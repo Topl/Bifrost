@@ -359,4 +359,26 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         }
     }
   }
+
+  test("Get all tips shall be forwarded to requests proxy") {
+    withMock {
+      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.GetCurrentTips)
+        .returns(().pure[F])
+
+      RequestsProxy
+        .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+        .use { actor =>
+          for {
+            _ <- actor.send(RequestsProxy.Message.GetCurrentTips)
+          } yield ()
+        }
+
+    }
+  }
 }
