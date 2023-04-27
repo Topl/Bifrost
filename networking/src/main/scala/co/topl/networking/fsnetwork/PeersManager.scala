@@ -78,7 +78,7 @@ object PeersManager {
      *               and send requests to many peers
      * @param blocks requested bodies
      */
-    case class BlockBodyDownloadRequest(hostId: HostId, blocks: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class BlockBodyRequest(hostId: HostId, blocks: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
   }
 
   // actor is option, because in future we shall be able to spawn actor without SetupPeer message,
@@ -123,7 +123,7 @@ object PeersManager {
           updatePeerStatus(state, update)
         case (state, BlockHeadersRequest(hostId, blocks)) =>
           blockHeadersRequest(state, hostId, blocks)
-        case (state, BlockBodyDownloadRequest(hostId, blocks)) =>
+        case (state, BlockBodyRequest(hostId, blocks)) =>
           blockDownloadRequest(state, hostId, blocks)
       }
 
