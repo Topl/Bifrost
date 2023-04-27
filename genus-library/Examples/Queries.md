@@ -21,6 +21,6 @@ RETURN $pathelements
 Ex4: Relationship between headers, body, transaction and address, for an existing BlockHeader with id 26:0 (id:cluster)
 
 ```roomsql
-MATCH {Class: Address}-hasAddress-{Class: Transaction}-hasTxIO-{Class: BlockHeader, where: (@rid=26:0)}-hasBody-{Class: BlockBody}
+MATCH {Class: LockAddress}-hasAddress-{Class: Transaction}-hasTxIO-{Class: BlockHeader}
 RETURN $pathelements
 ```

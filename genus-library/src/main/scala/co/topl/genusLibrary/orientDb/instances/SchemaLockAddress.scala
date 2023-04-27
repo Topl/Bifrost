@@ -6,14 +6,14 @@ import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import scodec.bits.BitVector
 
-object SchemaAddress {
+object SchemaLockAddress {
 
   /**
    * Address model:
    * @see https://github.com/Topl/protobuf-specs/blob/main/proto/brambl/models/address.proto
    */
   object Field {
-    val SchemaName = "Address"
+    val SchemaName = "LockAddress"
     val Network = "network"
     val Ledger = "ledger"
     // id on proto models, do not use id, Property key is reserved for all elements: id
