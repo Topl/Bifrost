@@ -192,8 +192,8 @@ object PeerBlockHeaderFetcher {
     for {
       _   <- OptionT.liftF(Logger[F].info(s"Requested current tip from host ${state.hostId}"))
       tip <- OptionT(state.client.remoteCurrentTip())
-      _   <- buildAndAdoptSlotDataForBlockId(state, tip.slotId.blockId)
-      _   <- OptionT.liftF(Logger[F].info(show"Send tip ${tip.slotId.blockId} from host ${state.hostId}"))
+      _   <- buildAndAdoptSlotDataForBlockId(state, tip)
+      _   <- OptionT.liftF(Logger[F].info(show"Send tip $tip from host ${state.hostId}"))
     } yield (state, state)
   }.getOrElse((state, state))
     .handleErrorWith(Logger[F].error(_)("Get tip from remote host return error") >> (state, state).pure[F])

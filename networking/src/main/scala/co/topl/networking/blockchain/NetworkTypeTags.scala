@@ -37,8 +37,8 @@ object NetworkTypeTags {
     : NetworkTypeTag[TypedProtocol.CommonMessages.Get[(Long, Option[BlockId])]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[(Long, BlockId)]")
 
-  implicit val commonMessagesGetUnitTypedCurrentTipTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Get[Unit]] =
-    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[Unit]")
+  implicit val commonMessagesGetLongTypedCurrentTipTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Get[Long]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.Get[Long]")
 
   implicit val commonMessagesResponseSlotDataNetworkTypeTag
     : NetworkTypeTag[TypedProtocol.CommonMessages.Response[SlotData]] =

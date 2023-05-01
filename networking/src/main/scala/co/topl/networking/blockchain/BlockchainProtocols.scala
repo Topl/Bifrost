@@ -61,7 +61,7 @@ object BlockchainProtocols {
   /**
    * Request current best tip from remote Node
    */
-  object CurrentTip extends RequestResponseProtocol[Unit, SlotData]
+  object BlockIdAtDepth extends RequestResponseProtocol[Long, BlockId]
 
   /**
    * Notifies a client node every time the server adopts a new Block
