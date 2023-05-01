@@ -328,7 +328,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val client = mock[BlockchainPeerClient[F]]
       (client.remoteCurrentTip _)
         .expects()
-        .returns(Option(bestTip).pure[F])
+        .returns(Option(bestTip.slotId.blockId).pure[F])
       (client.remotePeerAdoptions _).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
       }
@@ -393,7 +393,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val client = mock[BlockchainPeerClient[F]]
       (client.remoteCurrentTip _)
         .expects()
-        .returns(Option(bestTip).pure[F])
+        .returns(Option(bestTip.slotId.blockId).pure[F])
       (client.remotePeerAdoptions _).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
       }

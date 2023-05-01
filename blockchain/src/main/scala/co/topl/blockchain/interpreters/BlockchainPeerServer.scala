@@ -88,7 +88,8 @@ object BlockchainPeerServer {
               blockIdOpt <- blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
             } yield blockIdOpt
 
-          def getCurrentTip: F[Option[SlotData]] = localChain.head.map(Option.apply)
+          def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
+            localChain.head.flatMap(s => getLocalBlockAtHeight(s.height - depth))
         }
       )
 }

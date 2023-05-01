@@ -94,11 +94,11 @@ object BlockchainPeerConnectionFlowFactory {
           14: Byte
         )
 
-    val currentTipRecipF =
+    val idAtDepthRecipF =
       TypedProtocolSetFactory.CommonProtocols
-        .requestResponseReciprocated[F, Unit, SlotData](
-          BlockchainProtocols.CurrentTip,
-          _ => protocolServer.getCurrentTip,
+        .requestResponseReciprocated[F, Long, BlockId](
+          BlockchainProtocols.BlockIdAtDepth,
+          protocolServer.getLocalBlockAtDepth,
           15: Byte,
           16: Byte
         )
@@ -114,7 +114,7 @@ object BlockchainPeerConnectionFlowFactory {
         (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(connectionLeader.pure[F])
         (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
         (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
-        (currentTipTypedSubHandlers, currentTipReceivedCallback)   <- currentTipRecipF.ap(connectionLeader.pure[F])
+        (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
@@ -127,7 +127,7 @@ object BlockchainPeerConnectionFlowFactory {
             transactionReceivedCallback(id)
           def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]] =
             heightIdReceivedCallback((height, localBlockId))
-          def remoteCurrentTip(): F[Option[SlotData]] = currentTipReceivedCallback(())
+          def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] = depthIdReceivedCallback(depth)
         }
         subHandlers =
           adoptionTypedSubHandlers ++
@@ -137,7 +137,7 @@ object BlockchainPeerConnectionFlowFactory {
             bodyTypedSubHandlers ++
             transactionTypedSubHandlers ++
             idAtHeightTypedSubHandlers ++
-            currentTipTypedSubHandlers
+            idAtDepthTypedSubHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 

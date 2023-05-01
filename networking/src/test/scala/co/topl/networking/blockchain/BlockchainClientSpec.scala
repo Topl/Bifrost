@@ -51,7 +51,7 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
             (height.toString + (if (height > ancestorHeight) "remote" else "")).typedId.some
               .pure[F]
 
-          override def remoteCurrentTip(): F[Option[SlotData]] = ???
+          override def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] = ???
         }
 
         val blockHeights =
