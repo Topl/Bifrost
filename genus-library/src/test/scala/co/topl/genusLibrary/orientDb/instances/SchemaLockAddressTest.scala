@@ -127,14 +127,18 @@ class SchemaLockAddressTest
 
       _ <- assertIO(
         vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
-        Encoding.encodeToBase58Check(address.id.toByteArray)
+        Encoding.encodeToBase58Check(address.network.toByte +: address.ledger.toByte +: address.id.toByteArray)
       ).toResource
 
-      addressId = vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name)
+      network = vertex.getProperty[Int](schema.properties.filter(_.name == Field.Network).head.name)
+      ledger = vertex.getProperty[Int](schema.properties.filter(_.name == Field.Ledger).head.name)
+      addressId = vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name)
+
+      addressEncodedId = vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name)
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
-        Encoding.decodeFromBase58Check(addressId).getOrElse(Array.empty).toSeq
+        (network.toByte +: ledger.toByte +: addressId).toSeq.pure[F],
+        Encoding.decodeFromBase58Check(addressEncodedId).getOrElse(Array.empty).toSeq
       ).toResource
 
       _ <- assertIO(
