@@ -49,7 +49,7 @@ object SchemaLockAddress {
         )
         .withProperty(
           Field.AddressEncodedId,
-          lockAddress => Encoding.encodeToBase58(lockAddress.id.toByteArray),
+          lockAddress => Encoding.encodeToBase58Check(lockAddress.id.toByteArray),
           mandatory = true,
           readOnly = true,
           notNull = true

@@ -14,7 +14,6 @@ import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 
 import scala.jdk.CollectionConverters._
-import scodec.bits.ByteVector
 
 class SchemaLockAddressTest
     extends CatsEffectSuite
@@ -128,7 +127,14 @@ class SchemaLockAddressTest
 
       _ <- assertIO(
         vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
-        Encoding.encodeToBase58(address.id.toByteArray)
+        Encoding.encodeToBase58Check(address.id.toByteArray)
+      ).toResource
+
+      addressId = vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name)
+
+      _ <- assertIO(
+        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
+        Encoding.decodeFromBase58Check(addressId).getOrElse(Array.empty).toSeq
       ).toResource
 
       _ <- assertIO(
