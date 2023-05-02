@@ -8,7 +8,7 @@ import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.common.application._
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters._

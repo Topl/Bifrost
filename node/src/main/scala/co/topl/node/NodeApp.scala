@@ -12,7 +12,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{SlotData, VrfConfig}
+import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.interpreters._
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
@@ -202,7 +202,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         .fold(Resource.pure[F, Option[StakingAlgebra[F]]](none))(initializer =>
           makeStaking(
             stakingDir,
-            canonicalHeadSlotData,
             initializer,
             clock,
             etaCalculation,
@@ -286,7 +285,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
 
   private def makeStaking(
     stakingDir:               Path,
-    currentHead:              SlotData,
     initializer:              StakerInitializers.Operator,
     clock:                    ClockAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],

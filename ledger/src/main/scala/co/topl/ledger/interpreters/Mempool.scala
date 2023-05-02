@@ -9,7 +9,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra

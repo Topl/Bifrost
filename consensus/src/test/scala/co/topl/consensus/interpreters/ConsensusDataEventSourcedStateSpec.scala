@@ -8,7 +8,6 @@ import co.topl.brambl.syntax._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.node.models.BlockBody
@@ -41,11 +40,11 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
       val bigBangBlockTransaction =
-        IoTransaction(
-          Nil,
-          List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress.some)))),
-          defaultDatum
-        )
+        IoTransaction.defaultInstance
+          .withOutputs(
+            List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress.some))))
+          )
+          .withDatum(defaultDatum)
 
       for {
         parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
@@ -80,34 +79,44 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         // Now spend those 5 arbits from the Operator
         // And create 3 arbits for the Operator and 2 arbits for a non-operator
-        transaction2 = IoTransaction(
-          List(
-            SpentTransactionOutput(
-              bigBangBlockTransaction.id.outputAddress(0, 0, 0),
-              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
-              bigBangBlockTransaction.outputs(0).value
+        transaction2 = IoTransaction.defaultInstance
+          .withInputs(
+            List(
+              SpentTransactionOutput(
+                bigBangBlockTransaction.id.outputAddress(0, 0, 0),
+                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+                bigBangBlockTransaction.outputs(0).value
+              )
             )
-          ),
-          List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress.some))),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
-          ),
-          defaultDatum
-        )
-        transaction3 = IoTransaction(
-          List(
-            SpentTransactionOutput(
-              transaction2.id.outputAddress(0, 0, 0),
-              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
-              transaction2.outputs(0).value
+          )
+          .withOutputs(
+            List(
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress.some))),
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
             )
-          ),
-          List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress.some))),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
-          ),
-          defaultDatum
-        )
+          )
+          .withDatum(
+            defaultDatum
+          )
+        transaction3 = IoTransaction.defaultInstance
+          .withInputs(
+            List(
+              SpentTransactionOutput(
+                transaction2.id.outputAddress(0, 0, 0),
+                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+                transaction2.outputs(0).value
+              )
+            )
+          )
+          .withOutputs(
+            List(
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress.some))),
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
+            )
+          )
+          .withDatum(
+            defaultDatum
+          )
 
         blockId2 = arbitraryBlockId.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)
@@ -125,25 +134,28 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
         // Spend the 2 Arbits from the non-operator
         // And create 1 Arbit for the operator and 1 Arbit for the non-operator
-        transaction4 = IoTransaction(
-          List(
-            SpentTransactionOutput(
-              transaction2.id.outputAddress(0, 0, 1),
-              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
-              transaction2.outputs(1).value
-            ),
-            SpentTransactionOutput(
-              transaction3.id.outputAddress(0, 0, 1),
-              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
-              transaction3.outputs(1).value
+        transaction4 = IoTransaction.defaultInstance
+          .withInputs(
+            List(
+              SpentTransactionOutput(
+                transaction2.id.outputAddress(0, 0, 1),
+                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+                transaction2.outputs(1).value
+              ),
+              SpentTransactionOutput(
+                transaction3.id.outputAddress(0, 0, 1),
+                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+                transaction3.outputs(1).value
+              )
             )
-          ),
-          List(
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress.some))),
-            UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
-          ),
-          defaultDatum
-        )
+          )
+          .withOutputs(
+            List(
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress.some))),
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
+            )
+          )
+          .withDatum(defaultDatum)
 
         blockId3 = arbitraryBlockId.arbitrary.first
         _ <- parentChildTree.associate(blockId3, blockId2)
@@ -177,16 +189,16 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
       val bigBangId = arbitraryBlockId.arbitrary.first
       val registration = signatureKesProductArbitrary.arbitrary.first
       val bigBangBlockTransaction =
-        IoTransaction(
-          Nil,
-          List(
-            UnspentTransactionOutput(
-              lockAddress,
-              Value().withRegistration(Value.Registration(registration, stakingAddress))
+        IoTransaction.defaultInstance
+          .withOutputs(
+            List(
+              UnspentTransactionOutput(
+                lockAddress,
+                Value().withRegistration(Value.Registration(registration, stakingAddress))
+              )
             )
-          ),
-          defaultDatum
-        )
+          )
+          .withDatum(defaultDatum)
 
       for {
         parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
@@ -221,17 +233,17 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
             )
         )
 
-        transaction2 = IoTransaction(
-          List(
-            SpentTransactionOutput(
-              bigBangBlockTransaction.id.outputAddress(0, 0, 0),
-              Attestation().withPredicate(Attestation.Predicate.defaultInstance),
-              bigBangBlockTransaction.outputs(0).value
+        transaction2 = IoTransaction.defaultInstance
+          .withInputs(
+            List(
+              SpentTransactionOutput(
+                bigBangBlockTransaction.id.outputAddress(0, 0, 0),
+                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+                bigBangBlockTransaction.outputs(0).value
+              )
             )
-          ),
-          Nil,
-          defaultDatum
-        )
+          )
+          .withDatum(defaultDatum)
 
         blockId2 = arbitraryBlockId.arbitrary.first
         _ <- parentChildTree.associate(blockId2, bigBangId)

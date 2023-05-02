@@ -10,6 +10,7 @@ import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.syntax._
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances._
@@ -205,15 +206,16 @@ object BlockchainPeerHandler {
             .parEvalMap(16)(blockId =>
               for {
                 _      <- Logger[F].info(show"Fetching remote header id=$blockId")
-                header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show)
+                header <- OptionT(client.getRemoteHeader(blockId)).getOrNoSuchElement(blockId.show).map(_.embedId)
                 _ <- MonadThrow[F].raiseWhen(header.id != blockId)(
                   new IllegalArgumentException("Claimed block ID did not match provided header")
                 )
-              } yield (blockId, header)
+              } yield header
             )
-            .evalMap { case (blockId, header) =>
+            .evalMap { header =>
               for {
-                _ <- Logger[F].debug(show"Validating remote header id=$blockId")
+                blockId <- header.id.pure[F]
+                _       <- Logger[F].debug(show"Validating remote header id=$blockId")
                 _ <- EitherT(headerValidation.validate(header))
                   .leftSemiflatTap(error =>
                     Logger[F].warn(show"Received invalid block header id=$blockId error=$error")
@@ -267,6 +269,7 @@ object BlockchainPeerHandler {
                           _ <- Logger[F].info(show"Fetching remote transaction id=$transactionId")
                           transaction <- OptionT(client.getRemoteTransaction(transactionId))
                             .getOrNoSuchElement(transactionId.show)
+                            .map(_.embedId)
                           _ <- MonadThrow[F]
                             .raiseWhen(transaction.id != transactionId)(
                               new IllegalArgumentException("Claimed transaction ID did not match provided transaction")

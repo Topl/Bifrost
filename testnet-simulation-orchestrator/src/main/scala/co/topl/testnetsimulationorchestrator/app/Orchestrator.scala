@@ -7,6 +7,7 @@ import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
 import co.topl.brambl.models.TransactionId
+import co.topl.brambl.syntax._
 import co.topl.common.application.IOBaseApp
 import co.topl.grpc.ToplGrpc
 import co.topl.interpreters.MultiToplRpc
@@ -19,7 +20,6 @@ import fs2._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.typeclasses.implicits._
 

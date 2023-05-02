@@ -102,6 +102,7 @@ object Staking {
                 ByteString.copyFrom(signature)
               )
               header = BlockHeader(
+                headerId = None,
                 unsignedBlock.parentHeaderId,
                 unsignedBlock.parentSlot,
                 unsignedBlock.txRoot,

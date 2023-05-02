@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId

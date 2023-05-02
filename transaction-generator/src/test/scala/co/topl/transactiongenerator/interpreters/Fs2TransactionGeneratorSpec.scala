@@ -19,16 +19,18 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
   test("Produces a stream of transactions") {
     for {
       seedTransaction <-
-        IoTransaction(
-          Seq.empty,
-          Seq(
-            UnspentTransactionOutput(
-              address = HeightLockOneSpendingAddress,
-              value = Value().withLvl(Value.LVL(1000000))
+        IoTransaction.defaultInstance
+          .withOutputs(
+            Seq(
+              UnspentTransactionOutput(
+                address = HeightLockOneSpendingAddress,
+                value = Value().withLvl(Value.LVL(1000000))
+              )
             )
-          ),
-          Datum.IoTransaction(Event.IoTransaction(Schedule(0, 0, 0), SmallData.defaultInstance))
-        )
+          )
+          .withDatum(
+            Datum.IoTransaction(Event.IoTransaction(Schedule(0, 0, 0), SmallData.defaultInstance))
+          )
           .pure[F]
       wallet = applyTransaction(emptyWallet)(seedTransaction)
       implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]

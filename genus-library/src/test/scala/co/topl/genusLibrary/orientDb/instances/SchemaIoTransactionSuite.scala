@@ -5,7 +5,7 @@ import cats.effect.kernel.Async
 import cats.effect.{IO, Resource}
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
-import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.brambl.syntax._
 import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.models.ModelGenerators.GenHelper

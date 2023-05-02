@@ -2,14 +2,16 @@ package co.topl.blockchain
 
 import cats.{Monad, Show}
 import cats.data.EitherT
+import cats.data.OptionT
 import cats.implicits._
 import cats.effect.Async
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.syntax._
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
@@ -56,32 +58,34 @@ object ToplRpcServer {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 
-        def broadcastTransaction(transaction: IoTransaction): F[Unit] = {
-          val id = transaction.id
-          transactionStore
-            .contains(id)
-            .ifM(
-              Logger[F].info(show"Received duplicate transaction id=$id"),
-              Logger[F].debug(show"Received RPC Transaction id=$id") >>
-              syntacticValidateOrRaise(transaction)
-                .flatTap(_ => Logger[F].debug(show"Transaction id=$id is syntactically valid"))
-                .flatTap(processValidTransaction[F](transactionStore, mempool))
-                .void
-            )
-        }
+        def broadcastTransaction(transaction: IoTransaction): F[Unit] =
+          Async[F]
+            .delay(transaction.embedId)
+            .flatMap { transaction =>
+              val id = transaction.id
+              transactionStore
+                .contains(id)
+                .ifM(
+                  Logger[F].info(show"Received duplicate transaction id=$id"),
+                  Logger[F].debug(show"Received RPC Transaction id=$id") >>
+                  syntacticValidateOrRaise(transaction)
+                    .flatTap(_ => Logger[F].debug(show"Transaction id=$id is syntactically valid"))
+                    .flatTap(processValidTransaction[F](transactionStore, mempool))
+                    .void
+                )
+            }
 
         def currentMempool(): F[Set[TransactionId]] =
           localChain.head.map(_.slotId.blockId).flatMap(blockId => mempool.read(blockId))
 
         def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
-          headerStore.get(blockId)
+          OptionT(headerStore.get(blockId)).map(_.embedId).value
 
         def fetchBlockBody(blockId: BlockId): F[Option[BlockBody]] =
           bodyStore.get(blockId)
 
         def fetchTransaction(transactionId: TransactionId): F[Option[IoTransaction]] =
-          transactionStore
-            .get(transactionId)
+          OptionT(transactionStore.get(transactionId)).map(_.embedId).value
 
         def blockIdAtHeight(height: Long): F[Option[BlockId]] =
           for {
