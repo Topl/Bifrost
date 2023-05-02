@@ -779,6 +779,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val expectedIds = NonEmptyChain.fromSeq(idAndHeaders.toList.take(chunkSize)).get
       val expectedMessage: RequestsProxy.Message = RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedIds)
       (requestsProxy.sendNoWait _).expects(expectedMessage).returning(().pure[F])
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
 
       BlockChecker
         .makeActor(
@@ -1397,7 +1398,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       val requestIdSlotDataHeaderBlock =
         allIdSlotDataHeaderBlock.slice(knownSlotHeaderBodyLen, downloadedBodies)
-      requestIdSlotDataHeaderBlock.size
 
       val messageData =
         NonEmptyChain.fromSeq(requestIdSlotDataHeaderBlock.map(d => (d._1, d._4))).get
@@ -1469,7 +1469,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (localChain.isWorseThan _).expects(lastAdoptedBlockSlotData).once().returning(true.pure[F])
       (localChain.adopt _).expects(Validated.Valid(lastAdoptedBlockSlotData)).once().returning(().pure[F])
 
-      (requestsProxy.sendNoWait _).expects(*).never()
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
 
       BlockChecker
         .makeActor(
@@ -1489,10 +1489,99 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         )
         .use { actor =>
           for {
-            newState <- actor.send(message)
+            _ <- actor.send(message)
           } yield ()
         }
     }
   }
 
+  test("RemoteBlockBodies: Invalidate block on current best chain do clear best chain and host") {
+    withMock {
+      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
+      val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
+      val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
+      val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
+      val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
+      val invalidSlotData = currentBestChain.get(Gen.choose(0, currentBestChain.size - 1).first).get
+
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
+
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          requestsProxy,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(currentBestChain)),
+          Option(hostId)
+        )
+        .use { actor =>
+          for {
+            state <- actor.send(BlockChecker.Message.InvalidateBlockId(invalidSlotData.slotId.blockId))
+            _ = assert(state.bestKnownRemoteSlotDataOpt.isEmpty)
+            _ = assert(state.bestKnownRemoteSlotDataHost.isEmpty)
+          } yield ()
+        }
+    }
+  }
+
+  test("RemoteBlockBodies: Invalidate block on not current best chain do nothing") {
+    withMock {
+      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
+      val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
+      val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
+      val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
+      val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
+      val invalidBlockId = arbitrarySlotData.arbitrary.first.slotId.blockId
+
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).never()
+
+      BlockChecker
+        .makeActor(
+          reputationAggregator,
+          requestsProxy,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(currentBestChain)),
+          Option(hostId)
+        )
+        .use { actor =>
+          for {
+            state <- actor.send(BlockChecker.Message.InvalidateBlockId(invalidBlockId))
+            _ = assert(state.bestKnownRemoteSlotDataOpt.isDefined)
+            _ = assert(state.bestKnownRemoteSlotDataHost.isDefined)
+          } yield ()
+        }
+    }
+  }
 }

@@ -19,4 +19,5 @@ trait BlockchainPeerServerAlgebra[F[_]] {
   def getLocalBody(id:              BlockId): F[Option[BlockBody]]
   def getLocalTransaction(id:       TransactionId): F[Option[IoTransaction]]
   def getLocalBlockAtHeight(height: Long): F[Option[BlockId]]
+  def getLocalBlockAtDepth(depth:   Long): F[Option[BlockId]]
 }

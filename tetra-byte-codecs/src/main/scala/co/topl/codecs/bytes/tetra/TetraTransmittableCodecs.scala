@@ -26,6 +26,13 @@ trait TetraTransmittableCodecs {
 
   implicit val ratioTransmittable: Transmittable[Ratio] = Transmittable.instanceFromCodec
 
+  implicit val unitTransmittable: Transmittable[Unit] = new Transmittable[Unit] {
+    override def transmittableBytes(value:     Unit): ByteString = ByteString.EMPTY
+    override def fromTransmittableBytes(bytes: ByteString): Either[String, Unit] = Right(())
+  }
+
+  implicit val longTransmittable: Transmittable[Long] = Transmittable.instanceFromCodec(longCodec)
+
   implicit val longBlockIdOptTransmittable: Transmittable[(Long, Option[BlockId])] =
     Transmittable.instanceFromCodec(
       (longCodec :: optionCodec[BlockId])
