@@ -5,7 +5,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 import fs2._
 
 /**
@@ -20,4 +20,5 @@ trait BlockchainPeerServerAlgebra[F[_]] {
   def getLocalTransaction(id:       TransactionId): F[Option[IoTransaction]]
   def getLocalBlockAtHeight(height: Long): F[Option[BlockId]]
   def getLocalBlockAtDepth(depth:   Long): F[Option[BlockId]]
+  def getKnownHosts(req:            CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]]
 }

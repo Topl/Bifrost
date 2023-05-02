@@ -7,7 +7,7 @@ import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 
 object NetworkTypeTags {
 
@@ -71,4 +71,11 @@ object NetworkTypeTags {
 
   implicit val commonMessagesDoneNetworkTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Done.type] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.Done")
+
+  implicit val commonMessagesKnownHostsReq: NetworkTypeTag[TypedProtocol.CommonMessages.Get[CurrentKnownHostsReq]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.CurrentKnownHostsReq")
+
+  implicit val commonMessagesKnownHostsRes
+    : NetworkTypeTag[TypedProtocol.CommonMessages.Response[CurrentKnownHostsRes]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.CurrentKnownHostsRes")
 }

@@ -10,7 +10,7 @@ import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
@@ -103,6 +103,15 @@ object BlockchainPeerConnectionFlowFactory {
           16: Byte
         )
 
+    val knownHostsRecipF =
+      TypedProtocolSetFactory.CommonProtocols
+        .requestResponseReciprocated[F, CurrentKnownHostsReq, CurrentKnownHostsRes](
+          BlockchainProtocols.KnownHosts,
+          protocolServer.getKnownHosts,
+          17: Byte,
+          18: Byte
+        )
+
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
         (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
@@ -115,19 +124,33 @@ object BlockchainPeerConnectionFlowFactory {
         (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
         (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
         (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
+        (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
           val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
             remoteTransactionIdsSource.pure[F]
-          def getRemoteSlotData(id: BlockId): F[Option[SlotData]] = slotDataReceivedCallback(id)
-          def getRemoteHeader(id:   BlockId): F[Option[BlockHeader]] = headerReceivedCallback(id)
-          def getRemoteBody(id:     BlockId): F[Option[BlockBody]] = bodyReceivedCallback(id)
+
+          def getRemoteSlotData(id: BlockId): F[Option[SlotData]] =
+            slotDataReceivedCallback(id)
+
+          def getRemoteHeader(id: BlockId): F[Option[BlockHeader]] =
+            headerReceivedCallback(id)
+
+          def getRemoteBody(id: BlockId): F[Option[BlockBody]] =
+            bodyReceivedCallback(id)
+
           def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] =
             transactionReceivedCallback(id)
+
           def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]] =
             heightIdReceivedCallback((height, localBlockId))
-          def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] = depthIdReceivedCallback(depth)
+
+          def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] =
+            depthIdReceivedCallback(depth)
+
+          def getRemoteKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
+            knownHostsReceivedCallback(req)
         }
         subHandlers =
           adoptionTypedSubHandlers ++
@@ -137,7 +160,8 @@ object BlockchainPeerConnectionFlowFactory {
             bodyTypedSubHandlers ++
             transactionTypedSubHandlers ++
             idAtHeightTypedSubHandlers ++
-            idAtDepthTypedSubHandlers
+            idAtDepthTypedSubHandlers ++
+            knownHostsTypedSubHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 
