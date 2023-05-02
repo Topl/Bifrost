@@ -7,7 +7,7 @@ import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.brambl.models.LockAddress
-import co.topl.brambl.utils.Encoding
+import co.topl.brambl.codecs.AddressCodecs
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
@@ -127,18 +127,7 @@ class SchemaLockAddressTest
 
       _ <- assertIO(
         vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
-        Encoding.encodeToBase58Check(address.network.toByte +: address.ledger.toByte +: address.id.toByteArray)
-      ).toResource
-
-      network = vertex.getProperty[Int](schema.properties.filter(_.name == Field.Network).head.name)
-      ledger = vertex.getProperty[Int](schema.properties.filter(_.name == Field.Ledger).head.name)
-      addressId = vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name)
-
-      addressEncodedId = vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name)
-
-      _ <- assertIO(
-        (network.toByte +: ledger.toByte +: addressId).toSeq.pure[F],
-        Encoding.decodeFromBase58Check(addressEncodedId).getOrElse(Array.empty).toSeq
+        AddressCodecs.encodeAddress(address)
       ).toResource
 
       _ <- assertIO(

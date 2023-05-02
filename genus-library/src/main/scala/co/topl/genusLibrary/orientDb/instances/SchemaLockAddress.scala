@@ -4,7 +4,7 @@ import co.topl.brambl.models.{LockAddress, LockId}
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
-import co.topl.brambl.utils.Encoding
+import co.topl.brambl.codecs.AddressCodecs
 
 object SchemaLockAddress {
 
@@ -49,7 +49,7 @@ object SchemaLockAddress {
         )
         .withProperty(
           Field.AddressEncodedId,
-          lockAddress => Encoding.encodeToBase58Check(lockAddress.network.toByte +: lockAddress.ledger.toByte +: lockAddress.id.toByteArray),
+          lockAddress => AddressCodecs.encodeAddress(lockAddress),
           mandatory = true,
           readOnly = true,
           notNull = true
