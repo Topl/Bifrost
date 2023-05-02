@@ -2,7 +2,7 @@ package co.topl.genusLibrary.orientDb.instances
 
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.instances.SchemaAddress.Field
+import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress.Field
 import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
@@ -29,7 +29,7 @@ class SchemaLockAddressTest
       _          <- oThread.delay(dbNoTx.makeActive()).toResource
 
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
-      schema = SchemaAddress.make()
+      schema = SchemaLockAddress.make()
       _ <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema).toResource
 
       oClass <- oThread.delay(databaseDocumentTx.getClass(schema.name)).toResource
@@ -85,7 +85,7 @@ class SchemaLockAddressTest
       dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
       _      <- oThread.delay(dbNoTx.makeActive()).toResource
 
-      schema = SchemaAddress.make()
+      schema = SchemaLockAddress.make()
       _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
 
       dbTx <- oThread.delay(odbFactory.getTx).toResource
@@ -137,7 +137,7 @@ class SchemaLockAddressTest
       _ <- assertIO(
         oThread.delay(
           dbTx
-            .getVertices(SchemaAddress.Field.AddressId, address.id.toByteArray)
+            .getVertices(SchemaLockAddress.Field.AddressId, address.id.toByteArray)
             .iterator()
             .next()
             .getProperty[Array[Byte]](Field.AddressId)

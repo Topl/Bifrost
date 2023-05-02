@@ -6,6 +6,7 @@ import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
+import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
@@ -31,10 +32,25 @@ object GraphBlockInserter {
               bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
 
               // Relationships between Header <-> TxIOs
-              block.transactions.map { ioTx =>
+              block.transactions.foreach { ioTx =>
                 val txVertex = graph.addIoTx(ioTx)
                 txVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
                 graph.addEdge(s"class:${blockHeaderTxIOEdge.name}", headerVertex, txVertex, blockHeaderTxIOEdge.label)
+
+                // Relationships between TxIOs <-> LockAddress
+                ioTx.outputs.map(_.address).foreach { lockAddress =>
+                  // before adding a new address, check if was not there included by a previous transaction
+                  val lockAddressVertex = {
+                    val addressIterator =
+                      graph.getVertices(SchemaLockAddress.Field.AddressId, lockAddress.id.toByteArray).iterator()
+
+                    if (addressIterator.hasNext) addressIterator.next()
+                    else graph.addAddress(lockAddress)
+
+                  }
+                  graph.addEdge(s"class:${addressTxIOEdge.name}", lockAddressVertex, txVertex, addressTxIOEdge.label)
+
+                }
               }
 
               // Relationship between Header <-> ParentHeader if Not Genesis block
@@ -46,6 +62,7 @@ object GraphBlockInserter {
 
                 graph.addEdge(s"class:${blockHeaderEdge.name}", headerVertex, headerInVertex, blockHeaderEdge.label)
               }
+
               graph.commit()
             }.toEither
               .leftMap { th =>
