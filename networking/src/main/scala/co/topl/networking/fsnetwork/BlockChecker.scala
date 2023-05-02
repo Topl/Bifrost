@@ -447,6 +447,7 @@ object BlockChecker {
     if (invalidBlockOnCurrentBestChain) {
       val newState = state.copy(bestKnownRemoteSlotDataOpt = None, bestKnownRemoteSlotDataHost = None)
       Logger[F].error("clean current best chain due error in validation") >>
+      state.requestsProxy.sendNoWait(RequestsProxy.Message.GetCurrentTips) >>
       newState.pure[F]
     } else {
       state.pure[F]

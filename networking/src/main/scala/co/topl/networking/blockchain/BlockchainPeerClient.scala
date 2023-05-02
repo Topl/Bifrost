@@ -37,6 +37,16 @@ trait BlockchainPeerClient[F[_]] {
   def remoteTransactionNotifications: F[Stream[F, TransactionId]]
 
   /**
+   * A lookup to retrieve a remote block at depth, where depth=0 is the best tip, and depth=1 is the parent of best tip
+   */
+  def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]]
+
+  /**
+   * A lookup to retrieve a remote best block id
+   */
+  def remoteCurrentTip(): F[Option[BlockId]] = getRemoteBlockIdAtDepth(0)
+
+  /**
    * A Lookup to retrieve a remote SlotData by ID
    */
   def getRemoteSlotData(id: BlockId): F[Option[SlotData]]

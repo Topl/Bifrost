@@ -22,6 +22,8 @@ object RequestsProxy {
   object Message {
     case class SetupBlockChecker[F[_]](blockCheckerActor: BlockCheckerActor[F]) extends Message
 
+    case object GetCurrentTips extends Message
+
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
     case class DownloadHeadersRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
@@ -60,16 +62,12 @@ object RequestsProxy {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, message: SetupBlockChecker[F] @unchecked) =>
-        setupBlockChecker(state, message.blockCheckerActor)
-      case (state, DownloadHeadersRequest(hostId, blockIds)) =>
-        downloadHeadersRequest(state, hostId, blockIds)
-      case (state, DownloadHeadersResponse(source, response)) =>
-        downloadHeadersResponse(state, source, response)
-      case (state, DownloadBodiesRequest(hostId, blockData)) =>
-        downloadBodiesRequest(state, hostId, blockData)
-      case (state, DownloadBodiesResponse(source, response)) =>
-        downloadBodiesResponse(state, source, response)
+      case (state, message: SetupBlockChecker[F] @unchecked)  => setupBlockChecker(state, message.blockCheckerActor)
+      case (state, GetCurrentTips)                            => getCurrentTips(state)
+      case (state, DownloadHeadersRequest(hostId, blockIds))  => downloadHeadersRequest(state, hostId, blockIds)
+      case (state, DownloadHeadersResponse(source, response)) => downloadHeadersResponse(state, source, response)
+      case (state, DownloadBodiesRequest(hostId, blockData))  => downloadBodiesRequest(state, hostId, blockData)
+      case (state, DownloadBodiesResponse(source, response))  => downloadBodiesResponse(state, source, response)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -103,6 +101,10 @@ object RequestsProxy {
     Logger[F].info("Setup block checker for RequestsProxy") >>
     (newState, newState).pure[F]
   }
+
+  private def getCurrentTips[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips) >>
+    (state, state).pure[F]
 
   private def downloadHeadersRequest[F[_]: Async: Logger](
     state:    State[F],

@@ -94,6 +94,15 @@ object BlockchainPeerConnectionFlowFactory {
           14: Byte
         )
 
+    val idAtDepthRecipF =
+      TypedProtocolSetFactory.CommonProtocols
+        .requestResponseReciprocated[F, Long, BlockId](
+          BlockchainProtocols.BlockIdAtDepth,
+          protocolServer.getLocalBlockAtDepth,
+          15: Byte,
+          16: Byte
+        )
+
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
         (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
@@ -105,6 +114,7 @@ object BlockchainPeerConnectionFlowFactory {
         (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(connectionLeader.pure[F])
         (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
         (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
+        (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
@@ -115,11 +125,9 @@ object BlockchainPeerConnectionFlowFactory {
           def getRemoteBody(id:     BlockId): F[Option[BlockBody]] = bodyReceivedCallback(id)
           def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] =
             transactionReceivedCallback(id)
-          def getRemoteBlockIdAtHeight(
-            height:       Long,
-            localBlockId: Option[BlockId]
-          ): F[Option[BlockId]] =
+          def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]] =
             heightIdReceivedCallback((height, localBlockId))
+          def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] = depthIdReceivedCallback(depth)
         }
         subHandlers =
           adoptionTypedSubHandlers ++
@@ -128,7 +136,8 @@ object BlockchainPeerConnectionFlowFactory {
             headerTypedSubHandlers ++
             bodyTypedSubHandlers ++
             transactionTypedSubHandlers ++
-            idAtHeightTypedSubHandlers
+            idAtHeightTypedSubHandlers ++
+            idAtDepthTypedSubHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 

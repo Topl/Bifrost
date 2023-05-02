@@ -33,6 +33,11 @@ object PeerBlockHeaderFetcher {
      * @param blockIds headers block id to download
      */
     case class DownloadBlockHeaders(blockIds: NonEmptyChain[BlockId]) extends Message
+
+    /**
+     * Get current tip from remote peer
+     */
+    case object GetCurrentTip extends Message
   }
 
   case class State[F[_]](
@@ -53,6 +58,7 @@ object PeerBlockHeaderFetcher {
     case (state, Message.StartActor)               => startActor(state)
     case (state, Message.StopActor)                => stopActor(state)
     case (state, Message.DownloadBlockHeaders(id)) => downloadHeaders(state, id)
+    case (state, Message.GetCurrentTip)            => getCurrentTip(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -86,19 +92,26 @@ object PeerBlockHeaderFetcher {
     newBlockIdsStream.evalMap { blockId =>
       {
         for {
-          _              <- OptionT.liftF(Logger[F].info(show"Got slot for $blockId from remote host ${state.hostId}"))
-          newBlockId     <- isUnknownBlockOpt(state, blockId)
-          remoteSlotData <- adoptRemoteSlotData(state, newBlockId)
-          betterSlotData <- compareWithLocalChain(remoteSlotData, state)
-          _              <- OptionT.liftF(sendProposalToBlockChecker(state, betterSlotData))
+          _          <- OptionT.liftF(Logger[F].info(show"Got slot for $blockId from remote host ${state.hostId}"))
+          newBlockId <- isUnknownBlockOpt(state, blockId)
+          _          <- buildAndAdoptSlotDataForBlockId(state, newBlockId)
         } yield ()
       }.value.void.handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
     }
 
-  private def isUnknownBlockOpt[F[_]: Async: Logger](
-    state:   State[F],
-    blockId: BlockId
-  ): OptionT[F, BlockId] =
+  private def buildAndAdoptSlotDataForBlockId[F[_]: Async: Logger](
+    state:      State[F],
+    newBlockId: BlockId
+  ): OptionT[F, Unit] =
+    for {
+      slotDataChain  <- buildSlotDataChain(state.slotDataStore, state.client, newBlockId)
+      _              <- OptionT.liftF(Logger[F].info(show"Retrieved remote tine length=${slotDataChain.length}"))
+      savedSlotData  <- OptionT.liftF(saveSlotDataChain(state, slotDataChain))
+      betterSlotData <- compareWithLocalChain(savedSlotData, state)
+      _              <- OptionT.liftF(sendProposalToBlockChecker(state, betterSlotData))
+    } yield ()
+
+  private def isUnknownBlockOpt[F[_]: Async: Logger](state: State[F], blockId: BlockId): OptionT[F, BlockId] =
     OptionT(
       state.slotDataStore
         .contains(blockId)
@@ -109,10 +122,10 @@ object PeerBlockHeaderFetcher {
         .map(Option.unless(_)(blockId))
     )
 
-  private def adoptRemoteSlotData[F[_]: Async: Logger](
-    state:   State[F],
-    blockId: BlockId
-  ): OptionT[F, NonEmptyChain[SlotData]] = {
+  private def saveSlotDataChain[F[_]: Async: Logger](
+    state: State[F],
+    tine:  NonEmptyChain[SlotData]
+  ): F[NonEmptyChain[SlotData]] = {
     def adoptSlotData(slotData: SlotData) = {
       val slotBlockId = slotData.slotId.blockId
       val parentBlockId = slotData.parentSlotId.blockId
@@ -123,15 +136,11 @@ object PeerBlockHeaderFetcher {
       state.slotDataStore.put(slotBlockId, slotData)
     }
 
-    for {
-      tine <- buildTine(state.slotDataStore, state.client, blockId)
-      _    <- OptionT.liftF(Logger[F].info(show"Retrieved remote tine length=${tine.length}"))
-      _    <- OptionT.liftF(tine.traverse(adoptSlotData))
-    } yield tine
+    tine.traverse(adoptSlotData) >> tine.pure[F]
   }
 
   // return: recent (current) block is the last
-  private def buildTine[F[_]: Async: Logger](
+  private def buildSlotDataChain[F[_]: Async: Logger](
     store:  Store[F, BlockId, SlotData],
     client: BlockchainPeerClient[F],
     from:   BlockId
@@ -167,8 +176,8 @@ object PeerBlockHeaderFetcher {
       state.localChain
         .isWorseThan(bestBlockInChain)
         .flatTap {
-          case true  => Logger[F].debug(show"Received header ${bestBlockInChain.slotId} is better than current block")
-          case false => Logger[F].info(show"Ignoring weaker (or equal) block header id=${bestBlockInChain.slotId}")
+          case true  => Logger[F].debug(show"Received tip ${bestBlockInChain.slotId} is better than current block")
+          case false => Logger[F].info(show"Ignoring weaker (or equal) block tip id=${bestBlockInChain.slotId}")
         }
         .map(Option.when(_)(blockIds))
     )
@@ -178,6 +187,16 @@ object PeerBlockHeaderFetcher {
     val message = BlockChecker.Message.RemoteSlotData(state.hostId, slotData)
     state.blockChecker.sendNoWait(message)
   }
+
+  private def getCurrentTip[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
+    for {
+      _   <- OptionT.liftF(Logger[F].info(s"Requested current tip from host ${state.hostId}"))
+      tip <- OptionT(state.client.remoteCurrentTip())
+      _   <- buildAndAdoptSlotDataForBlockId(state, tip)
+      _   <- OptionT.liftF(Logger[F].info(show"Send tip $tip from host ${state.hostId}"))
+    } yield (state, state)
+  }.getOrElse((state, state))
+    .handleErrorWith(Logger[F].error(_)("Get tip from remote host return error") >> (state, state).pure[F])
 
   private def downloadHeaders[F[_]: Async: Logger](
     state:    State[F],
