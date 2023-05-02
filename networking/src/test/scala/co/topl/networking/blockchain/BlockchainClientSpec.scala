@@ -7,7 +7,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.crypto.hash.Blake2b256
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 import co.topl.networking.p2p.ConnectedPeer
 import com.google.protobuf.ByteString
 import fs2._
@@ -52,6 +52,8 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
               .pure[F]
 
           override def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] = ???
+
+          override def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] = ???
         }
 
         val blockHeights =

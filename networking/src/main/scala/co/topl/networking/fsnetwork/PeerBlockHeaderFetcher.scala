@@ -190,7 +190,7 @@ object PeerBlockHeaderFetcher {
 
   private def getCurrentTip[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     for {
-      _   <- OptionT.liftF(Logger[F].info(s"Requested current tip from host ${state.hostId}"))
+      _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from host ${state.hostId}"))
       tip <- OptionT(state.client.remoteCurrentTip())
       _   <- buildAndAdoptSlotDataForBlockId(state, tip)
       _   <- OptionT.liftF(Logger[F].info(show"Send tip $tip from host ${state.hostId}"))
