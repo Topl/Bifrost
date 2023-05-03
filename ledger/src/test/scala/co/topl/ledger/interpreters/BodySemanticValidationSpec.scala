@@ -6,7 +6,7 @@ import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras.TransactionSemanticValidationAlgebra

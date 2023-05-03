@@ -146,6 +146,7 @@ trait ModelGenerators {
       metadata       <- metadataGen
       address        <- addressGen
     } yield BlockHeader(
+      headerId = None,
       parentHeaderID,
       parentSlot,
       txRoot,

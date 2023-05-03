@@ -75,7 +75,7 @@ class SchemaCanonicalHeadTest
       dbTx <- oThread.delay(odbFactory.getTx).toResource
       _    <- oThread.delay(dbTx.makeActive()).toResource
 
-      blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
+      blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.embedId.pure[F].toResource
 
       blockHeaderVertex <- oThread
         .delay(

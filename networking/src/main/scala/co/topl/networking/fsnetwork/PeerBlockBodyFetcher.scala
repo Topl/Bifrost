@@ -8,7 +8,7 @@ import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.models.{BlockHeader, BlockId}
@@ -164,6 +164,7 @@ object PeerBlockBodyFetcher {
   ): F[IoTransaction] =
     OptionT(state.client.getRemoteTransaction(transactionId))
       .getOrElseF(MonadThrow[F].raiseError(TransactionNotFoundInPeer(transactionId)))
+      .map(_.embedId)
 
   private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(s"Start body fetcher actor for ${state.hostId}") >>

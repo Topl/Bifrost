@@ -190,7 +190,7 @@ object PeerBlockHeaderFetcher {
 
   private def getCurrentTip[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     for {
-      _   <- OptionT.liftF(Logger[F].info(s"Requested current tip from host ${state.hostId}"))
+      _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from host ${state.hostId}"))
       tip <- OptionT(state.client.remoteCurrentTip())
       _   <- buildAndAdoptSlotDataForBlockId(state, tip)
       _   <- OptionT.liftF(Logger[F].info(show"Send tip $tip from host ${state.hostId}"))
@@ -225,10 +225,11 @@ object PeerBlockHeaderFetcher {
   ): F[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])] = {
     val headerEither =
       for {
-        _                   <- Logger[F].info(show"Fetching remote header id=$blockId")
-        (fetchedId, header) <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer).map(h => (h.id, h))
-        _                   <- Logger[F].info(show"Fetched remote header id=$blockId")
-        _                   <- MonadThrow[F].raiseWhen(fetchedId =!= blockId)(HeaderHaveIncorrectId(blockId, fetchedId))
+        _      <- Logger[F].info(show"Fetching remote header id=$blockId")
+        header <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer).map(_.embedId)
+        fetchedId = header.id
+        _ <- Logger[F].info(show"Fetched remote header id=$blockId")
+        _ <- MonadThrow[F].raiseWhen(fetchedId =!= blockId)(HeaderHaveIncorrectId(blockId, fetchedId))
       } yield header
 
     headerEither

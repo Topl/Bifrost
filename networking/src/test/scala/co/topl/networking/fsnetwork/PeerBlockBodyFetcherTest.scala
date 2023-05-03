@@ -3,10 +3,12 @@ package co.topl.networking.fsnetwork
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
+import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances.{blockHeaderAsBlockHeaderOps, ioTransactionAsIoTransactionOps}
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockId}
@@ -22,9 +24,8 @@ import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops
 import co.topl.node.models.{Block, BlockBody}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.SelfAwareStructuredLogger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.Logger
 
 import scala.collection.mutable
 
@@ -37,7 +38,7 @@ class PeerBlockBodyFetcherTest
     with ScalaCheckEffectSuite
     with AsyncMockFactory
     with TransactionGenerator {
-  implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val logger: Logger[F] = new NoOpLogger[F]
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99

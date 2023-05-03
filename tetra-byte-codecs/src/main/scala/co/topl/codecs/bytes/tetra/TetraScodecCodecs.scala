@@ -122,7 +122,8 @@ trait TetraScodecCodecs {
     (byteStringCodecSized(32) :: unknownFieldSetCodec).as[StakingAddress]
 
   implicit val consensusBlockHeaderCodec: Codec[BlockHeader] = (
-    blockIdCodec :: // parentHeaderId
+    emptyCodec[Option[BlockId]](None) :: // headerId
+      blockIdCodec :: // parentHeaderId
       longCodec :: // parentSlot
       byteStringCodecSized(32) :: // txRoot
       byteStringCodecSized(256) :: // bloomFilter

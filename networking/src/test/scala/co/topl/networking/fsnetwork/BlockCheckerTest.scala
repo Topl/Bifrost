@@ -3,8 +3,10 @@ package co.topl.networking.fsnetwork
 import cats.data._
 import cats.effect.IO
 import cats.implicits._
-import cats.{MonadThrow, Show}
+import cats.MonadThrow
+import cats.Show
 import co.topl.algebras.Store
+import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
@@ -25,12 +27,12 @@ import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
 import co.topl.node.models.BlockBody
 import co.topl.quivr.runtime.DynamicContext
-import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import co.topl.typeclasses.implicits._
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.Gen
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.SelfAwareStructuredLogger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.typeclasses.implicits._
+import org.typelevel.log4cats.Logger
 
 import scala.collection.mutable
 
@@ -39,7 +41,7 @@ object BlockCheckerTest {
 }
 
 class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val logger: Logger[F] = new NoOpLogger[F]
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
 
@@ -54,7 +56,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       val localChain = mock[LocalChainAlgebra[F]]
       val currentSlotDataHead = arbitrarySlotData.arbitrary.first
-      (localChain.head _).expects().once().onCall(() => currentSlotDataHead.pure[F])
+      (() => localChain.head).expects().once().onCall(() => currentSlotDataHead.pure[F])
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
@@ -272,7 +274,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
       val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
-      (localChain.head _).expects().once().returning(localSlotData.pure[F])
+      (() => localChain.head).expects().once().returning(localSlotData.pure[F])
 
       (chainSelectionAlgebra.compare _).expects(slotData.last, localSlotData).returning(1.pure[F])
 
@@ -1410,8 +1412,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
         knownBodyStorageData.contains(id).pure[F]
       }
-      (bodyStore.put _).expects(*, *).anyNumberOfTimes.onCall { case (id: BlockId, block: BlockBody) =>
-        knownBodyStorageData.put(id, block).pure[F].void
+      (bodyStore.put(_: BlockId, _: BlockBody)).expects(*, *).anyNumberOfTimes.onCall {
+        case (id: BlockId, block: BlockBody) =>
+          knownBodyStorageData.put(id, block).pure[F].void
       }
 
       val headerStorageData = knownHeaders.toMap

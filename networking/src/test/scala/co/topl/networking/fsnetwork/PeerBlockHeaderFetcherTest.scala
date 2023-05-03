@@ -5,6 +5,7 @@ import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
+import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
@@ -22,8 +23,7 @@ import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.SelfAwareStructuredLogger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.Logger
 
 import scala.collection.mutable
 
@@ -33,7 +33,7 @@ object PeerBlockHeaderFetcherTest {
 }
 
 class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val logger: Logger[F] = new NoOpLogger[F]
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
@@ -41,7 +41,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Block header shall be downloaded by request") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first
+        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first.map(_.embedId)
       val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
         headers.map(h => (h.id, h))
       val idToHeader: Map[BlockId, BlockHeader] = idAndHeader.toList.toMap
@@ -85,7 +85,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Block header shall be downloaded by request, for missing headers error shall be returned") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first
+        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first.map(_.embedId)
       val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
         headers.map(h => (h.id, h))
 
@@ -136,7 +136,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Block header shall be downloaded by request, incorrect headers shall be skipped") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first
+        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first.map(_.embedId)
       val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
         headers.map(h => (h.id, h))
 
@@ -210,7 +210,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
-      (client.remotePeerAdoptions _).expects().once().onCall { () =>
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
 
@@ -270,7 +270,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
-      (client.remotePeerAdoptions _).expects().once().onCall { () =>
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
 
