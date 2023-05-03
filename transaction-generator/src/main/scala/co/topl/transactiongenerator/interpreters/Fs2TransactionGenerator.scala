@@ -76,11 +76,8 @@ object Fs2TransactionGenerator {
       outputs   <- createOutputs[F](inputBox)
       timestamp <- Async[F].realTimeInstant
       schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
-      unprovenTransaction = IoTransaction(
-        inputs,
-        outputs,
-        Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
-      )
+      datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
+      unprovenTransaction = IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
       proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
       provenTransaction = unprovenTransaction.copy(
         inputs = unprovenTransaction.inputs.map(

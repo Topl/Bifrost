@@ -51,6 +51,7 @@ object SchemaBlockHeader {
       // @formatter:on
     v =>
       BlockHeader(
+        Some(BlockId(ByteString.copyFrom(v(Field.BlockId): Array[Byte]))),
         BlockId(ByteString.copyFrom(v(Field.ParentHeaderId): Array[Byte])),
         v(Field.ParentSlot),
         ByteString.copyFrom(v(Field.TxRoot): Array[Byte]),

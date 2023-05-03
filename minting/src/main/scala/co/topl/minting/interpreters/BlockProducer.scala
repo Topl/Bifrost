@@ -5,7 +5,7 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.catsakka._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.StakingAddress

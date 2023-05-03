@@ -5,7 +5,7 @@ import cats.data.ValidatedNec
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.brambl.syntax._
 import co.topl.crypto.accumulators.LeafData
 import co.topl.crypto.accumulators.merkle.MerkleTree
 import co.topl.crypto.hash.Blake2b

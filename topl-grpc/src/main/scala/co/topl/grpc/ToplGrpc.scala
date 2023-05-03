@@ -167,13 +167,6 @@ object ToplGrpc {
           .map(FetchBlockBodyRes(_))
           .adaptErrorsToGrpc
 
-      /**
-       * TODO: Replace with Brambl's IoTransaction
-       * @see  https://github.com/Topl/protobuf-specs/blob/main/node/services/bifrost_rpc.proto#L89
-       * @param in
-       * @param ctx
-       * @return
-       */
       def fetchTransaction(in: FetchTransactionReq, ctx: Metadata): F[FetchTransactionRes] =
         interpreter
           .fetchTransaction(in.transactionId)

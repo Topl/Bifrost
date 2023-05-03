@@ -4,7 +4,6 @@ import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.transactiongenerator.models.Wallet
 import quivr.models._
 

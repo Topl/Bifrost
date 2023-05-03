@@ -3,17 +3,13 @@ package co.topl.ledger.interpreters
 import cats.Applicative
 import cats.MonadThrow
 import cats.data.NonEmptyChain
-import cats.effect.Deferred
-import cats.effect.IO
-import cats.effect.MonadCancel
+import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.models.transaction._
+import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
@@ -41,9 +37,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("expose a Set of Transaction IDs at a specific block") {
     PropF.forAllF(
       nonEmptyChainOf[(BlockId, NonEmptyChain[IoTransaction])](
-        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(arbitraryIoTransaction.arbitrary))
+        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(arbitraryIoTransaction.arbitrary.map(_.embedId)))
       ),
-      arbitraryIoTransaction.arbitrary
+      arbitraryIoTransaction.arbitrary.map(_.embedId)
     ) { case (bodies, newTx: IoTransaction) =>
       withMock {
         val bodiesMap = bodies.toList.toMap
@@ -98,7 +94,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   }
 
   test("allow transactions to be added externally") {
-    PropF.forAllF { (currentBlockId: BlockId, transaction: IoTransaction) =>
+    PropF.forAllF { (currentBlockId: BlockId, _transaction: IoTransaction) =>
+      val transaction = _transaction.embedId
       withMock {
         val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
@@ -137,7 +134,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("expire transactions at the user-defined slot") {
     PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
-        val transaction = transactionWithRandomTime.update(_.datum.event.schedule.max.set(2))
+        val transaction = transactionWithRandomTime.update(_.datum.event.schedule.max.set(2)).embedId
         val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
@@ -187,7 +184,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
         val transaction =
-          transactionWithRandomTime.update(_.datum.event.schedule.max.set(Long.MaxValue))
+          transactionWithRandomTime.update(_.datum.event.schedule.max.set(Long.MaxValue)).embedId
         val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
@@ -246,19 +243,17 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         withMock {
           val transactionWithSingleInput = baseTransaction.addInputs(input)
           // Transaction A and Transaction B are exactly the same, except for the creation schedule to force a different ID
-          val transactionA = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(0, 100)))
-          val transactionAId = transactionA.id
-          val transactionB = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(1, 100)))
-          val transactionBId = transactionB.id
+          val transactionA = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(0, 100))).embedId
+          val transactionB = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(1, 100))).embedId
           val bodies =
             Map(
-              blockIdA -> List(transactionAId),
-              blockIdB -> List(transactionBId)
+              blockIdA -> List(transactionA.id),
+              blockIdB -> List(transactionB.id)
             )
           val transactions =
             Map(
-              transactionAId -> transactionA,
-              transactionBId -> transactionB
+              transactionA.id -> transactionA,
+              transactionB.id -> transactionB
             )
 
           val fetchBody = (id: BlockId) => BlockBody(bodies(id)).pure[F]
@@ -311,7 +306,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                           .twice()
                           .returning(MonadCancel[F].never[Unit])
                       }
-                      underTest.read(blockIdB).assertEquals(Set(transactionAId))
+                      underTest.read(blockIdB).assertEquals(Set(transactionA.id))
                     }
                 } yield ()
               )

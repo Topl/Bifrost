@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances.ioTransactionAsIoTransactionOps
+import co.topl.brambl.syntax._
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
