@@ -7,13 +7,13 @@ import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.brambl.models.LockAddress
+import co.topl.brambl.codecs.AddressCodecs
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 
 import scala.jdk.CollectionConverters._
-import scodec.bits.{BitVector, ByteVector}
 
 class SchemaLockAddressTest
     extends CatsEffectSuite
@@ -127,12 +127,8 @@ class SchemaLockAddressTest
 
       _ <- assertIO(
         vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
-        // TODO it should be updated to use the new address encoding scheme.
-        BitVector(address.id.toByteArray).toBase58
+        AddressCodecs.encodeAddress(address)
       ).toResource
-
-      _ <- logger.info(ByteVector(vertex.getProperty[Array[Byte]](Field.AddressId)).toBase64).toResource
-      _ <- logger.info(ByteVector(address.id.toByteArray).toBase64).toResource
 
       _ <- assertIO(
         oThread.delay(

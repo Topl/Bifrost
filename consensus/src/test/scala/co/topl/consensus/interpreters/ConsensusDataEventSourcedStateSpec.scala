@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
+import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.syntax._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
@@ -32,7 +33,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
     )
   val lock: Lock = Lock().withPredicate(Lock.Predicate())
 
-  val lockAddress: LockAddress = lock.lockAddress(0, 0)
+  val lockAddress: LockAddress = lock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
 
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {

@@ -4,7 +4,7 @@ import co.topl.brambl.models.{LockAddress, LockId}
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
-import scodec.bits.BitVector
+import co.topl.brambl.codecs.AddressCodecs
 
 object SchemaLockAddress {
 
@@ -49,8 +49,7 @@ object SchemaLockAddress {
         )
         .withProperty(
           Field.AddressEncodedId,
-          // TODO it should be updated to use the new address encoding scheme.
-          lockAddress => BitVector(lockAddress.id.toByteArray).toBase58,
+          lockAddress => AddressCodecs.encodeAddress(lockAddress),
           mandatory = true,
           readOnly = true,
           notNull = true
