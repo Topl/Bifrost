@@ -2,18 +2,17 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.implicits._
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction}
+import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
-
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -25,14 +24,14 @@ object GraphVertexFetcher {
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
-        override def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
+        def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
-        override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
+        def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
@@ -81,7 +80,7 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByDepth", tx))
           )
 
-        override def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
+        def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(
               orientGraph
@@ -92,7 +91,7 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchBody", tx))
           )
 
-        override def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
+        def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
           OrientThread[F].delay(
             Try(
               orientGraph
@@ -120,6 +119,19 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransaction", tx))
           )
 
+        def fetchLockAddress(lockAddress: LockAddress): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaLockAddress.Field.AddressId,
+                  lockAddress.id.value.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchLockAddress", tx))
+          )
       }
     }
 }

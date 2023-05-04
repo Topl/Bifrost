@@ -4,15 +4,17 @@ import cats.data.EitherT
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt}
+import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt, Txo}
 import co.topl.genusLibrary.algebras.{TransactionFetcherAlgebra, VertexFetcherAlgebra}
 import co.topl.genusLibrary.model.GE
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.addressTxoEdge
+import com.tinkerpop.blueprints.Direction
 import com.tinkerpop.blueprints.impls.orient.OrientVertex
-
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object GraphTransactionFetcher {
@@ -55,6 +57,17 @@ object GraphTransactionFetcher {
 
         }
 
+        override def fetchTransactionsByAddress(lockAddress: LockAddress): F[Either[GE, Seq[Txo]]] =
+          (for {
+            lockAddressVertex <- EitherT(vertexFetcher.fetchLockAddress(lockAddress))
+            txos <- EitherT.fromEither[F](
+              lockAddressVertex
+                .map(_.getVertices(Direction.OUT, addressTxoEdge.label).asScala.map(txoSchema.decodeVertex).toSeq)
+                .getOrElse(Seq.empty)
+                .asRight[GE]
+            )
+          } yield txos).value
       }
+
     }
 }

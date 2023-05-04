@@ -34,7 +34,10 @@ class GrpcTransactionService[F[_]: Async](transactionFetcher: TransactionFetcher
     Stream.raiseError[F](GEs.UnImplemented).adaptErrorsToGrpc
 
   override def getTxosByAddress(request: QueryByAddressRequest, ctx: Metadata): F[TxoAddressResponse] =
-    Async[F].raiseError[TxoAddressResponse](GEs.UnImplemented).adaptErrorsToGrpc
+    EitherT(transactionFetcher.fetchTransactionsByAddress(request.address))
+      .map(TxoAddressResponse(_))
+      .rethrowT
+      .adaptErrorsToGrpc
 
   override def getTxosByAddressStream(request: QueryByAddressRequest, ctx: Metadata): Stream[F, TxoAddressResponse] =
     Stream.raiseError[F](GEs.UnImplemented).adaptErrorsToGrpc

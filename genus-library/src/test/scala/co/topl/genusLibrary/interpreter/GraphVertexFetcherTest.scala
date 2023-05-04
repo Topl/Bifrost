@@ -4,6 +4,8 @@ import cats.data.EitherT
 import cats.effect.implicits.effectResourceOps
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.generators.ModelGenerators.arbitraryLockAddress
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genusLibrary.model.{GE, GEs}
@@ -17,7 +19,7 @@ import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphVertexFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -237,6 +239,56 @@ class GraphVertexFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite
       res.use_
     }
 
+  }
+
+  test("On fetchLockAddress with throwable response, a MessageWithCause should be returned") {
+
+    val expectedTh = new IllegalStateException("boom!")
+    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
+      override def getVertices(iKey: String, iValue: Object) = throw expectedTh
+    }
+
+    PropF.forAllF { (lockAddress: LockAddress) =>
+      withMock {
+        val res = for {
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          _ <- assertIO(
+            graphVertexFetcher.fetchLockAddress(lockAddress),
+            (GEs.InternalMessageCause("GraphVertexFetcher:fetchLockAddress", expectedTh): GE)
+              .asLeft[Option[Vertex]]
+          ).toResource
+        } yield ()
+
+        res.use_
+      }
+    }
+  }
+
+  test("On fetchLockAddress if an empty iterator is returned, a Right None should be returned") {
+
+    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
+      override def getVertices(iKey: String, iValue: Object) = new java.util.Vector[Vertex]()
+    }
+
+    PropF.forAllF { (lockAddress: LockAddress) =>
+      withMock {
+        val res = for {
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+
+          _ <- assertIO(
+            graphVertexFetcher.fetchLockAddress(lockAddress),
+            Option.empty[Vertex].asRight[GE]
+          ).toResource
+        } yield ()
+
+        res.use_
+      }
+
+    }
   }
 
 }

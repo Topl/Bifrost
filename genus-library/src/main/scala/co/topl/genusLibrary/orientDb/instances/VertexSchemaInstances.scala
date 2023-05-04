@@ -3,12 +3,12 @@ package co.topl.genusLibrary.orientDb.instances
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
+import co.topl.genus.services.Txo
 import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
 import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
-
 import scala.jdk.CollectionConverters._
 
 /**
@@ -45,6 +45,8 @@ object VertexSchemaInstances {
       def addAddress(address: LockAddress): OrientVertex =
         graph.addVertex(s"class:${lockAddressSchema.name}", lockAddressSchema.encode(address).asJava)
 
+      def addTxo(txo: Txo): OrientVertex =
+        graph.addVertex(s"class:${txoSchema.name}", txoSchema.encode(txo).asJava)
     }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
@@ -52,6 +54,7 @@ object VertexSchemaInstances {
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
     private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
     private[genusLibrary] val lockAddressSchema: VertexSchema[LockAddress] = SchemaLockAddress.make()
+    private[genusLibrary] val txoSchema: VertexSchema[Txo] = SchemaTxo.make()
 
   }
   object instances extends Instances

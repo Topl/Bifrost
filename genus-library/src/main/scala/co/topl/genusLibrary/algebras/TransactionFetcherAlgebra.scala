@@ -1,8 +1,8 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.genus.services.TransactionReceipt
+import co.topl.genus.services.{TransactionReceipt, Txo}
 import co.topl.genusLibrary.model.GE
 
 /**
@@ -26,5 +26,13 @@ trait TransactionFetcherAlgebra[F[_]] {
    * @return Optional Transaction, None if it was not found
    */
   def fetchTransactionReceipt(transactionId: TransactionId): F[Either[GE, Option[TransactionReceipt]]]
+
+  /**
+   * Retrieve TxOs (spent or unspent) that are associated with any of the specified addresses
+   *
+   * @param lockAddress the lock address
+   * @return Optional LockAddress, None if it was not found
+   */
+  def fetchTransactionsByAddress(lockAddress: LockAddress): F[Either[GE, Seq[Txo]]]
 
 }
