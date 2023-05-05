@@ -69,16 +69,16 @@ object PeersManager {
 
     /**
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> headers
-     * @param blockHeaders requested headers
+     * @param blockIds requested headers
      */
-    case class BlockHeadersRequest(hostId: HostId, blockHeaders: NonEmptyChain[BlockId]) extends Message
+    case class BlockHeadersRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
 
     /**
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> blocks
      *               and send requests to many peers
-     * @param blocks requested bodies
+     * @param blockHeaders requested bodies
      */
-    case class BlockBodyRequest(hostId: HostId, blocks: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class BlockBodyRequest(hostId: HostId, blockHeaders: NonEmptyChain[BlockHeader]) extends Message
 
     /**
      * Request current tips from all connected hot peers
@@ -127,7 +127,7 @@ object PeersManager {
         case (state, agr: SetupReputationAggregator[F] @unchecked) => setupRepAggregator(state, agr.aggregator)
         case (state, update: UpdatePeerStatus)                     => updatePeerStatus(state, update)
         case (state, BlockHeadersRequest(hostId, blocks))          => blockHeadersRequest(state, hostId, blocks)
-        case (state, BlockBodyRequest(hostId, blocks))             => blockDownloadRequest(state, hostId, blocks)
+        case (state, BlockBodyRequest(hostId, blockHeaders))       => blockDownloadRequest(state, hostId, blockHeaders)
         case (state, GetCurrentTips)                               => getCurrentTips(state)
         case (state, GetCurrentTip(hostId))                        => getCurrentTip(state, hostId)
       }
@@ -237,7 +237,7 @@ object PeersManager {
   private def blockDownloadRequest[F[_]: Async](
     state:           State[F],
     requestedHostId: HostId,
-    blocks:          NonEmptyChain[(BlockId, BlockHeader)]
+    blocks:          NonEmptyChain[BlockHeader]
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>
@@ -250,11 +250,11 @@ object PeersManager {
   private def blockHeadersRequest[F[_]: Async](
     state:           State[F],
     requestedHostId: HostId,
-    blocks:          NonEmptyChain[BlockId]
+    blockIds:        NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     state.peers.get(requestedHostId) match {
       case Some(peer) =>
-        peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blocks)) >>
+        peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds)) >>
         (state, state).pure[F]
       case None => ???
     }

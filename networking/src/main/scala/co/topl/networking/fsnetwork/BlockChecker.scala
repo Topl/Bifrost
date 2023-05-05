@@ -6,6 +6,7 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.ledger.algebras._
@@ -41,17 +42,17 @@ object BlockChecker {
     /**
      * Check and adopt remote headers, if headers is valid then appropriate bodies will be requested
      * @param source source of headers, used as a hint from which peer bodies shall be requested
-     * @param idsAndHeaders headers to check and adopt
+     * @param headers headers to check and adopt
      */
-    case class RemoteBlockHeaders(source: HostId, idsAndHeaders: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class RemoteBlockHeaders(source: HostId, headers: NonEmptyChain[BlockHeader]) extends Message
 
     /**
      * check and adopt block bodies, if adopted bodies is better than local chain
      * then remote bodies became new top block
      * @param source source of bodies, could be used as a hint from which peer next bodies shall be requested
-     * @param idsAndBodies bodies to check
+     * @param blocks blocks to check
      */
-    case class RemoteBlockBodies(source: HostId, idsAndBodies: NonEmptyChain[(BlockId, BlockBody)]) extends Message
+    case class RemoteBlockBodies(source: HostId, blocks: NonEmptyChain[Block]) extends Message
 
     /**
      * Invalidate block because block is invalid by some reason, for example no block body available at any peer or
@@ -86,7 +87,7 @@ object BlockChecker {
     Fsm {
       case (state, RemoteSlotData(hostId, slotData))         => processSlotData(state, hostId, slotData)
       case (state, RemoteBlockHeaders(hostId, blockHeaders)) => processRemoteHeaders(state, hostId, blockHeaders)
-      case (state, RemoteBlockBodies(hostId, blockBodies))   => processRemoteBodies(state, hostId, blockBodies)
+      case (state, RemoteBlockBodies(hostId, blocks))        => processRemoteBodies(state, hostId, blocks)
       case (state, InvalidateBlockId(invalidBlockId))        => processInvalidBlockId(state, invalidBlockId)
     }
 
@@ -209,16 +210,16 @@ object BlockChecker {
   private def processRemoteHeaders[F[_]: Async: Logger](
     state:        State[F],
     hostId:       HostId,
-    blockHeaders: NonEmptyChain[(BlockId, BlockHeader)]
+    blockHeaders: NonEmptyChain[BlockHeader]
   ): F[(State[F], Response[F])] = {
     val processedHeadersAndErrors =
       Stream
         .foldable(blockHeaders)
-        .covaryAll[F, (BlockId, BlockHeader)]
+        .covaryAll[F, BlockHeader]
         .evalDropWhile(knownBlockHeaderPredicate(state))
         .evalMap(verifyOneBlockHeader(state))
-        .evalTap { case (id, header) => state.headerStore.put(id, header) }
-        .map { case (id, _) => Right(id) }
+        .evalTap(header => state.headerStore.put(header.id, header))
+        .map(Right.apply)
         .handleErrorWith {
           case e: HeaderValidationException => Stream.emit(Left(e: HeaderApplyException))
           case e                            => Stream.emit(Left(HeaderApplyException.UnknownError(e)))
@@ -233,32 +234,33 @@ object BlockChecker {
         }
 
     for {
-      (appliedBlockIds, error) <- processedHeadersAndErrors
-      newState                 <- processHeaderValidationError(state, error)
-      _                        <- requestMissedBodiesForKnownHeaders(newState, hostId, appliedBlockIds.lastOption)
-      _                        <- requestNextHeaders(newState)
+      (appliedHeaders, error) <- processedHeadersAndErrors
+      newState                <- processHeaderValidationError(state, error)
+      _                       <- requestMissedBodies(newState, hostId, appliedHeaders.lastOption.map(_.id))
+      _                       <- requestNextHeaders(newState)
     } yield (newState, newState)
   }
 
   private def knownBlockHeaderPredicate[F[_]: Async: Logger](
     state: State[F]
-  ): ((BlockId, BlockHeader)) => F[Boolean] = { case (id, _) =>
+  ): BlockHeader => F[Boolean] = { header =>
+    val id = header.id
     state.headerStore.contains(id).flatTap {
       case true  => Logger[F].info(show"Ignore know block header id $id")
       case false => Logger[F].info(show"Start processing new header $id")
     }
   }
 
-  private def verifyOneBlockHeader[F[_]: Async: Logger](state: State[F])(idAndHeader: (BlockId, BlockHeader)) = {
-    val (id, header) = idAndHeader
+  private def verifyOneBlockHeader[F[_]: Async: Logger](state: State[F])(header: BlockHeader): F[BlockHeader] = {
+    val id = header.id
     Logger[F].debug(show"Validating remote header id=$id") >>
-    EitherT(state.headerValidation.validate(header)).bimap(HeaderValidationException(id, _), (id, _)).rethrowT
+    EitherT(state.headerValidation.validate(header)).leftMap(HeaderValidationException(id, _)).rethrowT
   }
 
-  private def logHeaderValidationResult[F[_]: Logger](res: Either[HeaderApplyException, BlockId]) =
+  private def logHeaderValidationResult[F[_]: Logger](res: Either[HeaderApplyException, BlockHeader]) =
     res match {
-      case Right(id) =>
-        Logger[F].info(show"Successfully process header: $id")
+      case Right(header) =>
+        Logger[F].info(show"Successfully process header: ${header.id}")
       case Left(HeaderValidationException(id, error)) =>
         Logger[F].error(show"Failed to apply header $id due validation error: $error")
       case Left(HeaderApplyException.UnknownError(error)) =>
@@ -276,18 +278,18 @@ object BlockChecker {
       }
       .getOrElse(state.pure[F])
 
-  private def requestMissedBodiesForKnownHeaders[F[_]: Async: Logger](
+  private def requestMissedBodies[F[_]: Async: Logger](
     state:           State[F],
     hostId:          HostId,
     bestKnownTipOpt: Option[BlockId]
   ): F[Unit] = {
-    def takeWithKnownHeaders(ids: NonEmptyChain[BlockId]) =
+    def getKnownHeaderPrefix(ids: NonEmptyChain[BlockId]) =
       OptionT(
         fs2.Stream
           .emits(ids.toList)
           .evalMap(id => state.headerStore.get(id).map((id, _)))
           .takeWhile { case (_, headerOpt) => headerOpt.isDefined }
-          .map { case (id, headerOpt) => (id, headerOpt.get) }
+          .map(_._2.get.embedId)
           .compile
           .toList
           .map(NonEmptyChain.fromSeq)
@@ -295,11 +297,11 @@ object BlockChecker {
 
     val requestMissedBodiesCommand =
       for {
-        bestKnownTip  <- OptionT.fromOption[F](bestKnownTipOpt)
-        unknownBodies <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize)
-        unknownBodiesWithHeaders <- takeWithKnownHeaders(unknownBodies)
-        _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: ${unknownBodiesWithHeaders.map(_._1)}"))
-        message = RequestsProxy.Message.DownloadBodiesRequest(hostId, unknownBodiesWithHeaders)
+        bestKnownTip           <- OptionT.fromOption[F](bestKnownTipOpt)
+        unknownBodyIds         <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize)
+        headerForUnknownBodies <- getKnownHeaderPrefix(unknownBodyIds)
+        _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: ${headerForUnknownBodies.map(_.id)}"))
+        message = RequestsProxy.Message.DownloadBodiesRequest(hostId, headerForUnknownBodies)
         _ <- OptionT.liftF(state.requestsProxy.sendNoWait(message))
       } yield ()
 
@@ -312,12 +314,12 @@ object BlockChecker {
   private def processRemoteBodies[F[_]: Async: Logger](
     state:       State[F],
     hostId:      HostId,
-    blockBodies: NonEmptyChain[(BlockId, BlockBody)]
+    blockBodies: NonEmptyChain[Block]
   ): F[(State[F], Response[F])] = {
     val processedBlocksAndError =
       Stream
         .foldable(blockBodies)
-        .covaryAll[F, (BlockId, BlockBody)]
+        .covaryAll[F, Block]
         .evalDropWhile(knownBlockBodyPredicate(state))
         .evalMap(verifyOneBlockBody(state))
         .evalTap { case (id, block) => state.bodyStore.put(id, block.body) }
@@ -344,20 +346,19 @@ object BlockChecker {
     } yield (newState, newState)
   }
 
-  private def knownBlockBodyPredicate[F[_]: Async: Logger](state: State[F]): ((BlockId, BlockBody)) => F[Boolean] = {
-    case (id, _) =>
+  private def knownBlockBodyPredicate[F[_]: Async: Logger](state: State[F]): Block => F[Boolean] = {
+    case Block(header, _, _) =>
+      val id = header.id
       state.bodyStore.contains(id).flatTap {
         case true  => Logger[F].info(show"Ignore know block body id $id")
         case false => Logger[F].info(show"Start processing new block $id")
       }
   }
 
-  private def verifyOneBlockBody[F[_]: Async: Logger](state: State[F])(idAndBody: (BlockId, BlockBody)) = {
-    val (id, body) = idAndBody
+  private def verifyOneBlockBody[F[_]: Async: Logger](state: State[F])(block: Block) = {
+    val id = block.header.id
     for {
-      _     <- Logger[F].info(show"For block: $id try to get header for body")
-      block <- state.headerStore.getOrRaise(id).map(header => Block(header, body))
-      _     <- verifyBlockBody(state, id, block).leftMap(BodyValidationException(id, _)).rethrowT
+      _ <- verifyBlockBody(state, id, block).leftMap(BodyValidationException(id, _)).rethrowT
     } yield (id, block)
   }
 
@@ -417,7 +418,7 @@ object BlockChecker {
   }
 
   private def requestNextBodies[F[_]: Async: Logger](state: State[F], hostId: HostId): F[Unit] =
-    requestMissedBodiesForKnownHeaders(state, hostId, state.bestKnownRemoteSlotDataOpt.map(_.lastId))
+    requestMissedBodies(state, hostId, state.bestKnownRemoteSlotDataOpt.map(_.lastId))
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
   private def updateState[F[_]](state: State[F], newTopBlockOpt: Option[BlockId]): State[F] = {

@@ -125,9 +125,8 @@ package object fsnetwork {
         .map(NonEmptyChain.fromSeq)
     )
 
-  def dropKnownPrefix[F[_]: Async, T](
-    data:  Seq[(BlockId, T)],
-    store: Store[F, BlockId, T]
-  ): F[Option[NonEmptyChain[(BlockId, T)]]] =
-    data.dropWhileF(idAndBody => store.contains(idAndBody._1)).map(NonEmptyChain.fromSeq)
+  def dropKnownPrefix[F[_]: Async, I, T](data: Seq[(I, T)], store: Store[F, BlockId, T])(
+    iToId: I => BlockId
+  ): F[Option[NonEmptyChain[(I, T)]]] =
+    data.dropWhileF(d => store.contains(iToId(d._1))).map(NonEmptyChain.fromSeq)
 }
