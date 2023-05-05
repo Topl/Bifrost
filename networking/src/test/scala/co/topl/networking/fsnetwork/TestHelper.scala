@@ -82,7 +82,7 @@ object TestHelper extends TransactionGenerator {
           if (blocks.isEmpty) {
             List((headerWithTxRoot.id, headerToSlotData(headerWithTxRoot), headerWithTxRoot, body))
           } else {
-            val headerWithParent = headerWithTxRoot.copy(parentHeaderId = blocks.last._2.slotId.blockId)
+            val headerWithParent = headerWithTxRoot.copy(parentHeaderId = blocks.last._2.slotId.blockId).embedId
             blocks.appended((headerWithParent.id, headerToSlotData(headerWithParent), headerWithParent, body))
           }
         })

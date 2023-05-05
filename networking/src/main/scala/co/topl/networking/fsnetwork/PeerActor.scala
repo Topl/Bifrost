@@ -39,7 +39,7 @@ object PeerActor {
      * Request to download block bodies from peer, downloaded bodies will be sent to block checker directly
      * @param blockData bodies block id to download
      */
-    case class DownloadBlockBodies(blockData: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class DownloadBlockBodies(blockData: NonEmptyChain[BlockHeader]) extends Message
 
     /**
      * Request current tip from remote peer
@@ -58,10 +58,10 @@ object PeerActor {
   type PeerActor[F[_]] = Actor[F, Message, Response[F]]
 
   def getFsm[F[_]: Concurrent]: Fsm[F, State[F], Message, Response[F]] = Fsm {
-    case (state, UpdateState(newState))          => updateState(state, newState)
-    case (state, DownloadBlockHeaders(blockIds)) => downloadHeaders(state, blockIds)
-    case (state, DownloadBlockBodies(blockIds))  => downloadBodies(state, blockIds)
-    case (state, GetCurrentTip)                  => getCurrentTip(state)
+    case (state, UpdateState(newState))             => updateState(state, newState)
+    case (state, DownloadBlockHeaders(blockIds))    => downloadHeaders(state, blockIds)
+    case (state, DownloadBlockBodies(blockHeaders)) => downloadBodies(state, blockHeaders)
+    case (state, GetCurrentTip)                     => getCurrentTip(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -112,7 +112,7 @@ object PeerActor {
 
   private def downloadBodies[F[_]: Concurrent](
     state:     State[F],
-    blockData: NonEmptyChain[(BlockId, BlockHeader)]
+    blockData: NonEmptyChain[BlockHeader]
   ): F[(State[F], Response[F])] =
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.DownloadBlocks(blockData)) >>
     (state, state).pure[F]

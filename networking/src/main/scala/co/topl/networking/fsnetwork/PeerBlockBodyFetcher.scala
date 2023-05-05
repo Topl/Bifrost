@@ -9,6 +9,7 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.models.{BlockHeader, BlockId}
@@ -32,9 +33,9 @@ object PeerBlockBodyFetcher {
     /**
      * Request to download block bodies from peer, downloaded bodies will be sent to block checker directly
      *
-     * @param blockData bodies block id to download
+     * @param blockHeaders bodies block header to download
      */
-    case class DownloadBlocks(blockData: NonEmptyChain[(BlockId, BlockHeader)]) extends Message
+    case class DownloadBlocks(blockHeaders: NonEmptyChain[BlockHeader]) extends Message
 
   }
 
@@ -50,9 +51,9 @@ object PeerBlockBodyFetcher {
   type PeerBlockBodyFetcherActor[F[_]] = Actor[F, Message, Response[F]]
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
-    case (state, Message.DownloadBlocks(blocksToDownload)) => downloadBodies(state, blocksToDownload)
-    case (state, Message.StartActor)                       => startActor(state)
-    case (state, Message.StopActor)                        => stopActor(state)
+    case (state, Message.DownloadBlocks(blockHeadersToDownload)) => downloadBodies(state, blockHeadersToDownload)
+    case (state, Message.StartActor)                             => startActor(state)
+    case (state, Message.StopActor)                              => stopActor(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -67,19 +68,19 @@ object PeerBlockBodyFetcher {
   }
 
   private def downloadBodies[F[_]: Async: Logger](
-    state:            State[F],
-    blocksToDownload: NonEmptyChain[(BlockId, BlockHeader)]
+    state:                  State[F],
+    blockHeadersToDownload: NonEmptyChain[BlockHeader]
   ): F[(State[F], Response[F])] =
     for {
-      idToBody <- Stream.foldable(blocksToDownload).evalMap(downloadBlockBody(state)).compile.toList
-      messageToSend = RequestsProxy.Message.DownloadBodiesResponse(state.hostId, NonEmptyChain.fromSeq(idToBody).get)
-      _ <- state.requestsProxy.sendNoWait(messageToSend)
+      headerToBody <- Stream.foldable(blockHeadersToDownload).evalMap(downloadBlockBody(state)).compile.toList
+      message = RequestsProxy.Message.DownloadBodiesResponse(state.hostId, NonEmptyChain.fromSeq(headerToBody).get)
+      _ <- state.requestsProxy.sendNoWait(message)
     } yield (state, state)
 
   private def downloadBlockBody[F[_]: Async: Logger](
     state: State[F]
-  )(blockData: (BlockId, BlockHeader)): F[(BlockId, Either[BlockBodyDownloadError, BlockBody])] = {
-    val (blockId, blockHeader) = blockData
+  )(blockHeader: BlockHeader): F[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])] = {
+    val blockId = blockHeader.id
 
     val body: F[BlockBody] =
       for {
@@ -102,7 +103,7 @@ object PeerBlockBodyFetcher {
         case Left(error) =>
           Logger[F].error(show"Failed download block $blockId from peer ${state.hostId} because of: ${error.toString}")
       }
-      .map((blockId, _))
+      .map((blockHeader, _))
 
   }
 

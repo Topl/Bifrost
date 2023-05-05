@@ -5,7 +5,6 @@ import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
@@ -22,8 +21,10 @@ import co.topl.networking.fsnetwork.TestHelper._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalacheck.Gen
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.mutable
 
@@ -33,7 +34,7 @@ object PeerBlockHeaderFetcherTest {
 }
 
 class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  implicit val logger: Logger[F] = new NoOpLogger[F]
+  implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
@@ -52,7 +53,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(blocksCount)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(idToHeader.get(id).pure[F]).getOrRaise(e.apply())
         }
 
@@ -97,7 +98,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(idAndHeader.size.toInt)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(idToHeaderOnClient.get(id).pure[F]).getOrRaise(e.apply())
         }
 
@@ -150,7 +151,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(idAndHeader.size.toInt)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           if (missedBlockId(id)) {
             incorrectHeader.pure[F]
           } else {
@@ -193,7 +194,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("New better slot data shall be sent if local chain is worse") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < maxChainSize).first
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -207,7 +208,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(remoteSlotDataCount)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
@@ -253,7 +254,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("New better slot data shall not be sent if local chain is better") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < maxChainSize).first
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -267,7 +268,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(remoteSlotDataCount)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
@@ -316,7 +317,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Requested tip shall be sent if local chain is better") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < 5).first
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -329,14 +330,14 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (client.remoteCurrentTip _)
         .expects()
         .returns(Option(bestTip.slotId.blockId).pure[F])
-      (client.remotePeerAdoptions _).expects().once().onCall { () =>
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
       }
       (client
         .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
 
@@ -381,7 +382,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Requested tip shall not be sent if local chain is worse") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < 5).first
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -394,14 +395,14 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (client.remoteCurrentTip _)
         .expects()
         .returns(Option(bestTip.slotId.blockId).pure[F])
-      (client.remotePeerAdoptions _).expects().once().onCall { () =>
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
       }
       (client
         .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
 
