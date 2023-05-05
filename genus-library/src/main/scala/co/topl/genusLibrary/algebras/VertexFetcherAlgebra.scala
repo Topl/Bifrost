@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.brambl.models.{LockAddress, TransactionId}
+import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.model.GE
 import com.tinkerpop.blueprints.Vertex
@@ -72,5 +72,12 @@ trait VertexFetcherAlgebra[F[_]] {
    * @return Optional Address vertex, None if it was not found
    */
   def fetchLockAddress(lockAddress: LockAddress): F[Either[GE, Option[Vertex]]]
+
+  /**
+   * Fetch Txo Vertex, using TxoIndex (outputAddress.id + outputAddress.index)
+   * @param transactionOutputAddress
+   * @return Optional Txo vertex, None if it was not found
+   */
+  def fetchTxo(transactionOutputAddress: TransactionOutputAddress): F[Either[GE, Option[Vertex]]]
 
 }

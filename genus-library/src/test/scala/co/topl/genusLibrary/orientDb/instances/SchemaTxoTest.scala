@@ -118,6 +118,21 @@ class SchemaTxoTest
         txo.outputAddress.toByteArray.toSeq
       ).toResource
 
+      _ <- assertIO(
+        oThread.delay(
+          dbTx
+            .getVertices(
+              SchemaTxo.Field.TxoId,
+              txo.outputAddress.id.value.toByteArray :+ txo.outputAddress.index.toByte
+            )
+            .iterator()
+            .next()
+            .getProperty[Array[Byte]](Field.TxoId)
+            .toSeq
+        ),
+        (txo.outputAddress.id.value.toByteArray :+ txo.outputAddress.index.toByte).toSeq
+      ).toResource
+
     } yield ()
     res.use_
 

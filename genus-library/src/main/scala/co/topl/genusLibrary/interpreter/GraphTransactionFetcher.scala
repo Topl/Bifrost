@@ -7,9 +7,10 @@ import cats.implicits._
 import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt, Txo}
+import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt, Txo, TxoState}
 import co.topl.genusLibrary.algebras.{TransactionFetcherAlgebra, VertexFetcherAlgebra}
 import co.topl.genusLibrary.model.GE
+import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.addressTxoEdge
 import com.tinkerpop.blueprints.Direction
@@ -36,7 +37,9 @@ object GraphTransactionFetcher {
           val res = (for {
             ioTxVertex <- EitherT(vertexFetcher.fetchTransaction(transactionId))
             blockHeaderVertex <- EitherT.fromEither[F](
-              ioTxVertex.flatMap(v => Try(v.getProperty[OrientVertex]("blockId")).toOption).asRight[GE]
+              ioTxVertex
+                .flatMap(v => Try(v.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)).toOption)
+                .asRight[GE]
             )
           } yield (ioTxVertex, blockHeaderVertex)).value
 
@@ -48,7 +51,7 @@ object GraphTransactionFetcher {
                   transaction = ioTransactionSchema.decodeVertex(ioTxV),
                   ConfidenceFactor.defaultInstance,
                   blockId = blockHeader.id,
-                  depth = ChainDistance(value = blockHeader.height)
+                  depth = ChainDistance(blockHeader.height)
                 ).some
               case _ => None
             }
@@ -57,12 +60,13 @@ object GraphTransactionFetcher {
 
         }
 
-        override def fetchTransactionsByAddress(lockAddress: LockAddress): F[Either[GE, Seq[Txo]]] =
+        override def fetchTransactionsByAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]] =
           (for {
             lockAddressVertex <- EitherT(vertexFetcher.fetchLockAddress(lockAddress))
             txos <- EitherT.fromEither[F](
               lockAddressVertex
                 .map(_.getVertices(Direction.OUT, addressTxoEdge.label).asScala.map(txoSchema.decodeVertex).toSeq)
+                .map(_.filter(_.state == state))
                 .getOrElse(Seq.empty)
                 .asRight[GE]
             )

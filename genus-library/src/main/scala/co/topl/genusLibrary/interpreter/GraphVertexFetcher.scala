@@ -2,13 +2,13 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.implicits._
-import co.topl.brambl.models.{LockAddress, TransactionId}
+import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress}
+import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
@@ -132,6 +132,21 @@ object GraphVertexFetcher {
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchLockAddress", tx))
           )
+
+        def fetchTxo(transactionOutputAddress: TransactionOutputAddress): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaTxo.Field.TxoId,
+                  transactionOutputAddress.id.value.toByteArray :+ transactionOutputAddress.index
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTxo", tx))
+          )
+
       }
     }
 }

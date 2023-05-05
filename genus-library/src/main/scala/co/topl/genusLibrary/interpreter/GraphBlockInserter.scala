@@ -8,7 +8,7 @@ import co.topl.genus.services.{BlockData, Txo, TxoState}
 import co.topl.genusLibrary.algebras.BlockInserterAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
-import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress
+import co.topl.genusLibrary.orientDb.instances.{SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
@@ -38,10 +38,13 @@ object GraphBlockInserter {
                 ioTxVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
                 graph.addEdge(s"class:${blockHeaderTxIOEdge.name}", headerVertex, ioTxVertex, blockHeaderTxIOEdge.label)
 
-                // TODO question
-                //  ioTx.outputs.inputs.address.TransactionOutputAddress foreach, fetch the txo, and change the status to SPENT?
-                // if, yes the Txo model should have the transactionId.
-                // when a txo is spent, is fully spent or partially spent?
+                // Lookup previous unspent TXOs, and update the state
+                ioTx.inputs.foreach { spentTransactionOutput =>
+                  graph
+                    .fetchTxo(spentTransactionOutput.address)
+                    .map(_.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value))
+                    .getOrElse(())
+                }
 
                 // Relationships between TxIOs <-> LockAddress
                 ioTx.outputs.zipWithIndex.foreach { case (utxo, index) =>
