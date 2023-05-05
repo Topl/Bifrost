@@ -69,7 +69,7 @@ object PeersManager {
 
     /**
      * @param hostId use hostId as hint for now, later we could have some kind of map of available peer -> headers
-     * @param blockIds requested headers
+     * @param blockIds list of block's id of headers to be requested from peer
      */
     case class BlockHeadersRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
 
