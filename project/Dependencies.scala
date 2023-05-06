@@ -104,7 +104,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.4.0"
+    "com.lihaoyi" %% "mainargs" % "0.5.0"
   )
 
   val monocle: Seq[ModuleID] = Seq(
