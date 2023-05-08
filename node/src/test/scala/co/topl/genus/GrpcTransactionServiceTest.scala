@@ -96,7 +96,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
         val underTest = new GrpcTransactionService[F](transactionFetcher)
 
-        (transactionFetcher.fetchTransactionsByAddress _)
+        (transactionFetcher.fetchTransactionByLockAddress _)
           .expects(lockAddress, TxoState.SPENT)
           .once()
           .returning((GEs.Internal(new IllegalStateException("Boom!")): GE).asLeft[Seq[Txo]].pure[F])
@@ -116,7 +116,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
         val underTest = new GrpcTransactionService[F](transactionFetcher)
 
-        (transactionFetcher.fetchTransactionsByAddress _)
+        (transactionFetcher.fetchTransactionByLockAddress _)
           .expects(lockAddress, TxoState.SPENT)
           .once()
           .returning(Seq.empty[Txo].asRight[GE].pure[F])
@@ -146,7 +146,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
             outputAddress
           )
 
-          (transactionFetcher.fetchTransactionsByAddress _)
+          (transactionFetcher.fetchTransactionByLockAddress _)
             .expects(lockAddress, TxoState.SPENT)
             .once()
             .returning(Seq(txo).asRight[GE].pure[F])

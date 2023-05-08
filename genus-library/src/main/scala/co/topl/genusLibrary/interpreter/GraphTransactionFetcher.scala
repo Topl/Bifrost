@@ -13,8 +13,7 @@ import co.topl.genusLibrary.model.GE
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.addressTxoEdge
-import com.tinkerpop.blueprints.Direction
-import com.tinkerpop.blueprints.impls.orient.OrientVertex
+import com.tinkerpop.blueprints.{Direction, Vertex}
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -38,7 +37,7 @@ object GraphTransactionFetcher {
             ioTxVertex <- EitherT(vertexFetcher.fetchTransaction(transactionId))
             blockHeaderVertex <- EitherT.fromEither[F](
               ioTxVertex
-                .flatMap(v => Try(v.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)).toOption)
+                .flatMap(v => Try(v.getProperty[Vertex](SchemaBlockHeader.Field.BlockId)).toOption)
                 .asRight[GE]
             )
           } yield (ioTxVertex, blockHeaderVertex)).value
@@ -60,13 +59,13 @@ object GraphTransactionFetcher {
 
         }
 
-        override def fetchTransactionsByAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]] =
+        override def fetchTransactionByLockAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]] =
           (for {
             lockAddressVertex <- EitherT(vertexFetcher.fetchLockAddress(lockAddress))
             txos <- EitherT.fromEither[F](
               lockAddressVertex
                 .map(_.getVertices(Direction.OUT, addressTxoEdge.label).asScala.map(txoSchema.decodeVertex).toSeq)
-                .map(_.filter(_.state == state))
+                .map(_.filter(_.state.value == state.value))
                 .getOrElse(Seq.empty)
                 .asRight[GE]
             )

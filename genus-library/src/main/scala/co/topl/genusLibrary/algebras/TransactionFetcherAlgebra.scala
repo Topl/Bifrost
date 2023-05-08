@@ -31,8 +31,9 @@ trait TransactionFetcherAlgebra[F[_]] {
    * Retrieve TxOs (spent or unspent) that are associated with any of the specified addresses
    *
    * @param lockAddress the lock address
-   * @return Optional LockAddress, None if it was not found
+   * @param state TxoState filterb y field
+   * @return Txos, an empty sequence if lockAddress and state filter matches empty results
    */
-  def fetchTransactionsByAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]]
+  def fetchTransactionByLockAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]]
 
 }
