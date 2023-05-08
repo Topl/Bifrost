@@ -42,7 +42,7 @@ object SchemaLockAddress {
         )
         .withProperty(
           Field.AddressId,
-          _.id.toByteArray,
+          _.id.value.toByteArray,
           mandatory = true,
           readOnly = true,
           notNull = true

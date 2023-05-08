@@ -24,7 +24,7 @@ object GenusGrpc {
     ): Resource[F, Server] =
       for {
         fullBlockService <- BlockServiceFs2Grpc.bindServiceResource(
-          new GrpcGenusFullBlockService(blockFetcher)
+          new GrpcBlockService(blockFetcher)
         )
         transactionService <- TransactionServiceFs2Grpc.bindServiceResource(
           new GrpcTransactionService(transactionFetcherAlgebra)

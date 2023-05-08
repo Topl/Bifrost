@@ -13,7 +13,6 @@ import co.topl.brambl.models._
 import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.ToplGrpc
 import co.topl.quivr.api.Prover

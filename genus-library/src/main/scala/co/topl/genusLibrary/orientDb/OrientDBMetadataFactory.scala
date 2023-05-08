@@ -33,18 +33,23 @@ object OrientDBMetadataFactory {
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- createVertex(db, blockHeaderSchema)
-            _ <- createVertex(db, blockBodySchema)
-            _ <- createVertex(db, ioTransactionSchema)
-            _ <- createVertex(db, canonicalHeadSchema)
-            _ <- createVertex(db, lockAddressSchema)
+            _ <- Seq(
+              blockHeaderSchema,
+              blockBodySchema,
+              ioTransactionSchema,
+              canonicalHeadSchema,
+              lockAddressSchema,
+              txoSchema
+            )
+              .traverse(createVertex(db, _))
+              .void
           } yield ()
         )
       )
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge)
+            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge, addressTxoEdge)
               .traverse(e => createEdge(db, e))
               .void
           } yield ()
