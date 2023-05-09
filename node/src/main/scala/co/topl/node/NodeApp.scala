@@ -193,8 +193,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         currentEventIdGetterSetters.mempool.set,
         clock,
         id => Logger[F].info(show"Expiring transaction id=$id"),
-        appConfig.bifrost.mempool.defaultExpirationSlots,
-        appConfig.bifrost.mempool.duplicateSpenderExpirationSlots
+        appConfig.bifrost.mempool.defaultExpirationSlots
       )
       implicit0(networkRandom: Random) = new Random(new SecureRandom())
       staking <- privateBigBang.localStakerIndex
