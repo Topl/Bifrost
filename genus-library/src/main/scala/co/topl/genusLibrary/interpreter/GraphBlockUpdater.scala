@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.genus.services.{BlockData, Txo, TxoState}
-import co.topl.genusLibrary.algebras.BlockInserterAlgebra
+import co.topl.genusLibrary.algebras.BlockUpdaterAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.{SchemaLockAddress, SchemaTxo}
@@ -16,11 +16,11 @@ import com.tinkerpop.blueprints.impls.orient.OrientGraph
 import org.typelevel.log4cats.Logger
 import scala.util.Try
 
-object GraphBlockInserter {
+object GraphBlockUpdater {
 
-  def make[F[_]: OrientThread: Logger](graph: OrientGraph): Resource[F, BlockInserterAlgebra[F]] =
+  def make[F[_]: OrientThread: Logger](graph: OrientGraph): Resource[F, BlockUpdaterAlgebra[F]] =
     Resource.pure(
-      new BlockInserterAlgebra[F] {
+      new BlockUpdaterAlgebra[F] {
 
         override def insert(block: BlockData): F[Either[GE, Unit]] =
           OrientThread[F].delay {
@@ -29,8 +29,10 @@ object GraphBlockInserter {
 
               graph.addCanonicalHead(headerVertex)
 
+              // Relationships between Header <-> Body
               val bodyVertex = graph.addBody(block.body)
               bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
+              graph.addEdge(s"class:${blockHeaderBodyEdge.name}", headerVertex, bodyVertex, blockHeaderBodyEdge.label)
 
               // Relationships between Header <-> TxIOs
               block.transactions.foreach { ioTx =>
@@ -41,7 +43,7 @@ object GraphBlockInserter {
                 // Lookup previous unspent TXOs, and update the state
                 ioTx.inputs.foreach { spentTransactionOutput =>
                   graph
-                    .fetchTxo(spentTransactionOutput.address)
+                    .getTxo(spentTransactionOutput.address)
                     .map(_.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value))
                     .getOrElse(())
                 }
@@ -81,6 +83,33 @@ object GraphBlockInserter {
                 graph.addEdge(s"class:${blockHeaderEdge.name}", headerVertex, headerInVertex, blockHeaderEdge.label)
               }
 
+              graph.commit()
+            }.toEither
+              .leftMap { th =>
+                graph.rollback()
+                GEs.InternalMessage(th.getMessage): GE
+              }
+          }
+
+        override def remove(block: BlockData): F[Either[GE, Unit]] =
+          OrientThread[F].delay {
+            Try {
+              val txosToRemove = block.transactions
+                .flatMap { ioTx =>
+                  ioTx.outputs.zipWithIndex.map { case (utxo, index) =>
+                    TransactionOutputAddress(utxo.address.network, utxo.address.ledger, index, ioTx.id)
+                  }
+                }
+                .map(graph.getTxo)
+
+              graph.getHeader(block.header).foreach { headerVertex =>
+                (
+                  Seq(graph.getBody(headerVertex)) ++
+                  graph.getIoTxs(headerVertex).map(_.some) ++
+                  txosToRemove :+
+                  headerVertex.some
+                ).flatten.map(graph.removeVertex)
+              }
               graph.commit()
             }.toEither
               .leftMap { th =>

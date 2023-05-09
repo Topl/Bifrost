@@ -3,9 +3,10 @@ package co.topl.genusLibrary.orientDb.instances
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
+import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
-import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
+import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType

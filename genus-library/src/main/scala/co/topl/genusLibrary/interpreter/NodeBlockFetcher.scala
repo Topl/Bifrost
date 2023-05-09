@@ -4,7 +4,7 @@ import cats.data.{Chain, EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
@@ -14,7 +14,6 @@ import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.node.models.BlockBody
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-
 import scala.collection.immutable.ListSet
 
 object NodeBlockFetcher {
@@ -96,15 +95,6 @@ object NodeBlockFetcher {
             headBlockId <- OptionT(toplRpc.blockIdAtDepth(depth = 0))
             blockHeader <- OptionT(toplRpc.fetchBlockHeader(headBlockId))
           } yield blockHeader.height).value
-
-        def fetchAdoptions(): F[Stream[F, BlockId]] =
-          for {
-            adoptions <- toplRpc
-              .synchronizationTraversal()
-              .map(_.collect { case SynchronizationTraversalSteps.Applied(blockId) =>
-                blockId
-              })
-          } yield adoptions
 
       }
     }
