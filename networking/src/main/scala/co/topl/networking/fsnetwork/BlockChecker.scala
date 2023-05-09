@@ -312,13 +312,13 @@ object BlockChecker {
   }
 
   private def processRemoteBodies[F[_]: Async: Logger](
-    state:       State[F],
-    hostId:      HostId,
-    blockBodies: NonEmptyChain[Block]
+    state:  State[F],
+    hostId: HostId,
+    blocks: NonEmptyChain[Block]
   ): F[(State[F], Response[F])] = {
     val processedBlocksAndError =
       Stream
-        .foldable(blockBodies)
+        .foldable(blocks)
         .covaryAll[F, Block]
         .evalDropWhile(knownBlockBodyPredicate(state))
         .evalMap(verifyOneBlockBody(state))
