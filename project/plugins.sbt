@@ -16,7 +16,7 @@ Seq(
   "org.wartremover"         % "sbt-wartremover"           % "3.1.1",
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.16",
   "com.eed3si9n"            % "sbt-buildinfo"             % "0.11.0",
-  "com.github.sbt"          % "sbt-ci-release"            % "1.5.11",
+  "com.github.sbt"          % "sbt-ci-release"            % "1.5.12",
   "net.bzzt"                % "sbt-reproducible-builds"   % "0.30"
 ).map(addSbtPlugin)
 

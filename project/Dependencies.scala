@@ -7,7 +7,7 @@ object Dependencies {
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.9"
+  val catsEffectVersion = "3.4.10"
   val fs2Version = "3.6.1"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.18"
@@ -104,7 +104,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.4.0"
+    "com.lihaoyi" %% "mainargs" % "0.5.0"
   )
 
   val monocle: Seq[ModuleID] = Seq(
