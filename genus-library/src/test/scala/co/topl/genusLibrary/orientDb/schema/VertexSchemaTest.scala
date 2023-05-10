@@ -2,7 +2,8 @@ package co.topl.genusLibrary.orientDb.schema
 
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
+import co.topl.genusLibrary.DbFixtureUtil
+import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}

@@ -4,8 +4,9 @@ import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.genus.services.{Txo, TxoState}
+import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.instances.SchemaTxo.Field
-import co.topl.genusLibrary.orientDb.{DbFixtureUtil, OrientDBMetadataFactory}
+import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
 import co.topl.models.ModelGenerators.GenHelper
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
