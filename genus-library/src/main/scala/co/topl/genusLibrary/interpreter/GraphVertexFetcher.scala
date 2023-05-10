@@ -5,6 +5,8 @@ import cats.implicits._
 import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
+import co.topl.genus.services.GetTxoStatsRes.TxoStats
+import co.topl.genus.services.TxoState
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
@@ -147,6 +149,33 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTxo", tx))
           )
 
+        override def fetchTxoStats(): F[Either[GE, TxoStats]] =
+          OrientThread[F].delay(
+            Try {
+
+              val queryString = s"select sum(state) as sum, state from Txo group by state"
+
+              val query: java.lang.Iterable[OrientVertex] =
+                orientGraph.command(new OSQLSynchQuery[OrientVertex](queryString)).execute()
+
+              query.asScala
+                .map { v =>
+                  v.getProperty[Int]("state") -> v.getProperty[Int]("sum")
+                }
+                .foldLeft(TxoStats.defaultInstance) { case (stats, (state, sum)) =>
+                  TxoState.fromValue(state) match {
+                    case TxoState.SPENT   => stats.withSpent(sum).withTotal(stats.total + sum)
+                    case TxoState.UNSPENT => stats.withUnspent(sum).withTotal(stats.total + sum)
+                    case TxoState.PENDING => stats.withPending(sum).withTotal(stats.total + sum)
+                    case _                => stats
+                  }
+                }
+
+            }.toEither
+              .leftMap[GE] { tx =>
+                GEs.InternalMessageCause("GraphVertexFetcher:fetchTxoStats", tx)
+              }
+          )
       }
     }
 }

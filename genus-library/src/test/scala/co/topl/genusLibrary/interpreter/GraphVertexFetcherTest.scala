@@ -8,6 +8,7 @@ import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
+import co.topl.genus.services.GetTxoStatsRes.TxoStats
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.models.generators.consensus.ModelGenerators._
@@ -339,6 +340,27 @@ class GraphVertexFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite 
       }
 
     }
+  }
+
+  test("On fetchTxoStats if an empty iterator is returned, a default instance of TxoStats should be returned") {
+
+    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test")
+
+    val res = for {
+      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+
+      orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+      graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+      _                  <- Sync[F].blocking(orientGraphNoTx.createVertexType("Txo")).toResource
+
+      _ <- assertIO(
+        graphVertexFetcher.fetchTxoStats(),
+        TxoStats.defaultInstance.asRight[GE]
+      ).toResource
+    } yield ()
+
+    res.use_
+
   }
 
 }

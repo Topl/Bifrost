@@ -45,7 +45,7 @@ object GenusServer {
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
 
       _ <- GenusGrpc.Server
-        .serve(conf.rpcHost, conf.rpcPort, blockFetcher, transactionFetcher)
+        .serve(conf.rpcHost, conf.rpcPort, blockFetcher, transactionFetcher, vertexFetcher)
         .evalTap(grpcServer =>
           Logger[F].info(s"RPC Server bound at ${grpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )

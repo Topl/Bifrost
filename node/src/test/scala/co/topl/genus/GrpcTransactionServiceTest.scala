@@ -90,7 +90,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
 
   }
 
-  test("getTxosByAddress: Exceptions") {
+  test("getTxosByLockAddress: Exceptions") {
     PropF.forAllF { (lockAddress: LockAddress) =>
       withMock {
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
@@ -103,14 +103,14 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
 
         for {
           _ <- interceptMessageIO[StatusException]("INTERNAL: Boom!")(
-            underTest.getTxosByAddress(QueryByAddressRequest(lockAddress), new Metadata())
+            underTest.getTxosByLockAddress(QueryByLockAddressRequest(lockAddress), new Metadata())
           )
         } yield ()
       }
     }
   }
 
-  test("getTxosByAddress: Empty sequence") {
+  test("getTxosByLockAddress: Empty sequence") {
     PropF.forAllF { (lockAddress: LockAddress) =>
       withMock {
         val transactionFetcher = mock[TransactionFetcherAlgebra[F]]
@@ -122,7 +122,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
           .returning(Seq.empty[Txo].asRight[GE].pure[F])
 
         for {
-          res <- underTest.getTxosByAddress(QueryByAddressRequest(lockAddress), new Metadata())
+          res <- underTest.getTxosByLockAddress(QueryByLockAddressRequest(lockAddress), new Metadata())
           _ = assert(res.txos.isEmpty)
 
         } yield ()
@@ -130,7 +130,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
     }
   }
 
-  test("getTxosByAddress: ok") {
+  test("getTxosByLockAddress: ok") {
     PropF.forAllF {
       (
         lockAddress:       LockAddress,
@@ -152,7 +152,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
             .returning(Seq(txo).asRight[GE].pure[F])
 
           for {
-            res <- underTest.getTxosByAddress(QueryByAddressRequest(lockAddress), new Metadata())
+            res <- underTest.getTxosByLockAddress(QueryByLockAddressRequest(lockAddress), new Metadata())
             _ = assert(res.txos.head == txo)
 
           } yield ()
