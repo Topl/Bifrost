@@ -78,6 +78,9 @@ object ToplRpcServer {
         def currentMempool(): F[Set[TransactionId]] =
           localChain.head.map(_.slotId.blockId).flatMap(blockId => mempool.read(blockId))
 
+        override def currentMempoolContains(transactionId: TransactionId): F[Boolean] =
+          localChain.head.map(_.slotId.blockId).flatMap(blockId => mempool.contains(blockId, transactionId))
+
         def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
           OptionT(headerStore.get(blockId)).map(_.embedId).value
 
