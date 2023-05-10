@@ -62,7 +62,7 @@ object ApplicationConfig {
     case class RPC(bindHost: String, bindPort: Int)
 
     @Lenses
-    case class Mempool(defaultExpirationSlots: Long, duplicateSpenderExpirationSlots: Long)
+    case class Mempool(defaultExpirationSlots: Long)
     sealed abstract class BigBang
 
     object BigBangs {
