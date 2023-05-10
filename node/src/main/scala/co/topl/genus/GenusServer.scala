@@ -1,11 +1,11 @@
 package co.topl.genus
 
-import cats.data.OptionT
+import cats.data.{EitherT, OptionT}
 import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
+import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalSteps}
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.interpreter._
 import co.topl.genusLibrary.model.GE
@@ -16,7 +16,6 @@ import co.topl.node.ApplicationConfig
 import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
 
@@ -36,7 +35,7 @@ object GenusServer {
         .make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
-      graphBlockInserter <- GraphBlockInserter.make[F](dbTx)
+      graphBlockInserter <- GraphBlockUpdater.make[F](dbTx)
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
       blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
       transactionFetcher <- GraphTransactionFetcher.make(vertexFetcher)
@@ -76,13 +75,22 @@ object GenusServer {
             .evalMap(graphBlockInserter.insert)
             .rethrow ++
           fs2.Stream
-            .force[F, BlockId](
-              nodeBlockFetcher.fetchAdoptions()
+            .force[F, SynchronizationTraversalStep](
+              rpcInterpreter.synchronizationTraversal()
             )
-            .evalMap(nodeBlockFetcher.fetch)
+            .evalMap {
+              case SynchronizationTraversalSteps.Applied(blockId) =>
+                EitherT(nodeBlockFetcher.fetch(blockId))
+                  .semiflatTap(blockData => Logger[F].info(s"Inserting block ${blockData.header.id.show}"))
+                  .flatMapF(graphBlockInserter.insert)
+                  .value
+              case SynchronizationTraversalSteps.Unapplied(blockId) =>
+                EitherT(nodeBlockFetcher.fetch(blockId))
+                  .semiflatTap(blockData => Logger[F].info(s"Deleting block ${blockData.header.id.show}"))
+                  .flatMapF(graphBlockInserter.remove)
+                  .value
+            }
             .rethrow
-            .evalTap(blockData => Logger[F].info(s"Inserting block data ${blockData.header.id.show}"))
-            .evalMap(graphBlockInserter.insert)
             .recover(_ => ().asRight[GE])
 
         } yield ()

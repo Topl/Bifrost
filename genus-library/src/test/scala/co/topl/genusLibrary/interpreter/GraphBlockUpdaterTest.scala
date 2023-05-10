@@ -21,7 +21,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.annotation.nowarn
 import scala.jdk.CollectionConverters._
 
-class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphBlockUpdaterTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -36,9 +36,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
       val res = for {
         implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
         blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
+        graphBlockUpdater                        <- GraphBlockUpdater.make[F](orientGraph)
         _ <- assertIO(
-          graphHeaderInserter.insert(blockData),
+          graphBlockUpdater.insert(blockData),
           (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
         ).toResource
       } yield ()
@@ -58,9 +58,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
       val res = for {
         implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
         blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 1), null, null))
-        graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
+        graphBlockUpdater                        <- GraphBlockUpdater.make[F](orientGraph)
         _ <- assertIO(
-          graphHeaderInserter.insert(blockData),
+          graphBlockUpdater.insert(blockData),
           ().asRight[GE]
         ).toResource
       } yield ()
@@ -80,9 +80,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
+          graphBlockUpdater                        <- GraphBlockUpdater.make[F](orientGraph)
           _ <- assertIO(
-            graphHeaderInserter.insert(blockData),
+            graphBlockUpdater.insert(blockData),
             (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
           ).toResource
         } yield ()
@@ -111,9 +111,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
+          graphBlockUpdater                        <- GraphBlockUpdater.make[F](orientGraph)
           _ <- assertIO(
-            graphHeaderInserter.insert(blockData),
+            graphBlockUpdater.insert(blockData),
             ().asRight[GE]
           ).toResource
         } yield ()
@@ -140,9 +140,9 @@ class GraphBlockInserterSuite extends CatsEffectSuite with ScalaCheckEffectSuite
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
           blockData                                <- Resource.pure(BlockData(blockHeader.copy(height = 2), null, null))
-          graphHeaderInserter                      <- GraphBlockInserter.make[F](orientGraph)
+          graphBlockUpdater                        <- GraphBlockUpdater.make[F](orientGraph)
           _ <- assertIO(
-            graphHeaderInserter.insert(blockData),
+            graphBlockUpdater.insert(blockData),
             (GEs.InternalMessage("boom!"): GE).asLeft[Unit]
           ).toResource
         } yield ()

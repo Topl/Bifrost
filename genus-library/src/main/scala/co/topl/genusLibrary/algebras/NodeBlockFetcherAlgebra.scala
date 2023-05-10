@@ -42,11 +42,4 @@ trait NodeBlockFetcherAlgebra[F[_], G[_]] {
    */
   def fetchHeight(): F[Option[Long]]
 
-  /**
-   * Look-up up node's applied blocks ids
-   *
-   * @return height
-   */
-  def fetchAdoptions(): F[G[BlockId]]
-
 }
