@@ -20,7 +20,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.Metadata
 import io.grpc.Server
-
+import io.grpc.protobuf.services.ProtoReflectionService
 import java.net.InetSocketAddress
 
 object ToplGrpc {
@@ -135,6 +135,7 @@ object ToplGrpc {
           NettyServerBuilder
             .forAddress(new InetSocketAddress(host, port))
             .addService(serverServiceDefinition)
+            .addService(ProtoReflectionService.newInstance())
             .resource[F]
             .evalMap(server => Async[F].delay(server.start()))
         )
