@@ -1,13 +1,13 @@
 package co.topl.networking.multiplexer
 
 import cats.data.NonEmptyChain
+import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.implicits._
 import cats.effect.std.Queue
 import cats.implicits._
 import fs2._
-import fs2.io.net.Socket
 
 /**
  * Multiplexes outbound sub-protocol "packets" into a single stream.  Demultiplexes inbound "packets" into multiple
@@ -24,7 +24,9 @@ import fs2.io.net.Socket
  */
 object Multiplexer {
 
-  def apply[F[_]: Async](subProtocols: NonEmptyChain[SubHandler[F]])(socket: Socket[F]): Resource[F, Unit] =
+  def apply[F[_]: Async](
+    subProtocols: NonEmptyChain[SubHandler[F]]
+  )(reads: Stream[F, Byte], writes: Pipe[F, Byte, Nothing]): Resource[F, Unit] =
     for {
       queues <- subProtocols
         .traverse(p =>
@@ -45,10 +47,13 @@ object Multiplexer {
         .compile
         .drain
         .toResource
-      inputProcessor = socket.reads
+      inputProcessor = reads
         .through(MessageParserFramer())
         .evalTap { case (session, bytes) =>
-          queues(session).offer(bytes)
+          OptionT
+            .fromOption[F](queues.get(session))
+            .getOrRaise(new IllegalArgumentException(s"Unknown multiplexer session=$session"))
+            .flatMap(_.offer(bytes))
         }
         .compile
         .drain
@@ -59,7 +64,7 @@ object Multiplexer {
         .parJoinUnbounded
         .through(MessageSerializerFramer())
         .unchunks
-        .through(socket.writes)
+        .through(writes)
         .compile
         .drain
         .toResource

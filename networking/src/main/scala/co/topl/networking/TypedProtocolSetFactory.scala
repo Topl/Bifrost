@@ -15,16 +15,14 @@ import co.topl.networking.p2p._
 import co.topl.networking.typedprotocols.TypedProtocol.CommonStates
 import co.topl.networking.typedprotocols._
 import fs2._
-import fs2.io.net.Socket
 import org.typelevel.log4cats.Logger
 
 import java.util.concurrent.TimeoutException
 import scala.concurrent.duration._
 
 /**
- * Helper for transforming a collection of Typed Sub Handlers into a multiplexed akka stream Flow
- * @tparam Client a Client type for interacting with the live-running connection.  (This value is materialized by the
- *                multiplexer Flow)
+ * Assists with lifting a raw Socket into a TypedProtocol setting.
+ * @tparam Client a Client type for interacting with the live-running connection from the application
  */
 trait TypedProtocolSetFactory[F[_], Client] {
 
@@ -36,14 +34,24 @@ trait TypedProtocolSetFactory[F[_], Client] {
     socketLeader:  SocketLeader
   ): F[(NonEmptyChain[TypedSubHandler[F, _]], Client)]
 
+  /**
+   * Runs the typed protocols and client on top of the given socket
+   * @param useClient a function which consumes the Client instance
+   * @param connectedPeer The remote peer
+   * @param socketLeader The leader of the socket
+   * @param reads A stream of incoming bytes
+   * @param writes A stream of outgoing bytes
+   * @return A resource which runs the typed protocols and client
+   */
   def multiplexed(useClient: Client => Resource[F, Unit])(
     connectedPeer: ConnectedPeer,
     socketLeader:  SocketLeader,
-    socket:        Socket[F]
+    reads:         Stream[F, Byte],
+    writes:        Pipe[F, Byte, Nothing]
   )(implicit L: Logger[F], A: Async[F]): Resource[F, Unit] =
     multiplexerHandlersIn(connectedPeer, socketLeader)
       .flatMap { case (subHandlers, client) =>
-        (Multiplexer(subHandlers)(socket), useClient(client)).parTupled.void
+        (Multiplexer(subHandlers)(reads, writes), useClient(client)).parTupled.void
       }
 
   private def multiplexerHandlersIn(

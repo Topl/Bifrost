@@ -12,6 +12,16 @@ import scala.concurrent.duration._
 
 object BlockchainNetwork {
 
+  /**
+   * Launches a P2P Network that runs blockchain operations
+   * @param host The host to bind to
+   * @param bindPort The port to bind to
+   * @param localPeer The local peer description
+   * @param remotePeers A stream of remote peers to connect to
+   * @param clientHandler A handler for each peer client
+   * @param serverF A server of data to each peer
+   * @return A P2PNetwork
+   */
   def make[F[_]: Async: Random](
     host:          String,
     bindPort:      Int,
@@ -22,7 +32,6 @@ object BlockchainNetwork {
   ): Resource[F, P2PServer[F]] =
     for {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P.Blockchain").toResource
-      blockchainSocketHandler = BlockchainSocketHandler.make[F](serverF, clientHandler.usePeer) _
       p2pServer <- FS2P2PServer.make[F](
         host,
         bindPort,
@@ -30,10 +39,13 @@ object BlockchainNetwork {
         remotePeers,
         (peer, socket) =>
           SocketLeader
-            .fromSocket(socket)
+            .fromSocket(socket.readN, socket.write)
             .timeout(5.seconds)
             .toResource
-            .flatMap(blockchainSocketHandler(peer, _, socket))
+            .flatMap(socketLeader =>
+              BlockchainSocketHandler
+                .make[F](serverF, clientHandler.usePeer)(peer, socketLeader, socket.reads, socket.writes)
+            )
       )
     } yield p2pServer
 

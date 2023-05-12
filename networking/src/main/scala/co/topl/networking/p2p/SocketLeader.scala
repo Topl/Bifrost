@@ -6,26 +6,38 @@ import cats.implicits._
 import cats.effect.std.Random
 import co.topl.crypto.hash.Blake2b256
 import fs2.Chunk
-import fs2.io.net.Socket
 
 import java.nio.ByteBuffer
 
+/**
+ * Describes the leader of a connection between two peers.  A leader doesn't have any special authority; it is
+ * primarily meant as a way of handling a coin-flip decision between the two peers.
+ */
 sealed abstract class SocketLeader
 
 object SocketLeader {
   case object Local extends SocketLeader
   case object Remote extends SocketLeader
 
-  def fromSocket[F[_]: Async: Random](socket: Socket[F]): F[SocketLeader] =
+  /**
+   * Establish a Socket Leader for the given reader/writer functions.
+   * Each peer generates a random number locally.  The number is then hashed and the hash is sent to the remote peer.
+   * Once received, the peers then exchange the original numbers for verification.  Finally, the two numbers are run
+   * through a function which deterministically outputs the leader.
+   * @param readN Reads N bytes from the socket
+   * @param write Writes bytes to the socket
+   * @return the leader of the socket
+   */
+  def fromSocket[F[_]: Async: Random](readN: Int => F[Chunk[Byte]], write: Chunk[Byte] => F[Unit]): F[SocketLeader] =
     for {
       localValue <- Random[F].nextInt
       localValueBytes = intToBytestring(localValue)
       blake2b256 = new Blake2b256()
       localValueDigest = blake2b256.hash(localValueBytes)
-      _                <- socket.write(Chunk.array(localValueDigest))
-      remoteDigest     <- socket.readN(32).map(_.toArray)
-      _                <- socket.write(Chunk.array(localValueBytes))
-      remoteValueBytes <- socket.readN(4).map(_.toArray)
+      _                <- write(Chunk.array(localValueDigest))
+      remoteDigest     <- readN(32).map(_.toArray)
+      _                <- write(Chunk.array(localValueBytes))
+      remoteValueBytes <- readN(4).map(_.toArray)
       _ <- MonadThrow[F].raiseWhen(
         !java.util.Arrays.equals(remoteDigest, blake2b256.hash(remoteValueBytes))
       )(new IllegalStateException("Remote evidence did not match remote value"))
@@ -40,7 +52,4 @@ object SocketLeader {
 
   private def intToBytestring(value: Int): Array[Byte] =
     ByteBuffer.allocate(4).putInt(value).array()
-
-  private def bytestringToInt(bytes: Array[Byte]): Int =
-    ByteBuffer.wrap(bytes).getInt
 }

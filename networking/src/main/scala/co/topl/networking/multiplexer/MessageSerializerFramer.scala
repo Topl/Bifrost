@@ -13,9 +13,10 @@ import java.nio.ByteBuffer
 object MessageSerializerFramer {
 
   def apply[F[_]](): Pipe[F, (Byte, Chunk[Byte]), Chunk[Byte]] =
-    _.map { case (typeByte, chunk) =>
-      Chunk.singleton(typeByte) ++
-      Chunk.array(ByteBuffer.allocate(4).putInt(chunk.size).array()) ++
-      chunk
-    }
+    _.map((function _).tupled)
+
+  def function(typeByte: Byte, chunk: Chunk[Byte]): Chunk[Byte] =
+    Chunk.singleton(typeByte) ++
+    Chunk.array(ByteBuffer.allocate(4).putInt(chunk.size).array()) ++
+    chunk
 }

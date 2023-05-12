@@ -1,7 +1,8 @@
 package co.topl.networking
 
-import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders, RemoteAddress}
-import org.scalacheck.{Arbitrary, Gen}
+import co.topl.networking.p2p._
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 
 trait NetworkGen {
 
@@ -24,9 +25,9 @@ trait NetworkGen {
       } yield ConnectedPeer(address, coordinate)
     )
 
-  implicit val arbitraryConnectionLeader: Arbitrary[ConnectionLeader] =
+  implicit val arbitrarySocketLeader: Arbitrary[SocketLeader] =
     Arbitrary(
-      Gen.oneOf(ConnectionLeaders.Local, ConnectionLeaders.Remote)
+      Gen.oneOf(SocketLeader.Local, SocketLeader.Remote)
     )
 }
 

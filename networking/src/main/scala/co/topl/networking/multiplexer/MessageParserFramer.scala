@@ -34,7 +34,7 @@ object MessageParserFramer {
   def parseWhole(bytes: Chunk[Byte]): (Byte, Chunk[Byte]) = {
     val typeByte = bytes(0)
     val sizeBytes = bytes.drop(1)
-    val size = sizeBytes.toByteBuffer.getInt
+    sizeBytes.toByteBuffer.getInt
     val data = bytes.drop(5)
     (typeByte, data)
   }

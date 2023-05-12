@@ -15,7 +15,6 @@ import co.topl.networking.p2p.ConnectedPeer
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import fs2._
-import fs2.io.net.Socket
 
 /**
  * Produces a function which accepts a (connectedPeer, socketLeader) and emits an Akka Stream Flow.  The flow performs
@@ -29,10 +28,15 @@ object BlockchainSocketHandler {
   def make[F[_]: Async: Logger](
     peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
     useClient:   BlockchainPeerClient[F] => Resource[F, Unit]
-  )(peer: ConnectedPeer, leader: SocketLeader, socket: Socket[F]): Resource[F, Unit] =
+  )(
+    peer:   ConnectedPeer,
+    leader: SocketLeader,
+    reads:  Stream[F, Byte],
+    writes: Pipe[F, Byte, Nothing]
+  ): Resource[F, Unit] =
     peerServerF(peer)
       .map(server => createFactory(server))
-      .flatMap(_.multiplexed(useClient)(peer, leader, socket))
+      .flatMap(_.multiplexed(useClient)(peer, leader, reads, writes))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
     protocolServer: BlockchainPeerServerAlgebra[F]

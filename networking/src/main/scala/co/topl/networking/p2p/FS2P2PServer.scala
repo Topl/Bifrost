@@ -70,8 +70,11 @@ object FS2P2PServer {
       .map { case (peer, socket) =>
         Stream.resource(
           for {
-            _ <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(peer)).toResource
-            _ <- peerHandler(peer, socket)
+            _      <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(peer)).toResource
+            result <- peerHandler(peer, socket).attempt
+            _ <- peerChangesTopic
+              .publish1(PeerConnectionChanges.ConnectionClosed(peer, result.swap.toOption))
+              .toResource
           } yield ()
         )
       }
@@ -102,8 +105,11 @@ object FS2P2PServer {
               .toResource
             socket <- Network[F].client(SocketAddress(host, port))
             connected = ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate)
-            _ <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(connected)).toResource
-            _ <- peerHandler(connected, socket)
+            _      <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(connected)).toResource
+            result <- peerHandler(connected, socket).attempt
+            _ <- peerChangesTopic
+              .publish1(PeerConnectionChanges.ConnectionClosed(connected, result.swap.toOption))
+              .toResource
           } yield ()
         )
       )
