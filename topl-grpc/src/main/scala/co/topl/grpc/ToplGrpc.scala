@@ -66,6 +66,14 @@ object ToplGrpc {
                 )
                 .map(_.transactionIds.toSet)
 
+            override def currentMempoolContains(transactionId: TransactionId): F[Boolean] =
+              client
+                .currentMempoolContains(
+                  CurrentMempoolContainsReq(transactionId),
+                  new Metadata()
+                )
+                .map(_.inMempool)
+
             def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
               client
                 .fetchBlockHeader(
@@ -154,6 +162,15 @@ object ToplGrpc {
           .currentMempool()
           .map(_.toList)
           .map(CurrentMempoolRes(_))
+          .adaptErrorsToGrpc
+
+      override def currentMempoolContains(
+        request: CurrentMempoolContainsReq,
+        ctx:     Metadata
+      ): F[CurrentMempoolContainsRes] =
+        interpreter
+          .currentMempoolContains(request.transactionId)
+          .map(CurrentMempoolContainsRes(_))
           .adaptErrorsToGrpc
 
       def fetchBlockHeader(in: FetchBlockHeaderReq, ctx: Metadata): F[FetchBlockHeaderRes] =

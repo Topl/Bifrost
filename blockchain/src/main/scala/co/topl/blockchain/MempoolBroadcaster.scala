@@ -28,6 +28,9 @@ object MempoolBroadcaster {
                 .rethrowT
 
             def remove(transactionId: TransactionId): F[Unit] = mempool.remove(transactionId)
+
+            def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =
+              mempool.contains(blockId, transactionId)
           }
 
         (interpreter, topic)
