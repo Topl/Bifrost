@@ -14,6 +14,7 @@ import co.topl.numerics.implicits._
 import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.Proposition
+import co.topl.brambl.constants.NetworkConstants
 
 object PrivateTestnet {
 
@@ -88,6 +89,9 @@ object PrivateTestnet {
       )
     )
 
-  val HeightLockOneSpendingAddress: LockAddress = HeightLockOneLock.lockAddress(0, 0)
+  val HeightLockOneSpendingAddress: LockAddress = HeightLockOneLock.lockAddress(
+    NetworkConstants.PRIVATE_NETWORK_ID,
+    NetworkConstants.MAIN_LEDGER_ID
+  )
 
 }

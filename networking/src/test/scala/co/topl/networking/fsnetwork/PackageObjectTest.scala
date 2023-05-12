@@ -35,10 +35,10 @@ class PackageObjectTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val storageData = blockIdSlotId.toList.toMap
       val storage = mock[Store[F, BlockId, SlotData]]
       (storage
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .rep(testDataSize.toInt)
-        .onCall { case (id: BlockId, _: MonadThrow[F], _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           storageData(id).pure[F]
         }
 
@@ -66,10 +66,10 @@ class PackageObjectTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val storageData = blockIdSlotId.toList.toMap
       val storage = mock[Store[F, BlockId, SlotData]]
       (storage
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .once()
-        .onCall { case (_: BlockId, _: MonadThrow[F], _: Show[BlockId]) =>
+        .onCall { case (_: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           val monadThrow = implicitly[MonadThrow[F]]
           monadThrow.raiseError(new IllegalStateException())
         }

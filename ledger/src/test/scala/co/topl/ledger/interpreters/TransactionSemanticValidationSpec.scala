@@ -2,12 +2,12 @@ package co.topl.ledger.interpreters
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.ledger.algebras._
@@ -81,7 +81,10 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
         input:         SpentTransactionOutput
       ) =>
         withMock {
-          val lockAddress = input.attestation.getPredicate.lock.lockAddress(0, 0)
+          val lockAddress = input.attestation.getPredicate.lock.lockAddress(
+            NetworkConstants.PRIVATE_NETWORK_ID,
+            NetworkConstants.MAIN_LEDGER_ID
+          )
           val transactionA = _transactionA.update(
             _.outputs.set(
               List(
@@ -177,7 +180,10 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             outputs = List(
               output.copy(
                 value = Value.defaultInstance,
-                address = input.attestation.getPredicate.lock.lockAddress(0, 0)
+                address = input.attestation.getPredicate.lock.lockAddress(
+                  NetworkConstants.PRIVATE_NETWORK_ID,
+                  NetworkConstants.MAIN_LEDGER_ID
+                )
               )
             )
           )

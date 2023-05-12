@@ -9,7 +9,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.models.utility.Ratio
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
@@ -35,6 +35,16 @@ trait BlockchainPeerClient[F[_]] {
    * A Source of transaction IDs that were observed by the remote node
    */
   def remoteTransactionNotifications: F[Stream[F, TransactionId]]
+
+  /**
+   * A lookup to retrieve a remote block at depth, where depth=0 is the best tip, and depth=1 is the parent of best tip
+   */
+  def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]]
+
+  /**
+   * A lookup to retrieve a remote best block id
+   */
+  def remoteCurrentTip(): F[Option[BlockId]] = getRemoteBlockIdAtDepth(0)
 
   /**
    * A Lookup to retrieve a remote SlotData by ID
@@ -75,6 +85,13 @@ trait BlockchainPeerClient[F[_]] {
    *                     an extra lookup from their end)
    */
   def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]]
+
+  /**
+   * A lookup to retrieve known hosts from remote peer
+   * @param request request for known hosts
+   * @return known hosts
+   */
+  def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]]
 
   /**
    * Find the common ancestor block ID between the local node and the remote peer.

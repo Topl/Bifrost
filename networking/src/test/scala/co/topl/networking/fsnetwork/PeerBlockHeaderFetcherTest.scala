@@ -21,8 +21,9 @@ import co.topl.networking.fsnetwork.TestHelper._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalacheck.Gen
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.mutable
@@ -33,7 +34,7 @@ object PeerBlockHeaderFetcherTest {
 }
 
 class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
@@ -41,7 +42,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Block header shall be downloaded by request") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first
+        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first.map(_.embedId)
       val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
         headers.map(h => (h.id, h))
       val idToHeader: Map[BlockId, BlockHeader] = idAndHeader.toList.toMap
@@ -52,7 +53,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(blocksCount)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(idToHeader.get(id).pure[F]).getOrRaise(e.apply())
         }
 
@@ -85,7 +86,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Block header shall be downloaded by request, for missing headers error shall be returned") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first
+        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first.map(_.embedId)
       val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
         headers.map(h => (h.id, h))
 
@@ -97,7 +98,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(idAndHeader.size.toInt)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(idToHeaderOnClient.get(id).pure[F]).getOrRaise(e.apply())
         }
 
@@ -136,7 +137,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("Block header shall be downloaded by request, incorrect headers shall be skipped") {
     withMock {
       val headers: NonEmptyChain[BlockHeader] =
-        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first
+        nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize).first.map(_.embedId)
       val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] =
         headers.map(h => (h.id, h))
 
@@ -150,7 +151,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(idAndHeader.size.toInt)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           if (missedBlockId(id)) {
             incorrectHeader.pure[F]
           } else {
@@ -193,7 +194,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("New better slot data shall be sent if local chain is worse") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < maxChainSize).first
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -207,10 +208,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(remoteSlotDataCount)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
-      (client.remotePeerAdoptions _).expects().once().onCall { () =>
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
 
@@ -253,7 +254,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   test("New better slot data shall not be sent if local chain is better") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
-        arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < maxChainSize).first
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
       val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
       val (knownId, knownSlotData) = idAndSlotData.head
       val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -267,10 +268,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(*, *, *)
         .rep(remoteSlotDataCount)
-        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName, _: MonadThrow[F]) =>
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
-      (client.remotePeerAdoptions _).expects().once().onCall { () =>
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
 
@@ -305,6 +306,137 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+
+    }
+  }
+
+  test("Requested tip shall be sent if local chain is better") {
+    withMock {
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (knownId, knownSlotData) = idAndSlotData.head
+      val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
+
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val bestTip = idAndSlotData.last._2
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client.remoteCurrentTip _)
+        .expects()
+        .returns(Option(bestTip.slotId.blockId).pure[F])
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.fromOption[F](Option.empty[BlockId]).pure[F]
+      }
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val expectedMessage: BlockChecker.Message = BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData.map(_._2))
+      (blockChecker.sendNoWait _).expects(expectedMessage).returns(().pure[F])
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+
+      val localChain = mock[LocalChainAlgebra[F]]
+      (localChain.isWorseThan _).expects(bestTip).once().returning(true.pure[F])
+
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
+      slotDataStoreMap.put(knownId, knownSlotData)
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).rep(idAndSlotData.size.toInt).onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: BlockId, slotData: SlotData) =>
+        slotDataStoreMap.put(id, slotData).pure[F].void
+      }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, blockChecker, requestsProxy, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            state <- actor.send(PeerBlockHeaderFetcher.Message.GetCurrentTip)
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
+  test("Requested tip shall not be sent if local chain is worse") {
+    withMock {
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (knownId, knownSlotData) = idAndSlotData.head
+      val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
+
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val bestTip = idAndSlotData.last._2
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client.remoteCurrentTip _)
+        .expects()
+        .returns(Option(bestTip.slotId.blockId).pure[F])
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.fromOption[F](Option.empty[BlockId]).pure[F]
+      }
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val expectedMessage: BlockChecker.Message = BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData.map(_._2))
+      (blockChecker.sendNoWait _).expects(expectedMessage).never()
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+
+      val localChain = mock[LocalChainAlgebra[F]]
+      (localChain.isWorseThan _).expects(bestTip).once().returning(false.pure[F])
+
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
+      slotDataStoreMap.put(knownId, knownSlotData)
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).rep(idAndSlotData.size.toInt).onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: BlockId, slotData: SlotData) =>
+        slotDataStoreMap.put(id, slotData).pure[F].void
+      }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, blockChecker, requestsProxy, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            state <- actor.send(PeerBlockHeaderFetcher.Message.GetCurrentTip)
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
             _     <- state.fetchingFiber.get.join
           } yield ()

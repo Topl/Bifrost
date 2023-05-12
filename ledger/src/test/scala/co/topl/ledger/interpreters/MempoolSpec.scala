@@ -1,19 +1,15 @@
 package co.topl.ledger.interpreters
 
 import cats.Applicative
-import cats.MonadThrow
 import cats.data.NonEmptyChain
-import cats.effect.Deferred
-import cats.effect.IO
-import cats.effect.MonadCancel
+import cats.effect._
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.models.transaction._
+import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators._
@@ -27,8 +23,6 @@ import org.scalacheck.Test
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
-import scala.concurrent.duration._
-
 class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
@@ -41,9 +35,9 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("expose a Set of Transaction IDs at a specific block") {
     PropF.forAllF(
       nonEmptyChainOf[(BlockId, NonEmptyChain[IoTransaction])](
-        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(arbitraryIoTransaction.arbitrary))
+        Gen.zip(arbitraryBlockId.arbitrary, nonEmptyChainOf(arbitraryIoTransaction.arbitrary.map(_.embedId)))
       ),
-      arbitraryIoTransaction.arbitrary
+      arbitraryIoTransaction.arbitrary.map(_.embedId)
     ) { case (bodies, newTx: IoTransaction) =>
       withMock {
         val bodiesMap = bodies.toList.toMap
@@ -73,7 +67,6 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               _ => Applicative[F].unit,
               clock,
               _ => Applicative[F].unit,
-              Long.MaxValue,
               Long.MaxValue
             )
             .use(underTest =>
@@ -98,7 +91,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   }
 
   test("allow transactions to be added externally") {
-    PropF.forAllF { (currentBlockId: BlockId, transaction: IoTransaction) =>
+    PropF.forAllF { (currentBlockId: BlockId, _transaction: IoTransaction) =>
+      val transaction = _transaction.embedId
       withMock {
         val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
@@ -125,7 +119,6 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               _ => Applicative[F].unit,
               clock,
               _ => Applicative[F].unit,
-              Long.MaxValue,
               Long.MaxValue
             )
             .use(_.add(transaction.id).assert)
@@ -137,7 +130,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
   test("expire transactions at the user-defined slot") {
     PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
-        val transaction = transactionWithRandomTime.update(_.datum.event.schedule.max.set(2))
+        val transaction = transactionWithRandomTime.update(_.datum.event.schedule.max.set(2)).embedId
         val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
@@ -148,37 +141,36 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .expects()
           .once()
           .returning(0L.pure[F])
-        for {
-          deferred <- Deferred[F, Unit]
-          _ =
-            (clock
-              .delayedUntilSlot(_: Long))
-              // This is the real thing being tested here
-              .expects(transaction.datum.event.schedule.max)
-              .once()
-              .returning(deferred.get)
-          _ <-
-            Mempool
-              .make[F](
-                currentBlockId.pure[F],
-                mockFunction[BlockId, F[BlockBody]],
-                fetchTransaction,
-                mock[ParentChildTree[F, BlockId]],
-                _ => Applicative[F].unit,
-                clock,
-                _ => Applicative[F].unit,
-                Long.MaxValue,
-                Long.MaxValue
-              )
-              .use(underTest =>
-                for {
-                  _ <- underTest.add(transaction.id)
-                  _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id))
-                  _ <- deferred.complete(())
-                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]))
-                } yield ()
-              )
-        } yield ()
+        val testResource =
+          for {
+            clockDeferred <- Deferred[F, Unit].toResource
+            _ =
+              (clock
+                .delayedUntilSlot(_: Long))
+                // This is the real thing being tested here
+                .expects(transaction.datum.event.schedule.max)
+                .once()
+                .returning(clockDeferred.get)
+            expirationDeferred <- Deferred[F, Unit].toResource
+            underTest <-
+              Mempool
+                .make[F](
+                  currentBlockId.pure[F],
+                  mockFunction[BlockId, F[BlockBody]],
+                  fetchTransaction,
+                  mock[ParentChildTree[F, BlockId]],
+                  _ => Applicative[F].unit,
+                  clock,
+                  _ => expirationDeferred.complete(()).void,
+                  Long.MaxValue
+                )
+            _ <- underTest.add(transaction.id).toResource
+            _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id)).toResource
+            _ <- clockDeferred.complete(()).toResource
+            _ <- expirationDeferred.get.toResource
+            _ <- underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]).toResource
+          } yield ()
+        testResource.use_
       }
     }
   }
@@ -187,7 +179,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (currentBlockId: BlockId, transactionWithRandomTime: IoTransaction) =>
       withMock {
         val transaction =
-          transactionWithRandomTime.update(_.datum.event.schedule.max.set(Long.MaxValue))
+          transactionWithRandomTime.update(_.datum.event.schedule.max.set(Long.MaxValue)).embedId
         val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
         fetchTransaction
           .expects(transaction.id)
@@ -198,133 +190,39 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .expects()
           .once()
           .returning(0L.pure[F])
-        for {
-          deferred <- Deferred[F, Unit]
-          _ =
-            (clock
-              .delayedUntilSlot(_: Long))
-              // This is the real thing being tested here
-              .expects(100L)
-              .once()
-              .returning(deferred.get)
-          _ <-
-            Mempool
-              .make[F](
-                currentBlockId.pure[F],
-                mockFunction[BlockId, F[BlockBody]],
-                fetchTransaction,
-                mock[ParentChildTree[F, BlockId]],
-                _ => Applicative[F].unit,
-                clock,
-                _ => Applicative[F].unit,
-                100L,
-                Long.MaxValue
-              )
-              .use(underTest =>
-                for {
-                  _ <- underTest.add(transaction.id)
-                  _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id))
-                  _ <- deferred.complete(())
-                  _ <- retry(underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]))
-                } yield ()
-              )
+        val testResource =
+          for {
+            clockDeferred <- Deferred[F, Unit].toResource
+            _ =
+              (clock
+                .delayedUntilSlot(_: Long))
+                // This is the real thing being tested here
+                .expects(100L)
+                .once()
+                .returning(clockDeferred.get)
+            expirationDeferred <- Deferred[F, Unit].toResource
+            underTest <-
+              Mempool
+                .make[F](
+                  currentBlockId.pure[F],
+                  mockFunction[BlockId, F[BlockBody]],
+                  fetchTransaction,
+                  mock[ParentChildTree[F, BlockId]],
+                  _ => Applicative[F].unit,
+                  clock,
+                  _ => expirationDeferred.complete(()).void,
+                  100L
+                )
+            _ <- underTest.add(transaction.id).toResource
+            _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id)).toResource
+            _ <- clockDeferred.complete(()).toResource
+            _ <- expirationDeferred.get.toResource
 
-        } yield ()
+            _ <- underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]).toResource
+          } yield ()
+        testResource.use_
       }
     }
   }
-
-  test("expire a transaction more aggressively when a double-spend is detected") {
-    PropF.forAllF {
-      (
-        baseTransaction: IoTransaction,
-        input:           SpentTransactionOutput,
-        ancestorBlockId: BlockId,
-        blockIdA:        BlockId,
-        blockIdB:        BlockId
-      ) =>
-        withMock {
-          val transactionWithSingleInput = baseTransaction.addInputs(input)
-          // Transaction A and Transaction B are exactly the same, except for the creation schedule to force a different ID
-          val transactionA = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(0, 100)))
-          val transactionAId = transactionA.id
-          val transactionB = transactionWithSingleInput.update(_.datum.event.schedule.set(Schedule(1, 100)))
-          val transactionBId = transactionB.id
-          val bodies =
-            Map(
-              blockIdA -> List(transactionAId),
-              blockIdB -> List(transactionBId)
-            )
-          val transactions =
-            Map(
-              transactionAId -> transactionA,
-              transactionBId -> transactionB
-            )
-
-          val fetchBody = (id: BlockId) => BlockBody(bodies(id)).pure[F]
-          val fetchTransaction = (id: TransactionId) => transactions(id).pure[F]
-          val clock = mock[ClockAlgebra[F]]
-          (() => clock.globalSlot)
-            .expects()
-            .anyNumberOfTimes()
-            .returning(0L.pure[F])
-          for {
-            tree <- ParentChildTree.FromRef.make[F, BlockId]
-            _    <- tree.associate(blockIdA, ancestorBlockId)
-            _    <- tree.associate(blockIdB, ancestorBlockId)
-            _ <- Mempool
-              .make[F](
-                ancestorBlockId.pure[F],
-                fetchBody,
-                fetchTransaction,
-                tree,
-                _ => Applicative[F].unit,
-                clock,
-                _ => Applicative[F].unit,
-                Long.MaxValue,
-                1L
-              )
-              .use(underTest =>
-                for {
-                  _ <- underTest.read(blockIdA).assertEquals(Set.empty[TransactionId])
-                  _ <-
-                    inSequence {
-                      if (transactionA.datum.event.schedule.max != 1L) {
-                        // The "unapply" operation will schedule a normal expiration
-                        (clock
-                          .delayedUntilSlot(_: Long))
-                          .expects(transactionA.datum.event.schedule.max)
-                          .once()
-                          .returning(MonadCancel[F].never[Unit])
-                        // But the "apply" operation will re-schedule the expiration
-                        (clock
-                          .delayedUntilSlot(_: Long))
-                          .expects(1L)
-                          .once()
-                          .returning(MonadCancel[F].never[Unit])
-                      } else {
-                        // This is just an edge-case where the Schedule generator produces a maximum slot of 1L,
-                        // so the scalamock expectation needs to expect the value twice instead of just once
-                        (clock
-                          .delayedUntilSlot(_: Long))
-                          .expects(1L)
-                          .twice()
-                          .returning(MonadCancel[F].never[Unit])
-                      }
-                      underTest.read(blockIdB).assertEquals(Set(transactionAId))
-                    }
-                } yield ()
-              )
-          } yield ()
-
-        }
-    }
-  }
-
-  private def retry[A](f: => F[A], attempts: Int = 5, delay: FiniteDuration = 100.milli): F[A] =
-    if (attempts > 1)
-      MonadThrow[F].recoverWith(f) { case _ => IO.sleep(delay) >> retry(f, attempts - 1, delay) }
-    else
-      f
 
 }

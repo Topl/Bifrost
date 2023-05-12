@@ -5,11 +5,7 @@ import cats.effect.{Resource, Sync, SyncIO}
 import cats.implicits._
 import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{
-  blockHeaderBodyEdge,
-  blockHeaderEdge,
-  blockHeaderTxIOEdge
-}
+import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -37,17 +33,23 @@ object OrientDBMetadataFactory {
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- createVertex(db, blockHeaderSchema)
-            _ <- createVertex(db, blockBodySchema)
-            _ <- createVertex(db, ioTransactionSchema)
-            _ <- createVertex(db, canonicalHeadSchema)
+            _ <- Seq(
+              blockHeaderSchema,
+              blockBodySchema,
+              ioTransactionSchema,
+              canonicalHeadSchema,
+              lockAddressSchema,
+              txoSchema
+            )
+              .traverse(createVertex(db, _))
+              .void
           } yield ()
         )
       )
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge)
+            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge, addressTxoEdge)
               .traverse(e => createEdge(db, e))
               .void
           } yield ()
@@ -64,7 +66,7 @@ object OrientDBMetadataFactory {
       .flatMap {
         case Some(oClass) =>
           Logger[F]
-            .info(s"${oClass.getName} class found, schema remains equals")
+            .debug(s"${oClass.getName} class found, schema remains equals")
             .as(oClass)
         case _ =>
           Sync[F]
@@ -118,17 +120,17 @@ object OrientDBMetadataFactory {
       .onError { case e => Logger[F].error(e)(s"Failed to create link on ${vs.name}") }
       .void
 
-  private[orientDb] def createEdge[F[_]: Sync: Logger: OrientThread](
+  private[orientDb] def createEdge[F[_]: Sync: Logger](
     db:   ODatabaseDocumentInternal,
     edge: EdgeSchema
-  ) =
-    OrientThread[F].delay(db.activateOnCurrentThread()) >>
-    OrientThread[F]
+  ): F[Unit] =
+    Sync[F].delay(db.activateOnCurrentThread()) >>
+    Sync[F]
       .delay(Option(db.getClass(edge.label)))
       .flatMap {
         case Some(oClass) =>
-          Logger[F].info(s"${oClass.getName} class found, schema remains equals")
+          Logger[F].debug(s"${oClass.getName} class found, schema remains equals")
         case _ =>
-          OrientThread[F].delay(db.createClass(edge.label, "E")).void
+          Sync[F].delay(db.createClass(edge.label, "E")).void
       }
 }

@@ -63,6 +63,7 @@ object ActorPeerHandlerBridgeAlgebra {
         hostId <- client.remotePeer.map(_.remoteAddress.host)
         _      <- peersManager.sendNoWait(PeersManager.Message.SetupPeer(hostId, client))
         _      <- peersManager.sendNoWait(PeersManager.Message.UpdatePeerStatus(hostId, PeerState.Hot))
+        _      <- peersManager.sendNoWait(PeersManager.Message.GetCurrentTip(hostId))
       } yield ()
   }
 }

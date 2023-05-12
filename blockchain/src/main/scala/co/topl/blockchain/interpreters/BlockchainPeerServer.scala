@@ -10,7 +10,7 @@ import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost}
 import co.topl.typeclasses.implicits._
 import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
 import co.topl.networking.p2p.ConnectedPeer
@@ -87,6 +87,17 @@ object BlockchainPeerServer {
               head       <- localChain.head
               blockIdOpt <- blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
             } yield blockIdOpt
+
+          def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
+            localChain.head.flatMap(s => getLocalBlockAtHeight(s.height - depth))
+
+          // Stub implementation at the moment
+          def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] = {
+            val knownHostStub: KnownHost = KnownHost("0.0.0.0", 0)
+            val knownHostsStub = Seq.fill(10)(knownHostStub)
+
+            Option(CurrentKnownHostsRes(knownHostsStub, knownHostsStub, knownHostsStub)).pure[F]
+          }
         }
       )
 }

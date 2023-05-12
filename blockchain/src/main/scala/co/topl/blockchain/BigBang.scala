@@ -2,7 +2,7 @@ package co.topl.blockchain
 
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._

@@ -13,7 +13,6 @@ import co.topl.brambl.models._
 import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.ToplGrpc
 import co.topl.quivr.api.Prover
@@ -190,24 +189,30 @@ class NodeAppTest extends CatsEffectSuite {
   )(address: TransactionOutputAddress, output: UnspentTransactionOutput) =
     for {
       predicate <- Attestation.Predicate(PrivateTestnet.HeightLockOneLock.getPredicate, Nil).pure[F]
-      unprovenTransaction <- IoTransaction(
-        inputs = List(
-          SpentTransactionOutput(
-            address,
-            Attestation(Attestation.Value.Predicate(predicate)),
-            output.value
+      unprovenTransaction <- IoTransaction.defaultInstance
+        .withInputs(
+          List(
+            SpentTransactionOutput(
+              address,
+              Attestation(Attestation.Value.Predicate(predicate)),
+              output.value
+            )
           )
-        ),
-        outputs = List(
-          UnspentTransactionOutput(
-            PrivateTestnet.HeightLockOneSpendingAddress,
-            output.value
-          )
-        ),
-        Datum.IoTransaction(
-          Event.IoTransaction(Schedule(0, Long.MaxValue, System.currentTimeMillis()), SmallData.defaultInstance)
         )
-      ).pure[F]
+        .withOutputs(
+          List(
+            UnspentTransactionOutput(
+              PrivateTestnet.HeightLockOneSpendingAddress,
+              output.value
+            )
+          )
+        )
+        .withDatum(
+          Datum.IoTransaction(
+            Event.IoTransaction(Schedule(0, Long.MaxValue, System.currentTimeMillis()), SmallData.defaultInstance)
+          )
+        )
+        .pure[F]
       proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
       provenTransaction = unprovenTransaction.copy(
         inputs = unprovenTransaction.inputs.map(

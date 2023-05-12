@@ -27,16 +27,22 @@ class GrpcTransactionService[F[_]: Async](transactionFetcher: TransactionFetcher
       .map(TransactionResponse(_))
       .adaptErrorsToGrpc
 
-  override def getTransactionByAddressStream(
-    request: QueryByAddressRequest,
+  override def getTransactionByLockAddressStream(
+    request: QueryByLockAddressRequest,
     ctx:     Metadata
   ): Stream[F, TransactionResponse] =
     Stream.raiseError[F](GEs.UnImplemented).adaptErrorsToGrpc
 
-  override def getTxosByAddress(request: QueryByAddressRequest, ctx: Metadata): F[TxoAddressResponse] =
-    Async[F].raiseError[TxoAddressResponse](GEs.UnImplemented).adaptErrorsToGrpc
+  override def getTxosByLockAddress(request: QueryByLockAddressRequest, ctx: Metadata): F[TxoLockAddressResponse] =
+    EitherT(transactionFetcher.fetchTransactionByLockAddress(request.address, request.state))
+      .map(TxoLockAddressResponse(_))
+      .rethrowT
+      .adaptErrorsToGrpc
 
-  override def getTxosByAddressStream(request: QueryByAddressRequest, ctx: Metadata): Stream[F, TxoAddressResponse] =
+  override def getTxosByLockAddressStream(
+    request: QueryByLockAddressRequest,
+    ctx:     Metadata
+  ): Stream[F, TxoLockAddressResponse] =
     Stream.raiseError[F](GEs.UnImplemented).adaptErrorsToGrpc
 
   override def getTxosByAssetLabel(request: QueryByAssetLabelRequest, ctx: Metadata): Stream[F, TxoResponse] =

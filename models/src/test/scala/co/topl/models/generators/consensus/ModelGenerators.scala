@@ -146,6 +146,7 @@ trait ModelGenerators {
       metadata       <- metadataGen
       address        <- addressGen
     } yield BlockHeader(
+      headerId = None,
       parentHeaderID,
       parentSlot,
       txRoot,
@@ -192,16 +193,22 @@ trait ModelGenerators {
         addSlotDataToChain(slotData.append(gen.sample.get.copy(parentSlotId = slotData.last.slotId)), gen, count - 1)
     }
 
-  implicit val arbitraryLinkedSlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =
+  def arbitraryLinkedSlotDataChainFor(sizeGen: Gen[Long]): Arbitrary[NonEmptyChain[SlotData]] =
     Arbitrary(
       for {
-        size <- Gen.posNum[Long]
+        size <- sizeGen
         root <- arbitrarySlotData.arbitrary
       } yield addSlotDataToChain(NonEmptyChain.one(root), arbitrarySlotData.arbitrary, size)
     )
 
+  implicit val arbitraryLinkedSlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =
+    arbitraryLinkedSlotDataChainFor(Gen.posNum[Long])
+
   implicit def chainArbOf[T](implicit a: Arbitrary[T]): Arbitrary[Chain[T]] =
     Arbitrary(Gen.listOf[T](a.arbitrary).map(Chain.apply))
+
+  def nonEmptyChainArbOfLen[T](a: Arbitrary[T], size: Int): Arbitrary[NonEmptyChain[T]] =
+    Arbitrary(Gen.listOfN[T](size, a.arbitrary).map(NonEmptyChain.fromSeq(_).get))
 
   implicit def nonEmptyChainArbOf[T](implicit a: Arbitrary[T]): Arbitrary[NonEmptyChain[T]] =
     Arbitrary(Gen.nonEmptyListOf[T](a.arbitrary).map(NonEmptyChain.fromSeq(_).get))

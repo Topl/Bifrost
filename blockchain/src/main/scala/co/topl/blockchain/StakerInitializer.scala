@@ -1,6 +1,7 @@
 package co.topl.blockchain
 
 import cats.implicits._
+import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
@@ -79,7 +80,10 @@ object StakerInitializers {
             1
           )
         )
-      ).lockAddress(0, 0)
+      ).lockAddress(
+        NetworkConstants.PRIVATE_NETWORK_ID,
+        NetworkConstants.MAIN_LEDGER_ID
+      )
 
     /**
      * This staker's initial stake in the network

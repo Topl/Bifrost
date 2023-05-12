@@ -7,7 +7,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.syntax._
 import co.topl.node.models.BlockBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF

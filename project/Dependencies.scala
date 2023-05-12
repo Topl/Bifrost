@@ -7,13 +7,13 @@ object Dependencies {
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.9"
+  val catsEffectVersion = "3.4.10"
   val fs2Version = "3.6.1"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.18"
-  val protobufSpecsVersion = "ba616f0" // scala-steward:off
-  val bramblScVersion = "ddc8bd1" // scala-steward:off
-  val quivr4sVersion = "30bb9d2" // scala-steward:off
+  val protobufSpecsVersion = "8bb8a3b" // scala-steward:off
+  val bramblScVersion = "01cad77" // scala-steward:off
+  val quivr4sVersion = "1e48130" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -104,7 +104,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.4.0"
+    "com.lihaoyi" %% "mainargs" % "0.5.0"
   )
 
   val monocle: Seq[ModuleID] = Seq(
@@ -163,7 +163,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.22.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.22.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All

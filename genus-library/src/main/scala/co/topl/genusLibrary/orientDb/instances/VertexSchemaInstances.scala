@@ -1,20 +1,16 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import co.topl.brambl.models.LockId
-import co.topl.brambl.models.box.Box
+import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.{LockAddress, TransactionId}
-import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genus.services.{Txo, TxoState}
+import co.topl.genus.services.Txo
 import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
-import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
-import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{blockHeaderBodyEdge, blockHeaderTxIOEdge}
+import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.node.models.BlockBody
-import com.google.protobuf.ByteString
-import com.tinkerpop.blueprints.Vertex
+import com.tinkerpop.blueprints.{Direction, Vertex}
 import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
-
 import scala.jdk.CollectionConverters._
 
 /**
@@ -48,108 +44,38 @@ object VertexSchemaInstances {
             v
         }
 
+      def addAddress(address: LockAddress): OrientVertex =
+        graph.addVertex(s"class:${lockAddressSchema.name}", lockAddressSchema.encode(address).asJava)
+
+      def addTxo(txo: Txo): OrientVertex =
+        graph.addVertex(s"class:${txoSchema.name}", txoSchema.encode(txo).asJava)
+
+      def getHeader(blockHeader: BlockHeader): Option[Vertex] =
+        graph
+          .getVertices(SchemaBlockHeader.Field.BlockId, blockHeader.id.value.toByteArray)
+          .asScala
+          .headOption
+
+      def getBody(blockHeaderVertex: Vertex): Option[Vertex] =
+        blockHeaderVertex.getVertices(Direction.OUT, blockHeaderBodyEdge.label).asScala.headOption
+
+      def getIoTxs(blockHeaderVertex: Vertex): Seq[Vertex] =
+        blockHeaderVertex.getVertices(Direction.OUT, blockHeaderTxIOEdge.label).asScala.toSeq
+
+      def getTxo(address: TransactionOutputAddress): Option[Vertex] =
+        graph
+          .getVertices(SchemaTxo.Field.TxoId, address.id.value.toByteArray :+ address.index.toByte)
+          .asScala
+          .headOption
     }
 
     private[genusLibrary] val blockHeaderSchema: VertexSchema[BlockHeader] = SchemaBlockHeader.make()
     private[genusLibrary] val blockBodySchema: VertexSchema[BlockBody] = SchemaBlockBody.make()
     private[genusLibrary] val ioTransactionSchema: VertexSchema[IoTransaction] = SchemaIoTransaction.make()
     private[genusLibrary] val canonicalHeadSchema: VertexSchema[CanonicalHead.type] = SchemaCanonicalHead.make()
+    private[genusLibrary] val lockAddressSchema: VertexSchema[LockAddress] = SchemaLockAddress.make()
+    private[genusLibrary] val txoSchema: VertexSchema[Txo] = SchemaTxo.make()
 
-    // Note, From here to the end, VertexSchemas not tested
-    /**
-     * Schema for Address nodes
-     */
-    implicit private[genusLibrary] val addressVertexSchema: VertexSchema[LockAddress] =
-      VertexSchema.create(
-        "LockAddress",
-        GraphDataEncoder[LockAddress]
-          .withProperty(
-            "network",
-            v => java.lang.Integer.valueOf(v.network),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )
-          .withProperty(
-            "ledger",
-            v => java.lang.Integer.valueOf(v.ledger),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )
-          .withProperty(
-            "id",
-            _.id.value.toByteArray,
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          ),
-        v => {
-          val id = LockId.parseFrom(v("id"))
-          LockAddress(v("network"), v("ledger"), id)
-        }
-      )
-
-    /**
-     * Schema for TxO state vertexes
-     * <p>
-     * address state vertexes have no properties, just links to txoStates.
-     */
-    implicit private[genusLibrary] val addressStateSchema: VertexSchema[Unit] =
-      VertexSchema.create(
-        "AddressState",
-        GraphDataEncoder[Unit],
-        _ => ()
-      )
-
-    implicit private[genusLibrary] val txoSchema: VertexSchema[Txo] =
-      VertexSchema.create(
-        "TxoState",
-        GraphDataEncoder[Txo]
-          .withProperty(
-            "transactionId",
-            _.outputAddress.get.id.value.toByteArray,
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )(byteArrayOrientDbTypes)
-          .withProperty(
-            "transactionOutputIndex",
-            txo => java.lang.Short.valueOf(txo.outputAddress.get.index.toShort),
-            mandatory = false,
-            readOnly = false,
-            notNull = true
-          )(shortOrientDbTyped)
-          // TODO, see the index below
-//          .withProperty("assetLabel", _.assetLabel, _.setNotNull(true))(stringOrientDbTyped)
-          .withProperty("box", txo => txo.box.toByteArray, mandatory = false, readOnly = false, notNull = false)(
-            byteArrayOrientDbTypes
-          )
-          .withProperty("state", _.state.toString, mandatory = false, readOnly = false, notNull = false)(
-            stringOrientDbTyped
-          )
-          .withProperty(
-            "address",
-            _.lockAddress.map(_.id.value.toByteArray).orNull,
-            mandatory = false,
-            readOnly = false,
-            notNull = false
-          )(byteArrayOrientDbTypes)
-//          .withIndex("boxId", INDEX_TYPE.UNIQUE, "transactionId", "transactionOutputIndex") // TODO create index type class instance
-        // TODO assetLabel was disabled on https://github.com/Topl/Bifrost/pull/2850
-        // .withIndex("assetLabel", INDEX_TYPE.NOTUNIQUE, "assetLabel")
-        ,
-        v => {
-          val transactionId = TransactionId(ByteString.copyFrom(v("transactionId"): Array[Byte]))
-          val txoAddress = transactionId.outputAddress(0, 0, v("transactionOutputIndex"))
-          Txo(
-            Box.parseFrom(v("box")),
-            TxoState.values.find(_.name == v("state")).get,
-            Some(txoAddress),
-            None // TODO
-          )
-        }
-      )
   }
   object instances extends Instances
 }

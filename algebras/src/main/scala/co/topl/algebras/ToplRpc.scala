@@ -16,6 +16,7 @@ trait ToplRpc[F[_], S[_]] {
   def broadcastTransaction(transaction: IoTransaction): F[Unit]
 
   def currentMempool(): F[Set[TransactionId]]
+  def currentMempoolContains(transactionId: TransactionId): F[Boolean]
 
   def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]]
 

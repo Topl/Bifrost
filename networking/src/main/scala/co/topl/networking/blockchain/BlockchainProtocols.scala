@@ -7,7 +7,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotData
 import co.topl.networking.typedprotocols.NotificationProtocol
 import co.topl.networking.typedprotocols.RequestResponseProtocol
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 
 /**
  * Defines the various Typed Protocols which are used for the purposes of exchanging blockchain data between
@@ -59,6 +59,11 @@ object BlockchainProtocols {
   object BlockIdAtHeight extends RequestResponseProtocol[(Long, Option[BlockId]), BlockId]
 
   /**
+   * Request current best tip from remote Node
+   */
+  object BlockIdAtDepth extends RequestResponseProtocol[Long, BlockId]
+
+  /**
    * Notifies a client node every time the server adopts a new Block
    *
    * This protocol runs a server and client in parallel for each connection.
@@ -72,4 +77,8 @@ object BlockchainProtocols {
    */
   object TransactionBroadcasts extends NotificationProtocol[TransactionId]
 
+  /**
+   * Requests known hosts from remote peer
+   */
+  object KnownHosts extends RequestResponseProtocol[CurrentKnownHostsReq, CurrentKnownHostsRes]
 }

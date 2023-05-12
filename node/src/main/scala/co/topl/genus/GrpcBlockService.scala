@@ -11,8 +11,7 @@ import co.topl.node.models.FullBlockBody
 import co.topl.typeclasses.implicits._
 import io.grpc.Metadata
 
-class GrpcGenusFullBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F])
-    extends BlockServiceFs2Grpc[F, Metadata] {
+class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extends BlockServiceFs2Grpc[F, Metadata] {
 
   override def getBlockById(request: GetBlockByIdRequest, ctx: Metadata): F[BlockResponse] =
     EitherT(blockFetcher.fetchBlock(request.blockId))

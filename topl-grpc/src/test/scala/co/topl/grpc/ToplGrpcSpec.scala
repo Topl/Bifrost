@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.ToplRpc
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
@@ -119,6 +120,28 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           res <- underTest.fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(height), new Metadata())
           proto = res.blockId.get
           _ = assert(blockId == proto)
+        } yield ()
+      }
+    }
+  }
+
+  test("Current Mempool Contains transactionId can be retrieved") {
+    PropF.forAllF { (transaction: IoTransaction) =>
+      val transactionId = transaction.id
+      withMock {
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.currentMempoolContains _)
+          .expects(transactionId)
+          .once()
+          .returning(false.pure[F])
+
+        for {
+          _ <- assertIO(
+            underTest.currentMempoolContains(CurrentMempoolContainsReq(transactionId), new Metadata()),
+            CurrentMempoolContainsRes(inMempool = false)
+          )
         } yield ()
       }
     }

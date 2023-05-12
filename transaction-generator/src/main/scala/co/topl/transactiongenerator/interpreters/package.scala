@@ -1,10 +1,10 @@
 package co.topl.transactiongenerator
 
+import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances._
 import co.topl.transactiongenerator.models.Wallet
 import quivr.models._
 
@@ -31,7 +31,10 @@ package object interpreters {
     )
 
   val HeightLockOneSpendingAddress: LockAddress =
-    HeightLockOneLock.lockAddress(0, 0)
+    HeightLockOneLock.lockAddress(
+      NetworkConstants.PRIVATE_NETWORK_ID,
+      NetworkConstants.MAIN_LEDGER_ID
+    )
 
   val emptyWallet: Wallet =
     Wallet(

@@ -4,6 +4,7 @@ import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
@@ -46,8 +47,9 @@ object TestHelper extends TransactionGenerator {
     Arbitrary(
       for {
         size <- sizeGen
-        root <- ModelGenerators.arbitraryHeader.arbitrary
-      } yield addHeaderToChain(NonEmptyChain.one(root), ModelGenerators.arbitraryHeader.arbitrary, size)
+        headerGen = ModelGenerators.arbitraryHeader.arbitrary.map(_.embedId)
+        root <- headerGen
+      } yield addHeaderToChain(NonEmptyChain.one(root), headerGen, size)
     )
 
   val maxTxsCount = 5
@@ -55,7 +57,7 @@ object TestHelper extends TransactionGenerator {
   implicit val arbitraryTxsAndBlock: Arbitrary[(Seq[IoTransaction], BlockBody)] =
     Arbitrary(
       for {
-        txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary)
+        txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary.map(_.embedId))
       } yield (txs, BlockBody.of(txs.map(tx => tx.id)))
     )
 
@@ -80,7 +82,7 @@ object TestHelper extends TransactionGenerator {
           if (blocks.isEmpty) {
             List((headerWithTxRoot.id, headerToSlotData(headerWithTxRoot), headerWithTxRoot, body))
           } else {
-            val headerWithParent = headerWithTxRoot.copy(parentHeaderId = blocks.last._2.slotId.blockId)
+            val headerWithParent = headerWithTxRoot.copy(parentHeaderId = blocks.last._2.slotId.blockId).embedId
             blocks.appended((headerWithParent.id, headerToSlotData(headerWithParent), headerWithParent, body))
           }
         })

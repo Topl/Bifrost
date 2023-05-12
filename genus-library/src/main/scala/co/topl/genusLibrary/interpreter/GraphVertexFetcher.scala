@@ -2,18 +2,19 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.implicits._
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
+import co.topl.genus.services.GetTxoStatsRes.TxoStats
+import co.topl.genus.services.TxoState
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction}
+import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
-
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -25,14 +26,14 @@ object GraphVertexFetcher {
     Resource.pure {
       new VertexFetcherAlgebra[F] {
 
-        override def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
+        def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
               .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
-        override def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
+        def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
               .map(_.headOption)
@@ -81,7 +82,7 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByDepth", tx))
           )
 
-        override def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
+        def fetchBody(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(
               orientGraph
@@ -92,7 +93,7 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchBody", tx))
           )
 
-        override def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
+        def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]] =
           OrientThread[F].delay(
             Try(
               orientGraph
@@ -120,6 +121,61 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransaction", tx))
           )
 
+        def fetchLockAddress(lockAddress: LockAddress): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaLockAddress.Field.AddressId,
+                  lockAddress.id.value.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchLockAddress", tx))
+          )
+
+        def fetchTxo(transactionOutputAddress: TransactionOutputAddress): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaTxo.Field.TxoId,
+                  transactionOutputAddress.id.value.toByteArray :+ transactionOutputAddress.index
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTxo", tx))
+          )
+
+        override def fetchTxoStats(): F[Either[GE, TxoStats]] =
+          OrientThread[F].delay(
+            Try {
+
+              val queryString = s"select sum(state) as sum, state from Txo group by state"
+
+              val query: java.lang.Iterable[OrientVertex] =
+                orientGraph.command(new OSQLSynchQuery[OrientVertex](queryString)).execute()
+
+              query.asScala
+                .map { v =>
+                  v.getProperty[Int]("state") -> v.getProperty[Int]("sum")
+                }
+                .foldLeft(TxoStats.defaultInstance) { case (stats, (state, sum)) =>
+                  TxoState.fromValue(state) match {
+                    case TxoState.SPENT   => stats.withSpent(sum).withTotal(stats.total + sum)
+                    case TxoState.UNSPENT => stats.withUnspent(sum).withTotal(stats.total + sum)
+                    case TxoState.PENDING => stats.withPending(sum).withTotal(stats.total + sum)
+                    case _                => stats
+                  }
+                }
+
+            }.toEither
+              .leftMap[GE] { tx =>
+                GEs.InternalMessageCause("GraphVertexFetcher:fetchTxoStats", tx)
+              }
+          )
       }
     }
 }

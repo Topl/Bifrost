@@ -13,10 +13,10 @@ Seq(
   "pl.project13.scala"      % "sbt-jmh"                   % "0.4.3",
   "org.scalameta"           % "sbt-scalafmt"              % "2.5.0",
   "ch.epfl.scala"           % "sbt-scalafix"              % "0.10.4",
-  "org.wartremover"         % "sbt-wartremover"           % "3.1.0",
+  "org.wartremover"         % "sbt-wartremover"           % "3.1.1",
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.16",
   "com.eed3si9n"            % "sbt-buildinfo"             % "0.11.0",
-  "com.github.sbt"          % "sbt-ci-release"            % "1.5.11",
+  "com.github.sbt"          % "sbt-ci-release"            % "1.5.12",
   "net.bzzt"                % "sbt-reproducible-builds"   % "0.30"
 ).map(addSbtPlugin)
 

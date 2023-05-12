@@ -1,7 +1,8 @@
-package co.topl.genusLibrary.orientDb
+package co.topl.genusLibrary
 
 import cats.effect.{IO, Resource, SyncIO}
 import cats.implicits._
+import co.topl.genusLibrary.orientDb.OrientThread
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfigBuilder}
 import munit.{CatsEffectSuite, FunSuite, TestOptions}
 import org.typelevel.log4cats.Logger

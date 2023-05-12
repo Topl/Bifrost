@@ -3,6 +3,7 @@ package co.topl.testnetsimulationorchestrator.interpreters
 import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.box.Value
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.numerics.implicits._
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher

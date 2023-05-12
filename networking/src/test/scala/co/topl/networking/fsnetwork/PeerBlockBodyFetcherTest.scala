@@ -6,7 +6,8 @@ import co.topl.algebras.Store
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances.{blockHeaderAsBlockHeaderOps, ioTransactionAsIoTransactionOps}
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
 import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockId}
@@ -20,11 +21,11 @@ import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops}
 import co.topl.node.models.{Block, BlockBody}
+import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.typeclasses.implicits._
 
 import scala.collection.mutable
 
@@ -37,7 +38,7 @@ class PeerBlockBodyFetcherTest
     with ScalaCheckEffectSuite
     with AsyncMockFactory
     with TransactionGenerator {
-  implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
@@ -55,8 +56,9 @@ class PeerBlockBodyFetcherTest
           .first
           .unzip
 
-      val blockIdsAndBodies =
-        bodies.map(b => (co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary.first, b))
+      val blockHeadersAndBodies =
+        bodies.map(b => (ModelGenerators.arbitraryHeader.arbitrary.first.embedId, b))
+      val blockIdsAndBodies = blockHeadersAndBodies.map { case (header, body) => (header.id, body) }
 
       def blockIsMissed(id: BlockId): Boolean = id.hashCode() % 2 == 0
 
@@ -92,11 +94,11 @@ class PeerBlockBodyFetcherTest
       }
 
       val wrappedBodies =
-        blockIdsAndBodies.map { case (id, body) =>
-          if (clientBodiesData.contains(id)) {
-            (id, Either.right[BlockBodyDownloadError, BlockBody](body))
+        blockHeadersAndBodies.map { case (header, body) =>
+          if (clientBodiesData.contains(header.id)) {
+            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
           } else {
-            (id, Either.left[BlockBodyDownloadError, BlockBody](BlockBodyDownloadError.BodyNotFoundInPeer))
+            (header, Either.left[BlockBodyDownloadError, BlockBody](BlockBodyDownloadError.BodyNotFoundInPeer))
           }
         }
 
@@ -107,15 +109,7 @@ class PeerBlockBodyFetcherTest
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
         .use { actor =>
           for {
-            _ <- actor.send(
-              PeerBlockBodyFetcher.Message.DownloadBlocks(
-                blockIdsAndBodies
-                  .map { case (id, body) =>
-                    val header = ModelGenerators.arbitraryHeader.arbitrary.first
-                    (id, header.copy(txRoot = body.merkleTreeRootHash.data))
-                  }
-              )
-            )
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(blockHeadersAndBodies.map(_._1)))
             _ = assert(downloadedTxs.size <= missedTxs.toMap.size)
           } yield ()
         }
@@ -137,7 +131,8 @@ class PeerBlockBodyFetcherTest
 
       val blockIdsBodiesHeaders =
         bodies.map { body: BlockBody =>
-          val header = ModelGenerators.arbitraryHeader.arbitrary.first.copy(txRoot = body.merkleTreeRootHash.data)
+          val header =
+            ModelGenerators.arbitraryHeader.arbitrary.first.copy(txRoot = body.merkleTreeRootHash.data).embedId
           val id = header.id
           (id, body, header)
         }
@@ -183,12 +178,12 @@ class PeerBlockBodyFetcherTest
       }
 
       val wrappedBodies =
-        blockIdsAndBodies.map { case (id, body) =>
+        blockIdsBodiesHeaders.map { case (id, body, header) =>
           if (correctTxRootBlockIds.contains(id)) {
-            (id, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
           } else {
             (
-              id,
+              header,
               Either.left[BlockBodyDownloadError, BlockBody](
                 BlockBodyDownloadError.BodyHaveIncorrectTxRoot(body.merkleTreeRootHash, incorrectTxRoot)
               )
@@ -199,7 +194,7 @@ class PeerBlockBodyFetcherTest
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
-      val sendMessage = blockIdsBodiesHeaders.map { case (id, _, header) => (id, header) }
+      val sendMessage = blockIdsBodiesHeaders.map(_._3)
       PeerBlockBodyFetcher
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
         .use { actor =>
@@ -223,13 +218,16 @@ class PeerBlockBodyFetcherTest
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
 
-      val idBodyTxIdTx =
+      val headerBodyTxIdTx =
         transactionsAndBody
           .map { case (txs, body) =>
-            val id = co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary.first
-            (id, body, txs.map(tx => (tx.id, tx)))
+            val header =
+              ModelGenerators.arbitraryHeader.arbitrary.first.embedId.copy(txRoot = body.merkleTreeRootHash.data)
+
+            (header, body, txs.map(tx => (tx.id, tx)))
           }
 
+      val idBodyTxIdTx = headerBodyTxIdTx.map(d => (d._1.id, d._2, d._3))
       val idAndBody = idBodyTxIdTx.map(d => (d._1, d._2))
 
       def transactionIsMissed(id:  TransactionId): Boolean = id.hashCode() % 7 == 0
@@ -263,13 +261,13 @@ class PeerBlockBodyFetcherTest
       }
 
       val wrappedBodies =
-        idAndBody.map { case (id, body) =>
+        headerBodyTxIdTx.map { case (header, body, _) =>
           if (!blockIsMissed(body)) {
-            (id, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
           } else {
             val missedId = body.transactionIds.find(transactionIsMissed).get
             (
-              id,
+              header,
               Either.left[BlockBodyDownloadError, BlockBody](BlockBodyDownloadError.TransactionNotFoundInPeer(missedId))
             )
           }
@@ -283,10 +281,7 @@ class PeerBlockBodyFetcherTest
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
         .use { actor =>
           for {
-            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(idAndBody.map { case (id, body) =>
-              val header = ModelGenerators.arbitraryHeader.arbitrary.first
-              (id, header.copy(txRoot = body.merkleTreeRootHash.data))
-            }))
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBodyTxIdTx.map(_._1)))
           } yield ()
         }
     }
@@ -304,12 +299,16 @@ class PeerBlockBodyFetcherTest
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
 
-      val idBodyTxIdTx =
+      val headerBodyTxIdTx =
         transactionsAndBody
           .map { case (txs, body) =>
-            val id = co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary.first
-            (id, body, txs.map(tx => (tx.id, tx)))
+            val header =
+              ModelGenerators.arbitraryHeader.arbitrary.first.embedId.copy(txRoot = body.merkleTreeRootHash.data)
+
+            (header, body, txs.map(tx => (tx.id, tx)))
           }
+
+      val idBodyTxIdTx = headerBodyTxIdTx.map(d => (d._1.id, d._2, d._3))
 
       def transactionHaveIncorrectId(id: TransactionId): Boolean = id.hashCode() % 7 == 0
 
@@ -348,13 +347,13 @@ class PeerBlockBodyFetcherTest
       }
 
       val wrappedBodies =
-        idAndBody.map { case (id, body) =>
+        headerBodyTxIdTx.map { case (header, body, _) =>
           if (!blockIsMissed(body)) {
-            (id, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
           } else {
             val expectedId = body.transactionIds.find(transactionHaveIncorrectId).get
             (
-              id,
+              header,
               Either.left[BlockBodyDownloadError, BlockBody](
                 BlockBodyDownloadError.TransactionHaveIncorrectId(expectedId, incorrectTransactionId)
               )
@@ -370,10 +369,7 @@ class PeerBlockBodyFetcherTest
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
         .use { actor =>
           for {
-            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(idAndBody.map { case (id, body) =>
-              val header = ModelGenerators.arbitraryHeader.arbitrary.first
-              (id, header.copy(txRoot = body.merkleTreeRootHash.data))
-            }))
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBodyTxIdTx.map(_._1)))
           } yield ()
         }
     }
@@ -392,8 +388,14 @@ class PeerBlockBodyFetcherTest
           .first
           .unzip
 
-      val blockIdsAndBodies =
-        bodies.map(b => (co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId.arbitrary.first, b))
+      val headerBody =
+        bodies
+          .map { body =>
+            val header =
+              ModelGenerators.arbitraryHeader.arbitrary.first.embedId.copy(txRoot = body.merkleTreeRootHash.data)
+            (header, body)
+          }
+      val blockIdsAndBodies = headerBody.map { case (header, body) => (header.id, body) }
 
       val blockIds = blockIdsAndBodies.unzip._1
 
@@ -426,7 +428,7 @@ class PeerBlockBodyFetcherTest
       }
 
       val wrappedBodies =
-        blockIdsAndBodies.map { case (id, body) => (id, Either.right[BlockBodyDownloadError, BlockBody](body)) }
+        headerBody.map { case (header, body) => (header, Either.right[BlockBodyDownloadError, BlockBody](body)) }
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
 
@@ -434,10 +436,7 @@ class PeerBlockBodyFetcherTest
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
         .use { actor =>
           for {
-            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(blockIdsAndBodies.map { case (id, body) =>
-              val header = ModelGenerators.arbitraryHeader.arbitrary.first
-              (id, header.copy(txRoot = body.merkleTreeRootHash.data))
-            }))
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBody.map(_._1)))
             _ = assert(downloadedTxs == missedTxs.toMap)
           } yield ()
         }
