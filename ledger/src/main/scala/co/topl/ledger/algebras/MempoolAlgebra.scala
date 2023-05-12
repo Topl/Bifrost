@@ -20,4 +20,9 @@ trait MempoolAlgebra[F[_]] {
    */
   def remove(transactionId: TransactionId): F[Unit]
 
+  /**
+   * Check the set of unconfirmed Transaction IDs at the given block ID, if it contains a specific Transaction ID
+   */
+  def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean]
+
 }

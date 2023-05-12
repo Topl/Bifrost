@@ -20,7 +20,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.Metadata
 import io.grpc.Server
-
+import io.grpc.protobuf.services.ProtoReflectionService
 import java.net.InetSocketAddress
 
 object ToplGrpc {
@@ -65,6 +65,14 @@ object ToplGrpc {
                   new Metadata()
                 )
                 .map(_.transactionIds.toSet)
+
+            override def currentMempoolContains(transactionId: TransactionId): F[Boolean] =
+              client
+                .currentMempoolContains(
+                  CurrentMempoolContainsReq(transactionId),
+                  new Metadata()
+                )
+                .map(_.inMempool)
 
             def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
               client
@@ -135,6 +143,7 @@ object ToplGrpc {
           NettyServerBuilder
             .forAddress(new InetSocketAddress(host, port))
             .addService(serverServiceDefinition)
+            .addService(ProtoReflectionService.newInstance())
             .resource[F]
             .evalMap(server => Async[F].delay(server.start()))
         )
@@ -153,6 +162,15 @@ object ToplGrpc {
           .currentMempool()
           .map(_.toList)
           .map(CurrentMempoolRes(_))
+          .adaptErrorsToGrpc
+
+      override def currentMempoolContains(
+        request: CurrentMempoolContainsReq,
+        ctx:     Metadata
+      ): F[CurrentMempoolContainsRes] =
+        interpreter
+          .currentMempoolContains(request.transactionId)
+          .map(CurrentMempoolContainsRes(_))
           .adaptErrorsToGrpc
 
       def fetchBlockHeader(in: FetchBlockHeaderReq, ctx: Metadata): F[FetchBlockHeaderRes] =
