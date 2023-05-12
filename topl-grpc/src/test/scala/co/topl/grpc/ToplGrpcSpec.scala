@@ -125,6 +125,28 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
+  test("Current Mempool Contains transactionId can be retrieved") {
+    PropF.forAllF { (transaction: IoTransaction) =>
+      val transactionId = transaction.id
+      withMock {
+        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+
+        (interpreter.currentMempoolContains _)
+          .expects(transactionId)
+          .once()
+          .returning(false.pure[F])
+
+        for {
+          _ <- assertIO(
+            underTest.currentMempoolContains(CurrentMempoolContainsReq(transactionId), new Metadata()),
+            CurrentMempoolContainsRes(inMempool = false)
+          )
+        } yield ()
+      }
+    }
+  }
+
   // TODO: fetchBlockIdAtDepth has no unit testing
   // TODO: currentMempool has no unit testing
   // TODO: synchronizationTraversal has no unit Testing

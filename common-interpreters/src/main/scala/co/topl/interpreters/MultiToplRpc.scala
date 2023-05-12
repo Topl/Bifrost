@@ -41,6 +41,9 @@ object MultiToplRpc {
       def currentMempool(): F[Set[TransactionId]] =
         randomDelegate.flatMap(_.currentMempool())
 
+      def currentMempoolContains(transactionId: TransactionId): F[Boolean] =
+        randomDelegate.flatMap(_.currentMempoolContains(transactionId))
+
       def fetchBlockHeader(blockId: BlockId): F[Option[BlockHeader]] =
         randomDelegate.flatMap(_.fetchBlockHeader(blockId))
 

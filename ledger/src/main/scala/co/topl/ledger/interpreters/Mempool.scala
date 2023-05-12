@@ -99,6 +99,11 @@ object Mempool {
 
       def remove(transactionId: TransactionId): F[Unit] =
         fetchTransaction(transactionId).flatMap(removeWithExpiration)
+
+      def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =
+        eventSourcedState
+          .useStateAt(blockId)(_.get)
+          .map(_.transactions.contains(transactionId))
     }
 
 }
