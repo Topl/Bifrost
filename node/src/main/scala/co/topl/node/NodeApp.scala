@@ -4,11 +4,12 @@ import akka.actor.typed.ActorSystem
 import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
 import cats.effect.implicits._
+import cats.effect.std.Random
+import cats.effect.std.SecureRandom
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.{IOAkkaApp, IOBaseApp}
 import co.topl.consensus.algebras._
@@ -36,10 +37,8 @@ import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
-import scala.util.Random
 
 object NodeApp extends AbstractNodeApp
 
@@ -195,7 +194,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      implicit0(networkRandom: Random) = new Random(new SecureRandom())
       staking <- privateBigBang.localStakerIndex
         .flatMap(stakerInitializers.get(_))
         .fold(Resource.pure[F, Option[StakingAlgebra[F]]](none))(initializer =>
@@ -251,6 +249,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         .recoverWith { case e =>
           Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
         }
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
       // Finally, run the program
       _ <- Blockchain
         .make[F](

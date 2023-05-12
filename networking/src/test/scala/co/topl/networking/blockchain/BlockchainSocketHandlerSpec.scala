@@ -18,7 +18,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.immutable.SortedSet
 
-class BlockchainPeerConnectionFlowFactorySpec
+class BlockchainSocketHandlerSpec
     extends AnyFlatSpec
     with BeforeAndAfterAll
     with MockFactory
@@ -47,7 +47,7 @@ class BlockchainPeerConnectionFlowFactorySpec
         .once()
         .returning(Stream.never[F].pure[F]: F[Stream[F, TransactionId]])
 
-      val factory = BlockchainPeerConnectionFlowFactory.createFactory[F](server)
+      val factory = BlockchainSocketHandler.createFactory[F](server)
 
       val (protocols, _) = factory.protocolsForPeer(connectedPeer, connectionLeader).unsafeRunSync()
 

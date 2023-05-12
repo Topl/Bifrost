@@ -1,23 +1,21 @@
 package co.topl.networking
 
-import akka.NotUsed
-import akka.stream.scaladsl.{Flow, Sink}
-import akka.util.ByteString
 import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.kernel.Sync
 import cats.effect.std.{Queue, Semaphore}
 import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
-import cats.{Applicative, Functor, MonadThrow, Show}
+import cats.{Applicative, MonadThrow, Show}
 import co.topl.catsakka._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.multiplexer.MultiplexerCodecs._
 import co.topl.networking.multiplexer._
-import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader, ConnectionLeaders}
+import co.topl.networking.p2p._
 import co.topl.networking.typedprotocols.TypedProtocol.CommonStates
 import co.topl.networking.typedprotocols._
 import fs2._
+import fs2.io.net.Socket
 import org.typelevel.log4cats.Logger
 
 import java.util.concurrent.TimeoutException
@@ -34,32 +32,26 @@ trait TypedProtocolSetFactory[F[_], Client] {
    * For some peer and leader, produces a set of sub handlers and a client
    */
   def protocolsForPeer(
-    connectedPeer:    ConnectedPeer,
-    connectionLeader: ConnectionLeader
+    connectedPeer: ConnectedPeer,
+    socketLeader:  SocketLeader
   ): F[(NonEmptyChain[TypedSubHandler[F, _]], Client)]
-}
 
-object TypedProtocolSetFactory {
-
-  def multiplexed[F[_]: Async: FToFuture: Logger, Client](
-    factory: TypedProtocolSetFactory[F, Client]
-  )(
-    connectedPeer:    ConnectedPeer,
-    connectionLeader: ConnectionLeader
-  ): Resource[F, Flow[ByteString, ByteString, Client]] =
-    multiplexerHandlersIn(factory)(connectedPeer, connectionLeader)
-      .map { case (subHandlers, client) =>
-        Multiplexer(subHandlers, client)
+  def multiplexed(useClient: Client => Resource[F, Unit])(
+    connectedPeer: ConnectedPeer,
+    socketLeader:  SocketLeader,
+    socket:        Socket[F]
+  )(implicit L: Logger[F], A: Async[F]): Resource[F, Unit] =
+    multiplexerHandlersIn(connectedPeer, socketLeader)
+      .flatMap { case (subHandlers, client) =>
+        (Multiplexer(subHandlers)(socket), useClient(client)).parTupled.void
       }
 
-  private def multiplexerHandlersIn[F[_]: Async: FToFuture: Logger, Client](
-    factory: TypedProtocolSetFactory[F, Client]
-  )(
-    connectedPeer:    ConnectedPeer,
-    connectionLeader: ConnectionLeader
-  ): Resource[F, (NonEmptyChain[SubHandler], Client)] =
+  private def multiplexerHandlersIn(
+    connectedPeer: ConnectedPeer,
+    socketLeader:  SocketLeader
+  )(implicit L: Logger[F], A: Async[F]): Resource[F, (NonEmptyChain[SubHandler[F]], Client)] =
     Resource
-      .eval(factory.protocolsForPeer(connectedPeer, connectionLeader))
+      .eval(protocolsForPeer(connectedPeer, socketLeader))
       .flatMap { case (typedProtocolSet, client) =>
         typedProtocolSet
           .traverse { multiplexedSubHandler =>
@@ -74,15 +66,11 @@ object TypedProtocolSetFactory {
               instanceCompletion <- Resource.eval(Deferred[F, Either[Throwable, Unit]])
               instanceCompletionStream = Stream.exec(instanceCompletion.get.rethrow)
               applier <- sh.instance.applier(s)(instanceCompletion.complete(_).void)
-              producer <- handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)
+              producer = handlerSource(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)
                 .mergeHaltR(instanceCompletionStream)
-                .toAkkaSource
-              instanceCompletionSource <- instanceCompletionStream.toAkkaSource
-              subHandler = SubHandler(
+              subHandler = SubHandler[F](
                 multiplexedSubHandler.sessionId,
-                Flow[ByteString]
-                  .merge(instanceCompletionSource, eagerComplete = true)
-                  .to(handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)),
+                s => s.through(handlerSink(multiplexedSubHandler, applier, multiplexedSubHandler.sessionId)),
                 producer
               )
             } yield subHandler
@@ -90,34 +78,32 @@ object TypedProtocolSetFactory {
           .tupleRight(client)
       }
 
-  private def handlerSink[F[_]: FToFuture](
+  private def handlerSink(
     multiplexedSubHandler: TypedSubHandler[F, _],
     applier:               TypedProtocolInstance[F]#MessageApplier,
     protocolInstanceId:    Byte
-  ): Sink[ByteString, NotUsed] =
-    MessageParserFramer()
+  )(implicit L: Logger[F], A: Async[F]): Pipe[F, Chunk[Byte], Unit] =
+    _.map(MessageParserFramer.parseWhole)
       .map { case (prefix, data) =>
-        val protoByteString = com.google.protobuf.ByteString.copyFrom(data.asByteBuffer)
-        multiplexedSubHandler.codec.decode(prefix)(protoByteString) match {
-          case Right(value) =>
-            value
-          case Left(failure) =>
-            throw new IllegalArgumentException(failure.toString)
-        }
+        val protoByteString = com.google.protobuf.ByteString.copyFrom(data.toByteBuffer)
+        multiplexedSubHandler.codec
+          .decode(prefix)(protoByteString)
+          .leftMap(failure => new IllegalArgumentException(failure.toString))
       }
-      .log(s"Received inbound message in protocolInstanceId=$protocolInstanceId", _._1)
-      .mapAsyncF(1) { case (decodedData, networkTypeTag) =>
+      .rethrow
+      .evalTap(_ => Logger[F].debug(s"Received inbound message in protocolInstanceId=$protocolInstanceId"))
+      .evalTap { case (decodedData, networkTypeTag) =>
         applier.apply(decodedData, multiplexedSubHandler.instance.localParty.opposite)(
           networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]
         )
       }
-      .to(Sink.ignore)
+      .void
 
-  private def handlerSource[F[_]: Functor: Logger](
+  private def handlerSource(
     multiplexedSubHandler: TypedSubHandler[F, _],
     applier:               TypedProtocolInstance[F]#MessageApplier,
     protocolInstanceId:    Byte
-  ): Stream[F, ByteString] =
+  )(implicit A: Async[F], L: Logger[F]): Stream[F, Chunk[Byte]] =
     multiplexedSubHandler.outboundMessages
       .evalTap(outboundMessage =>
         applier
@@ -126,15 +112,19 @@ object TypedProtocolSetFactory {
           )
       )
       .evalTap(o => Logger[F].debug(s"Sending outbound message in protocolInstanceId=$protocolInstanceId. ${o.data}"))
-      .map { o =>
-        val (prefix, protobufByteString) =
-          multiplexedSubHandler.codec.encode(o.data)(o.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]]) match {
-            case Right(value)  => value
-            case Left(failure) => throw new IllegalArgumentException(failure.toString)
+      .map(o =>
+        multiplexedSubHandler.codec
+          .encode(o.data)(o.networkTypeTag.asInstanceOf[NetworkTypeTag[Any]])
+          .leftMap(failure => new IllegalArgumentException(failure.toString))
+          .map { case (prefix, protobufByteString) =>
+            (prefix, Chunk.byteBuffer(protobufByteString.asReadOnlyByteBuffer()))
           }
-        prefix -> ByteString(protobufByteString.asReadOnlyByteBuffer())
-      }
-      .map(MessageSerializerFramer.functionTupled)
+      )
+      .rethrow
+      .through(MessageSerializerFramer())
+}
+
+object TypedProtocolSetFactory {
 
   object CommonProtocols {
 
@@ -145,11 +135,11 @@ object TypedProtocolSetFactory {
       byteB:         Byte
     )(implicit
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
-    ): F[ConnectionLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Stream[F, T])] =
+    ): F[SocketLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Stream[F, T])] =
       (notificationServer[F, T](protocol, notifications), notificationClient[F, T](protocol)).tupled
         .map { case (f1, (f2, source)) =>
-          (connectionLeader: ConnectionLeader) =>
-            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), source)
+          (socketLeader: SocketLeader) =>
+            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(socketLeader), source)
         }
 
     def requestResponseReciprocated[F[_]: Async: Logger, Query: Transmittable, T: Transmittable](
@@ -161,12 +151,12 @@ object TypedProtocolSetFactory {
       queryGetTypeTag:  NetworkTypeTag[TypedProtocol.CommonMessages.Get[Query]],
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[
-      ConnectionLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Query => F[Option[T]])
+      SocketLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Query => F[Option[T]])
     ] =
       (requestResponseServer(protocol, fetch), requestResponseClient(protocol)).tupled
         .map { case (f1, (f2, callback)) =>
-          (connectionLeader: ConnectionLeader) =>
-            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), callback)
+          (socketLeader: SocketLeader) =>
+            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(socketLeader), callback)
         }
 
     def notificationServer[F[_]: Async: Logger, T: Show: Transmittable](
@@ -414,12 +404,12 @@ case class ReciprocatedTypedSubHandler[F[_], InitialState](
   byteB:          Byte
 ) {
 
-  def handlers(connectionLeader: ConnectionLeader): NonEmptyChain[TypedSubHandler[F, InitialState]] =
-    NonEmptyChain(serverHandler(connectionLeader), clientHandler(connectionLeader))
+  def handlers(socketLeader: SocketLeader): NonEmptyChain[TypedSubHandler[F, InitialState]] =
+    NonEmptyChain(serverHandler(socketLeader), clientHandler(socketLeader))
 
-  def serverHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] =
-    serverHandlerF(if (connectionLeader == ConnectionLeaders.Local) byteA else byteB)
+  def serverHandler(socketLeader: SocketLeader): TypedSubHandler[F, InitialState] =
+    serverHandlerF(if (socketLeader == SocketLeader.Local) byteA else byteB)
 
-  def clientHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] =
-    clientHandlerF(if (connectionLeader == ConnectionLeaders.Local) byteB else byteA)
+  def clientHandler(socketLeader: SocketLeader): TypedSubHandler[F, InitialState] =
+    clientHandlerF(if (socketLeader == SocketLeader.Local) byteB else byteA)
 }

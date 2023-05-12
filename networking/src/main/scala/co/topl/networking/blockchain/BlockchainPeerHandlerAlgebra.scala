@@ -1,5 +1,7 @@
 package co.topl.networking.blockchain
 
+import cats.effect.Resource
+
 trait BlockchainPeerHandlerAlgebra[F[_]] {
 
   /**
@@ -7,5 +9,5 @@ trait BlockchainPeerHandlerAlgebra[F[_]] {
    * @param client a client associated with a specific peer
    * @return a "forever-running" void
    */
-  def usePeer(client: BlockchainPeerClient[F]): F[Unit]
+  def usePeer(client: BlockchainPeerClient[F]): Resource[F, Unit]
 }

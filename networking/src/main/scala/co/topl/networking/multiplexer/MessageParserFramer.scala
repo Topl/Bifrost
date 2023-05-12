@@ -1,82 +1,41 @@
 package co.topl.networking.multiplexer
 
-import akka.NotUsed
-import akka.stream.Attributes
-import akka.stream.FlowShape
-import akka.stream.Inlet
-import akka.stream.Outlet
-import akka.stream.scaladsl.Flow
-import akka.stream.stage.GraphStage
-import akka.stream.stage.GraphStageLogic
-import akka.stream.stage.InHandler
-import akka.stream.stage.OutHandler
-import akka.util.ByteString
-
-import scala.annotation.tailrec
+import fs2._
 
 /**
- * An Akka Flow which deserializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
+ * An FS2 Pipe which deserializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
  *
  * The expected data is formatted is: prefix + data length + data
  */
 object MessageParserFramer {
 
-  def apply(): Flow[ByteString, (Byte, ByteString), NotUsed] =
-    Flow.fromGraph(new MessageParserFramerImpl).mapConcat(identity)
-}
-
-private class MessageParserFramerImpl extends GraphStage[FlowShape[ByteString, List[(Byte, ByteString)]]] {
-
-  private val inlet = Inlet[ByteString]("MessageParserFramer.In")
-
-  private val outlet =
-    Outlet[List[(Byte, ByteString)]]("MessageParserFramer.Out")
-
-  val shape: FlowShape[ByteString, List[(Byte, ByteString)]] =
-    FlowShape(inlet, outlet)
-
-  def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-    new GraphStageLogic(shape) {
-
-      private def processBuffer(
-        buffer: ByteString
-      ): (List[(Byte, ByteString)], ByteString) = {
-        @tailrec
-        def inner(
-          buffer: ByteString,
-          acc:    List[(Byte, ByteString)]
-        ): (List[(Byte, ByteString)], ByteString) =
-          if (buffer.length < 5) (acc, buffer)
-          else {
-            val typeByte = buffer.head
-            val size = bytestringToInt(buffer.slice(1, 5))
-            if (buffer.length < (size + 5)) (acc, buffer)
-            else {
-              val (b, remaining) = buffer.splitAt(size + 5)
-              val data = b.drop(5)
-              inner(remaining, acc :+ (typeByte, data))
-            }
-          }
-        inner(buffer, Nil)
+  def apply[F[_]](): Pipe[F, Byte, (Byte, Chunk[Byte])] = {
+    def start(s: Stream[F, Byte]): Pull[F, (Byte, Chunk[Byte]), Unit] =
+      s.pull.unconsN(5).flatMap {
+        case Some((chunk, tail)) =>
+          val typeByte = chunk(0)
+          val sizeBytes = chunk.drop(1)
+          val size = sizeBytes.toByteBuffer.getInt
+          read(tail, size, typeByte)
+        case None =>
+          Pull.done
+      }
+    def read(s: Stream[F, Byte], size: Int, typeByte: Byte) =
+      s.pull.unconsN(size).flatMap {
+        case Some((chunk, tail)) =>
+          Pull.output(Chunk.singleton((typeByte, chunk))) >> start(tail)
+        case None =>
+          Pull.done
       }
 
-      private def processing(buffer: ByteString): InHandler with OutHandler =
-        new InHandler with OutHandler {
+    start(_).stream
+  }
 
-          def onPush(): Unit = {
-            val (out, newBuffer) = processBuffer(buffer ++ grab(inlet))
-            if (out.nonEmpty) {
-              setHandlers(inlet, outlet, processing(newBuffer))
-              push(outlet, out)
-            } else {
-              setHandlers(inlet, outlet, processing(newBuffer))
-              pull(inlet)
-            }
-          }
-
-          def onPull(): Unit = pull(inlet)
-        }
-
-      setHandlers(inlet, outlet, processing(ByteString.empty))
-    }
+  def parseWhole(bytes: Chunk[Byte]): (Byte, Chunk[Byte]) = {
+    val typeByte = bytes(0)
+    val sizeBytes = bytes.drop(1)
+    val size = sizeBytes.toByteBuffer.getInt
+    val data = bytes.drop(5)
+    (typeByte, data)
+  }
 }

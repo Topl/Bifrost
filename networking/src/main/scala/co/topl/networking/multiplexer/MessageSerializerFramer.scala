@@ -1,8 +1,9 @@
 package co.topl.networking.multiplexer
 
-import akka.NotUsed
-import akka.stream.scaladsl.Flow
-import akka.util.ByteString
+import fs2.Chunk
+import fs2._
+
+import java.nio.ByteBuffer
 
 /**
  * An Akka Flow which serializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
@@ -11,9 +12,10 @@ import akka.util.ByteString
  */
 object MessageSerializerFramer {
 
-  def apply(): Flow[(Byte, ByteString), ByteString, NotUsed] =
-    Flow[(Byte, ByteString)].map(functionTupled)
-
-  val functionTupled: Function1[(Byte, ByteString), ByteString] =
-    t => ByteString(t._1) ++ intToBytestring(t._2.length) ++ t._2
+  def apply[F[_]](): Pipe[F, (Byte, Chunk[Byte]), Chunk[Byte]] =
+    _.map { case (typeByte, chunk) =>
+      Chunk.singleton(typeByte) ++
+      Chunk.array(ByteBuffer.allocate(4).putInt(chunk.size).array()) ++
+      chunk
+    }
 }
