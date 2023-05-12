@@ -6,7 +6,7 @@ import fs2._
 import java.nio.ByteBuffer
 
 /**
- * An Akka Flow which serializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
+ * A Pipe which serializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
  *
  * The data is formatted as: prefix + data length + data
  */
