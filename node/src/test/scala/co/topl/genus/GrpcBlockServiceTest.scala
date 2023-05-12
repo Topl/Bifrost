@@ -15,7 +15,7 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
-class GrpcBlockServiceSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("getBlockById: OK") {
