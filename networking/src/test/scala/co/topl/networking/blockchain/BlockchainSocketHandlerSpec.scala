@@ -6,7 +6,7 @@ import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import co.topl.networking.NetworkGen._
 import co.topl.networking.p2p.ConnectedPeer
-import co.topl.networking.p2p.SocketLeader
+import co.topl.networking.p2p.ConnectionLeader
 import fs2._
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
@@ -24,7 +24,7 @@ class BlockchainSocketHandlerSpec extends CatsEffectSuite with AsyncMockFactory 
   type F[A] = IO[A]
 
   test("produce typed protocols") {
-    PropF.forAllF { (connectedPeer: ConnectedPeer, socketLeader: SocketLeader) =>
+    PropF.forAllF { (connectedPeer: ConnectedPeer, socketLeader: ConnectionLeader) =>
       withMock {
         val server = mock[BlockchainPeerServerAlgebra[F]]
 

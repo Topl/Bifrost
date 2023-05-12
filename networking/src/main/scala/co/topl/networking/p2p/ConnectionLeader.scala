@@ -13,14 +13,14 @@ import java.nio.ByteBuffer
  * Describes the leader of a connection between two peers.  A leader doesn't have any special authority; it is
  * primarily meant as a way of handling a coin-flip decision between the two peers.
  */
-sealed abstract class SocketLeader
+sealed abstract class ConnectionLeader
 
-object SocketLeader {
-  case object Local extends SocketLeader
-  case object Remote extends SocketLeader
+object ConnectionLeader {
+  case object Local extends ConnectionLeader
+  case object Remote extends ConnectionLeader
 
   /**
-   * Establish a Socket Leader for the given reader/writer functions.
+   * Establish a Connection Leader for the given reader/writer functions.
    * Each peer generates a random number locally.  The number is then hashed and the hash is sent to the remote peer.
    * Once received, the peers then exchange the original numbers for verification.  Finally, the two numbers are run
    * through a function which deterministically outputs the leader.
@@ -28,7 +28,10 @@ object SocketLeader {
    * @param write Writes bytes to the socket
    * @return the leader of the socket
    */
-  def fromSocket[F[_]: Async: Random](readN: Int => F[Chunk[Byte]], write: Chunk[Byte] => F[Unit]): F[SocketLeader] =
+  def fromSocket[F[_]: Async: Random](
+    readN: Int => F[Chunk[Byte]],
+    write: Chunk[Byte] => F[Unit]
+  ): F[ConnectionLeader] =
     for {
       localValue <- Random[F].nextInt
       localValueBytes = intToBytestring(localValue)
@@ -46,8 +49,8 @@ object SocketLeader {
           BigInt(blake2b256.hash(localValueBytes ++ remoteValueBytes)) >
           BigInt(blake2b256.hash(remoteValueBytes ++ localValueBytes))
         )
-          SocketLeader.Local
-        else SocketLeader.Remote
+          ConnectionLeader.Local
+        else ConnectionLeader.Remote
     } yield connectionLeader
 
   private def intToBytestring(value: Int): Array[Byte] =

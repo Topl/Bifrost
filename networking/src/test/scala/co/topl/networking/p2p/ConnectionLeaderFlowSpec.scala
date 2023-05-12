@@ -10,7 +10,7 @@ import org.scalamock.munit.AsyncMockFactory
 
 import java.nio.ByteBuffer
 
-class SocketLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
+class ConnectionLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -38,8 +38,8 @@ class SocketLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
             new Blake2b256()
               .hash(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray)
           )
-        ) SocketLeader.Local
-        else SocketLeader.Remote
+        ) ConnectionLeader.Local
+        else ConnectionLeader.Remote
 
       val reader = mockFunction[Int, F[Chunk[Byte]]]
       val writer = mockFunction[Chunk[Byte], F[Unit]]
@@ -66,7 +66,7 @@ class SocketLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
 
       for {
         implicit0(random1: Random[F]) <- Random.scalaUtilRandomSeedInt[F](0)
-        _                             <- SocketLeader.fromSocket(reader, writer).assertEquals(expectedConnectionLeader)
+        _ <- ConnectionLeader.fromSocket(reader, writer).assertEquals(expectedConnectionLeader)
       } yield ()
     }
   }

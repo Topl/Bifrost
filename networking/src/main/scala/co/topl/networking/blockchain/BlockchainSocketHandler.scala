@@ -10,14 +10,14 @@ import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
-import co.topl.networking.p2p.SocketLeader
+import co.topl.networking.p2p.ConnectionLeader
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import fs2._
 
 /**
- * Produces a function which accepts a (connectedPeer, socketLeader) and emits an Akka Stream Flow.  The flow performs
+ * Produces a function which accepts a (connectedPeer, connectionLeader) and emits an Akka Stream Flow.  The flow performs
  * the inbound and outbound communications to a specific peer.
  *
  * Specifically, the Flow runs a Multiplexer which serves several Blockchain Typed Protocols.  The Typed Protocols
@@ -30,7 +30,7 @@ object BlockchainSocketHandler {
     useClient:   BlockchainPeerClient[F] => Resource[F, Unit]
   )(
     peer:   ConnectedPeer,
-    leader: SocketLeader,
+    leader: ConnectionLeader,
     reads:  Stream[F, Byte],
     writes: Pipe[F, Byte, Nothing]
   ): Resource[F, Unit] =
@@ -115,19 +115,19 @@ object BlockchainSocketHandler {
           18: Byte
         )
 
-    (connectedPeer: ConnectedPeer, socketLeader: SocketLeader) =>
+    (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
-        (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(socketLeader.pure[F])
+        (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
         (transactionNotificationTypedSubHandlers, remoteTransactionIdsSource) <- transactionNotificationRecipF.ap(
-          socketLeader.pure[F]
+          connectionLeader.pure[F]
         )
-        (slotDataTypedSubHandlers, slotDataReceivedCallback)       <- slotDataRecipF.ap(socketLeader.pure[F])
-        (headerTypedSubHandlers, headerReceivedCallback)           <- headerRecipF.ap(socketLeader.pure[F])
-        (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(socketLeader.pure[F])
-        (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(socketLeader.pure[F])
-        (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(socketLeader.pure[F])
-        (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(socketLeader.pure[F])
-        (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(socketLeader.pure[F])
+        (slotDataTypedSubHandlers, slotDataReceivedCallback)       <- slotDataRecipF.ap(connectionLeader.pure[F])
+        (headerTypedSubHandlers, headerReceivedCallback)           <- headerRecipF.ap(connectionLeader.pure[F])
+        (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(connectionLeader.pure[F])
+        (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
+        (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
+        (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
+        (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]

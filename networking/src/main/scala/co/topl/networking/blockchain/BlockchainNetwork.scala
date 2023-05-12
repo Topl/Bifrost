@@ -38,13 +38,13 @@ object BlockchainNetwork {
         localPeer,
         remotePeers,
         (peer, socket) =>
-          SocketLeader
+          ConnectionLeader
             .fromSocket(socket.readN, socket.write)
             .timeout(5.seconds)
             .toResource
-            .flatMap(socketLeader =>
+            .flatMap(connectionLeader =>
               BlockchainSocketHandler
-                .make[F](serverF, clientHandler.usePeer)(peer, socketLeader, socket.reads, socket.writes)
+                .make[F](serverF, clientHandler.usePeer)(peer, connectionLeader, socket.reads, socket.writes)
             )
       )
     } yield p2pServer

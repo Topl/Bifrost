@@ -30,36 +30,36 @@ trait TypedProtocolSetFactory[F[_], Client] {
    * For some peer and leader, produces a set of sub handlers and a client
    */
   def protocolsForPeer(
-    connectedPeer: ConnectedPeer,
-    socketLeader:  SocketLeader
+    connectedPeer:    ConnectedPeer,
+    connectionLeader: ConnectionLeader
   ): F[(NonEmptyChain[TypedSubHandler[F, _]], Client)]
 
   /**
    * Runs the typed protocols and client on top of the given socket
    * @param useClient a function which consumes the Client instance
    * @param connectedPeer The remote peer
-   * @param socketLeader The leader of the socket
+   * @param connectionLeader The leader of the socket
    * @param reads A stream of incoming bytes
    * @param writes A stream of outgoing bytes
    * @return A resource which runs the typed protocols and client
    */
   def multiplexed(useClient: Client => Resource[F, Unit])(
-    connectedPeer: ConnectedPeer,
-    socketLeader:  SocketLeader,
-    reads:         Stream[F, Byte],
-    writes:        Pipe[F, Byte, Nothing]
+    connectedPeer:    ConnectedPeer,
+    connectionLeader: ConnectionLeader,
+    reads:            Stream[F, Byte],
+    writes:           Pipe[F, Byte, Nothing]
   )(implicit L: Logger[F], A: Async[F]): Resource[F, Unit] =
-    multiplexerHandlersIn(connectedPeer, socketLeader)
+    multiplexerHandlersIn(connectedPeer, connectionLeader)
       .flatMap { case (subHandlers, client) =>
         (Multiplexer(subHandlers)(reads, writes), useClient(client)).parTupled.void
       }
 
   private def multiplexerHandlersIn(
-    connectedPeer: ConnectedPeer,
-    socketLeader:  SocketLeader
+    connectedPeer:    ConnectedPeer,
+    connectionLeader: ConnectionLeader
   )(implicit L: Logger[F], A: Async[F]): Resource[F, (NonEmptyChain[SubHandler[F]], Client)] =
     Resource
-      .eval(protocolsForPeer(connectedPeer, socketLeader))
+      .eval(protocolsForPeer(connectedPeer, connectionLeader))
       .flatMap { case (typedProtocolSet, client) =>
         typedProtocolSet
           .traverse { multiplexedSubHandler =>
@@ -143,11 +143,11 @@ object TypedProtocolSetFactory {
       byteB:         Byte
     )(implicit
       tPushTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Push[T]]
-    ): F[SocketLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Stream[F, T])] =
+    ): F[ConnectionLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Stream[F, T])] =
       (notificationServer[F, T](protocol, notifications), notificationClient[F, T](protocol)).tupled
         .map { case (f1, (f2, source)) =>
-          (socketLeader: SocketLeader) =>
-            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(socketLeader), source)
+          (connectionLeader: ConnectionLeader) =>
+            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), source)
         }
 
     def requestResponseReciprocated[F[_]: Async: Logger, Query: Transmittable, T: Transmittable](
@@ -159,12 +159,12 @@ object TypedProtocolSetFactory {
       queryGetTypeTag:  NetworkTypeTag[TypedProtocol.CommonMessages.Get[Query]],
       tResponseTypeTag: NetworkTypeTag[TypedProtocol.CommonMessages.Response[T]]
     ): F[
-      SocketLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Query => F[Option[T]])
+      ConnectionLeader => (NonEmptyChain[TypedSubHandler[F, CommonStates.None.type]], Query => F[Option[T]])
     ] =
       (requestResponseServer(protocol, fetch), requestResponseClient(protocol)).tupled
         .map { case (f1, (f2, callback)) =>
-          (socketLeader: SocketLeader) =>
-            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(socketLeader), callback)
+          (connectionLeader: ConnectionLeader) =>
+            (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), callback)
         }
 
     def notificationServer[F[_]: Async: Logger, T: Show: Transmittable](
@@ -412,12 +412,12 @@ case class ReciprocatedTypedSubHandler[F[_], InitialState](
   byteB:          Byte
 ) {
 
-  def handlers(socketLeader: SocketLeader): NonEmptyChain[TypedSubHandler[F, InitialState]] =
-    NonEmptyChain(serverHandler(socketLeader), clientHandler(socketLeader))
+  def handlers(connectionLeader: ConnectionLeader): NonEmptyChain[TypedSubHandler[F, InitialState]] =
+    NonEmptyChain(serverHandler(connectionLeader), clientHandler(connectionLeader))
 
-  def serverHandler(socketLeader: SocketLeader): TypedSubHandler[F, InitialState] =
-    serverHandlerF(if (socketLeader == SocketLeader.Local) byteA else byteB)
+  def serverHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] =
+    serverHandlerF(if (connectionLeader == ConnectionLeader.Local) byteA else byteB)
 
-  def clientHandler(socketLeader: SocketLeader): TypedSubHandler[F, InitialState] =
-    clientHandlerF(if (socketLeader == SocketLeader.Local) byteB else byteA)
+  def clientHandler(connectionLeader: ConnectionLeader): TypedSubHandler[F, InitialState] =
+    clientHandlerF(if (connectionLeader == ConnectionLeader.Local) byteB else byteA)
 }

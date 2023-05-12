@@ -25,9 +25,9 @@ trait NetworkGen {
       } yield ConnectedPeer(address, coordinate)
     )
 
-  implicit val arbitrarySocketLeader: Arbitrary[SocketLeader] =
+  implicit val arbitraryConnectionLeader: Arbitrary[ConnectionLeader] =
     Arbitrary(
-      Gen.oneOf(SocketLeader.Local, SocketLeader.Remote)
+      Gen.oneOf(ConnectionLeader.Local, ConnectionLeader.Remote)
     )
 }
 
