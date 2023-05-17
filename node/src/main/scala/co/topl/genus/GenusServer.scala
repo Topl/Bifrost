@@ -26,7 +26,7 @@ object GenusServer {
       implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Genus"))
       // A dedicated single thread executor in which all OrientDB calls are expected to run
       implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-      orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword)
+      orientdb                                 <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbPassword)
 
       dbTx <- Resource
         .make(Async[F].delay(orientdb.getTx))(db => orientThread.delay(db.shutdown()))

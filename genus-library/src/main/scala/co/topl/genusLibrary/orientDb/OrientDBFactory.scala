@@ -1,9 +1,11 @@
 package co.topl.genusLibrary.orientDb
 
 import cats.effect.Async
+import cats.effect.implicits.effectResourceOps
 import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.genusLibrary.model.GEs
+import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
@@ -21,7 +23,6 @@ object OrientDBFactory {
 
   def make[F[_]: Async: Logger: Files: OrientThread](
     directoryPath: String,
-    user:          String,
     password:      String
   ): Resource[F, OrientGraphFactory] =
     for {
@@ -47,12 +48,24 @@ object OrientDBFactory {
       // Start Orient Db embedded server
       orientGraphFactory <- Resource.make[F, OrientGraphFactory](
         Sync[F].delay(
-          new OrientGraphFactory(s"plocal:${directory.toNioPath}", user, password)
+          new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", "admin")
         )
       )(factory => Sync[F].delay(factory.close()))
 
       // If we need to recreate the schema from scratch backup, rename/move the db folder.
       _ <- OrientDBMetadataFactory.make[F](orientGraphFactory)
+
+      // Change the default admin password
+      _ <- Sync[F]
+        .delay(
+          orientGraphFactory.getNoTx
+            .command(
+              new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='admin'")
+            )
+            .execute[Int]()
+        )
+        .void
+        .toResource
 
     } yield orientGraphFactory
 }
