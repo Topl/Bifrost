@@ -48,7 +48,7 @@ class SchemaTxoTest
       _ <- (
         assertIO(ledgerProperty.getName.pure[F], Field.State) &>
         assertIO(ledgerProperty.isMandatory.pure[F], true) &>
-        assertIO(ledgerProperty.isReadonly.pure[F], true) &>
+        assertIO(ledgerProperty.isReadonly.pure[F], false) &>
         assertIO(ledgerProperty.isNotNull.pure[F], true) &>
         assertIO(ledgerProperty.getType.pure[F], OType.INTEGER)
       ).toResource
