@@ -91,7 +91,7 @@ trait TypedProtocolSetFactory[F[_], Client] {
     applier:               TypedProtocolInstance[F]#MessageApplier,
     protocolInstanceId:    Byte
   )(implicit L: Logger[F], A: Async[F]): Pipe[F, Chunk[Byte], Unit] =
-    _.map(MessageParserFramer.parseWhole)
+    _.evalMap(MessageParserFramer.parseWhole[F])
       .map { case (prefix, data) =>
         val protoByteString = com.google.protobuf.ByteString.copyFrom(data.toByteBuffer)
         multiplexedSubHandler.codec

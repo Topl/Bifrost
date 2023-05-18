@@ -47,13 +47,13 @@ class MultiplexerSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           _ <- handler1Sink.take.assertEquals(m1).toResource
           // Have session 1 produce/emit message 2 and expect it to be forwarded to the output queue
           _ <- handler1Source.offer(m2).toResource
-          _ <- outQueue.take.map(MessageParserFramer.parseWhole).assertEquals((1: Byte, m2)).toResource
+          _ <- outQueue.take.flatMap(MessageParserFramer.parseWhole[F]).assertEquals((1: Byte, m2)).toResource
           // Submit message 1 to session 2 and expect it to be forwarded into handler2Sink
           _ <- inQueue.offer(MessageSerializerFramer.function(2, m1)).toResource
           _ <- handler2Sink.take.assertEquals(m1).toResource
           // Have session 2 produce/emit message 2 and expect it to be forwarded to the output queue
           _ <- handler2Source.offer(m2).toResource
-          _ <- outQueue.take.map(MessageParserFramer.parseWhole).assertEquals((2: Byte, m2)).toResource
+          _ <- outQueue.take.flatMap(MessageParserFramer.parseWhole[F]).assertEquals((2: Byte, m2)).toResource
           // Now send to an invalid session and expect an error
           _ <- inQueue.offer(MessageSerializerFramer.function(3, m1)).toResource
           _ <- multiplexerOutcome.map(_.isError).assert.toResource

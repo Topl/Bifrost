@@ -5,9 +5,8 @@ import cats.effect.Async
 import cats.implicits._
 import cats.effect.std.Random
 import co.topl.crypto.hash.Blake2b256
+import co.topl.networking.encodeInt
 import fs2.Chunk
-
-import java.nio.ByteBuffer
 
 /**
  * Describes the leader of a connection between two peers.  A leader doesn't have any special authority; it is
@@ -34,7 +33,7 @@ object ConnectionLeader {
   ): F[ConnectionLeader] =
     for {
       localValue <- Random[F].nextInt
-      localValueBytes = intToBytestring(localValue)
+      localValueBytes = encodeInt(localValue)
       blake2b256 = new Blake2b256()
       localValueDigest = blake2b256.hash(localValueBytes)
       _                <- write(Chunk.array(localValueDigest))
@@ -52,7 +51,4 @@ object ConnectionLeader {
           ConnectionLeader.Local
         else ConnectionLeader.Remote
     } yield connectionLeader
-
-  private def intToBytestring(value: Int): Array[Byte] =
-    ByteBuffer.allocate(4).putInt(value).array()
 }

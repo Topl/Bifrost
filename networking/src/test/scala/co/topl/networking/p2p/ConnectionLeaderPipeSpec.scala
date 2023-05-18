@@ -4,13 +4,12 @@ import cats.effect.IO
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.crypto.hash.Blake2b256
+import co.topl.networking._
 import fs2.Chunk
 import munit.CatsEffectSuite
 import org.scalamock.munit.AsyncMockFactory
 
-import java.nio.ByteBuffer
-
-class ConnectionLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
+class ConnectionLeaderPipeSpec extends CatsEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -23,20 +22,20 @@ class ConnectionLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
       val random2 = new scala.util.Random(0)
       val expectedPublishedInt = random2.nextInt()
       val expectedPublishedEvidence =
-        new Blake2b256().hash(intToBytestring(expectedPublishedInt).toArray)
+        new Blake2b256().hash(encodeInt(expectedPublishedInt))
 
       val remoteInt = expectedPublishedInt + 1
-      val remoteIntEvidence = new Blake2b256().hash(intToBytestring(remoteInt).toArray)
+      val remoteIntEvidence = new Blake2b256().hash(encodeInt(remoteInt))
 
       val expectedConnectionLeader =
         if (
           BigInt(
             new Blake2b256()
-              .hash(intToBytestring(expectedPublishedInt).toArray ++ intToBytestring(remoteInt).toArray)
+              .hash(encodeInt(expectedPublishedInt) ++ encodeInt(remoteInt))
           ) >
           BigInt(
             new Blake2b256()
-              .hash(intToBytestring(remoteInt).toArray ++ intToBytestring(expectedPublishedInt).toArray)
+              .hash(encodeInt(remoteInt) ++ encodeInt(expectedPublishedInt))
           )
         ) ConnectionLeader.Local
         else ConnectionLeader.Remote
@@ -52,7 +51,7 @@ class ConnectionLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
       reader
         .expects(4)
         .once()
-        .returning(intToBytestring(remoteInt).pure[F])
+        .returning(Chunk.array(encodeInt(remoteInt)).pure[F])
 
       writer
         .expects(Chunk.array(expectedPublishedEvidence))
@@ -60,7 +59,7 @@ class ConnectionLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
         .returning(().pure[F])
 
       writer
-        .expects(intToBytestring(expectedPublishedInt))
+        .expects(Chunk.array(encodeInt(expectedPublishedInt)))
         .once()
         .returning(().pure[F])
 
@@ -70,10 +69,5 @@ class ConnectionLeaderFlowSpec extends CatsEffectSuite with AsyncMockFactory {
       } yield ()
     }
   }
-
-  private def intToBytestring(i: Int): Chunk[Byte] =
-    Chunk.array(
-      ByteBuffer.allocate(4).putInt(i).array()
-    )
 
 }
