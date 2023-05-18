@@ -1,39 +1,46 @@
 package co.topl.networking.blockchain
 
-import akka.stream.scaladsl.Flow
-import akka.util.ByteString
 import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
-import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
+import co.topl.networking.p2p.ConnectionLeader
+import co.topl.networking.p2p.ConnectedPeer
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import fs2._
 
-/**
- * Produces a function which accepts a (connectedPeer, connectionLeader) and emits an Akka Stream Flow.  The flow performs
- * the inbound and outbound communications to a specific peer.
- *
- * Specifically, the Flow runs a Multiplexer which serves several Blockchain Typed Protocols.  The Typed Protocols
- * are instantiated using the methods from the provided `BlockchainPeerServer`.
- */
-object BlockchainPeerConnectionFlowFactory {
+object BlockchainSocketHandler {
 
-  def make[F[_]: Async: Logger: FToFuture](
-    peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]]
-  ): (ConnectedPeer, ConnectionLeader) => Resource[F, Flow[ByteString, ByteString, BlockchainPeerClient[F]]] =
-    (peer, leader) =>
-      peerServerF(peer)
-        .map(server => createFactory(server))
-        .flatMap(TypedProtocolSetFactory.multiplexed(_)(peer, leader))
+  /**
+   * Consumes the given Socket by applying Blockchain-specific Multiplexed Typed Protocols to serve the given application
+   * functions.
+   * @param peerServerF a function which creates a BlockchainPeerServer for the given ConnectedPeer
+   * @param useClient a function which consumes the BlockchainPeerClient to serve the application
+   * @param peer The remote peer
+   * @param leader The connection leader
+   * @param reads the input stream
+   * @param writes the output stream
+   * @return a Resource which completes when all processing has completed
+   */
+  def make[F[_]: Async: Logger](
+    peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
+    useClient:   BlockchainPeerClient[F] => Resource[F, Unit]
+  )(
+    peer:   ConnectedPeer,
+    leader: ConnectionLeader,
+    reads:  Stream[F, Byte],
+    writes: Pipe[F, Byte, Nothing]
+  ): Resource[F, Unit] =
+    peerServerF(peer)
+      .map(server => createFactory(server))
+      .flatMap(_.multiplexed(useClient)(peer, leader, reads, writes))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
     protocolServer: BlockchainPeerServerAlgebra[F]

@@ -28,7 +28,12 @@ object OrientDBMetadataFactory {
   ): Resource[F, Unit] =
     for {
       db <- Resource
-        .make(Sync[F].blocking(orientGraphFactory.getDatabase))(db => OrientThread[F].delay(db.close()))
+        .make(Sync[F].blocking(orientGraphFactory.getDatabase))(db =>
+          OrientThread[F].delay {
+            db.activateOnCurrentThread()
+            db.close()
+          }
+        )
         .evalTap(db => OrientThread[F].delay(db.activateOnCurrentThread()).void)
       _ <- Resource.eval(
         OrientThread[F].defer(
