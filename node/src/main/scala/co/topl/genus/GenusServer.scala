@@ -35,13 +35,13 @@ object GenusServer {
         .make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
-      graphBlockInserter <- GraphBlockUpdater.make[F](dbTx)
-      vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
-      blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
-      transactionFetcher <- GraphTransactionFetcher.make(vertexFetcher)
-
       rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
+
+      vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
+      blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
+      graphBlockUpdater  <- GraphBlockUpdater.make[F](dbTx, blockFetcher, nodeBlockFetcher)
+      transactionFetcher <- GraphTransactionFetcher.make(vertexFetcher)
 
       _ <- GenusGrpc.Server
         .serve(conf.rpcHost, conf.rpcPort, blockFetcher, transactionFetcher, vertexFetcher)
@@ -72,7 +72,7 @@ object GenusServer {
               nodeBlockFetcher.fetch(startHeight = graphCurrentHeight + 1, endHeight = nodeLatestHeight + 3)
             )
             .evalTap(blockData => Logger[F].info(s"Inserting block data ${blockData.header.id.show}"))
-            .evalMap(graphBlockInserter.insert)
+            .evalMap(graphBlockUpdater.insert)
             .rethrow ++
           fs2.Stream
             .force[F, SynchronizationTraversalStep](
@@ -82,12 +82,12 @@ object GenusServer {
               case SynchronizationTraversalSteps.Applied(blockId) =>
                 EitherT(nodeBlockFetcher.fetch(blockId))
                   .semiflatTap(blockData => Logger[F].info(s"Inserting block ${blockData.header.id.show}"))
-                  .flatMapF(graphBlockInserter.insert)
+                  .flatMapF(graphBlockUpdater.insert)
                   .value
               case SynchronizationTraversalSteps.Unapplied(blockId) =>
                 EitherT(nodeBlockFetcher.fetch(blockId))
                   .semiflatTap(blockData => Logger[F].info(s"Deleting block ${blockData.header.id.show}"))
-                  .flatMapF(graphBlockInserter.remove)
+                  .flatMapF(graphBlockUpdater.remove)
                   .value
             }
             .rethrow
