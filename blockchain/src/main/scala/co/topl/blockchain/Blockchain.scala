@@ -5,7 +5,6 @@ import cats.effect._
 import cats.implicits._
 import cats.Parallel
 import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -25,6 +24,7 @@ import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.catsutils.DroppingTopic
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}

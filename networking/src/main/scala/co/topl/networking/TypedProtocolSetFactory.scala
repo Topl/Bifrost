@@ -6,7 +6,7 @@ import cats.effect.std.{Queue, Semaphore}
 import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
 import cats.{Applicative, MonadThrow, Show}
-import co.topl.catsakka._
+import co.topl.catsutils._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.multiplexer.MultiplexerCodecs._
