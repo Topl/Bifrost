@@ -1,19 +1,21 @@
 package co.topl.networking.multiplexer
 
-import akka.NotUsed
-import akka.stream.scaladsl.Flow
-import akka.util.ByteString
+import co.topl.networking.encodeInt
+import fs2._
 
 /**
- * An Akka Flow which serializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
+ * A Pipe which serializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
  *
  * The data is formatted as: prefix + data length + data
  */
 object MessageSerializerFramer {
 
-  def apply(): Flow[(Byte, ByteString), ByteString, NotUsed] =
-    Flow[(Byte, ByteString)].map(functionTupled)
+  def apply[F[_]](): Pipe[F, (Byte, Chunk[Byte]), Chunk[Byte]] =
+    _.map((function _).tupled)
 
-  val functionTupled: Function1[(Byte, ByteString), ByteString] =
-    t => ByteString(t._1) ++ intToBytestring(t._2.length) ++ t._2
+  def function(typeByte: Byte, chunk: Chunk[Byte]): Chunk[Byte] =
+    Chunk.singleton(typeByte) ++
+    // An integer is encoded into 4 bytes (using ByteBuffer endian)
+    Chunk.array(encodeInt(chunk.size)) ++
+    chunk
 }

@@ -5,21 +5,19 @@ import fs2.concurrent.Topic
 /**
  * Captures the notion of serving peers in a decentralized network
  */
-trait P2PServer[F[_], Client] {
-  def peerChanges: F[Topic[F, PeerConnectionChange[Client]]]
+trait P2PServer[F[_]] {
+  def peerChanges: F[Topic[F, PeerConnectionChange]]
   def localAddress: F[RemoteAddress]
 
 }
 
-sealed abstract class PeerConnectionChange[+Client]
+sealed abstract class PeerConnectionChange
 
 object PeerConnectionChanges {
-  case class InboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange[Nothing]
-  case class OutboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange[Nothing]
+  case class InboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange
+  case class OutboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange
 
-  case class ConnectionEstablished[Client](connectedPeer: ConnectedPeer, client: Client)
-      extends PeerConnectionChange[Client]
+  case class ConnectionEstablished(connectedPeer: ConnectedPeer) extends PeerConnectionChange
 
-  case class ConnectionClosed(connectedPeer: ConnectedPeer, reason: Option[Throwable])
-      extends PeerConnectionChange[Nothing]
+  case class ConnectionClosed(connectedPeer: ConnectedPeer, reason: Option[Throwable]) extends PeerConnectionChange
 }

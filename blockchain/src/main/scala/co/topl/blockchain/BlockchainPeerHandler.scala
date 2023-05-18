@@ -2,9 +2,11 @@ package co.topl.blockchain
 
 import cats.data._
 import cats.effect.Async
+import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
-import cats.{Applicative, Monad, MonadThrow, Monoid, Parallel, Show}
+import cats.effect.implicits._
+import cats.{Applicative, Monad, MonadThrow, Monoid, Show}
 import fs2._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store, StoreReader}
@@ -40,9 +42,9 @@ object BlockchainPeerHandler {
   /**
    * A Monoid for `BlockchainPeerHandler` which runs the two sub-handlers in parallel.
    */
-  implicit def monoidBlockchainPeerHandler[F[_]: Parallel: Applicative]: Monoid[BlockchainPeerHandlerAlgebra[F]] =
+  implicit def monoidBlockchainPeerHandler[F[_]: Async]: Monoid[BlockchainPeerHandlerAlgebra[F]] =
     Monoid.instance(
-      (_: BlockchainPeerClient[F]) => Applicative[F].unit,
+      (_: BlockchainPeerClient[F]) => Resource.unit[F],
       (a, b) => (client: BlockchainPeerClient[F]) => (a.usePeer(client), b.usePeer(client)).parTupled.void
     )
 
@@ -75,7 +77,7 @@ object BlockchainPeerHandler {
       (client: BlockchainPeerClient[F]) =>
         for {
           implicit0(logger: Logger[F]) <- createPeerLogger[F](client)("Bifrost.P2P.ChainSync")
-          adoptions                    <- client.remotePeerAdoptions
+          adoptions                    <- client.remotePeerAdoptions.toResource
           _fetchAndValidateMissingHeaders = fetchAndValidateMissingHeaders(
             client,
             headerValidation,
@@ -168,6 +170,7 @@ object BlockchainPeerHandler {
             )
             .compile
             .drain
+            .toResource
         } yield ()
 
     implicit private val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
@@ -381,18 +384,19 @@ object BlockchainPeerHandler {
       mempool:                     MempoolAlgebra[F]
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
-        createPeerLogger[F](client)("Bifrost.P2P.MempoolSync").flatMap(implicit logger =>
-          client.remoteTransactionNotifications
-            .flatMap(source =>
-              source
-                .parEvalMapUnordered(16)(
-                  processTransactionId[F](transactionSyntaxValidation, transactionStore, mempool)(client)
-                )
-                .compile
-                .drain
-            )
-            .void
-        )
+        createPeerLogger[F](client)("Bifrost.P2P.MempoolSync")
+          .flatMap(implicit logger =>
+            client.remoteTransactionNotifications.toResource
+              .evalMap(source =>
+                source
+                  .parEvalMapUnordered(16)(
+                    processTransactionId[F](transactionSyntaxValidation, transactionStore, mempool)(client)
+                  )
+                  .compile
+                  .drain
+              )
+              .void
+          )
 
     private def processTransactionId[F[_]: Async: Logger](
       transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -440,7 +444,7 @@ object BlockchainPeerHandler {
     ): BlockchainPeerHandlerAlgebra[F] =
       (client: BlockchainPeerClient[F]) =>
         createPeerLogger[F](client)("Bifrost.P2P.CommonAncestorTrace")
-          .flatMap(implicit logger =>
+          .evalMap(implicit logger =>
             Stream
               .fixedDelay[F](10.seconds)
               .evalMap(_ => traceAndLogCommonAncestor(getLocalBlockIdAtHeight, currentHeight, slotDataStore)(client))
@@ -484,9 +488,11 @@ object BlockchainPeerHandler {
   }
 
   private def createPeerLogger[F[_]: Sync](client: BlockchainPeerClient[F])(processName: String) =
-    client.remotePeer.map(remotePeer =>
-      Slf4jLogger
-        .getLoggerFromName[F](show"$processName [${remotePeer.remoteAddress}]")
-    )
+    client.remotePeer
+      .map(remotePeer =>
+        Slf4jLogger
+          .getLoggerFromName[F](show"$processName [${remotePeer.remoteAddress}]")
+      )
+      .toResource
 
 }

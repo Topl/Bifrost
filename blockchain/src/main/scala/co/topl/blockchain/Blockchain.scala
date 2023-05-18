@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import akka.actor.typed.ActorSystem
 import cats.data.{OptionT, Validated}
 import cats.effect._
 import cats.implicits._
@@ -21,6 +20,7 @@ import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import BlockchainPeerHandler.monoidBlockchainPeerHandler
+import cats.effect.std.Random
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -32,7 +32,6 @@ import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.jdk.CollectionConverters._
-import scala.util.Random
 import fs2._
 
 object Blockchain {
@@ -40,7 +39,7 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def make[F[_]: Parallel: Async: FToFuture](
+  def make[F[_]: Parallel: Async: Random](
     clock:                       ClockAlgebra[F],
     stakerOpt:                   Option[StakingAlgebra[F]],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -64,7 +63,7 @@ object Blockchain {
     rpcHost:                     String,
     rpcPort:                     Int,
     experimentalP2P:             Boolean = false
-  )(implicit system: ActorSystem[_], random: Random): Resource[F, Unit] = {
+  ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
