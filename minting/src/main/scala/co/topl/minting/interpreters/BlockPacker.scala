@@ -7,8 +7,8 @@ import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.catsakka._
 import co.topl.brambl.syntax._
+import co.topl.catsutils._
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
 import co.topl.ledger.interpreters.QuivrContext

@@ -1,12 +1,8 @@
-package co.topl.catsakka
+package co.topl.catsutils
 
-import akka.NotUsed
-import akka.stream.scaladsl.Source
 import cats.effect.Async
-import cats.effect.kernel.Resource
 import cats.effect.std.Queue
 import fs2.Stream
-import fs2.interop.reactivestreams.StreamOps
 
 import scala.language.implicitConversions
 
@@ -18,9 +14,6 @@ trait AsFS2StreamOps {
 }
 
 class StreamFS2Ops[F[_], T](val stream: Stream[F, T]) extends AnyVal {
-
-  def toAkkaSource(implicit asyncF: Async[F]): Resource[F, Source[T, NotUsed]] =
-    stream.toUnicastPublisher.map(p => Source.fromPublisher(p.publisher))
 
   /**
    * Slow downstream consumers normally block upstream producers.  This method prevents this behavior by buffering

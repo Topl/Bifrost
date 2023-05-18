@@ -61,7 +61,7 @@ object Transmittable {
   }
 
   /**
-   * Extension operations for working with transmitted data in the form of an Akka Byte String
+   * Extension operations for working with transmitted data in the form of a protobuf ByteString
    * @param value the transmitted byte string value
    */
   class ByteStringTransmittableOps(private val byteString: ByteString) extends AnyVal {
