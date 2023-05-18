@@ -1,82 +1,72 @@
 package co.topl.networking.multiplexer
 
-import akka.NotUsed
-import akka.stream.Attributes
-import akka.stream.FlowShape
-import akka.stream.Inlet
-import akka.stream.Outlet
-import akka.stream.scaladsl.Flow
-import akka.stream.stage.GraphStage
-import akka.stream.stage.GraphStageLogic
-import akka.stream.stage.InHandler
-import akka.stream.stage.OutHandler
-import akka.util.ByteString
-
-import scala.annotation.tailrec
+import cats.MonadThrow
+import cats.implicits._
+import fs2._
 
 /**
- * An Akka Flow which deserializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
+ * An FS2 Pipe which deserializes "typed data" (meaning, data bytes which with a byte prefix indicating the data's type).
  *
  * The expected data is formatted is: prefix + data length + data
  */
 object MessageParserFramer {
 
-  def apply(): Flow[ByteString, (Byte, ByteString), NotUsed] =
-    Flow.fromGraph(new MessageParserFramerImpl).mapConcat(identity)
-}
+  def apply[F[_]: RaiseThrowable](): Pipe[F, Byte, (Byte, Chunk[Byte])] = {
 
-private class MessageParserFramerImpl extends GraphStage[FlowShape[ByteString, List[(Byte, ByteString)]]] {
-
-  private val inlet = Inlet[ByteString]("MessageParserFramer.In")
-
-  private val outlet =
-    Outlet[List[(Byte, ByteString)]]("MessageParserFramer.Out")
-
-  val shape: FlowShape[ByteString, List[(Byte, ByteString)]] =
-    FlowShape(inlet, outlet)
-
-  def createLogic(inheritedAttributes: Attributes): GraphStageLogic =
-    new GraphStageLogic(shape) {
-
-      private def processBuffer(
-        buffer: ByteString
-      ): (List[(Byte, ByteString)], ByteString) = {
-        @tailrec
-        def inner(
-          buffer: ByteString,
-          acc:    List[(Byte, ByteString)]
-        ): (List[(Byte, ByteString)], ByteString) =
-          if (buffer.length < 5) (acc, buffer)
-          else {
-            val typeByte = buffer.head
-            val size = bytestringToInt(buffer.slice(1, 5))
-            if (buffer.length < (size + 5)) (acc, buffer)
-            else {
-              val (b, remaining) = buffer.splitAt(size + 5)
-              val data = b.drop(5)
-              inner(remaining, acc :+ (typeByte, data))
-            }
-          }
-        inner(buffer, Nil)
+    /**
+     * Read the first byte from the stream.  This byte indicates a "type prefix".  Once read, call `readSize`.
+     */
+    def readTypePrefix(s: Stream[F, Byte]): Pull[F, (Byte, Chunk[Byte]), Unit] =
+      s.pull.uncons1.flatMap {
+        case Some((typeByte, tail)) =>
+          readSize(tail, typeByte)
+        case None =>
+          Pull.done
       }
 
-      private def processing(buffer: ByteString): InHandler with OutHandler =
-        new InHandler with OutHandler {
+    /**
+     * Read the next 4 bytes from the stream.  These 4 bytes encode an integer in Big-Endian format.
+     * Once read, calls `readData`.
+     */
+    def readSize(s: Stream[F, Byte], typeByte: Byte) =
+      s.pull.unconsN(4).flatMap {
+        case Some((sizeBytes, tail)) =>
+          val size = sizeBytes.toByteBuffer.getInt
+          readData(tail, typeByte, size)
+        case None =>
+          Pull.raiseError[F](new IllegalStateException("Unexpected end-of-stream"))
+      }
 
-          def onPush(): Unit = {
-            val (out, newBuffer) = processBuffer(buffer ++ grab(inlet))
-            if (out.nonEmpty) {
-              setHandlers(inlet, outlet, processing(newBuffer))
-              push(outlet, out)
-            } else {
-              setHandlers(inlet, outlet, processing(newBuffer))
-              pull(inlet)
-            }
-          }
+    /**
+     * Reads `size` number of bytes from the stream, representing the _actual_ data of the message.
+     * Once read, the stream outputs a (type, data) tuple, and the process restarts from `readTypePrefix` for
+     * the remainder of the stream.
+     */
+    def readData(s: Stream[F, Byte], typeByte: Byte, size: Int) =
+      s.pull.unconsN(size).flatMap {
+        case Some((chunk, tail)) =>
+          Pull.output(Chunk.singleton((typeByte, chunk))) >> readTypePrefix(tail)
+        case None =>
+          Pull.raiseError[F](new IllegalStateException("Unexpected end-of-stream"))
+      }
 
-          def onPull(): Unit = pull(inlet)
-        }
+    readTypePrefix(_).stream
+  }
 
-      setHandlers(inlet, outlet, processing(ByteString.empty))
-    }
+  /**
+   * Parses a "complete" framed chunk of byte data.
+   * @param bytes Input data represented as (type prefix) :+ (size bytes len 4) ++ (data)
+   *              The input should be at least 5 bytes (1 for the prefix, 4 for the size).
+   * @return A tuple (type prefix, data)
+   */
+  def parseWhole[F[_]: MonadThrow](bytes: Chunk[Byte]): F[(Byte, Chunk[Byte])] =
+    for {
+      _ <- MonadThrow[F].raiseWhen(bytes.size < 5)(new IllegalArgumentException("Invalid byte chunk header"))
+      typeByte = bytes(0)
+      // Decode the size bytes (length 4) in Big-Endian format
+      sizeBytes = bytes.drop(1).take(4)
+      size = sizeBytes.toByteBuffer.getInt
+      _ <- MonadThrow[F].raiseWhen(bytes.size != (5 + size))(new IllegalArgumentException("Invalid byte chunk data"))
+      data = bytes.drop(5)
+    } yield (typeByte, data)
 }
