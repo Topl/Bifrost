@@ -1,4 +1,4 @@
-package co.topl.catsakka
+package co.topl.catsutils
 
 import cats.data.EitherT
 import cats.effect.kernel.Async

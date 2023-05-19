@@ -4,7 +4,7 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.catsakka.DroppingTopic
+import co.topl.catsutils.DroppingTopic
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState

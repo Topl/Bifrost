@@ -161,7 +161,7 @@ lazy val bifrost = project
     typeclasses,
     toplGrpc,
     nodeCrypto,
-    catsAkka,
+    catsUtils,
     models,
     numerics,
     eventTree,
@@ -211,7 +211,7 @@ lazy val node = project
     minting,
     commonInterpreters,
     networking,
-    catsAkka,
+    catsUtils,
     toplGrpc,
     blockchain,
     levelDbStore,
@@ -244,7 +244,7 @@ lazy val networkDelayer = project
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(catsAkka, commonApplication)
+  .dependsOn(catsUtils, commonApplication)
 
 lazy val testnetSimulationOrchestrator = project
   .in(file("testnet-simulation-orchestrator"))
@@ -275,7 +275,7 @@ lazy val commonApplication = project
     crossScalaVersions := Seq(scala213),
     libraryDependencies ++= Dependencies.commonApplication
   )
-  .dependsOn(catsAkka)
+  .dependsOn(catsUtils)
   .settings(scalamacrosParadiseSettings)
 
 lazy val models = project
@@ -406,7 +406,7 @@ lazy val commonInterpreters = project
     typeclasses,
     byteCodecs,
     tetraByteCodecs,
-    catsAkka,
+    catsUtils,
     eventTree,
     munitScalamock % "test->test"
   )
@@ -457,7 +457,7 @@ lazy val minting = project
     tetraByteCodecs,
     algebras % "compile->compile;test->test",
     consensus,
-    catsAkka,
+    catsUtils,
     ledger,
     munitScalamock     % "test->test",
     commonInterpreters % "test->test"
@@ -484,7 +484,7 @@ lazy val networking = project
     algebras % "compile->compile;test->test",
     consensus,
     commonInterpreters,
-    catsAkka,
+    catsUtils,
     eventTree,
     ledger,
     actor,
@@ -561,7 +561,7 @@ lazy val blockchain = project
     minting,
     commonInterpreters,
     networking % "compile->compile;test->test",
-    catsAkka,
+    catsUtils,
     toplGrpc
   )
 
@@ -577,7 +577,7 @@ lazy val toplGrpc = project
     byteCodecs,
     tetraByteCodecs,
     algebras,
-    catsAkka,
+    catsUtils,
     typeclasses,
     munitScalamock % "test->test"
   )
@@ -592,7 +592,7 @@ lazy val levelDbStore = project
   .dependsOn(
     byteCodecs,
     algebras,
-    catsAkka
+    catsUtils
   )
 
 lazy val nodeCrypto = project
@@ -606,15 +606,15 @@ lazy val nodeCrypto = project
     libraryDependencies ++= Dependencies.crypto
   )
 
-lazy val catsAkka = project
-  .in(file("cats-akka"))
+lazy val catsUtils = project
+  .in(file("cats-utils"))
   .enablePlugins(BuildInfoPlugin)
   .settings(
-    name := "cats-akka",
+    name := "cats-utils",
     commonSettings,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.catsakka",
-    libraryDependencies ++= Dependencies.catsAkka
+    buildInfoPackage := "co.topl.buildinfo.catsUtils",
+    libraryDependencies ++= Dependencies.catsUtils
   )
   .settings(scalamacrosParadiseSettings)
 

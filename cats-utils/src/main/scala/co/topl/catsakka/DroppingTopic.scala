@@ -1,4 +1,4 @@
-package co.topl.catsakka
+package co.topl.catsutils
 
 import cats.effect.{Async, Resource}
 import cats.implicits._

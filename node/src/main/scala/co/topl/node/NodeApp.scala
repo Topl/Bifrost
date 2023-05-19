@@ -1,16 +1,15 @@
 package co.topl.node
 
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
 import cats.effect.implicits._
+import cats.effect.std.Random
+import cats.effect.std.SecureRandom
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.common.application.{IOAkkaApp, IOBaseApp}
+import co.topl.common.application.IOBaseApp
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.interpreters._
@@ -36,25 +35,22 @@ import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.security.SecureRandom
 import java.time.Instant
 import java.util.UUID
-import scala.util.Random
 
 object NodeApp extends AbstractNodeApp
 
 abstract class AbstractNodeApp
-    extends IOAkkaApp[Args, ApplicationConfig, Nothing](
+    extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
-      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "Bifrost", conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
   def run: IO[Unit] = new ConfiguredNodeApp(args, appConfig).run
 }
 
-class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit system: ActorSystem[_]) {
+class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   type F[A] = IO[A]
 
@@ -195,7 +191,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      implicit0(networkRandom: Random) = new Random(new SecureRandom())
       staking <- privateBigBang.localStakerIndex
         .flatMap(stakerInitializers.get(_))
         .fold(Resource.pure[F, Option[StakingAlgebra[F]]](none))(initializer =>
@@ -251,6 +246,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         .recoverWith { case e =>
           Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
         }
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
       // Finally, run the program
       _ <- Blockchain
         .make[F](
