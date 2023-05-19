@@ -22,7 +22,7 @@ package object models {
   type Slot = Long
   type Epoch = Long
 
-  @newsubtype case class NetworkPrefix(value: Byte)
+  @newsubtype case class NetworkPrefix(value: Int)
 
   type TxRoot = Sized.Strict[Bytes, Lengths.`32`.type]
   type BloomFilter = Sized.Strict[Bytes, Lengths.`256`.type]

@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models._
@@ -11,7 +10,6 @@ import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
-import quivr.models.SmallData
 
 /**
  * The beginning of everything.  ("everything" of course just means the first block of a blockchain)
@@ -28,9 +26,9 @@ object BigBang {
    * @param etaPrefix a sequence of bytes to be prepended to the value that gets hashed to produce the Big Bang Eta.
    */
   case class Config(
-    timestamp: Timestamp,
-    outputs:   List[UnspentTransactionOutput],
-    etaPrefix: Bytes = Config.DefaultEtaPrefix
+    timestamp:    Timestamp,
+    transactions: List[IoTransaction],
+    etaPrefix:    Bytes = Config.DefaultEtaPrefix
   )
 
   object Config {
@@ -42,21 +40,12 @@ object BigBang {
   /**
    * Constructs a full block using the given Big Bang Configuration
    */
-  def block(implicit config: Config): FullBlock = { // TODO move to Block.FullConsensus
-    val transactions: List[IoTransaction] =
-      List(
-        IoTransaction(
-          inputs = Nil,
-          outputs = config.outputs,
-          datum = Datum.IoTransaction(Event.IoTransaction(Schedule(Slot, Slot, 0L), SmallData.defaultInstance))
-        )
-      )
-
+  def block(implicit config: Config): FullBlock = {
     val eta: Eta =
       Sized.strictUnsafe(
         new Blake2b256().hash(
           (config.etaPrefix +:
-          transactions.map(_.id.value)).map(v => v: Array[Byte]): _*
+          config.transactions.map(_.id.value)).map(v => v: Array[Byte]): _*
         )
       )
 
@@ -64,8 +53,8 @@ object BigBang {
       BlockHeader(
         parentHeaderId = ParentId,
         parentSlot = ParentSlot,
-        txRoot = transactions.merkleTreeRootHash.data,
-        bloomFilter = transactions.bloomFilter.data,
+        txRoot = config.transactions.merkleTreeRootHash.data,
+        bloomFilter = config.transactions.bloomFilter.data,
         timestamp = config.timestamp,
         height = Height,
         slot = Slot,
@@ -74,7 +63,7 @@ object BigBang {
         metadata = ByteString.EMPTY,
         address = StakingAddress(zeroBytes(Lengths.`32`).data)
       )
-    FullBlock(header, FullBlockBody(transactions))
+    FullBlock(header, FullBlockBody(config.transactions))
   }
 
   val ParentId: BlockId = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))

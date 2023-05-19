@@ -51,7 +51,7 @@ object StakerInitializers {
     )
 
     val registration: SignatureKesProduct =
-      new KesProduct().sign(kesSK, new Blake2b256().hash(vrfVK, operatorVK).toArray)
+      new KesProduct().sign(kesSK, new Blake2b256().hash(vrfVK, operatorVK))
 
     val stakingAddress: StakingAddress =
       StakingAddress(
@@ -64,7 +64,7 @@ object StakerInitializers {
       new Ed25519().getVerificationKey(Ed25519.SecretKey(spendingSK.toByteArray)).bytes
     )
 
-    val lockAddress: LockAddress =
+    def lockAddress(implicit networkPrefix: NetworkPrefix): LockAddress =
       Lock(
         Lock.Value.Predicate(
           Lock.Predicate(
@@ -72,7 +72,7 @@ object StakerInitializers {
               Challenge().withRevealed(
                 Proposition(
                   Proposition.Value.DigitalSignature(
-                    Proposition.DigitalSignature("ed25519", VerificationKey(Vk.Ed25519(Ed25519Vk(spendingVK))))
+                    Proposition.DigitalSignature("Ed25519", VerificationKey(Vk.Ed25519(Ed25519Vk(spendingVK))))
                   )
                 )
               )
@@ -81,7 +81,7 @@ object StakerInitializers {
           )
         )
       ).lockAddress(
-        NetworkConstants.PRIVATE_NETWORK_ID,
+        networkPrefix.value,
         NetworkConstants.MAIN_LEDGER_ID
       )
 
