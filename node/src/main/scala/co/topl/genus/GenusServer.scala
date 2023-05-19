@@ -29,10 +29,10 @@ object GenusServer {
       orientdb                                 <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbPassword)
 
       dbTx <- Resource
-        .make(Async[F].delay(orientdb.getTx))(db => orientThread.delay(db.shutdown()))
+        .eval(Async[F].delay(orientdb.getTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
       dbNoTx <- Resource
-        .make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
+        .eval(Async[F].delay(orientdb.getNoTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
       rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)
