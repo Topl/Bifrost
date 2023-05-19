@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import co.topl.blockchain.BigBang.Slot
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.Challenge
 import co.topl.brambl.models.box.Lock
@@ -16,16 +15,10 @@ import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.Proposition
 import co.topl.brambl.constants.NetworkConstants
-import co.topl.brambl.models.Datum
-import co.topl.brambl.models.Event
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import quivr.models.SmallData
 
 object PrivateTestnet {
 
-  val DefaultTotalLVLs: Int128 = 10_000_000L
-  val DefaultTotalTOPLs: Int128 = 10_000_000L
+  val DefaultTotalStake: Int128 = 10_000_000L
 
   /**
    * Constructs several Operator StakerInitializers.  A Staker is initialized using the concatenation of the timestamp (bytes)
@@ -52,31 +45,29 @@ object PrivateTestnet {
    * Constructs a BigBang Config containing registrations of the given Stakers.  In addition, a single Poly box is
    * produced and is publicly spendable.
    */
-  def config(
-    timestamp: Timestamp,
-    stakers:   List[StakerInitializers.Operator],
-    stakes:    Option[List[BigInt]]
+  def config(timestamp: Timestamp, stakers: List[StakerInitializers.Operator], stakes: Option[List[BigInt]])(implicit
+    networkPrefix: NetworkPrefix
   ): BigBang.Config = {
     require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
-    val stakerTransactions =
+    BigBang.Config(
+      timestamp,
       stakers
         .zip(
           stakes.getOrElse(
             List.fill(stakers.length)(
-              Ratio(DefaultTotalTOPLs, stakers.length).round
+              Ratio(DefaultTotalStake, stakers.length).round
             )
           )
         )
-        .map { case (staker, stake) =>
-          IoTransaction(datum = DefaultIoTransactionDatum)
-            .withOutputs(staker.bigBangOutputs(stake))
-        }
-
-    BigBang.Config(timestamp, FreeLvlsTransaction :: stakerTransactions)
+        .flatMap { case (staker, stake) => staker.bigBangOutputs(stake) }
+        .appended(
+          UnspentTransactionOutput(
+            HeightLockOneSpendingAddress,
+            Value().withLvl(Value.LVL(10_000_000L))
+          )
+        )
+    )
   }
-
-  implicit val networkPrefix: NetworkPrefix =
-    NetworkPrefix(NetworkConstants.PRIVATE_NETWORK_ID)
 
   val HeightLockOneProposition: Proposition =
     Proposition(
@@ -103,17 +94,4 @@ object PrivateTestnet {
     NetworkConstants.MAIN_LEDGER_ID
   )
 
-  val DefaultIoTransactionDatum: Datum.IoTransaction =
-    Datum.IoTransaction(Event.IoTransaction(Schedule(Slot, Slot, 0L), SmallData.defaultInstance))
-
-  val FreeLvlsTransaction: IoTransaction =
-    IoTransaction(datum = DefaultIoTransactionDatum)
-      .withOutputs(
-        List(
-          UnspentTransactionOutput(
-            HeightLockOneSpendingAddress,
-            Value().withLvl(Value.LVL(DefaultTotalLVLs))
-          )
-        )
-      )
 }

@@ -23,6 +23,7 @@ import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
+import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
@@ -67,6 +68,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
+      implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
       stakerInitializers <- Sync[F]
         .delay(
