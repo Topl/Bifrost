@@ -28,9 +28,21 @@ object OrientDBFactory {
     for {
       directory   <- Resource.pure(Path(directoryPath))
       isDirectory <- Resource.eval(Files[F].isDirectory(directory))
-      createDirRes <-
-        if (isDirectory) Resource.pure[F, Boolean](true)
-        else Resource.eval(Files[F].createDirectory(directory)).attempt.map(_.isRight)
+
+      /**
+       * If it is the first time we start orient-db server, we will create the directory, and access it with default credentials admin, admin
+       * If orient-db server was restarted (we already change the password), we will not create the new directory, and access it with credentials admin, password-config-provided
+       */
+      (createDirRes, previousDb) <-
+        if (isDirectory) Resource.pure[F, (Boolean, Boolean)]((true, true))
+        else Resource.eval(Files[F].createDirectory(directory)).attempt.map(r => (r.isRight, false))
+
+      _ <- Logger[F]
+        .info(s"""
+          |Genus directoryPath: $directoryPath
+          |Is Genus using a previous database: $previousDb
+          |""".stripMargin)
+        .toResource
 
       _ <- Either
         .cond(
@@ -47,25 +59,43 @@ object OrientDBFactory {
 
       // Start Orient Db embedded server
       orientGraphFactory <- Resource.make[F, OrientGraphFactory](
-        Sync[F].delay(
-          new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", "admin")
-        )
-      )(factory => Sync[F].delay(factory.close()))
+        previousDb
+          .pure[F]
+          .ifM(
+            OrientThread[F].delay(
+              new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", password)
+            ),
+            OrientThread[F].delay(
+              new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", "admin")
+            )
+          )
+      )(factory => OrientThread[F].delay(factory.close()))
 
-      // If we need to recreate the schema from scratch backup, rename/move the db folder.
       _ <- OrientDBMetadataFactory.make[F](orientGraphFactory)
 
       // Change the default admin password
-      _ <- Sync[F]
-        .delay(
-          orientGraphFactory.getNoTx
-            .command(
-              new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='admin'")
-            )
-            .execute[Int]()
-        )
-        .void
-        .toResource
+      _ <-
+        previousDb
+          .pure[F]
+          .ifM(
+            Sync[F].unit,
+            OrientThread[F].delay {
+              orientGraphFactory.getTx
+                .command(
+                  new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='admin'")
+                )
+                .execute[Int]()
+              orientGraphFactory.getTx.commit()
+            }.void
+          )
+          .toResource
 
-    } yield orientGraphFactory
+      // Once the password changed, return the new session
+      orientGraphFactoryNewSession <- Resource.make[F, OrientGraphFactory](
+        OrientThread[F].delay(
+          new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", password)
+        )
+      )(factory => OrientThread[F].delay(factory.close()))
+
+    } yield orientGraphFactoryNewSession
 }

@@ -30,6 +30,7 @@ object GraphVertexFetcher {
           OrientThread[F].delay(
             Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
               .map(_.headOption)
+              .map(_.map(_.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)))
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
