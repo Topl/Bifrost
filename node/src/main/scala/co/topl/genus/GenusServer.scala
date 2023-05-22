@@ -26,13 +26,13 @@ object GenusServer {
       implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Genus"))
       // A dedicated single thread executor in which all OrientDB calls are expected to run
       implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-      orientdb <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbUser, conf.orientDbPassword)
+      orientdb                                 <- OrientDBFactory.make[F](conf.orientDbDirectory, conf.orientDbPassword)
 
       dbTx <- Resource
-        .make(Async[F].delay(orientdb.getTx))(db => orientThread.delay(db.shutdown()))
+        .eval(Async[F].delay(orientdb.getTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
       dbNoTx <- Resource
-        .make(Async[F].delay(orientdb.getNoTx))(db => orientThread.delay(db.shutdown()))
+        .eval(Async[F].delay(orientdb.getNoTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
       rpcInterpreter   <- ToplGrpc.Client.make[F](conf.rpcNodeHost, conf.rpcNodePort, conf.rpcNodeTls)

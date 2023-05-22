@@ -139,7 +139,6 @@ object ApplicationConfig {
     rpcNodePort:       Int,
     rpcNodeTls:        Boolean,
     orientDbDirectory: String,
-    orientDbUser:      String,
     orientDbPassword:  String
   )
 
