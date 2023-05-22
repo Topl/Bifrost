@@ -65,7 +65,11 @@ object BlockBodyScore {
        * @return a rational, with higher values indicating a better score
        */
       def scoreOf(candidate: Seq[IoTransaction]): F[Ratio] =
-        (candidate.foldMapM(benefitOf), candidate.foldMapM(costOf))
+        (
+          candidate.foldMapM(benefitOf),
+          // Associate a base cost of 1 to the list of transactions, to avoid division by zero
+          candidate.foldMapM(costOf).map(_ + 1)
+        )
           .mapN(Ratio(_, _))
     }
 
