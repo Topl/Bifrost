@@ -210,7 +210,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
 
   lazy val ledger: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++ scalacache ++
     Seq(Dependencies.bramblScSdk, Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
