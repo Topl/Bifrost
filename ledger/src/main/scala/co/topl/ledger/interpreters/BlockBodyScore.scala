@@ -32,7 +32,7 @@ object BlockBodyScore {
        * @param transaction The transaction to consider
        * @return a BigInt representing the aggregate "cost" of the transaction
        */
-      private def costOf(transaction: IoTransaction) =
+      private def costOf(transaction: IoTransaction): F[BigInt] =
         transactionCostCache.cachingF(transaction.id)(ttl = None)(
           Sync[F]
             .defer(transactionCostCalculator.costOf(transaction))
