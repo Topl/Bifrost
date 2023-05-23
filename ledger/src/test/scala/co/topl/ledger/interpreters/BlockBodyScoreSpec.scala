@@ -3,7 +3,6 @@ package co.topl.ledger.interpreters
 import cats.effect.IO
 import cats.effect.implicits._
 import cats.implicits._
-import co.topl.models.utility.Ratio
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
@@ -22,17 +21,17 @@ class BlockBodyScoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
   type F[A] = IO[A]
 
-  test("Return score of 0/1 for empty block") {
+  test("Return score of 0 for empty block") {
     val testResource =
       for {
         underTest <- BlockBodyScore.make[F](null, null)
-        _         <- underTest.scoreOf(Nil).assertEquals(Ratio(0, 1)).toResource
+        _         <- underTest.scoreOf(Nil).assertEquals(BigInt(0)).toResource
       } yield ()
 
     testResource.use_
   }
 
-  test("Return score for a mutli-transaction block") {
+  test("Return score for a multi-transaction block") {
     val singleGen =
       for {
         tx     <- arbitraryIoTransaction.arbitrary.map(_.embedId)
@@ -62,11 +61,12 @@ class BlockBodyScoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
       val testResource =
         for {
           underTest <- BlockBodyScore.make[F](costCalculator, rewardCalculator)
-          expectedCost = candidate.map(_._2).map(BigInt(_)).sum + 1
+          expectedCost = candidate.map(_._2).map(BigInt(_)).sum
           expectedReward = candidate.map(_._3).sum
+          expectedScore = expectedReward - expectedCost
           _ <- underTest
             .scoreOf(candidate.map(_._1))
-            .assertEquals(Ratio(BigInt(expectedReward), expectedCost))
+            .assertEquals(expectedScore)
             .toResource
         } yield ()
 
