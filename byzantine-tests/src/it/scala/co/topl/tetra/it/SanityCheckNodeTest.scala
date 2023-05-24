@@ -12,10 +12,10 @@ class SanityCheckNodeTest extends IntegrationSuite {
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
-        node1        <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", TestNodeConfig(genusEnabled = true))
-        _            <- node1.startContainer[F].toResource
+        node1 <- dockerSupport.createNode("SingleNodeTest-node1", "SingleNodeTest", TestNodeConfig(genusEnabled = true))
+        _     <- node1.startContainer[F].toResource
         node1Client  <- node1.rpcClient[F](node1.config.rpcPort, tls = false)
-        genus1Client <- node1.rpcGenusClient[F](node1.config.genusRpcPort, tls = false)
+        genus1Client <- node1.rpcGenusClient[F](node1.config.rpcPort, tls = false)
         _            <- node1Client.waitForRpcStartUp.toResource
         _            <- genus1Client.waitForRpcStartUp.toResource
         _            <- Logger[F].info("Fetching genesis block Node Grpc Client").toResource

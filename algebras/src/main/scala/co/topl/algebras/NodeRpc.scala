@@ -8,12 +8,12 @@ import co.topl.node.models.BlockBody
 import co.topl.proto.node.NodeConfig
 
 /**
- * Topl Rpc
+ * Node Rpc
  * An interaction layer intended for users/clients of a blockchain node.
  * @tparam F Effect type
  * @tparam S Canonical head changes Synchronization Traversal Container, Ex: Stream, Seq
  */
-trait ToplRpc[F[_], S[_]] {
+trait NodeRpc[F[_], S[_]] {
   def broadcastTransaction(transaction: IoTransaction): F[Unit]
 
   def currentMempool(): F[Set[TransactionId]]

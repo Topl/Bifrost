@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.data.OptionT
 import cats.implicits._
 import cats.effect.Async
-import co.topl.algebras.{ProtocolConfigurationAlgebra, Store, SynchronizationTraversalStep, ToplRpc}
+import co.topl.algebras._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -54,9 +54,9 @@ object ToplRpcServer {
     blockIdTree:                  ParentChildTree[F, BlockId],
     localBlockAdoptionsStream:    Stream[F, BlockId],
     protocolConfigurationAlgebra: ProtocolConfigurationAlgebra[F, Stream[F, *]]
-  ): F[ToplRpc[F, Stream[F, *]]] =
+  ): F[NodeRpc[F, Stream[F, *]]] =
     Async[F].delay {
-      new ToplRpc[F, Stream[F, *]] {
+      new NodeRpc[F, Stream[F, *]] {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 

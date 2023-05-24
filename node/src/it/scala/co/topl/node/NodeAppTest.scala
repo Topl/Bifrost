@@ -5,7 +5,7 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
-import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
 import co.topl.blockchain.PrivateTestnet
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
@@ -14,7 +14,7 @@ import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
-import co.topl.grpc.ToplGrpc
+import co.topl.grpc.NodeGrpc
 import co.topl.quivr.api.Prover
 import co.topl.typeclasses.implicits._
 import fs2._
@@ -29,7 +29,7 @@ class NodeAppTest extends CatsEffectSuite {
 
   type F[A] = IO[A]
 
-  type RpcClient = ToplRpc[F, Stream[F, *]]
+  type RpcClient = NodeRpc[F, Stream[F, *]]
 
   override val munitTimeout: Duration = 3.minutes
 
@@ -60,7 +60,6 @@ class NodeAppTest extends CatsEffectSuite {
         |      slot-duration: 500 milli
         |genus:
         |  enable: true
-        |  rpc-node-port: 9151
         |""".stripMargin
     val configNodeB =
       s"""
@@ -93,8 +92,8 @@ class NodeAppTest extends CatsEffectSuite {
         configFileB <- saveLocalConfig(configNodeB, "nodeB")
         _           <- launch(configFileA)
         _           <- launch(configFileB)
-        rpcClientA  <- ToplGrpc.Client.make[F]("localhost", 9151, tls = false)
-        rpcClientB  <- ToplGrpc.Client.make[F]("localhost", 9153, tls = false)
+        rpcClientA  <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
+        rpcClientB  <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
         _           <- (awaitNodeReady(rpcClientA).toResource, awaitNodeReady(rpcClientB).toResource).parTupled
         _ <- (
           fetchUntilHeight(rpcClientA, 3).toResource,
@@ -152,7 +151,7 @@ class NodeAppTest extends CatsEffectSuite {
       _  <- Resource.onFinalize(bg.cancel)
     } yield ()
 
-  private def awaitNodeReady(client: ToplRpc[F, Stream[F, *]]) =
+  private def awaitNodeReady(client: NodeRpc[F, Stream[F, *]]) =
     Stream
       .retry(
         client

@@ -141,7 +141,10 @@ object Dependencies {
     logging ++
     monocle ++
     monitoring ++
-    mUnitTestBase.map(_ % IntegrationTest)
+    mUnitTestBase.map(_ % IntegrationTest) ++
+    Seq(
+      "io.grpc" % "grpc-services" % "1.54.1"
+    )
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
