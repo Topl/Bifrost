@@ -10,6 +10,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.node.models.BlockBody
+import co.topl.proto.node.NodeConfig
 import fs2.Stream
 
 object MultiToplRpc {
@@ -59,7 +60,10 @@ object MultiToplRpc {
       def blockIdAtDepth(depth: Long): F[Option[BlockId]] =
         randomDelegate.flatMap(_.blockIdAtDepth(depth))
 
-      override def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
+      def synchronizationTraversal(): F[Stream[F, SynchronizationTraversalStep]] =
         randomDelegate.flatMap(_.synchronizationTraversal())
+
+      def fetchProtocolConfigs(): F[Stream[F, NodeConfig]] =
+        randomDelegate.flatMap(_.fetchProtocolConfigs())
     }
 }

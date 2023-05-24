@@ -6,6 +6,7 @@ import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.{DisconnectedPeer, RemoteAddress}
 import co.topl.numerics.implicits._
+import co.topl.proto.node.NodeConfig
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
@@ -13,7 +14,6 @@ import pureconfig._
 import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
 import pureconfig.configurable._
-
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -102,6 +102,12 @@ object ApplicationConfig {
 
       val vrfCacheSize: Long =
         operationalPeriodLength * 4
+
+      def nodeConfig(slot: Slot): NodeConfig = NodeConfig(
+        slot = slot,
+        slotDurationMillis = slotDuration.toMillis,
+        epochLength = epochLength
+      )
     }
 
     @Lenses

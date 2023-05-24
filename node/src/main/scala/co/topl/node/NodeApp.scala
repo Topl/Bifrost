@@ -247,6 +247,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
         }
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
+
+      protocolConfig <- ProtocolConfiguration.make[F](
+        appConfig.bifrost.protocols.map { case (slot, protocol) => protocol.nodeConfig(slot) }.toSeq
+      )
+
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -274,7 +279,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           Stream.never[F],
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
-          appConfig.bifrost.p2p.experimental.getOrElse(false)
+          appConfig.bifrost.p2p.experimental.getOrElse(false),
+          protocolConfig
         )
     } yield ()
 

@@ -4,7 +4,7 @@ import cats.data.{OptionT, Validated}
 import cats.effect._
 import cats.implicits._
 import cats.Parallel
-import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, ProtocolConfigurationAlgebra, Store, UnsafeResource}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -30,7 +30,6 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.jdk.CollectionConverters._
 import fs2._
 
@@ -62,7 +61,8 @@ object Blockchain {
     remotePeers:                 Stream[F, DisconnectedPeer],
     rpcHost:                     String,
     rpcPort:                     Int,
-    experimentalP2P:             Boolean = false
+    experimentalP2P:             Boolean = false,
+    nodeProtocolConfiguration:   ProtocolConfigurationAlgebra[F, Stream[F, *]]
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -163,7 +163,8 @@ object Blockchain {
           localChain,
           blockHeights,
           blockIdTree,
-          droppingBlockAdoptionsTopic.subscribeUnbounded
+          droppingBlockAdoptionsTopic.subscribeUnbounded,
+          nodeProtocolConfiguration
         )
       )
       _ <- ToplGrpc.Server

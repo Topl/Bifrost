@@ -14,6 +14,7 @@ import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
+import co.topl.proto.node.NodeConfig
 import fs2.Stream
 import io.grpc.Metadata
 import munit.CatsEffectSuite
@@ -145,6 +146,28 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         } yield ()
       }
     }
+  }
+
+  test("FetchNodeConfig can be retrieved") {
+
+    withMock {
+      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
+      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      val nodeConfig = Seq(NodeConfig(0, 100, 300), NodeConfig(1, 200, 600))
+
+      (interpreter.fetchProtocolConfigs _)
+        .expects()
+        .once()
+        .returning(Stream.emits(nodeConfig).pure[F])
+
+      for {
+        _ <- assertIO(
+          underTest.fetchNodeConfig(FetchNodeConfigReq(), new Metadata()).compile.toList,
+          List(FetchNodeConfigRes(nodeConfig.head), FetchNodeConfigRes(nodeConfig.tail.head))
+        )
+      } yield ()
+    }
+
   }
 
   // TODO: fetchBlockIdAtDepth has no unit testing

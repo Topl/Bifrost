@@ -14,6 +14,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
+import co.topl.proto.node.NodeConfig
 import fs2.Stream
 import fs2.grpc.syntax.all._
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
@@ -122,6 +123,15 @@ object ToplGrpc {
                   })
               }
 
+            def fetchProtocolConfigs(): F[Stream[F, NodeConfig]] =
+              Async[F].delay {
+                client
+                  .fetchNodeConfig(
+                    FetchNodeConfigReq(),
+                    new Metadata()
+                  )
+                  .map(_.config)
+              }
           }
         )
   }
@@ -134,7 +144,7 @@ object ToplGrpc {
      * @param port The port to bind
      * @param interpreter The interpreter which fulfills the data requests
      */
-    def serve[F[_]: Async, S[_]](host: String, port: Int, interpreter: ToplRpc[F, Stream[F, *]]): Resource[F, Server] =
+    def serve[F[_]: Async](host: String, port: Int, interpreter: ToplRpc[F, Stream[F, *]]): Resource[F, Server] =
       NodeRpcFs2Grpc
         .bindServiceResource(
           new GrpcServerImpl(interpreter)
@@ -164,7 +174,7 @@ object ToplGrpc {
           .map(CurrentMempoolRes(_))
           .adaptErrorsToGrpc
 
-      override def currentMempoolContains(
+      def currentMempoolContains(
         request: CurrentMempoolContainsReq,
         ctx:     Metadata
       ): F[CurrentMempoolContainsRes] =
@@ -215,6 +225,11 @@ object ToplGrpc {
             case SynchronizationTraversalSteps.Unapplied(blockId) =>
               SynchronizationTraversalRes(SynchronizationTraversalRes.Status.Unapplied(blockId))
           }
+
+      def fetchNodeConfig(request: FetchNodeConfigReq, ctx: Metadata): Stream[F, FetchNodeConfigRes] =
+        Stream
+          .force(interpreter.fetchProtocolConfigs())
+          .map(FetchNodeConfigRes(_))
     }
   }
 }
