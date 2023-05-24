@@ -5,6 +5,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.node.models.BlockBody
+import co.topl.proto.node.NodeConfig
 
 /**
  * Topl Rpc
@@ -29,4 +30,5 @@ trait ToplRpc[F[_], S[_]] {
   def blockIdAtDepth(depth: Long): F[Option[BlockId]]
 
   def synchronizationTraversal(): F[S[SynchronizationTraversalStep]]
+  def fetchProtocolConfigs(): F[S[NodeConfig]]
 }

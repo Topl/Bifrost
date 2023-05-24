@@ -2,7 +2,7 @@ package co.topl.blockchain
 
 import cats.effect.IO
 import cats.implicits._
-import co.topl.algebras.Store
+import co.topl.algebras.{ProtocolConfigurationAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
@@ -13,6 +13,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
+import co.topl.proto.node.NodeConfig
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -64,7 +65,8 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             localChain,
             blockHeights,
             mock[ParentChildTree[F, BlockId]],
-            Stream.empty
+            Stream.empty,
+            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
           )
           _ <- underTest
             .blockIdAtHeight(canonicalHead.height)
@@ -86,7 +88,8 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             localChain,
             blockHeights,
             mock[ParentChildTree[F, BlockId]],
-            Stream.empty
+            Stream.empty,
+            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
@@ -105,7 +108,8 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             localChain,
             blockHeights,
             mock[ParentChildTree[F, BlockId]],
-            Stream.empty
+            Stream.empty,
+            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
@@ -202,6 +206,29 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
+  test("Fetch fetchProtocolConfigs Stream Rpc") {
+
+    withMock {
+      for {
+        protocolConfigs <- mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]].pure[F]
+        nodeConfig = Seq(NodeConfig(0, 100, 300), NodeConfig(1, 200, 600))
+        _ = (() => protocolConfigs.fetchNodeConfig)
+          .expects()
+          .once()
+          .returning(Stream.emits(nodeConfig).pure[F])
+
+        underTest <- createServer(
+          protocolConfiguration = protocolConfigs
+        )
+        stream <- underTest.fetchProtocolConfigs()
+        _      <- stream.compile.toList.map(_.size == 2).assert
+        _      <- stream.compile.toList.map(_.contains(nodeConfig.head)).assert
+        _      <- stream.compile.toList.map(_.contains(nodeConfig.tail.head)).assert
+      } yield ()
+    }
+
+  }
+
   private def createServer(
     headerStore:         Store[F, BlockId, BlockHeader] = mock[Store[F, BlockId, BlockHeader]],
     bodyStore:           Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
@@ -212,7 +239,9 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
       mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
     blockIdTree:               ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
-    localBlockAdoptionsStream: Stream[F, BlockId] = Stream.empty
+    localBlockAdoptionsStream: Stream[F, BlockId] = Stream.empty,
+    protocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]] =
+      mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
   ) =
     ToplRpcServer
       .make[F](
@@ -224,6 +253,7 @@ class ToplRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         localChain,
         blockHeights,
         blockIdTree,
-        localBlockAdoptionsStream
+        localBlockAdoptionsStream,
+        protocolConfiguration
       )
 }
