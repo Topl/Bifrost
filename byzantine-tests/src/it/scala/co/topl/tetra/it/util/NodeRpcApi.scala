@@ -3,14 +3,14 @@ package co.topl.tetra.it.util
 import cats.Applicative
 import cats.effect._
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.algebras.{SynchronizationTraversalSteps, NodeRpc}
 import co.topl.consensus.models.BlockHeader
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 import scala.concurrent.duration._
 
-class NodeRpcApi[F[_]](val client: ToplRpc[F, Stream[F, *]]) extends AnyVal {
+class NodeRpcApi[F[_]](val client: NodeRpc[F, Stream[F, *]]) extends AnyVal {
 
   def adoptedHeaders: Stream[F, BlockHeader] =
     Stream

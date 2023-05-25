@@ -18,7 +18,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
-import co.topl.genus.GenusServer
+import co.topl.genus._
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
@@ -29,11 +29,14 @@ import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
-import fs2._
+// Hide `io` from fs2 because it conflicts with `io.grpc` down below
+import fs2.{io => _, _}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
+import io.grpc.ServerServiceDefinition
 
 import java.time.Instant
 import java.util.UUID
@@ -235,17 +238,36 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           clock
         )
       )
-      _ <- GenusServer
-        .make[F](
-          appConfig.genus.copy(orientDbDirectory =
-            Some(appConfig.genus.orientDbDirectory)
-              .filterNot(_.isEmpty)
-              .getOrElse(dataStores.baseDirectory./("orient-db").toString)
+      genusGrpcServices <-
+        if (appConfig.genus.enable) {
+          (
+            for {
+              genus <- Genus
+                .make[F](
+                  appConfig.bifrost.rpc.bindHost,
+                  appConfig.bifrost.rpc.bindPort,
+                  Some(appConfig.genus.orientDbDirectory)
+                    .filterNot(_.isEmpty)
+                    .getOrElse(dataStores.baseDirectory./("orient-db").toString),
+                  appConfig.genus.orientDbPassword
+                )
+              _ <- Replicator.background(genus)
+              definitions <- GenusGrpc.Server.services(
+                genus.blockFetcher,
+                genus.transactionFetcher,
+                genus.vertexFetcher
+              )
+            } yield definitions
           )
-        )
-        .recoverWith { case e =>
-          Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
-        }
+            .recoverWith { case e =>
+              Logger[F]
+                .warn(e)("Failed to start Genus server, continuing without it")
+                .void
+                .as(Nil)
+                .toResource
+            }
+        } else
+          Resource.pure[F, List[ServerServiceDefinition]](Nil)
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
 
       protocolConfig <- ProtocolConfiguration.make[F](
@@ -279,8 +301,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           Stream.never[F],
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
-          appConfig.bifrost.p2p.experimental.getOrElse(false),
-          protocolConfig
+          protocolConfig,
+          genusGrpcServices,
+          appConfig.bifrost.p2p.experimental.getOrElse(false)
         )
     } yield ()
 

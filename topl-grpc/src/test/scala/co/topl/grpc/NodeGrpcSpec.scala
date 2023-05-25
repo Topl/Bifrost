@@ -3,7 +3,7 @@ package co.topl.grpc
 import cats.Applicative
 import cats.effect.IO
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
@@ -22,14 +22,14 @@ import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
-class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class NodeGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("A transaction can be broadcast") {
     PropF.forAllF { (transaction: IoTransaction) =>
       withMock {
-        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+        val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
 
         (interpreter.broadcastTransaction _)
           .expects(transaction)
@@ -48,8 +48,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (header: BlockHeader) =>
       val headerId = header.id
       withMock {
-        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+        val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
 
         (interpreter.fetchBlockHeader _)
           .expects(headerId)
@@ -67,8 +67,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   test("A block body can be retrieved") {
     PropF.forAllF { (id: BlockId, body: BlockBody) =>
       withMock {
-        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+        val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
 
         (interpreter.fetchBlockBody _)
           .expects(id)
@@ -89,8 +89,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (transaction: IoTransaction) =>
       val transactionId = transaction.id
       withMock {
-        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+        val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
 
         (interpreter.fetchTransaction _)
           .expects(transactionId)
@@ -109,8 +109,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (height: Long, header: BlockHeader) =>
       val blockId = header.id
       withMock {
-        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+        val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
 
         (interpreter.blockIdAtHeight _)
           .expects(height)
@@ -130,8 +130,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     PropF.forAllF { (transaction: IoTransaction) =>
       val transactionId = transaction.id
       withMock {
-        val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-        val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+        val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+        val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
 
         (interpreter.currentMempoolContains _)
           .expects(transactionId)
@@ -151,8 +151,8 @@ class ToplGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   test("FetchNodeConfig can be retrieved") {
 
     withMock {
-      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+      val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
       val nodeConfig = Seq(NodeConfig(0, 100, 300), NodeConfig(1, 200, 600))
 
       (interpreter.fetchProtocolConfigs _)

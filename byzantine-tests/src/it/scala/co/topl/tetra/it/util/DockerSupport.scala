@@ -169,8 +169,7 @@ case class TestNodeConfig(
   rpcPort:          Int = 9084,
   p2pPort:          Int = 9085,
   jmxRemotePort:    Int = 9083,
-  genusEnabled:     Boolean = false,
-  genusRpcPort:     Int = 9091
+  genusEnabled:     Boolean = false
 ) {
 
   def yaml: String = {
@@ -196,12 +195,6 @@ case class TestNodeConfig(
        |      slot-duration: 200 milli
        |genus:
        |  enable: "$genusEnabled"
-       |  rpc:
-       |    port: "$genusRpcPort"
-       |    node:
-       |      host: "localhost"
-       |      port: "$rpcPort"
-       |      tls: "false"
        |""".stripMargin
   }
 

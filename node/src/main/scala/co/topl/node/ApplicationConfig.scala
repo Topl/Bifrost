@@ -139,11 +139,6 @@ object ApplicationConfig {
   @Lenses
   case class Genus(
     enable:            Boolean,
-    rpcHost:           String,
-    rpcPort:           Int,
-    rpcNodeHost:       String,
-    rpcNodePort:       Int,
-    rpcNodeTls:        Boolean,
     orientDbDirectory: String,
     orientDbPassword:  String
   )

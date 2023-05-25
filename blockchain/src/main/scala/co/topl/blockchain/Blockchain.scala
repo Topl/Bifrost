@@ -27,11 +27,13 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.catsutils.DroppingTopic
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.grpc.NodeGrpc
 import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.jdk.CollectionConverters._
-import fs2._
+import fs2.{io => _, _}
+import io.grpc.ServerServiceDefinition
 
 object Blockchain {
 
@@ -61,8 +63,9 @@ object Blockchain {
     remotePeers:                 Stream[F, DisconnectedPeer],
     rpcHost:                     String,
     rpcPort:                     Int,
-    experimentalP2P:             Boolean = false,
-    nodeProtocolConfiguration:   ProtocolConfigurationAlgebra[F, Stream[F, *]]
+    nodeProtocolConfiguration:   ProtocolConfigurationAlgebra[F, Stream[F, *]],
+    additionalGrpcServices:      List[ServerServiceDefinition],
+    experimentalP2P:             Boolean = false
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -167,8 +170,9 @@ object Blockchain {
           nodeProtocolConfiguration
         )
       )
+      nodeGrpcService <- NodeGrpc.Server.service[F](rpcInterpreter)
       _ <- ToplGrpc.Server
-        .serve(rpcHost, rpcPort, rpcInterpreter)
+        .serve(rpcHost, rpcPort)(nodeGrpcService :: additionalGrpcServices)
         .evalTap(rpcServer =>
           Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}")
         )

@@ -3,8 +3,10 @@ package co.topl.interpreters
 import cats.Foldable
 import cats.effect.Async
 import cats.effect.std.Random
+import cats.effect.std.SecureRandom
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalStep, ToplRpc}
+import co.topl.algebras.NodeRpc
+import co.topl.algebras.SynchronizationTraversalStep
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
@@ -13,7 +15,7 @@ import co.topl.node.models.BlockBody
 import co.topl.proto.node.NodeConfig
 import fs2.Stream
 
-object MultiToplRpc {
+object MultiNodeRpc {
 
   /**
    * Constructs an interpreter of `ToplRpc` that delegates requests to a collection
@@ -23,15 +25,15 @@ object MultiToplRpc {
    * @tparam G a collection type
    * @return a ToplRpc interpreter
    */
-  def make[F[_]: Async, G[_]: Foldable](delegates: G[ToplRpc[F, Stream[F, *]]]): F[ToplRpc[F, Stream[F, *]]] =
+  def make[F[_]: Async, G[_]: Foldable](delegates: G[NodeRpc[F, Stream[F, *]]]): F[NodeRpc[F, Stream[F, *]]] =
     for {
-      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
-    } yield new ToplRpc[F, Stream[F, *]] {
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
+    } yield new NodeRpc[F, Stream[F, *]] {
 
       private val delegatesArray =
         delegates.toIterable.toArray
 
-      private def randomDelegate: F[ToplRpc[F, Stream[F, *]]] =
+      private def randomDelegate: F[NodeRpc[F, Stream[F, *]]] =
         Random[F]
           .nextIntBounded(delegatesArray.length)
           .map(delegatesArray(_))
