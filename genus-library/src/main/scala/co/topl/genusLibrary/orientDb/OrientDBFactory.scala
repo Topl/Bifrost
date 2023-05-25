@@ -38,10 +38,7 @@ object OrientDBFactory {
         else Resource.eval(Files[F].createDirectory(directory)).attempt.map(r => (r.isRight, false))
 
       _ <- Logger[F]
-        .info(s"""
-          |Genus directoryPath: $directoryPath
-          |Is Genus using a previous database: $previousDb
-          |""".stripMargin)
+        .info(s"Genus directoryPath=$directoryPath previousDatabaseExists=$previousDb")
         .toResource
 
       _ <- Either
