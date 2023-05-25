@@ -164,9 +164,16 @@ object ApplicationConfig {
         cmdArgs.runtime.rpcBindPort.map(createF(genLens(_.bifrost.rpc.bindPort))),
         cmdArgs.runtime.p2pBindHost.map(createF(genLens(_.bifrost.p2p.bindHost))),
         cmdArgs.runtime.p2pBindPort.map(createF(genLens(_.bifrost.p2p.bindPort))),
-        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers)))
+        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers))),
+        cmdArgs.runtime.genusArgs.orientDbDir.map(createF(genLens(_.genus.orientDbDirectory))),
+        cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(genLens(_.genus.orientDbPassword)))
       ).flatten
-        .foldLeft(base) { case (appConf, f) => f(appConf) }
+        .foldLeft(
+          if (cmdArgs.runtime.genusArgs.disableGenus.value)
+            createF(genLens(_.genus.enable))(false)(base)
+          else
+            base
+        ) { case (appConf, f) => f(appConf) }
     if (
       cmdArgs.runtime.testnetArgs.testnetTimestamp.nonEmpty ||
       cmdArgs.runtime.testnetArgs.testnetStakerCount.nonEmpty ||
@@ -226,7 +233,11 @@ object ApplicationConfig {
       case v     => defaultConfigFieldMapping(v)
     })
 
-  implicit val showApplicationConfig: Show[ApplicationConfig] =
-    Show.fromToString
+  implicit val showApplicationConfig: Show[ApplicationConfig] = {
+    val base = Show.fromToString[ApplicationConfig]
+    val genLens = GenLens[ApplicationConfig]
+    val sanitizer = genLens(_.genus.orientDbPassword).replace("SANITIZED")
+    conf => base.show(sanitizer(conf))
+  }
 }
 // $COVERAGE-ON$
