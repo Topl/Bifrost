@@ -84,7 +84,7 @@ object Args {
   @main @Lenses
   case class GenusArgs(
     @arg(
-      doc = "Disables the Genus server and gRPC services"
+      doc = "Disables the Genus server and Genus gRPC services"
     )
     disableGenus: Flag,
     @arg(
