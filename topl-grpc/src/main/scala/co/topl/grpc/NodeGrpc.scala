@@ -14,6 +14,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
+import co.topl.proto.node.NodeConfig
 import fs2.Stream
 import fs2.grpc.syntax.all._
 import io.grpc.Metadata
@@ -124,6 +125,12 @@ object NodeGrpc {
                   })
               }
 
+            def fetchProtocolConfigs(): F[Stream[F, NodeConfig]] =
+              Async[F].delay(
+                client
+                  .fetchNodeConfig(FetchNodeConfigReq(), new Metadata())
+                  .map(_.config)
+              )
           }
         )
   }
@@ -219,6 +226,11 @@ object NodeGrpc {
             case SynchronizationTraversalSteps.Unapplied(blockId) =>
               SynchronizationTraversalRes(SynchronizationTraversalRes.Status.Unapplied(blockId))
           }
+
+      def fetchNodeConfig(request: FetchNodeConfigReq, ctx: Metadata): Stream[F, FetchNodeConfigRes] =
+        Stream
+          .force(interpreter.fetchProtocolConfigs())
+          .map(FetchNodeConfigRes(_))
     }
   }
 }

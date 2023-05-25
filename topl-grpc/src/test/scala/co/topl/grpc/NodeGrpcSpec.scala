@@ -151,8 +151,8 @@ class NodeGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
   test("FetchNodeConfig can be retrieved") {
 
     withMock {
-      val interpreter = mock[ToplRpc[F, Stream[F, *]]]
-      val underTest = new ToplGrpc.Server.GrpcServerImpl[F](interpreter)
+      val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+      val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
       val nodeConfig = Seq(NodeConfig(0, 100, 300), NodeConfig(1, 200, 600))
 
       (interpreter.fetchProtocolConfigs _)
