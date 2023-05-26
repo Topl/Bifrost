@@ -19,7 +19,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.jdk.CollectionConverters._
 
-class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class SchemaIoTransactionTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
@@ -65,6 +65,15 @@ class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuit
         assertIO(transactionProperty.isReadonly.pure[F], false) &>
         assertIO(transactionProperty.isNotNull.pure[F], true) &>
         assertIO(transactionProperty.getType.pure[F], OType.BINARY)
+      ).toResource
+
+      sizeProperty <- oClass.getProperty(SchemaIoTransaction.Field.Size).pure[F].toResource
+      _ <- (
+        assertIO(sizeProperty.getName.pure[F], SchemaIoTransaction.Field.Size) &>
+        assertIO(sizeProperty.isMandatory.pure[F], true) &>
+        assertIO(sizeProperty.isReadonly.pure[F], true) &>
+        assertIO(sizeProperty.isNotNull.pure[F], true) &>
+        assertIO(sizeProperty.getType.pure[F], OType.LONG)
       ).toResource
 
       transactionLink <- oClass.getProperty(SchemaBlockHeader.Field.BlockId).pure[F].toResource
@@ -123,6 +132,13 @@ class SchemaIoTransactionSuite extends CatsEffectSuite with ScalaCheckEffectSuit
           .toSeq
           .pure[F],
         transaction.id.value.toByteArray.toSeq
+      ).toResource
+
+      _ <- assertIO(
+        transactionVertex
+          .getProperty[Long](transactionSchema.properties.filter(_.name == SchemaIoTransaction.Field.Size).head.name)
+          .pure[F],
+        SchemaIoTransaction.size(transaction)
       ).toResource
 
       _ <- assertIO(

@@ -62,7 +62,7 @@ object OrientDBMetadataFactory {
       )
     } yield ()
 
-  private[orientDb] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
+  private[genusLibrary] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
     // Even though the thread should already be active from the call up above, unit tests
     // may directly invoke this method without first initializing
     Sync[F].delay(db.activateOnCurrentThread()) >>

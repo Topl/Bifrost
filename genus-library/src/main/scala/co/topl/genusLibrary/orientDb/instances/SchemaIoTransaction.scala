@@ -2,6 +2,8 @@ package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.typeclasses.ImmutableCodec
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
@@ -17,8 +19,12 @@ object SchemaIoTransaction {
     val SchemaName = "Transaction"
     val TransactionId = "transactionId"
     val Transaction = "transaction"
+    val Size = "size"
     val TransactionIndex = "transactionIdIndex"
   }
+
+  private[instances] def size(ioTransaction: IoTransaction): Long =
+    ImmutableCodec.fromScodecCodec[IoTransaction].immutableBytes(ioTransaction).size
 
   def make(): VertexSchema[IoTransaction] =
     VertexSchema.create(
@@ -33,6 +39,13 @@ object SchemaIoTransaction {
           notNull = true
         )
         .withProperty(Field.Transaction, _.toByteArray, mandatory = false, readOnly = false, notNull = true)
+        .withProperty(
+          Field.Size,
+          ioTransaction => java.lang.Long.valueOf(size(ioTransaction)),
+          mandatory = true,
+          readOnly = true,
+          notNull = true
+        )
         .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)
         .withLink(SchemaBlockHeader.Field.BlockId, OType.LINK, SchemaBlockHeader.Field.SchemaName),
       v => IoTransaction.parseFrom(v(Field.Transaction): Array[Byte])
