@@ -1,6 +1,5 @@
 package co.topl.codecs.bytes.tetra
 
-import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.scodecs._
 import co.topl.consensus.models._
 import co.topl.crypto.{models => nodeCryptoModels}
@@ -151,8 +150,4 @@ trait TetraScodecCodecs {
       byteStringCodec :: // metadata
       stakingAddressCodec // address
   ).as[UnsignedBlockHeader]
-
-  implicit val IoTransactionCodec: Codec[IoTransaction] =
-    byteArrayCodec.xmapc(t => IoTransaction.parseFrom(t))(_.toByteArray)
-
 }

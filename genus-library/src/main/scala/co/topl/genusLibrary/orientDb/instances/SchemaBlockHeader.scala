@@ -34,7 +34,7 @@ object SchemaBlockHeader {
     val BlockHeaderIndex = "blockHeaderIndex"
   }
 
-  private[instances] def size(blockHeader: BlockHeader): Long =
+  private[genusLibrary] def size(blockHeader: BlockHeader): Long =
     ImmutableCodec.fromScodecCodec[BlockHeader].immutableBytes(blockHeader).size
 
   def make(): VertexSchema[BlockHeader] = VertexSchema.create(

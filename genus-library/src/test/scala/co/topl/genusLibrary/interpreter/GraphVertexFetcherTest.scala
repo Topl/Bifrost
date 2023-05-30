@@ -8,8 +8,7 @@ import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genus.services.BlockchainSizeStatsRes.BlockchainSizeStats
-import co.topl.genus.services.GetTxoStatsRes.TxoStats
+import co.topl.genus.services._
 import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}

@@ -2,7 +2,7 @@ package co.topl.genus
 
 import cats.effect.IO
 import cats.implicits._
-import co.topl.genus.services.GetTxoStatsRes.TxoStats
+import co.topl.genus.services.TxoStats
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}

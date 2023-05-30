@@ -2,12 +2,11 @@ package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.typeclasses.ImmutableCodec
-import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import com.orientechnologies.orient.core.metadata.schema.OType
+import co.topl.brambl.common.ContainsImmutable.instances.ioTransactionImmutable
 
 object SchemaIoTransaction {
 
@@ -23,8 +22,8 @@ object SchemaIoTransaction {
     val TransactionIndex = "transactionIdIndex"
   }
 
-  private[instances] def size(ioTransaction: IoTransaction): Long =
-    ImmutableCodec.fromScodecCodec[IoTransaction].immutableBytes(ioTransaction).size
+  private[genusLibrary] def size(ioTransaction: IoTransaction): Long =
+    ioTransactionImmutable.immutableBytes(ioTransaction).value.size
 
   def make(): VertexSchema[IoTransaction] =
     VertexSchema.create(
