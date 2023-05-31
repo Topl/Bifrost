@@ -6,6 +6,7 @@ import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import com.orientechnologies.orient.core.metadata.schema.OType
+import co.topl.brambl.common.ContainsImmutable.instances.ioTransactionImmutable
 
 object SchemaIoTransaction {
 
@@ -17,8 +18,12 @@ object SchemaIoTransaction {
     val SchemaName = "Transaction"
     val TransactionId = "transactionId"
     val Transaction = "transaction"
+    val Size = "size"
     val TransactionIndex = "transactionIdIndex"
   }
+
+  private[genusLibrary] def size(ioTransaction: IoTransaction): Long =
+    ioTransactionImmutable.immutableBytes(ioTransaction).value.size
 
   def make(): VertexSchema[IoTransaction] =
     VertexSchema.create(
@@ -33,6 +38,13 @@ object SchemaIoTransaction {
           notNull = true
         )
         .withProperty(Field.Transaction, _.toByteArray, mandatory = false, readOnly = false, notNull = true)
+        .withProperty(
+          Field.Size,
+          ioTransaction => java.lang.Long.valueOf(size(ioTransaction)),
+          mandatory = true,
+          readOnly = true,
+          notNull = true
+        )
         .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)
         .withLink(SchemaBlockHeader.Field.BlockId, OType.LINK, SchemaBlockHeader.Field.SchemaName),
       v => IoTransaction.parseFrom(v(Field.Transaction): Array[Byte])

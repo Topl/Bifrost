@@ -2,29 +2,33 @@ package co.topl.genusLibrary.interpreter
 
 import cats.data.EitherT
 import cats.effect.implicits.effectResourceOps
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{Resource, Sync}
 import cats.implicits._
 import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genus.services.GetTxoStatsRes.TxoStats
+import co.topl.genus.services._
+import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.model.{GE, GEs}
-import co.topl.genusLibrary.orientDb.OrientThread
+import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{
+  blockHeaderSchema,
+  ioTransactionSchema,
+  txoSchema
+}
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
-import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
+import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactoryV2, OrientGraphNoTx}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-class GraphVertexFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-
-  type F[A] = IO[A]
-
-  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+class GraphVertexFetcherTest
+    extends CatsEffectSuite
+    with ScalaCheckEffectSuite
+    with AsyncMockFactory
+    with DbFixtureUtil {
 
   test("On fetchHeader with throwable response, a MessageWithCause should be returned") {
 
@@ -342,20 +346,56 @@ class GraphVertexFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite 
     }
   }
 
-  test("On fetchTxoStats if an empty iterator is returned, a default instance of TxoStats should be returned") {
-
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test")
-
+  orientDbFixture.test(
+    "On fetchTxoStats if an empty iterator is returned, a default instance of TxoStats should be returned"
+  ) { case (odb, oThread) =>
     val res = for {
       implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
 
-      orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-      graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
-      _                  <- Sync[F].blocking(orientGraphNoTx.createVertexType("Txo")).toResource
+      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      graphVertexFetcher <- GraphVertexFetcher.make[F](odbFactory.getNoTx)
+      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
+
+      _ <- Seq(
+        txoSchema
+      )
+        .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
+        .void
+        .toResource
 
       _ <- assertIO(
         graphVertexFetcher.fetchTxoStats(),
         TxoStats.defaultInstance.asRight[GE]
+      ).toResource
+    } yield ()
+
+    res.use_
+
+  }
+
+  orientDbFixture.test(
+    "On fetchBlockchainSizeStats if an empty iterator is returned in both cases, a default instance of BlockchainSizeStats should be returned"
+  ) { case (odb, oThread) =>
+    val res = for {
+      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+
+      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
+
+      _ <- Seq(
+        blockHeaderSchema,
+        ioTransactionSchema
+      )
+        .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
+        .void
+        .toResource
+
+      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
+
+      graphVertexFetcher <- GraphVertexFetcher.make[F](dbNoTx)
+      _ <- assertIO(
+        graphVertexFetcher.fetchBlockchainSizeStats(),
+        BlockchainSizeStats.defaultInstance.asRight[GE]
       ).toResource
     } yield ()
 

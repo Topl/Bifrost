@@ -4,10 +4,14 @@ import cats.effect.{IO, Resource, SyncIO}
 import cats.implicits._
 import co.topl.genusLibrary.orientDb.OrientThread
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfigBuilder}
+import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectSuite, FunSuite, TestOptions}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
+/**
+ * @deprecated use DbFixtureUtilV2, and then remove this util
+ */
 trait DbFixtureUtil { self: FunSuite with CatsEffectSuite =>
 
   type F[A] = IO[A]
@@ -36,6 +40,45 @@ trait DbFixtureUtil { self: FunSuite with CatsEffectSuite =>
     def teardown(odb: (OrientDB, OrientThread[F])): IO[Unit] =
       odb._2
         .delay(odb._1.drop(dbName))
+        .flatTap(_ => logger.info("Teardown, db dropped"))
+
+    ResourceFixture(factoryR, setup _, teardown _)
+  }
+
+}
+
+trait DbFixtureUtilV2 { self: FunSuite with CatsEffectSuite =>
+
+  type F[A] = IO[A]
+  implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+
+  val orientDbFixtureV2: SyncIO[FunFixture[(OrientGraphFactoryV2, OrientThread[F])]] = {
+    val dbName = "testDb"
+    val dbConfig = new OrientDBConfigBuilder().addGlobalUser("testUser", "testPass", "*").build()
+
+    val factoryR =
+      OrientThread
+        .create[F]
+        .flatMap(orientThread =>
+          Resource
+            .make[F, OrientGraphFactoryV2](
+              orientThread
+                .delay {
+                  val odb = new OrientDB("memory", "root", "root", dbConfig)
+                  odb.create(dbName, ODatabaseType.MEMORY)
+
+                  new OrientGraphFactoryV2(odb, dbName, "testUser", "testPass")
+                }
+            )(oDb => orientThread.delay(oDb.close()))
+            .tupleRight(orientThread)
+        )
+
+    def setup(t: TestOptions, odb: (OrientGraphFactoryV2, OrientThread[F])): F[Unit] =
+      odb._2.delay(()) // TODO here we should create all the schemas
+
+    def teardown(odb: (OrientGraphFactoryV2, OrientThread[F])): IO[Unit] =
+      odb._2
+        .delay(odb._1.drop())
         .flatTap(_ => logger.info("Teardown, db dropped"))
 
     ResourceFixture(factoryR, setup _, teardown _)

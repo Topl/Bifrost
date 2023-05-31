@@ -2,7 +2,8 @@ package co.topl.genusLibrary.algebras
 
 import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.BlockId
-import co.topl.genus.services.GetTxoStatsRes.TxoStats
+import co.topl.genus.services.BlockchainSizeStats
+import co.topl.genus.services.TxoStats
 import co.topl.genusLibrary.model.GE
 import com.tinkerpop.blueprints.Vertex
 
@@ -87,5 +88,7 @@ trait VertexFetcherAlgebra[F[_]] {
    * @return a vertex with stats TxOs spent, unspent ...
    */
   def fetchTxoStats(): F[Either[GE, TxoStats]]
+
+  def fetchBlockchainSizeStats(): F[Either[GE, BlockchainSizeStats]]
 
 }
