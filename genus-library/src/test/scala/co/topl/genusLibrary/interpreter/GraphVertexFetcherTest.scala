@@ -8,18 +8,12 @@ import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genus.services._
 import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.model.{GE, GEs}
-import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
-import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{
-  blockHeaderSchema,
-  ioTransactionSchema,
-  txoSchema
-}
+import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.Vertex
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactoryV2, OrientGraphNoTx}
+import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -344,63 +338,6 @@ class GraphVertexFetcherTest
       }
 
     }
-  }
-
-  orientDbFixture.test(
-    "On fetchTxoStats if an empty iterator is returned, a default instance of TxoStats should be returned"
-  ) { case (odb, oThread) =>
-    val res = for {
-      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-
-      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      graphVertexFetcher <- GraphVertexFetcher.make[F](odbFactory.getNoTx)
-      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
-
-      _ <- Seq(
-        txoSchema
-      )
-        .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
-        .void
-        .toResource
-
-      _ <- assertIO(
-        graphVertexFetcher.fetchTxoStats(),
-        TxoStats.defaultInstance.asRight[GE]
-      ).toResource
-    } yield ()
-
-    res.use_
-
-  }
-
-  orientDbFixture.test(
-    "On fetchBlockchainSizeStats if an empty iterator is returned in both cases, a default instance of BlockchainSizeStats should be returned"
-  ) { case (odb, oThread) =>
-    val res = for {
-      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-
-      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
-
-      _ <- Seq(
-        blockHeaderSchema,
-        ioTransactionSchema
-      )
-        .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
-        .void
-        .toResource
-
-      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-
-      graphVertexFetcher <- GraphVertexFetcher.make[F](dbNoTx)
-      _ <- assertIO(
-        graphVertexFetcher.fetchBlockchainSizeStats(),
-        BlockchainSizeStats.defaultInstance.asRight[GE]
-      ).toResource
-    } yield ()
-
-    res.use_
-
   }
 
 }

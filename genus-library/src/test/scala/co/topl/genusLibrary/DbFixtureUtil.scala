@@ -2,7 +2,12 @@ package co.topl.genusLibrary
 
 import cats.effect.{IO, Resource, SyncIO}
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.OrientThread
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{
+  blockHeaderSchema,
+  ioTransactionSchema,
+  txoSchema
+}
+import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfigBuilder}
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectSuite, FunSuite, TestOptions}
@@ -54,7 +59,9 @@ trait DbFixtureUtilV2 { self: FunSuite with CatsEffectSuite =>
 
   val orientDbFixtureV2: SyncIO[FunFixture[(OrientGraphFactoryV2, OrientThread[F])]] = {
     val dbName = "testDb"
-    val dbConfig = new OrientDBConfigBuilder().addGlobalUser("testUser", "testPass", "*").build()
+    val dbConfig = new OrientDBConfigBuilder()
+      .addGlobalUser("testUser", "testPass", "*")
+      .build()
 
     val factoryR =
       OrientThread
@@ -65,7 +72,7 @@ trait DbFixtureUtilV2 { self: FunSuite with CatsEffectSuite =>
               orientThread
                 .delay {
                   val odb = new OrientDB("memory", "root", "root", dbConfig)
-                  odb.create(dbName, ODatabaseType.MEMORY)
+                  odb.createIfNotExists(dbName, ODatabaseType.MEMORY)
 
                   new OrientGraphFactoryV2(odb, dbName, "testUser", "testPass")
                 }
@@ -74,7 +81,16 @@ trait DbFixtureUtilV2 { self: FunSuite with CatsEffectSuite =>
         )
 
     def setup(t: TestOptions, odb: (OrientGraphFactoryV2, OrientThread[F])): F[Unit] =
-      odb._2.delay(()) // TODO here we should create all the schemas
+      for {
+        databaseDocumentTx <- odb._2.delay(odb._1.getNoTx.getRawGraph)
+        r <- Seq(
+          blockHeaderSchema,
+          ioTransactionSchema,
+          txoSchema
+        )
+          .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
+          .void
+      } yield r
 
     def teardown(odb: (OrientGraphFactoryV2, OrientThread[F])): IO[Unit] =
       odb._2
