@@ -1,10 +1,11 @@
-package co.topl.node
+package co.topl.blockchain
 
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
-import co.topl.crypto.hash.{Blake2b256, Blake2b512}
 import co.topl.interpreters.CatsUnsafeResource
 
 case class CryptoResources[F[_]](

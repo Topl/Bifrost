@@ -1,4 +1,4 @@
-package co.topl.node
+package co.topl.blockchain
 
 import cats.effect.Async
 import cats.implicits._
@@ -6,22 +6,20 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.validation.TransactionAuthorizationInterpreter
 import co.topl.brambl.validation.TransactionSyntaxInterpreter
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
+import co.topl.consensus.algebras.BlockHeaderValidationAlgebra
+import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
 import co.topl.consensus.algebras.EligibilityCacheAlgebra
-import co.topl.consensus.algebras.{
-  BlockHeaderToBodyValidationAlgebra,
-  BlockHeaderValidationAlgebra,
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra
-}
-import co.topl.consensus.interpreters.{BlockHeaderToBodyValidation, BlockHeaderValidation}
+import co.topl.consensus.algebras.EtaCalculationAlgebra
+import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
+import co.topl.consensus.interpreters.BlockHeaderToBodyValidation
+import co.topl.consensus.interpreters.BlockHeaderValidation
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
-import co.topl.ledger.algebras.{
-  BodyAuthorizationValidationAlgebra,
-  BodySemanticValidationAlgebra,
-  BodySyntaxValidationAlgebra
-}
+import co.topl.ledger.algebras.BodyAuthorizationValidationAlgebra
+import co.topl.ledger.algebras.BodySemanticValidationAlgebra
+import co.topl.ledger.algebras.BodySyntaxValidationAlgebra
+import co.topl.ledger.algebras.BoxStateAlgebra
 import co.topl.ledger.interpreters._
 import co.topl.quivr.api.Verifier.instances.verifierInstance
 import co.topl.typeclasses.implicits._
@@ -32,7 +30,8 @@ case class Validators[F[_]](
   transactionSyntax: TransactionSyntaxVerifier[F],
   bodySyntax:        BodySyntaxValidationAlgebra[F],
   bodySemantics:     BodySemanticValidationAlgebra[F],
-  bodyAuthorization: BodyAuthorizationValidationAlgebra[F]
+  bodyAuthorization: BodyAuthorizationValidationAlgebra[F],
+  boxState:          BoxStateAlgebra[F]
 )
 
 object Validators {
@@ -94,6 +93,7 @@ object Validators {
       transactionSyntaxValidation,
       bodySyntaxValidation,
       bodySemanticValidation,
-      bodyAuthorizationValidation
+      bodyAuthorizationValidation,
+      boxState
     )
 }

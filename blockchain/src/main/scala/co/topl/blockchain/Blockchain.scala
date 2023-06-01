@@ -1,39 +1,46 @@
 package co.topl.blockchain
 
-import cats.data.{OptionT, Validated}
-import cats.effect._
-import cats.implicits._
+import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import cats.Parallel
-import co.topl.algebras.{ClockAlgebra, ProtocolConfigurationAlgebra, Store, UnsafeResource}
+import cats.data.OptionT
+import cats.data.Validated
+import cats.effect._
+import cats.effect.std.Random
+import cats.implicits._
+import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.ProtocolConfigurationAlgebra
+import co.topl.algebras.UnsafeResource
+import co.topl.blockchain.interpreters.BlockchainPeerServer
+import co.topl.brambl.validation.TransactionCostCalculatorInterpreter
+import co.topl.brambl.validation.TransactionCostConfig
+import co.topl.catsutils.DroppingTopic
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.SlotData
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.EventSourcedState
+import co.topl.eventtree.ParentChildTree
+import co.topl.grpc.NodeGrpc
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
+import co.topl.ledger.interpreters.TransactionRewardCalculator
 import co.topl.minting.algebras.StakingAlgebra
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.BlockBody
+import co.topl.minting.interpreters.BlockProducer
+import co.topl.minting.interpreters.GraphBlockPacker
 import co.topl.networking.blockchain._
-import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer}
-import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
-import BlockchainPeerHandler.monoidBlockchainPeerHandler
-import cats.effect.std.Random
-import co.topl.blockchain.interpreters.BlockchainPeerServer
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
-import co.topl.catsutils.DroppingTopic
-import co.topl.consensus.models.BlockId
-import co.topl.crypto.signing.Ed25519VRF
-import co.topl.grpc.NodeGrpc
-import co.topl.minting.interpreters.{BlockPacker, BlockProducer}
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
+import co.topl.networking.p2p.DisconnectedPeer
+import co.topl.networking.p2p.LocalPeer
+import co.topl.typeclasses.implicits._
+import fs2.{io => _}
+import fs2._
+import _root_.io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+
 import scala.jdk.CollectionConverters._
-import fs2.{io => _, _}
-import io.grpc.ServerServiceDefinition
 
 object Blockchain {
 
@@ -41,31 +48,23 @@ object Blockchain {
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
   def make[F[_]: Parallel: Async: Random](
-    clock:                       ClockAlgebra[F],
-    stakerOpt:                   Option[StakingAlgebra[F]],
-    slotDataStore:               Store[F, BlockId, SlotData],
-    headerStore:                 Store[F, BlockId, BlockHeader],
-    bodyStore:                   Store[F, BlockId, BlockBody],
-    transactionStore:            Store[F, TransactionId, IoTransaction],
-    _localChain:                 LocalChainAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
-    blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
-    headerValidation:            BlockHeaderValidationAlgebra[F],
-    blockHeaderToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-    bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
-    bodySemanticValidation:      BodySemanticValidationAlgebra[F],
-    bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    _mempool:                    MempoolAlgebra[F],
-    ed25519VrfResource:          UnsafeResource[F, Ed25519VRF],
-    localPeer:                   LocalPeer,
-    remotePeers:                 Stream[F, DisconnectedPeer],
-    rpcHost:                     String,
-    rpcPort:                     Int,
-    nodeProtocolConfiguration:   ProtocolConfigurationAlgebra[F, Stream[F, *]],
-    additionalGrpcServices:      List[ServerServiceDefinition],
-    experimentalP2P:             Boolean = false
+    clock:                     ClockAlgebra[F],
+    stakerOpt:                 Option[StakingAlgebra[F]],
+    dataStores:                DataStores[F],
+    _localChain:               LocalChainAlgebra[F],
+    chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
+    blockIdTree:               ParentChildTree[F, BlockId],
+    blockHeights:              EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    validators:                Validators[F],
+    _mempool:                  MempoolAlgebra[F],
+    ed25519VrfResource:        UnsafeResource[F, Ed25519VRF],
+    localPeer:                 LocalPeer,
+    remotePeers:               Stream[F, DisconnectedPeer],
+    rpcHost:                   String,
+    rpcPort:                   Int,
+    nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
+    additionalGrpcServices:    List[ServerServiceDefinition],
+    experimentalP2P:           Boolean = false
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -74,7 +73,7 @@ object Blockchain {
       // Whenever a block is adopted locally, broadcast all of its corresponding _transactions_ to eagerly notify peers
       _ <- Async[F].background(
         blockAdoptionsTopic.subscribeUnbounded
-          .evalMap(id => bodyStore.getOrRaise(id))
+          .evalMap(id => dataStores.bodies.getOrRaise(id))
           .flatMap(b => Stream.iterable(b.transactionIds))
           .through(transactionAdoptionsTopic.publish)
           .compile
@@ -85,15 +84,15 @@ object Blockchain {
           ActorPeerHandlerBridgeAlgebra.make(
             localChain,
             chainSelectionAlgebra,
-            headerValidation,
-            blockHeaderToBodyValidation,
-            bodySyntaxValidation,
-            bodySemanticValidation,
-            bodyAuthorizationValidation,
-            slotDataStore,
-            headerStore,
-            bodyStore,
-            transactionStore,
+            validators.header,
+            validators.headerToBody,
+            validators.bodySyntax,
+            validators.bodySemantics,
+            validators.bodyAuthorization,
+            dataStores.slotData,
+            dataStores.headers,
+            dataStores.bodies,
+            dataStores.transactions,
             blockIdTree
           )
         } else {
@@ -101,15 +100,15 @@ object Blockchain {
             BlockchainPeerHandler.ChainSynchronizer.make[F](
               clock,
               localChain,
-              headerValidation,
-              blockHeaderToBodyValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              transactionStore,
+              validators.header,
+              validators.headerToBody,
+              validators.bodySyntax,
+              validators.bodySemantics,
+              validators.bodyAuthorization,
+              dataStores.slotData,
+              dataStores.headers,
+              dataStores.bodies,
+              dataStores.transactions,
               blockIdTree
             )
           )
@@ -118,8 +117,8 @@ object Blockchain {
         List(
           synchronizationHandler,
           BlockchainPeerHandler.FetchMempool.make(
-            transactionSyntaxValidation,
-            transactionStore,
+            validators.transactionSyntax,
+            dataStores.transactions,
             mempool
           ),
           BlockchainPeerHandler.CommonAncestorSearch.make(
@@ -130,15 +129,15 @@ object Blockchain {
                   .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
               ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
             () => localChain.head.map(_.height),
-            slotDataStore
+            dataStores.slotData
           )
         ).combineAll
       )
       peerServerF = BlockchainPeerServer.make(
-        slotDataStore.get,
-        headerStore.get,
-        bodyStore.get,
-        transactionStore.get,
+        dataStores.slotData.get,
+        dataStores.headers.get,
+        dataStores.bodies.get,
+        dataStores.transactions.get,
         blockHeights,
         localChain,
         mempool,
@@ -158,11 +157,11 @@ object Blockchain {
       droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
       rpcInterpreter <- Resource.eval(
         ToplRpcServer.make(
-          headerStore,
-          bodyStore,
-          transactionStore,
+          dataStores.headers,
+          dataStores.bodies,
+          dataStores.transactions,
           mempool,
-          transactionSyntaxValidation,
+          validators.transactionSyntax,
           localChain,
           blockHeights,
           blockIdTree,
@@ -178,15 +177,16 @@ object Blockchain {
         )
       mintedBlockStream =
         for {
-          staker <- Stream.fromOption[F](stakerOpt)
+          staker           <- Stream.fromOption[F](stakerOpt)
+          rewardCalculator <- Stream.resource(TransactionRewardCalculator.make[F])
+          costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
           blockPacker <- Stream.eval(
-            BlockPacker
+            GraphBlockPacker
               .make[F](
                 mempool,
-                transactionStore.getOrRaise,
-                transactionStore.contains,
-                BlockPacker
-                  .makeBodyValidator(bodySyntaxValidation, bodySemanticValidation, bodyAuthorizationValidation)
+                validators.boxState,
+                rewardCalculator,
+                costCalculator
               )
           )
           blockProducer <- Stream.eval(
@@ -201,7 +201,7 @@ object Blockchain {
                     Stream
                       .resource(DroppingTopic(blockAdoptionsTopic, 1))
                       .flatMap(_.subscribeUnbounded)
-                      .evalMap(slotDataStore.getOrRaise)
+                      .evalMap(dataStores.slotData.getOrRaise)
                   ),
                 staker,
                 clock,
@@ -215,11 +215,11 @@ object Blockchain {
           .evalMap { block =>
             val id = block.header.id
             blockIdTree.associate(id, block.header.parentHeaderId) &>
-            headerStore.put(id, block.header) &>
-            bodyStore.put(id, block.body) &>
+            dataStores.headers.put(id, block.header) &>
+            dataStores.bodies.put(id, block.body) &>
             ed25519VrfResource
               .use(implicit e => Sync[F].delay(block.header.slotData))
-              .flatTap(slotDataStore.put(id, _))
+              .flatTap(dataStores.slotData.put(id, _))
           }
           .map(Validated.Valid(_))
           .evalTap(localChain.adopt)

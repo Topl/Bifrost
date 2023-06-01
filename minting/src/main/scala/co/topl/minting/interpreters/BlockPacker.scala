@@ -47,11 +47,11 @@ object BlockPacker {
           slot:          Epoch
         ): F[Iterative[F, FullBlockBody]] =
           for {
-            // Read all transaction IDs from the mempool
-            mempoolTransactionIds <- mempool.read(parentBlockId)
-            _                     <- Logger[F].debug(show"Block packing candidates=${mempoolTransactionIds.toList}")
+            mempoolGraph <- mempool.read(parentBlockId)
+            mempoolTransactionIds = mempoolGraph.transactions.keySet.toList
+            _ <- Logger[F].debug(show"Block packing candidates=$mempoolTransactionIds")
             // The transactions that come out of the mempool arrive in no particular order
-            unsortedTransactions <- mempoolTransactionIds.toList.traverse(fetchTransaction)
+            unsortedTransactions <- mempoolTransactionIds.traverse(fetchTransaction)
             // Not all transactions in the mempool may have a complete parent graph (yet), so filter out any "orphans"
             transactionsWithLocalParents <- unsortedTransactions.traverseFilter(transaction =>
               transaction.inputs

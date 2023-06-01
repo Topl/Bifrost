@@ -11,6 +11,7 @@ import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.models.MempoolGraph
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
@@ -86,13 +87,9 @@ object Mempool {
         .toResource
     } yield new MempoolAlgebra[F] {
 
-      def read(blockId: BlockId): F[Set[TransactionId]] =
+      def read(blockId: BlockId): F[MempoolGraph] =
         eventSourcedState
           .useStateAt(blockId)(_.get)
-          .map(graph =>
-            // TODO: Traversal
-            graph.transactions.keySet
-          )
 
       def add(transactionId: TransactionId): F[Unit] =
         fetchTransaction(transactionId).flatMap(addWithExpiration)

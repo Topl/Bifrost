@@ -1,4 +1,4 @@
-package co.topl.ledger.interpreters
+package co.topl.ledger.models
 
 import cats.data.NonEmptySet
 import cats.implicits._
@@ -91,4 +91,8 @@ case class MempoolGraph(
       }
     )
   }
+}
+
+object MempoolGraph {
+  val empty: MempoolGraph = MempoolGraph(Map.empty, Map.empty, Map.empty)
 }
