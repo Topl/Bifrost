@@ -2,11 +2,7 @@ package co.topl.genusLibrary
 
 import cats.effect.{IO, Resource, SyncIO}
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{
-  blockHeaderSchema,
-  ioTransactionSchema,
-  txoSchema
-}
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
 import com.orientechnologies.orient.core.db.{ODatabaseType, OrientDB, OrientDBConfigBuilder}
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
@@ -85,7 +81,9 @@ trait DbFixtureUtilV2 { self: FunSuite with CatsEffectSuite =>
         databaseDocumentTx <- odb._2.delay(odb._1.getNoTx.getRawGraph)
         r <- Seq(
           blockHeaderSchema,
+          blockBodySchema,
           ioTransactionSchema,
+          lockAddressSchema,
           txoSchema
         )
           .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))

@@ -121,6 +121,7 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransaction", tx))
           )
 
+        // TODO Create method fetchLockAddress(lockId: LockId)
         def fetchLockAddress(lockAddress: LockAddress): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
             Try(
@@ -141,7 +142,7 @@ object GraphVertexFetcher {
               orientGraph
                 .getVertices(
                   SchemaTxo.Field.TxoId,
-                  transactionOutputAddress.id.value.toByteArray :+ transactionOutputAddress.index
+                  transactionOutputAddress.id.value.toByteArray :+ transactionOutputAddress.index.byteValue
                 )
                 .asScala
             ).toEither
