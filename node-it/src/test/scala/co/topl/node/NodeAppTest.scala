@@ -1,6 +1,5 @@
 package co.topl.node
 
-import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
 import cats.effect.implicits._
@@ -13,6 +12,7 @@ import co.topl.brambl.models._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.NodeGrpc
+import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.transactiongenerator.interpreters.Fs2TransactionGenerator
 import co.topl.transactiongenerator.interpreters.ToplRpcWalletInitializer
 import co.topl.typeclasses.implicits._
@@ -20,6 +20,8 @@ import fs2._
 import fs2.io.file.Files
 import fs2.io.file.Path
 import munit._
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
@@ -87,15 +89,17 @@ class NodeAppTest extends CatsEffectSuite {
 
     val resource =
       for {
-        configFileA       <- saveLocalConfig(configNodeA, "nodeA")
-        configFileB       <- saveLocalConfig(configNodeB, "nodeB")
-        _                 <- launch(configFileA)
-        _                 <- launch(configFileB)
-        rpcClientA        <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
-        rpcClientB        <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
-        _                 <- (awaitNodeReady(rpcClientA).toResource, awaitNodeReady(rpcClientB).toResource).parTupled
-        walletInitializer <- ToplRpcWalletInitializer.make[F](rpcClientA, 1, 1).toResource
-        wallet            <- walletInitializer.initialize.toResource
+        configFileA <- saveLocalConfig(configNodeA, "nodeA")
+        configFileB <- saveLocalConfig(configNodeB, "nodeB")
+        _           <- launch(configFileA)
+        _           <- launch(configFileB)
+        rpcClientA  <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
+        rpcClientB  <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
+        rpcClients = List(rpcClientA, rpcClientB)
+        implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
+        _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
+        walletInitializer            <- ToplRpcWalletInitializer.make[F](rpcClientA, 1, 1).toResource
+        wallet                       <- walletInitializer.initialize.toResource
         implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
         // Construct two competing graphs of transactions.
         // Graph 1 has higher fees and should be included in the chain
@@ -104,31 +108,35 @@ class NodeAppTest extends CatsEffectSuite {
         // Graph 2 has lower fees, so the Block Packer should never choose them
         transactionGenerator2 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 10).toResource
         transactionGraph2 <- Stream.force(transactionGenerator2.generateTransactions).take(10).compile.toList.toResource
-        _ <- (
-          fetchUntilHeight(rpcClientA, 2).toResource,
-          fetchUntilHeight(rpcClientB, 2).toResource
-        ).parTupled
+        _                 <- rpcClients.parTraverse(fetchUntilHeight(_, 2)).toResource
+        // Broadcast _all_ of the transactions (even the bad ones) to the nodes randomly
         _ <-
           Stream
-            .repeatEval(random.elementOf(List(rpcClientA, rpcClientB)))
+            .repeatEval(random.elementOf(rpcClients))
             .zip(Stream.evalSeq(random.shuffleList(transactionGraph1 ++ transactionGraph2)))
             .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
             .compile
             .drain
             .toResource
-        _ <- transactionGraph1
-          .map(_.id)
-          .parTraverse(tx => Async[F].timeout(confirmTransaction(rpcClientA)(tx.id), 60.seconds))
+        // Verify that the good transactions were confirmed by both nodes
+        _ <- rpcClients
+          .parTraverse(client =>
+            Async[F].timeout(confirmTransactions(client)(transactionGraph1.map(_.id).toSet), 60.seconds)
+          )
           .toResource
-        _ <- (
-          fetchUntilHeight(rpcClientA, targetProductionHeight).toResource,
-          fetchUntilHeight(rpcClientB, targetProductionHeight).toResource
-        ).parTupled
-        (idA, idB) <- (
-          OptionT(rpcClientA.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException).toResource,
-          OptionT(rpcClientB.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException).toResource
-        ).parTupled
-        _ <- IO(idA === idB).assert.toResource
+        // Verify that the nodes are still making blocks properly
+        _ <- rpcClients.parTraverse(fetchUntilHeight(_, targetProductionHeight)).toResource
+        // Verify that the "bad" transactions did not make it onto the chain
+        _ <- rpcClients
+          .parTraverse(verifyNotConfirmed(_)(transactionGraph2.map(_.id).toSet))
+          .toResource
+        // Now check consensus
+        idsAtTargetHeight <- rpcClients
+          .traverse(client =>
+            OptionT(client.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException)
+          )
+          .toResource
+        _ <- IO(idsAtTargetHeight.toSet.size == 1).assert.toResource
       } yield ()
     resource.use_
   }
@@ -157,59 +165,53 @@ class NodeAppTest extends CatsEffectSuite {
   private def launch(configFile: Path): Resource[F, Unit] =
     for {
       app1 <- Sync[F].delay(new AbstractNodeApp {}).toResource
-      _ <- Sync[F]
-        .delay(
-          app1.initialize(Array("--config", configFile.toString))
-        )
-        .toResource
-      bg <- app1.run.start.toResource
-      _  <- Resource.onFinalize(bg.cancel)
+      _    <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
+      bg   <- app1.run.start.toResource
+      _    <- Resource.onFinalize(bg.cancel)
     } yield ()
 
-  private def awaitNodeReady(client: NodeRpc[F, Stream[F, *]]) =
+  private def confirmTransactions(
+    client: RpcClient
+  )(ids: Set[TransactionId], confirmationDepth: Int = 3): F[Unit] = {
+    def filterTransactions(targetBlock: BlockId)(ids: Set[TransactionId]): F[Set[TransactionId]] =
+      client
+        .fetchBlockBody(targetBlock)
+        .map(ids -- _.get.transactionIds)
+        .flatMap(ids =>
+          if (ids.isEmpty) ids.pure[F]
+          else
+            client
+              .fetchBlockHeader(targetBlock)
+              .map(_.get)
+              .flatMap(header =>
+                if (header.height > 1) filterTransactions(header.parentHeaderId)(ids)
+                else ids.pure[F]
+              )
+        )
+
     Stream
       .retry(
         client
-          .blockIdAtHeight(1)
+          .blockIdAtDepth(confirmationDepth)
+          .iterateUntil(_.nonEmpty)
           .map(_.get)
-          .flatMap(client.fetchBlockHeader)
-          .map(_.get.timestamp)
-          .flatMap(bigBangTimestamp => Async[F].realTimeInstant.map(bigBangTimestamp - _.toEpochMilli).map(_.milli))
-          .flatMap(durationUntilBigBang =>
-            Applicative[F].whenA(durationUntilBigBang.toMillis > 0)(Async[F].sleep(durationUntilBigBang))
-          ),
-        250.milli,
+          .flatMap(filterTransactions(_)(ids))
+          .map(_.isEmpty)
+          .assert,
+        1000.milli,
         identity,
-        200
+        30
       )
       .compile
       .drain
-
-  private def confirmTransaction(
-    client: RpcClient
-  )(id: TransactionId, confirmationDepth: Int = 3): F[Unit] = {
-    def containsTransaction(targetBlock: BlockId): F[Boolean] =
-      client
-        .fetchBlockBody(targetBlock)
-        .map(_.get.transactionIds.contains(id))
-        .ifM(
-          true.pure[F],
-          client
-            .fetchBlockHeader(targetBlock)
-            .map(_.get)
-            .flatMap(header =>
-              if (header.height > 1) containsTransaction(header.parentHeaderId)
-              else false.pure[F]
-            )
-        )
-
-    client
-      .blockIdAtDepth(confirmationDepth)
-      .iterateUntil(_.nonEmpty)
-      .map(_.get)
-      .flatMap(containsTransaction)
-      .flatTap(if (_) Async[F].unit else Async[F].delayBy(Async[F].unit, 100.milli))
-      .iterateUntil(identity)
-      .void
   }
+
+  private def verifyNotConfirmed(client: RpcClient)(ids: Set[TransactionId]) =
+    client.history
+      .flatMap(block => Stream.emits(block.fullBody.transactions))
+      .map(_.id)
+      .forall(!ids.contains(_))
+      .compile
+      .lastOrError
+      .assert
 }
