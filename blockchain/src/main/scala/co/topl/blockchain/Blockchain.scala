@@ -180,7 +180,7 @@ object Blockchain {
           staker           <- Stream.fromOption[F](stakerOpt)
           rewardCalculator <- Stream.resource(TransactionRewardCalculator.make[F])
           costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
-          blockPacker <- Stream.eval(
+          blockPacker <- Stream.resource(
             GraphBlockPacker
               .make[F](
                 mempool,

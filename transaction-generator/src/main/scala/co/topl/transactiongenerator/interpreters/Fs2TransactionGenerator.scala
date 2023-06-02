@@ -40,7 +40,7 @@ object Fs2TransactionGenerator {
             // will subsequently enqueue at least one new wallet after processing.
             .unbounded[F, Wallet]
             .flatTap(_.offer(wallet))
-            .map { queue =>
+            .map(queue =>
               Stream
                 .fromQueueUnterminated(queue)
                 .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_))
@@ -57,7 +57,7 @@ object Fs2TransactionGenerator {
                     // And return the transaction
                     .as(transaction)
                 }
-            }
+            )
       }
     )
 

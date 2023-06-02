@@ -13,7 +13,7 @@ import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 object TransactionRewardCalculator {
 
   def make[F[_]: Sync]: Resource[F, TransactionRewardCalculatorAlgebra[F]] =
-    Resource.pure(tx => Sync[F].delay(sumLvls(tx.inputs)(_.value) - sumLvls(tx.outputs)(_.value)))
+    Resource.pure(tx => Sync[F].delay((sumLvls(tx.inputs)(_.value) - sumLvls(tx.outputs)(_.value)).max(BigInt(0))))
 
   /**
    * Extracts LVL Box Values from the given collection, and sums the quantities

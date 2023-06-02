@@ -71,22 +71,34 @@ case class MempoolGraph(
    * @return an updated MempoolGraph
    */
   def add(transaction: IoTransaction): MempoolGraph = {
-    val spenderEntry =
-      unresolved.toSeq
-        .flatMap { case (id, indices) =>
-          val tx = transactions(id)
-          indices.toIterable
-            .filter(index => tx.inputs.lift(index).exists(_.address.id == transaction.id))
-            .map(index => (tx.inputs(index).address.index, (transaction.id, index)))
+    val spenderEntry = transactions.values
+      .flatMap(tx =>
+        tx.inputs.zipWithIndex.collect {
+          case (input, index) if input.address.id == transaction.id => (input.address.index, tx.id, index)
         }
-        .groupBy(_._1)
-        .view
-        .mapValues(_.map(_._2).toSet)
-        .toMap
+      )
+      .toSeq
+      .groupBy(_._1)
+      .view
+      .mapValues(_.map(t => (t._2, t._3)).toSet)
+      .toMap
+    val newSpenders = transaction.inputs.zipWithIndex.foldLeft(spenders) { case (spenders, (input, index)) =>
+      spenders.updatedWith(input.address.id)(
+        _.map(
+          _.updatedWith(input.address.index)(
+            _.foldLeft(Set((transaction.id, index)))(_ ++ _).some
+          )
+        )
+      )
+    }
+    val newUnresolved = transaction.inputs.zipWithIndex.foldLeft(unresolved) { case (unresolved, (input, index)) =>
+      if (transactions.contains(input.address.id)) unresolved
+      else unresolved.updatedWith(transaction.id)(_.foldLeft(NonEmptySet.one(index))(_ ++ _).some)
+    }
     MempoolGraph(
       transactions = transactions + (transaction.id -> transaction),
-      spenders = spenders + (transaction.id         -> spenderEntry),
-      unresolved = spenderEntry.values.flatten.foldLeft(unresolved) { case (unresolved, (id, index)) =>
+      spenders = newSpenders + (transaction.id      -> spenderEntry),
+      unresolved = spenderEntry.values.flatten.foldLeft(newUnresolved) { case (unresolved, (id, index)) =>
         unresolved.updatedWith(id)(_.map(_ - index).flatMap(NonEmptySet.fromSet))
       }
     )
