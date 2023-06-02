@@ -46,7 +46,7 @@ object GraphBlockUpdater {
         private def insertBlock(block: BlockData): F[Either[GE, Unit]] =
           OrientThread[F].delay {
             Try {
-              val headerVertex = graph.addHeader(block.header)
+              val headerVertex = graph.addBlockHeader(block.header)
 
               graph.addCanonicalHead(headerVertex)
 
@@ -77,7 +77,7 @@ object GraphBlockUpdater {
                       graph.getVertices(SchemaLockAddress.Field.AddressId, utxo.address.id.value.toByteArray).iterator()
 
                     if (addressIterator.hasNext) addressIterator.next()
-                    else graph.addAddress(utxo.address)
+                    else graph.addLockAddress(utxo.address)
 
                   }
                   graph.addEdge(s"class:${addressTxIOEdge.name}", lockAddressVertex, ioTxVertex, addressTxIOEdge.label)
@@ -123,7 +123,7 @@ object GraphBlockUpdater {
                 }
                 .map(graph.getTxo)
 
-              graph.getHeader(block.header).foreach { headerVertex =>
+              graph.getBlockHeader(block.header).foreach { headerVertex =>
                 (
                   Seq(graph.getBody(headerVertex)) ++
                   graph.getIoTxs(headerVertex).map(_.some) ++

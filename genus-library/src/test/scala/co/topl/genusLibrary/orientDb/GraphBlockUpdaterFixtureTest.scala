@@ -72,9 +72,9 @@ class GraphBlockUpdaterFixtureTest
           graphBlockUpdater <- GraphBlockUpdater.make[F](dbTx, blockFetcher, nodeBlockFetcher)
           _                 <- graphBlockUpdater.insert(blockData).toResource
 
-          blockHeaderVertex = dbTx.getHeader(blockData.header)
+          blockHeaderVertex = dbTx.getBlockHeader(blockData.header)
           _ = assert(blockHeaderVertex.isDefined)
-          _ <- assertIOBoolean(oThread.delay(dbTx.getHeader(blockData.header).isDefined)).toResource
+          _ <- assertIOBoolean(oThread.delay(dbTx.getBlockHeader(blockData.header).isDefined)).toResource
           _ <- assertIOBoolean(oThread.delay(dbTx.getBody(blockHeaderVertex.get).isDefined)).toResource
 
           _ <- graphBlockUpdater.remove(blockData).toResource
@@ -82,9 +82,9 @@ class GraphBlockUpdaterFixtureTest
           // When we remove headerVertex, the canonicalHead schema is not updated, insertions handle it
           // When we remove txoVertex, lockAddress schema is not updated, because lockAddress references many txo
           // Eventually could create an orphan lockAddress, it is not a problem cause some future txo will reference it
-          blockHeaderVertex = dbTx.getHeader(blockData.header)
+          blockHeaderVertex = dbTx.getBlockHeader(blockData.header)
           _ = assert(blockHeaderVertex.isEmpty)
-          _ <- assertIOBoolean(oThread.delay(dbTx.getHeader(blockData.header).isEmpty)).toResource
+          _ <- assertIOBoolean(oThread.delay(dbTx.getBlockHeader(blockData.header).isEmpty)).toResource
           _ <- assertIOBoolean(oThread.delay(dbTx.getVerticesOfClass(blockBodySchema.name).asScala.isEmpty)).toResource
           _ <- assertIOBoolean(
             oThread.delay(dbTx.getVerticesOfClass(ioTransactionSchema.name).asScala.isEmpty)
