@@ -22,7 +22,7 @@ object VertexSchemaInstances {
 
     implicit class Ops(graph: OrientGraph) {
 
-      def addHeader(blockHeader: BlockHeader): OrientVertex =
+      def addBlockHeader(blockHeader: BlockHeader): OrientVertex =
         graph.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(blockHeader).asJava)
 
       def addBody(blockBody: BlockBody): OrientVertex =
@@ -44,13 +44,13 @@ object VertexSchemaInstances {
             v
         }
 
-      def addAddress(address: LockAddress): OrientVertex =
+      def addLockAddress(address: LockAddress): OrientVertex =
         graph.addVertex(s"class:${lockAddressSchema.name}", lockAddressSchema.encode(address).asJava)
 
       def addTxo(txo: Txo): OrientVertex =
         graph.addVertex(s"class:${txoSchema.name}", txoSchema.encode(txo).asJava)
 
-      def getHeader(blockHeader: BlockHeader): Option[Vertex] =
+      def getBlockHeader(blockHeader: BlockHeader): Option[Vertex] =
         graph
           .getVertices(SchemaBlockHeader.Field.BlockId, blockHeader.id.value.toByteArray)
           .asScala

@@ -1,31 +1,52 @@
 package co.topl.genusLibrary.interpreter
 
+import cats.Monad
+import cats.data.EitherT
 import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.typeclasses.implicits._
 import co.topl.genus.services.{BlockData, Txo, TxoState}
-import co.topl.genusLibrary.algebras.BlockUpdaterAlgebra
+import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockUpdaterAlgebra, NodeBlockFetcherAlgebra}
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
-import co.topl.genusLibrary.orientDb.instances.{SchemaLockAddress, SchemaTxo}
-import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.orientDb.instances.{SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
+import fs2.Stream
 import org.typelevel.log4cats.Logger
 import scala.util.Try
 
 object GraphBlockUpdater {
 
-  def make[F[_]: OrientThread: Logger](graph: OrientGraph): Resource[F, BlockUpdaterAlgebra[F]] =
+  def make[F[_]: OrientThread: Monad: Logger](
+    graph:            OrientGraph,
+    blockFetcher:     BlockFetcherAlgebra[F],
+    nodeBlockFetcher: NodeBlockFetcherAlgebra[F, Stream[F, *]]
+  ): Resource[F, BlockUpdaterAlgebra[F]] =
     Resource.pure(
       new BlockUpdaterAlgebra[F] {
 
-        override def insert(block: BlockData): F[Either[GE, Unit]] =
+        def insert(block: BlockData): F[Either[GE, Unit]] =
+          if (block.header.height == 1) {
+            insertBlock(block)
+          } else {
+            EitherT(blockFetcher.fetchBlock(block.header.parentHeaderId)).flatMapF {
+              case Some(_) => insertBlock(block)
+              case _ =>
+                Logger[F].info(s"Block parent ${block.header.parentHeaderId.show} not found on Genus, inserting it") >>
+                EitherT(nodeBlockFetcher.fetch(block.header.parentHeaderId)).flatMapF(insert).value
+            }.value
+
+          }
+
+        private def insertBlock(block: BlockData): F[Either[GE, Unit]] =
           OrientThread[F].delay {
             Try {
-              val headerVertex = graph.addHeader(block.header)
+              val headerVertex = graph.addBlockHeader(block.header)
 
               graph.addCanonicalHead(headerVertex)
 
@@ -56,7 +77,7 @@ object GraphBlockUpdater {
                       graph.getVertices(SchemaLockAddress.Field.AddressId, utxo.address.id.value.toByteArray).iterator()
 
                     if (addressIterator.hasNext) addressIterator.next()
-                    else graph.addAddress(utxo.address)
+                    else graph.addLockAddress(utxo.address)
 
                   }
                   graph.addEdge(s"class:${addressTxIOEdge.name}", lockAddressVertex, ioTxVertex, addressTxIOEdge.label)
@@ -102,7 +123,7 @@ object GraphBlockUpdater {
                 }
                 .map(graph.getTxo)
 
-              graph.getHeader(block.header).foreach { headerVertex =>
+              graph.getBlockHeader(block.header).foreach { headerVertex =>
                 (
                   Seq(graph.getBody(headerVertex)) ++
                   graph.getIoTxs(headerVertex).map(_.some) ++

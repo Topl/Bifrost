@@ -24,16 +24,19 @@ class MultiNodeTest extends IntegrationSuite {
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
-        node1 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0.yaml)
-        node2 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1.yaml)
-        node3 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2.yaml)
+        node1 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0)
+        node2 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1)
+        node3 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
         nodes = List(node1, node2, node3)
         _ <- nodes.parTraverse(_.startContainer[F]).toResource
-        _ <- nodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
+        _ <- nodes
+          .parTraverse(node => node.rpcClient[F](node.config.rpcPort, tls = false).use(_.waitForRpcStartUp))
+          .toResource
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- nodes
-          .parTraverse(
-            _.rpcClient[F]
+          .parTraverse(node =>
+            node
+              .rpcClient[F](node.config.rpcPort, tls = false)
               .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(9.minutes).compile.lastOrError)
           )
           .toResource
@@ -43,10 +46,12 @@ class MultiNodeTest extends IntegrationSuite {
         _ <- IO(heights.max - heights.min <= 5).assert.toResource
         // All nodes should have a shared common ancestor near the tip of the chain
         _ <- nodes
-          .parTraverse(
-            _.rpcClient[F].use(
-              _.blockIdAtHeight(heights.min - 5)
-            )
+          .parTraverse(node =>
+            node
+              .rpcClient[F](node.config.rpcPort, tls = false)
+              .use(
+                _.blockIdAtHeight(heights.min - 5)
+              )
           )
           .map(_.toSet.size)
           .assertEquals(1)

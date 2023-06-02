@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.catsakka.Iterative
+import co.topl.catsutils.Iterative
 import co.topl.consensus.models.BlockId
 import co.topl.node.models.FullBlockBody
 

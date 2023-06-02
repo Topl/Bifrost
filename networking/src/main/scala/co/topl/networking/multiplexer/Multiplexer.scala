@@ -1,10 +1,13 @@
 package co.topl.networking.multiplexer
 
-import akka.stream._
-import akka.stream.scaladsl.GraphDSL.Implicits._
-import akka.stream.scaladsl.{Flow, GraphDSL, Merge, Partition}
-import akka.util.ByteString
 import cats.data.NonEmptyChain
+import cats.data.OptionT
+import cats.effect.Async
+import cats.effect.Resource
+import cats.effect.implicits._
+import cats.effect.std.Queue
+import cats.implicits._
+import fs2._
 
 /**
  * Multiplexes outbound sub-protocol "packets" into a single stream.  Demultiplexes inbound "packets" into multiple
@@ -21,38 +24,51 @@ import cats.data.NonEmptyChain
  */
 object Multiplexer {
 
-  private val buffer = Flow[ByteString].buffer(1, OverflowStrategy.backpressure)
-
-  def apply[Client](subProtocols: NonEmptyChain[SubHandler], client: => Client): Flow[ByteString, ByteString, Client] =
-    Flow[ByteString]
-      .via(MessageParserFramer())
-      .via(
-        Flow.fromGraph(GraphDSL.create() { implicit builder =>
-          val subProtocolsList = subProtocols.toChain.toList
-          val subPortMapping: Map[Byte, Int] = subProtocolsList.map(_.sessionId).zipWithIndex.toMap
-          val partition = builder.add(
-            new Partition[(Byte, ByteString)](
-              subProtocolsList.size,
-              { case (sessionId, _) => subPortMapping(sessionId) },
-              eagerCancel = true
-            )
-          )
-
-          val merge =
-            builder.add(
-              Merge[(Byte, ByteString)](subProtocolsList.size, eagerComplete = true)
-            )
-          subProtocolsList.foreach { case SubHandler(sessionId, sink, source) =>
-            val port = subPortMapping(sessionId)
-            val hFlow = builder.add(Flow.fromSinkAndSource(buffer.to(sink), source))
-            val stripSessionByte = builder.add(Flow[(Byte, ByteString)].map(_._2))
-            val appendSessionByte = builder.add(Flow[ByteString].map((sessionId, _)))
-            partition.out(port) ~> stripSessionByte ~> hFlow ~> appendSessionByte ~> merge.in(port)
-          }
-          FlowShape(partition.in, merge.out)
-        })
-      )
-      .via(MessageSerializerFramer())
-      .mapMaterializedValue(_ => client)
+  def apply[F[_]: Async](
+    subProtocols: NonEmptyChain[SubHandler[F]]
+  )(reads: Stream[F, Byte], writes: Pipe[F, Byte, Nothing]): Resource[F, Unit] =
+    for {
+      queues <- subProtocols
+        .traverse(p =>
+          Queue
+            .unbounded[F, Chunk[Byte]]
+            .toResource
+            .tupleLeft(p.sessionId)
+        )
+        .map(_.toIterable.toMap)
+      queueProcessors = Stream
+        .foldable(subProtocols)
+        .map(p =>
+          Stream
+            .fromQueueUnterminated(queues(p.sessionId))
+            .through(p.subscriber)
+        )
+        .parJoinUnbounded
+        .compile
+        .drain
+        .toResource
+      inputProcessor = reads
+        .through(MessageParserFramer())
+        .evalTap { case (session, bytes) =>
+          OptionT
+            .fromOption[F](queues.get(session))
+            .getOrRaise(new IllegalArgumentException(s"Unknown multiplexer session=$session"))
+            .flatMap(_.offer(bytes))
+        }
+        .compile
+        .drain
+        .toResource
+      outputProcessor = Stream
+        .foldable(subProtocols)
+        .map(h => h.producer.tupleLeft(h.sessionId))
+        .parJoinUnbounded
+        .through(MessageSerializerFramer())
+        .unchunks
+        .through(writes)
+        .compile
+        .drain
+        .toResource
+      _ <- (queueProcessors, inputProcessor, outputProcessor).parTupled
+    } yield ()
 
 }

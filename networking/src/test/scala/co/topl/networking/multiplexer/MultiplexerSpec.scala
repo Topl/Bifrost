@@ -1,97 +1,65 @@
 package co.topl.networking.multiplexer
 
-import akka.actor.ActorSystem
-import akka.stream.scaladsl.{Keep, Sink, Source}
-import akka.stream.testkit.scaladsl.{TestSink, TestSource}
-import akka.testkit.TestKitBase
-import akka.util.ByteString
 import cats.data.NonEmptyChain
+import cats.effect.IO
+import cats.effect.implicits._
+import cats.effect.std.Queue
+import fs2._
+import munit.CatsEffectSuite
+import munit.ScalaCheckEffectSuite
 import org.scalacheck.Gen
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalacheck.effect.PropF
+import scodec.bits.ByteVector
 
-class MultiplexerSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with MockFactory
-    with Matchers
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks
-    with EitherValues
-    with OptionValues
-    with TestKitBase {
-  behavior of "Multiplexer"
+class MultiplexerSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
-  implicit lazy val system: ActorSystem = ActorSystem()
+  type F[A] = IO[A]
 
-  it should "accept a subProtocol set" in {
-    val subProtocolSet1 =
-      NonEmptyChain(
-        {
-          val (source, sink) = echo1
-          SubHandler(1, sink, source)
-        }, {
-          val (source, sink) = echo2
-          SubHandler(2, sink, source)
-        }
-      )
-
-    val underTest =
-      MessageSerializerFramer()
-        .via(Multiplexer(subProtocolSet1, new {}))
-        .via(MessageParserFramer())
-
-    val (pub, sub) =
-      TestSource.probe[(Byte, ByteString)].via(underTest).toMat(TestSink[(Byte, ByteString)]())(Keep.both).run()
-
-    forAll(Gen.asciiStr, Gen.asciiStr) { (s1: String, s2: String) =>
-      sub.request(1)
-      pub.sendNext((1: Byte) -> ByteString(s1))
-      sub.expectNext((1: Byte, ByteString("echo1") ++ ByteString(s1)))
-      sub.request(1)
-      pub.sendNext((2: Byte) -> ByteString(s2))
-      sub.expectNext((2: Byte, ByteString("echo2") ++ ByteString(s2)))
+  test("accept a subProtocol set") {
+    PropF.forAllF(Gen.asciiStr, Gen.asciiStr) { (s1: String, s2: String) =>
+      val testResource =
+        for {
+          inQueue        <- Queue.unbounded[F, Chunk[Byte]].toResource
+          outQueue       <- Queue.unbounded[F, Chunk[Byte]].toResource
+          handler1Sink   <- Queue.unbounded[F, Chunk[Byte]].toResource
+          handler1Source <- Queue.unbounded[F, Chunk[Byte]].toResource
+          handler2Sink   <- Queue.unbounded[F, Chunk[Byte]].toResource
+          handler2Source <- Queue.unbounded[F, Chunk[Byte]].toResource
+          subHandler1 = SubHandler[F](
+            1,
+            _.enqueueUnterminated(handler1Sink),
+            Stream.fromQueueUnterminated(handler1Source)
+          )
+          subHandler2 = SubHandler[F](
+            2,
+            _.enqueueUnterminated(handler2Sink),
+            Stream.fromQueueUnterminated(handler2Source)
+          )
+          multiplexerOutcome <-
+            Multiplexer(NonEmptyChain(subHandler1, subHandler2))(
+              Stream.fromQueueUnterminatedChunk(inQueue),
+              _.enqueueUnterminatedChunks(outQueue)
+            ).use_.background
+          m1 = Chunk.byteVector(ByteVector.encodeAscii(s1).toOption.get)
+          m2 = Chunk.byteVector(ByteVector.encodeAscii(s2).toOption.get)
+          // Submit message 1 to session 1 and expect it to be forwarded into handler1Sink
+          _ <- inQueue.offer(MessageSerializerFramer.function(1, m1)).toResource
+          _ <- handler1Sink.take.assertEquals(m1).toResource
+          // Have session 1 produce/emit message 2 and expect it to be forwarded to the output queue
+          _ <- handler1Source.offer(m2).toResource
+          _ <- outQueue.take.flatMap(MessageParserFramer.parseWhole[F]).assertEquals((1: Byte, m2)).toResource
+          // Submit message 1 to session 2 and expect it to be forwarded into handler2Sink
+          _ <- inQueue.offer(MessageSerializerFramer.function(2, m1)).toResource
+          _ <- handler2Sink.take.assertEquals(m1).toResource
+          // Have session 2 produce/emit message 2 and expect it to be forwarded to the output queue
+          _ <- handler2Source.offer(m2).toResource
+          _ <- outQueue.take.flatMap(MessageParserFramer.parseWhole[F]).assertEquals((2: Byte, m2)).toResource
+          // Now send to an invalid session and expect an error
+          _ <- inQueue.offer(MessageSerializerFramer.function(3, m1)).toResource
+          _ <- multiplexerOutcome.map(_.isError).assert.toResource
+        } yield ()
+      testResource.use_
     }
   }
 
-  it should "discard messages not belonging to an active subProtocol" in {
-    val subProtocolSet1 =
-      NonEmptyChain(
-        {
-          val (source, sink) = echo1
-          SubHandler(1, sink, source)
-        }
-      )
-
-    val underTest =
-      MessageSerializerFramer()
-        .via(Multiplexer(subProtocolSet1, new {}))
-        .via(MessageParserFramer())
-
-    val (pub, sub) =
-      TestSource.probe[(Byte, ByteString)].via(underTest).toMat(TestSink[(Byte, ByteString)]())(Keep.both).run()
-
-    forAll(Gen.asciiStr) { s: String =>
-      sub.request(1)
-      pub.sendNext((2: Byte) -> ByteString(s))
-      sub.expectNoMessage()
-    }
-  }
-
-  private def echo1 = {
-    val (queue, source) = Source.queue[ByteString](128).map(ByteString("echo1") ++ _).preMaterialize()
-    val sink = Sink.foreach[ByteString](queue.offer)
-
-    source -> sink
-  }
-
-  private def echo2 = {
-    val (queue, source) = Source.queue[ByteString](128).map(ByteString("echo2") ++ _).preMaterialize()
-    val sink = Sink.foreach[ByteString](queue.offer)
-
-    source -> sink
-  }
 }

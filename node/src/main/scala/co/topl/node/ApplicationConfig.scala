@@ -6,6 +6,7 @@ import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.networking.p2p.{DisconnectedPeer, RemoteAddress}
 import co.topl.numerics.implicits._
+import co.topl.proto.node.NodeConfig
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
@@ -13,7 +14,6 @@ import pureconfig._
 import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
 import pureconfig.configurable._
-
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
@@ -102,6 +102,12 @@ object ApplicationConfig {
 
       val vrfCacheSize: Long =
         operationalPeriodLength * 4
+
+      def nodeConfig(slot: Slot): NodeConfig = NodeConfig(
+        slot = slot,
+        slotDurationMillis = slotDuration.toMillis,
+        epochLength = epochLength
+      )
     }
 
     @Lenses
@@ -133,13 +139,7 @@ object ApplicationConfig {
   @Lenses
   case class Genus(
     enable:            Boolean,
-    rpcHost:           String,
-    rpcPort:           Int,
-    rpcNodeHost:       String,
-    rpcNodePort:       Int,
-    rpcNodeTls:        Boolean,
     orientDbDirectory: String,
-    orientDbUser:      String,
     orientDbPassword:  String
   )
 
@@ -164,9 +164,16 @@ object ApplicationConfig {
         cmdArgs.runtime.rpcBindPort.map(createF(genLens(_.bifrost.rpc.bindPort))),
         cmdArgs.runtime.p2pBindHost.map(createF(genLens(_.bifrost.p2p.bindHost))),
         cmdArgs.runtime.p2pBindPort.map(createF(genLens(_.bifrost.p2p.bindPort))),
-        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers)))
+        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers))),
+        cmdArgs.runtime.genusArgs.orientDbDir.map(createF(genLens(_.genus.orientDbDirectory))),
+        cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(genLens(_.genus.orientDbPassword)))
       ).flatten
-        .foldLeft(base) { case (appConf, f) => f(appConf) }
+        .foldLeft(
+          if (cmdArgs.runtime.genusArgs.disableGenus.value)
+            createF(genLens(_.genus.enable))(false)(base)
+          else
+            base
+        ) { case (appConf, f) => f(appConf) }
     if (
       cmdArgs.runtime.testnetArgs.testnetTimestamp.nonEmpty ||
       cmdArgs.runtime.testnetArgs.testnetStakerCount.nonEmpty ||
@@ -226,7 +233,11 @@ object ApplicationConfig {
       case v     => defaultConfigFieldMapping(v)
     })
 
-  implicit val showApplicationConfig: Show[ApplicationConfig] =
-    Show.fromToString
+  implicit val showApplicationConfig: Show[ApplicationConfig] = {
+    val base = Show.fromToString[ApplicationConfig]
+    val genLens = GenLens[ApplicationConfig]
+    val sanitizer = genLens(_.genus.orientDbPassword).replace("SANITIZED")
+    conf => base.show(sanitizer(conf))
+  }
 }
 // $COVERAGE-ON$

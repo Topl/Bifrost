@@ -4,7 +4,7 @@ import cats.MonadThrow
 import cats.data.OptionT
 import cats.effect.Async
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.transactiongenerator.algebras.WalletInitializer
@@ -18,7 +18,7 @@ object ToplRpcWalletInitializer {
    * applicable UTxOs in the wallet.
    */
   def make[F[_]: Async](
-    toplRpc:                     ToplRpc[F, Stream[F, *]],
+    toplRpc:                     NodeRpc[F, Stream[F, *]],
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
   ): F[WalletInitializer[F]] =
@@ -41,7 +41,7 @@ object ToplRpcWalletInitializer {
    * Emits a stream of transactions, starting from the big-bang block and moving forward
    */
   private def transactionStream[F[_]: Async](
-    toplRpc:                     ToplRpc[F, Stream[F, *]],
+    toplRpc:                     NodeRpc[F, Stream[F, *]],
     fetchBodyParallelism:        Int,
     fetchTransactionParallelism: Int
   ): F[Stream[F, IoTransaction]] =
@@ -64,7 +64,7 @@ object ToplRpcWalletInitializer {
    * Start from the big-bang block, and emit a stream of forward-traversing block IDs
    */
   private def blockIdStream[F[_]: Async, S[_]](
-    toplRpc: ToplRpc[F, S]
+    toplRpc: NodeRpc[F, S]
   ): F[Stream[F, BlockId]] =
     Stream
       .iterate(1L)(_ + 1)

@@ -4,7 +4,7 @@ import cats.data.{Chain, EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
@@ -19,7 +19,7 @@ import scala.collection.immutable.ListSet
 object NodeBlockFetcher {
 
   def make[F[_]: Async: Logger](
-    toplRpc: ToplRpc[F, Stream[F, *]]
+    toplRpc: NodeRpc[F, Stream[F, *]]
   ): Resource[F, NodeBlockFetcherAlgebra[F, Stream[F, *]]] =
     Resource.pure {
 
@@ -72,7 +72,7 @@ object NodeBlockFetcher {
          */
         private def fetchTransactions(
           body:    BlockBody,
-          toplRpc: ToplRpc[F, Stream[F, *]]
+          toplRpc: NodeRpc[F, Stream[F, *]]
         ): F[Either[GE, Chain[IoTransaction]]] =
           body.transactionIds.toList.traverse(ioTx32 =>
             toplRpc

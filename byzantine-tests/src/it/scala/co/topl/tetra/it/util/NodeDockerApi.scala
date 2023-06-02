@@ -3,8 +3,9 @@ package co.topl.tetra.it.util
 import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
-import co.topl.algebras.ToplRpc
-import co.topl.grpc.ToplGrpc
+import co.topl.algebras.{ToplGenusRpc, NodeRpc}
+import co.topl.genus.GenusGrpc
+import co.topl.grpc.NodeGrpc
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
 import fs2._
@@ -14,7 +15,6 @@ import fs2.io.file.Path
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.jdk.CollectionConverters._
-
 import java.nio.charset.StandardCharsets
 
 class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
@@ -47,8 +47,11 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
   def ipAddress[F[_]: Sync]: F[String] =
     Sync[F].blocking(dockerClient.inspectContainer(containerId).networkSettings().ipAddress())
 
-  def rpcClient[F[_]: Async]: Resource[F, ToplRpc[F, Stream[F, *]]] =
-    ipAddress.toResource.flatMap(ToplGrpc.Client.make[F](_, 9084, tls = false)) // TODO: Don't hardcode
+  def rpcClient[F[_]: Async](port: Int, tls: Boolean): Resource[F, NodeRpc[F, Stream[F, *]]] =
+    ipAddress.toResource.flatMap(NodeGrpc.Client.make[F](_, port, tls))
+
+  def rpcGenusClient[F[_]: Async](port: Int, tls: Boolean): Resource[F, ToplGenusRpc[F]] =
+    ipAddress.toResource.flatMap(GenusGrpc.Client.make[F](_, port, tls))
 
   def configure[F[_]: Async](configYaml: String): F[Unit] =
     for {

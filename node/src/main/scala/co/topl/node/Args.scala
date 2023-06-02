@@ -3,15 +3,17 @@ package co.topl.node
 import cats.Show
 import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs}
 import mainargs._
+import monocle.macros.GenLens
+import monocle.macros.Lenses
 
 // $COVERAGE-OFF$
 
-@main
+@main @Lenses
 case class Args(startup: Args.Startup, runtime: Args.Runtime)
 
 object Args {
 
-  @main
+  @main @Lenses
   case class Startup(
     @arg(
       doc = "Zero or more config files (.conf, .json, .yaml) to apply to the node." +
@@ -29,7 +31,7 @@ object Args {
     debug: Flag
   )
 
-  @main
+  @main @Lenses
   case class Runtime(
     @arg(
       doc = "The directory to use when saving/reading blockchain data"
@@ -59,10 +61,11 @@ object Args {
       doc = "A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)"
     )
     knownPeers:  Option[String] = None,
-    testnetArgs: PrivateTestnetArgs
+    testnetArgs: PrivateTestnetArgs,
+    genusArgs:   GenusArgs
   )
 
-  @main
+  @main @Lenses
   case class PrivateTestnetArgs(
     @arg(
       doc = "A UTC Unix epoch timestamp (ms) to use when seeding a private testnet."
@@ -78,11 +81,34 @@ object Args {
     testnetStakerIndex: Option[Int] = None
   )
 
-  implicit val showArgs: Show[Args] =
-    Show.fromToString
+  @main @Lenses
+  case class GenusArgs(
+    @arg(
+      doc = "Disables the Genus server and Genus gRPC services"
+    )
+    disableGenus: Flag,
+    @arg(
+      doc = "The directory to use when saving/reading graph data"
+    )
+    orientDbDir: Option[String],
+    @arg(
+      doc = "The password to use when connecting to OrientDB"
+    )
+    orientDbPassword: Option[String]
+  )
+
+  implicit val showArgs: Show[Args] = {
+    val base = Show.fromToString[Args]
+    val genLens = GenLens[Args]
+    val sanitizer = genLens(_.runtime.genusArgs.orientDbPassword).replace(Some("SANITIZED"))
+    args => base.show(sanitizer(args))
+  }
 
   implicit val parserPrivateTestnetArgs: ParserForClass[PrivateTestnetArgs] =
     ParserForClass[PrivateTestnetArgs]
+
+  implicit val parserGenusArgs: ParserForClass[GenusArgs] =
+    ParserForClass[GenusArgs]
 
   implicit val parserStartup: ParserForClass[Startup] =
     ParserForClass[Startup]

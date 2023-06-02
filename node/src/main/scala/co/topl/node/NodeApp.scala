@@ -1,16 +1,15 @@
 package co.topl.node
 
-import akka.actor.typed.ActorSystem
-import akka.actor.typed.scaladsl.Behaviors
 import cats.Applicative
 import cats.effect.implicits._
+import cats.effect.std.Random
+import cats.effect.std.SecureRandom
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
-import co.topl.catsakka._
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.common.application.{IOAkkaApp, IOBaseApp}
+import co.topl.common.application.IOBaseApp
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.interpreters._
@@ -19,7 +18,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
 import co.topl.eventtree.ParentChildTree
-import co.topl.genus.GenusServer
+import co.topl.genus._
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.minting.algebras.StakingAlgebra
@@ -30,31 +29,31 @@ import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
-import fs2._
+// Hide `io` from fs2 because it conflicts with `io.grpc` down below
+import fs2.{io => _, _}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.security.SecureRandom
+import io.grpc.ServerServiceDefinition
+
 import java.time.Instant
 import java.util.UUID
-import scala.util.Random
 
 object NodeApp extends AbstractNodeApp
 
 abstract class AbstractNodeApp
-    extends IOAkkaApp[Args, ApplicationConfig, Nothing](
+    extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
-      createSystem = (_, _, conf) => ActorSystem[Nothing](Behaviors.empty, "Bifrost", conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
   def run: IO[Unit] = new ConfiguredNodeApp(args, appConfig).run
 }
 
-class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit system: ActorSystem[_]) {
+class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   type F[A] = IO[A]
 
@@ -195,7 +194,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      implicit0(networkRandom: Random) = new Random(new SecureRandom())
       staking <- privateBigBang.localStakerIndex
         .flatMap(stakerInitializers.get(_))
         .fold(Resource.pure[F, Option[StakingAlgebra[F]]](none))(initializer =>
@@ -240,17 +238,42 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           clock
         )
       )
-      _ <- GenusServer
-        .make[F](
-          appConfig.genus.copy(orientDbDirectory =
-            Some(appConfig.genus.orientDbDirectory)
-              .filterNot(_.isEmpty)
-              .getOrElse(dataStores.baseDirectory./("orient-db").toString)
+      genusGrpcServices <-
+        if (appConfig.genus.enable) {
+          (
+            for {
+              genus <- Genus
+                .make[F](
+                  appConfig.bifrost.rpc.bindHost,
+                  appConfig.bifrost.rpc.bindPort,
+                  Some(appConfig.genus.orientDbDirectory)
+                    .filterNot(_.isEmpty)
+                    .getOrElse(dataStores.baseDirectory./("orient-db").toString),
+                  appConfig.genus.orientDbPassword
+                )
+              _ <- Replicator.background(genus)
+              definitions <- GenusGrpc.Server.services(
+                genus.blockFetcher,
+                genus.transactionFetcher,
+                genus.vertexFetcher
+              )
+            } yield definitions
           )
-        )
-        .recoverWith { case e =>
-          Logger[F].warn(e)("Failed to start Genus server, continuing without it").void.toResource
-        }
+            .recoverWith { case e =>
+              Logger[F]
+                .warn(e)("Failed to start Genus server, continuing without it")
+                .void
+                .as(Nil)
+                .toResource
+            }
+        } else
+          Resource.pure[F, List[ServerServiceDefinition]](Nil)
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
+
+      protocolConfig <- ProtocolConfiguration.make[F](
+        appConfig.bifrost.protocols.map { case (slot, protocol) => protocol.nodeConfig(slot) }.toSeq
+      )
+
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -278,6 +301,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig)(implicit syste
           Stream.never[F],
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
+          protocolConfig,
+          genusGrpcServices,
           appConfig.bifrost.p2p.experimental.getOrElse(false)
         )
     } yield ()

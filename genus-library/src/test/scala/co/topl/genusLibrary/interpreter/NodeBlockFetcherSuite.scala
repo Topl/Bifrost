@@ -3,7 +3,7 @@ package co.topl.genusLibrary.interpreter
 import cats.effect.IO
 import cats.effect.implicits.effectResourceOps
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.NodeRpc
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -28,7 +28,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
 
   type F[A] = IO[A]
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
-  private val toplRpc: ToplRpc[F, Stream[F, *]] = mock[ToplRpc[F, Stream[F, *]]]
+  private val toplRpc: NodeRpc[F, Stream[F, *]] = mock[NodeRpc[F, Stream[F, *]]]
 
   private val nodeBlockFetcher = NodeBlockFetcher.make[F](toplRpc)
 
