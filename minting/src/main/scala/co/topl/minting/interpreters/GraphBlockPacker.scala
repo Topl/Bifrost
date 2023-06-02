@@ -53,6 +53,7 @@ object GraphBlockPacker {
               case (-1, _)    => Async[F].never // Exit case
               case (0, _)     => initFromMempool
               case (1, graph) => pruneUnresolvedTransactions(graph)
+              case (2, graph) => stripDoubleSpendUnresolved(graph)
               case (_, graph) => stripGraph(graph)
             }
 
@@ -85,7 +86,22 @@ object GraphBlockPacker {
               }
               // Remove the unresolved transactions from the mempool graph
               .map(_.foldLeft(graph)(_.removeSubtree(_)._1))
-              .flatTap(g => iterationState.set((2, g)))
+              .flatTap(g => iterationState.update(v => (v._1 + 1, g)))
+              .as(FullBlockBody.defaultInstance)
+
+          private def stripDoubleSpendUnresolved(graph: MempoolGraph) =
+            graph.unresolved.toList
+              .flatMap { case (id, indices) =>
+                val transaction = graph.transactions(id)
+                indices.toList.map(transaction.inputs(_).address.id).tupleRight(id)
+              }
+              .groupBy(_._1)
+              .filter(_._2.length > 1)
+              .toList
+              .foldLeftM(graph) { case (graph, (_, duplicates)) =>
+                pruneDoubleSpenders(graph)(duplicates.map(_._2).toSet)
+              }
+              .flatTap(g => iterationState.update(v => (v._1 + 1, g)))
               .as(FullBlockBody.defaultInstance)
 
           /**
@@ -98,7 +114,9 @@ object GraphBlockPacker {
             graph.spenders.find(_._2.exists(_._2.size > 1)) match {
               // Find the first instance of a double-spender in the graph and prune its subtree
               case Some((_, spenders)) =>
-                pruneDoubleSpenders(graph)(spenders)
+                spenders.values.toList
+                  .map(_.map(_._1))
+                  .foldLeftM(graph)(pruneDoubleSpenders(_)(_))
                   .flatTap(g => iterationState.update(v => (v._1 + 1, g)))
                   .as(FullBlockBody.defaultInstance)
               // If there are no remaining double-spenders in the graph, form a block
@@ -185,20 +203,16 @@ object GraphBlockPacker {
            * dependents attempt to spend the same TxO, the dependents with the lowest subgraph score will be removed
            * from the returned graph
            */
-          private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Map[Int, Set[(TransactionId, Int)]]) =
-            spenders.values.toList.foldLeftM(graph) { case (graph, spenders) =>
-              spenders
-                .map(_._1)
-                .toList
-                .map(graph.transactions)
-                .traverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
-                .map(_.sortBy(-_._2))
-                .map { case _ :: tail =>
-                  tail.foldLeft(graph) { case (g, (tx, _)) =>
-                    g.removeSubtree(tx)._1
-                  }
+          private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]) =
+            spenders.toList
+              .map(graph.transactions)
+              .traverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
+              .map(_.sortBy(-_._2))
+              .map { case _ :: tail =>
+                tail.foldLeft(graph) { case (g, (tx, _)) =>
+                  g.removeSubtree(tx)._1
                 }
-            }
+              }
         }
       } yield iterative
   }

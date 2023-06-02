@@ -97,8 +97,13 @@ class NodeAppTest extends CatsEffectSuite {
         walletInitializer <- ToplRpcWalletInitializer.make[F](rpcClientA, 1, 1).toResource
         wallet            <- walletInitializer.initialize.toResource
         implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
-        transactionGenerator         <- Fs2TransactionGenerator.make[F](wallet, 1, 1).toResource
-        transactionGraph1 <- Stream.force(transactionGenerator.generateTransactions).take(10).compile.toList.toResource
+        // Construct two competing graphs of transactions.
+        // Graph 1 has higher fees and should be included in the chain
+        transactionGenerator1 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 1000).toResource
+        transactionGraph1 <- Stream.force(transactionGenerator1.generateTransactions).take(10).compile.toList.toResource
+        // Graph 2 has lower fees, so the Block Packer should never choose them
+        transactionGenerator2 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 10).toResource
+        transactionGraph2 <- Stream.force(transactionGenerator2.generateTransactions).take(10).compile.toList.toResource
         _ <- (
           fetchUntilHeight(rpcClientA, 2).toResource,
           fetchUntilHeight(rpcClientB, 2).toResource
@@ -106,7 +111,7 @@ class NodeAppTest extends CatsEffectSuite {
         _ <-
           Stream
             .repeatEval(random.elementOf(List(rpcClientA, rpcClientB)))
-            .zip(Stream.evalSeq(random.shuffleList(transactionGraph1)))
+            .zip(Stream.evalSeq(random.shuffleList(transactionGraph1 ++ transactionGraph2)))
             .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
             .compile
             .drain

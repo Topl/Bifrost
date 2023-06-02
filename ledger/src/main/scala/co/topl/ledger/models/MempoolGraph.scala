@@ -28,15 +28,16 @@ case class MempoolGraph(
     MempoolGraph(
       transactions = transactions - transaction.id,
       // Step through each input of this transaction, and remove any associated spender entries from the referenced UTxOs
-      spenders = transaction.inputs.foldLeft(spenders.removed(transaction.id)) { case (spenders, output) =>
-        spenders.updatedWith(output.address.id)(
-          _.map(
-            _.updatedWith(output.address.index)(
-              _.map(_.excl(transaction.id -> output.address.index))
+      spenders =
+        transaction.inputs.zipWithIndex.foldLeft(spenders.removed(transaction.id)) { case (spenders, (input, index)) =>
+          spenders.updatedWith(input.address.id)(
+            _.map(
+              _.updatedWith(input.address.index)(
+                _.map(_.excl(transaction.id -> index))
+              )
             )
           )
-        )
-      },
+        },
       unresolved =
         spenders.getOrElse(transaction.id, Map.empty).values.flatten.foldLeft(unresolved.removed(transaction.id)) {
           case (unresolved, (id, index)) =>
