@@ -89,8 +89,8 @@ object StakerInitializers {
      * This staker's initial stake in the network
      */
     def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): List[UnspentTransactionOutput] = {
-      val toplValue = Value().withTopl(Value.TOPL(stake, stakingAddress.some))
-      val registrationValue = Value().withRegistration(Value.Registration(registration, stakingAddress))
+      val toplValue = Value.defaultInstance.withTopl(Value.TOPL(stake, stakingAddress.some))
+      val registrationValue = Value.defaultInstance.withRegistration(Value.Registration(registration, stakingAddress))
       List(
         UnspentTransactionOutput(lockAddress, toplValue),
         UnspentTransactionOutput(lockAddress, registrationValue)
