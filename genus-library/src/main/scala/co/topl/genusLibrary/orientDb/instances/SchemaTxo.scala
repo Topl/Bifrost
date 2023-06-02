@@ -44,7 +44,7 @@ object SchemaTxo {
           Field.State,
           txo => java.lang.Integer.valueOf(txo.state.value),
           mandatory = true,
-          readOnly = true,
+          readOnly = false,
           notNull = true
         )
         .withProperty(

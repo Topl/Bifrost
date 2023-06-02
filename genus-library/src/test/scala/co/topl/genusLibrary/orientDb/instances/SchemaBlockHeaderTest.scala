@@ -143,6 +143,15 @@ class SchemaBlockHeaderTest
         assertIO(addressProperty.getType.pure[F], OType.BINARY)
       ).toResource
 
+      sizeProperty <- oClass.getProperty(Field.Size).pure[F].toResource
+      _ <- (
+        assertIO(sizeProperty.getName.pure[F], Field.Size) &>
+        assertIO(sizeProperty.isMandatory.pure[F], true) &>
+        assertIO(sizeProperty.isReadonly.pure[F], true) &>
+        assertIO(sizeProperty.isNotNull.pure[F], true) &>
+        assertIO(sizeProperty.getType.pure[F], OType.LONG)
+      ).toResource
+
     } yield ()
 
     res.use_
@@ -237,6 +246,11 @@ class SchemaBlockHeaderTest
       _ <- assertIO(
         vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.Address).head.name).toSeq.pure[F],
         blockHeader.address.toByteArray.toSeq
+      ).toResource
+
+      _ <- assertIO(
+        vertex.getProperty[Long](schema.properties.filter(_.name == Field.Size).head.name).pure[F],
+        SchemaBlockHeader.size(blockHeader)
       ).toResource
 
     } yield ()

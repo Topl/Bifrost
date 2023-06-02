@@ -2,7 +2,6 @@ import sbt._
 
 object Dependencies {
 
-  val akkaVersion = "2.6.20"
   val circeVersion = "0.14.5"
   val kamonVersion = "2.5.12"
   val simulacrumVersion = "1.0.1"
@@ -11,8 +10,8 @@ object Dependencies {
   val fs2Version = "3.6.1"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.18"
-  val protobufSpecsVersion = "8bb8a3b" // scala-steward:off
-  val bramblScVersion = "01cad77" // scala-steward:off
+  val protobufSpecsVersion = "17a28eb" // scala-steward:off
+  val bramblScVersion = "c7ff17a" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
 
   val catsSlf4j =
@@ -52,9 +51,6 @@ object Dependencies {
   val mUnitTest: Seq[ModuleID] = mUnitTestBase.map(_ % Test)
 
   val dockerClient = "com.spotify" % "docker-client" % "8.16.0"
-
-  def akka(name: String): ModuleID =
-    "com.typesafe.akka" %% s"akka-$name" % akkaVersion
 
   val circe: Seq[ModuleID] = Seq(
     "io.circe" %% "circe-core"    % circeVersion,
@@ -136,7 +132,6 @@ object Dependencies {
   val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
-      akka("actor-typed"),
       fs2Core,
       fs2IO
     ) ++
@@ -146,7 +141,10 @@ object Dependencies {
     logging ++
     monocle ++
     monitoring ++
-    mUnitTestBase.map(_ % IntegrationTest)
+    mUnitTestBase.map(_ % IntegrationTest) ++
+    Seq(
+      "io.grpc" % "grpc-services" % "1.54.1"
+    )
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -179,7 +177,6 @@ object Dependencies {
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
     simulacrum ++ Seq(
       catsSlf4j,
-      akka("actor-typed"),
       pureConfig,
       circeYaml
     )
@@ -195,10 +192,8 @@ object Dependencies {
   lazy val eventTree: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
-  lazy val catsAkka: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++
-    Seq(akka("actor"), akka("actor-typed"), akka("stream")) ++
-    Seq(fs2Core, fs2IO, fs2ReactiveStreams)
+  lazy val catsUtils: Seq[ModuleID] =
+    cats ++ catsEffect ++ logging ++ Seq(fs2Core, fs2IO, fs2ReactiveStreams)
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
@@ -206,29 +201,23 @@ object Dependencies {
     Seq(quivr4s, quivr4s.classifier("tests") % Test)
 
   lazy val consensus: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ externalCrypto ++ Seq(akka("actor-typed")) ++ catsEffect ++ logging ++ scalacache
+    Dependencies.mUnitTest ++ externalCrypto ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect ++ Seq(
-      Dependencies.akka("stream"),
-      Dependencies.akka("stream-testkit") % Test
-    )
+    Dependencies.test ++ Dependencies.catsEffect
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
 
   lazy val ledger: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Dependencies.protobufSpecs ++ scalacache ++
     Seq(Dependencies.bramblScSdk, Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(
-      akka("stream"),
-      akka("stream-testkit") % Test
-    ) ++ Seq(fs2Core)
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(fs2Core)
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++
@@ -244,8 +233,7 @@ object Dependencies {
     test ++
     simulacrum ++
     scodec ++
-    cats ++
-    Seq(akka("actor"))
+    cats
 
   lazy val toplGrpc: Seq[ModuleID] =
     cats ++

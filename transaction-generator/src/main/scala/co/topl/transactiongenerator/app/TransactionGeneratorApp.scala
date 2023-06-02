@@ -5,12 +5,12 @@ import cats.data._
 import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
-import co.topl.algebras.ToplRpc
+import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.common.application._
-import co.topl.grpc.ToplGrpc
+import co.topl.grpc.NodeGrpc
 import co.topl.interpreters._
 import co.topl.transactiongenerator.interpreters._
 import co.topl.typeclasses.implicits._
@@ -38,11 +38,11 @@ object TransactionGeneratorApp
       clientAddresses <- parseClientAddresses
       _               <- Logger[F].info(show"Initializing clients=$clientAddresses")
       clients = clientAddresses.traverse { case (host, port, useTls) =>
-        ToplGrpc.Client.make[F](host, port, tls = useTls)
+        NodeGrpc.Client.make[F](host, port, tls = useTls)
       }
       // Turn the list of clients into a single client (randomly chosen per-call)
       _ <- clients
-        .evalMap(MultiToplRpc.make[F, NonEmptyChain])
+        .evalMap(MultiNodeRpc.make[F, NonEmptyChain])
         .use(client =>
           for {
             // Assemble a base wallet of available UTxOs
@@ -104,7 +104,7 @@ object TransactionGeneratorApp
    */
   private def runBroadcastStream(
     transactionStream: Stream[F, IoTransaction],
-    client:            ToplRpc[F, Stream[F, *]],
+    client:            NodeRpc[F, Stream[F, *]],
     targetTps:         Double
   ) =
     transactionStream
@@ -128,7 +128,7 @@ object TransactionGeneratorApp
   /**
    * Periodically poll and log the state of the mempool.
    */
-  private def runMempoolStream(client: ToplRpc[F, Stream[F, *]], period: FiniteDuration) =
+  private def runMempoolStream(client: NodeRpc[F, Stream[F, *]], period: FiniteDuration) =
     Stream
       .awakeEvery[F](period)
       .evalMap(_ => client.currentMempool())

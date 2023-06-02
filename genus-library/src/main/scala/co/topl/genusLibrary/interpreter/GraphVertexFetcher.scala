@@ -5,13 +5,12 @@ import cats.implicits._
 import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
-import co.topl.genus.services.GetTxoStatsRes.TxoStats
-import co.topl.genus.services.TxoState
+import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
@@ -30,6 +29,7 @@ object GraphVertexFetcher {
           OrientThread[F].delay(
             Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
               .map(_.headOption)
+              .map(_.map(_.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)))
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
@@ -149,7 +149,7 @@ object GraphVertexFetcher {
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTxo", tx))
           )
 
-        override def fetchTxoStats(): F[Either[GE, TxoStats]] =
+        def fetchTxoStats(): F[Either[GE, TxoStats]] =
           OrientThread[F].delay(
             Try {
 
@@ -174,6 +174,36 @@ object GraphVertexFetcher {
             }.toEither
               .leftMap[GE] { tx =>
                 GEs.InternalMessageCause("GraphVertexFetcher:fetchTxoStats", tx)
+              }
+          )
+
+        def fetchBlockchainSizeStats(): F[Either[GE, BlockchainSizeStats]] =
+          OrientThread[F].delay(
+            Try {
+
+              val querySumBlockheader: java.lang.Iterable[OrientVertex] =
+                orientGraph
+                  .command(new OSQLSynchQuery[OrientVertex]("select sum(size) as sum from blockheader"))
+                  .execute()
+
+              val querySumTransaction: java.lang.Iterable[OrientVertex] =
+                orientGraph
+                  .command(new OSQLSynchQuery[OrientVertex]("select sum(size) as sum from transaction"))
+                  .execute()
+
+              querySumBlockheader.asScala.headOption
+                .map(_.getProperty[java.lang.Number]("sum"))
+                .map(n => BlockchainSizeStats.defaultInstance.withBlockHeaderBytes(n.longValue()))
+                .flatMap { res =>
+                  querySumTransaction.asScala.headOption
+                    .map(_.getProperty[java.lang.Number]("sum"))
+                    .map(n => res.withTransactionBytes(n.longValue()))
+                }
+                .getOrElse(BlockchainSizeStats.defaultInstance)
+
+            }.toEither
+              .leftMap[GE] { tx =>
+                GEs.InternalMessageCause("GraphVertexFetcher:fetchBlockchainSizeStats", tx)
               }
           )
       }

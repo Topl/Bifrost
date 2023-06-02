@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.data.OptionT
 import cats.implicits._
 import cats.effect.Async
-import co.topl.algebras.{Store, SynchronizationTraversalStep, ToplRpc}
+import co.topl.algebras._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -18,6 +18,7 @@ import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.node.models.BlockBody
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
+import co.topl.proto.node.NodeConfig
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -43,18 +44,19 @@ object ToplRpcServer {
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
   def make[F[_]: Async](
-    headerStore:               Store[F, BlockId, BlockHeader],
-    bodyStore:                 Store[F, BlockId, BlockBody],
-    transactionStore:          Store[F, TransactionId, IoTransaction],
-    mempool:                   MempoolAlgebra[F],
-    syntacticValidation:       TransactionSyntaxVerifier[F],
-    localChain:                LocalChainAlgebra[F],
-    blockHeights:              EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
-    blockIdTree:               ParentChildTree[F, BlockId],
-    localBlockAdoptionsStream: Stream[F, BlockId]
-  ): F[ToplRpc[F, Stream[F, *]]] =
+    headerStore:                  Store[F, BlockId, BlockHeader],
+    bodyStore:                    Store[F, BlockId, BlockBody],
+    transactionStore:             Store[F, TransactionId, IoTransaction],
+    mempool:                      MempoolAlgebra[F],
+    syntacticValidation:          TransactionSyntaxVerifier[F],
+    localChain:                   LocalChainAlgebra[F],
+    blockHeights:                 EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    blockIdTree:                  ParentChildTree[F, BlockId],
+    localBlockAdoptionsStream:    Stream[F, BlockId],
+    protocolConfigurationAlgebra: ProtocolConfigurationAlgebra[F, Stream[F, *]]
+  ): F[NodeRpc[F, Stream[F, *]]] =
     Async[F].delay {
-      new ToplRpc[F, Stream[F, *]] {
+      new NodeRpc[F, Stream[F, *]] {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 
@@ -122,6 +124,9 @@ object ToplRpcServer {
                 )
                 .headChanges
             }
+
+        def fetchProtocolConfigs(): F[Stream[F, NodeConfig]] =
+          protocolConfigurationAlgebra.fetchNodeConfig
 
         private def syntacticValidateOrRaise(transaction: IoTransaction) =
           EitherT(syntacticValidation.validate(transaction))

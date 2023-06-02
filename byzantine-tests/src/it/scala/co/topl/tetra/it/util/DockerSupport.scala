@@ -22,9 +22,8 @@ trait DockerSupport[F[_]] {
   def createNode(
     name:          String,
     nodeGroupName: String,
-    configYaml:    String = ""
+    config:        TestNodeConfig
   ): Resource[F, BifrostDockerTetraNode]
-
 }
 
 object DockerSupport {
@@ -76,9 +75,9 @@ object DockerSupport {
   )(implicit dockerClient: DockerClient)
       extends DockerSupport[F] {
 
-    def createNode(name: String, nodeGroupName: String, configYaml: String): Resource[F, BifrostDockerTetraNode] =
+    def createNode(name: String, nodeGroupName: String, config: TestNodeConfig): Resource[F, BifrostDockerTetraNode] =
       for {
-        node <- Resource.make(createContainer(name, nodeGroupName))(node =>
+        node <- Resource.make(createContainer(name, nodeGroupName, config))(node =>
           Sync[F].defer(node.stop[F]) >>
           containerLogsDirectory
             .map(_ / s"$name-${node.containerId.take(8)}.log")
@@ -86,16 +85,21 @@ object DockerSupport {
           deleteContainer(node)
         )
         _ <- Resource.onFinalize(Sync[F].defer(nodeCache.update(_ - node)))
-        _ <- node.configure(configYaml).toResource
+        _ <- node.configure(config.yaml).toResource
       } yield node
 
-    private def createContainer(name: String, nodeGroupName: String): F[BifrostDockerTetraNode] =
+    private def createContainer(
+      name:          String,
+      nodeGroupName: String,
+      config:        TestNodeConfig
+    ): F[BifrostDockerTetraNode] = {
+      val networkNamePrefix: String = "bifrost-it"
       for {
-        networkName <- (DockerSupport.networkNamePrefix + nodeGroupName).pure[F]
+        networkName <- (networkNamePrefix + nodeGroupName).pure[F]
         environment = Map("BIFROST_LOG_LEVEL" -> (if (debugLoggingEnabled) "DEBUG" else "INFO"))
-        containerConfig   <- buildContainerConfig(name, environment).pure[F]
+        containerConfig   <- buildContainerConfig(name, environment, config).pure[F]
         containerCreation <- Sync[F].blocking(dockerClient.createContainer(containerConfig, name))
-        node              <- BifrostDockerTetraNode(containerCreation.id(), name).pure[F]
+        node              <- BifrostDockerTetraNode(containerCreation.id(), name, config).pure[F]
         _                 <- nodeCache.update(_ + node)
         networkId <- Sync[F].blocking(dockerClient.listNetworks().asScala.find(_.name == networkName)).flatMap {
           case Some(network) => network.id().pure[F]
@@ -107,20 +111,28 @@ object DockerSupport {
         }
         _ <- Sync[F].blocking(dockerClient.connectToNetwork(node.containerId, networkId))
       } yield node
+    }
 
     private def deleteContainer(node: BifrostDockerTetraNode): F[Unit] =
       Sync[F].blocking(
         dockerClient.removeContainer(node.containerId, DockerClient.RemoveContainerParam.forceKill)
       )
 
-    private def buildContainerConfig(name: String, environment: Map[String, String]): ContainerConfig = {
+    private def buildContainerConfig(
+      name:        String,
+      environment: Map[String, String],
+      config:      TestNodeConfig
+    ): ContainerConfig = {
+      val configDirectory = "/opt/docker/config"
+      val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
+      val exposedPorts: Seq[String] = List(config.rpcPort, config.p2pPort, config.jmxRemotePort).map(_.toString)
       val env =
         environment.toList.map { case (key, value) => s"$key=$value" }
 
       val cmd =
         List(
-          s"-Dcom.sun.management.jmxremote.port=$jmxRemotePort",
-          s"-Dcom.sun.management.jmxremote.rmi.port=$jmxRemotePort",
+          s"-Dcom.sun.management.jmxremote.port=${config.jmxRemotePort}",
+          s"-Dcom.sun.management.jmxremote.rmi.port=${config.jmxRemotePort}",
           "-Dcom.sun.management.jmxremote.ssl=false",
           "-Dcom.sun.management.jmxremote.local.only=false",
           "-Dcom.sun.management.jmxremote.authenticate=false",
@@ -136,7 +148,7 @@ object DockerSupport {
 
       ContainerConfig
         .builder()
-        .image(DockerSupport.bifrostImage)
+        .image(bifrostImage)
         .env(env: _*)
         .volumes(configDirectory)
         .cmd(cmd: _*)
@@ -146,17 +158,6 @@ object DockerSupport {
         .build()
     }
   }
-
-  val configDirectory = "/opt/docker/config"
-
-  val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
-  val networkNamePrefix: String = "bifrost-it"
-
-  val rpcPortKeyPath = "bifrost.rpc.bind-port"
-  val rpcPort = "9084"
-  val p2pPort = "9085"
-  val jmxRemotePort = "9083"
-  val exposedPorts: Seq[String] = List(rpcPort, p2pPort, jmxRemotePort)
 }
 
 case class TestNodeConfig(
@@ -164,7 +165,11 @@ case class TestNodeConfig(
   stakerCount:      Int = 1,
   localStakerIndex: Int = 0,
   knownPeers:       List[String] = Nil,
-  stakes:           Option[List[BigInt]] = None
+  stakes:           Option[List[BigInt]] = None,
+  rpcPort:          Int = 9084,
+  p2pPort:          Int = 9085,
+  jmxRemotePort:    Int = 9083,
+  genusEnabled:     Boolean = false
 ) {
 
   def yaml: String = {
@@ -175,10 +180,10 @@ case class TestNodeConfig(
        |bifrost:
        |  rpc:
        |    bind-host: 0.0.0.0
-       |    port: 9084
+       |    port: "$rpcPort"
        |  p2p:
        |    bind-host: 0.0.0.0
-       |    port: 9085
+       |    port: "$p2pPort"
        |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
        |  big-bang:
        |    staker-count: $stakerCount
@@ -188,6 +193,8 @@ case class TestNodeConfig(
        |  protocols:
        |    0:
        |      slot-duration: 200 milli
+       |genus:
+       |  enable: "$genusEnabled"
        |""".stripMargin
   }
 

@@ -150,5 +150,4 @@ trait TetraScodecCodecs {
       byteStringCodec :: // metadata
       stakingAddressCodec // address
   ).as[UnsignedBlockHeader]
-
 }

@@ -5,12 +5,11 @@ import cats.data.OptionT
 import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalSteps, ToplRpc}
+import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
 import co.topl.common.application.IOBaseApp
-import co.topl.grpc.ToplGrpc
-import co.topl.interpreters.MultiToplRpc
+import co.topl.interpreters.MultiNodeRpc
 import co.topl.consensus.models.BlockHeader
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
@@ -21,6 +20,7 @@ import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.consensus.models.BlockId
+import co.topl.grpc.NodeGrpc
 import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
@@ -34,7 +34,7 @@ object Orchestrator
 
   private type NodeName = String
 
-  private type NodeRpcs = Map[NodeName, ToplRpc[F, Stream[F, *]]]
+  private type NodeRpcs = Map[NodeName, NodeRpc[F, Stream[F, *]]]
 
   private type Publisher = DataPublisher[F, Stream[F, *]]
 
@@ -71,7 +71,7 @@ object Orchestrator
           ),
           appConfig.simulationOrchestrator.nodes
             .parTraverse(n =>
-              ToplGrpc.Client
+              NodeGrpc.Client
                 .make[F](n.host, n.port, tls = false)
                 .evalTap(awaitNodeReady(n.name, _))
                 .tupleLeft(n.name)
@@ -80,7 +80,7 @@ object Orchestrator
         ).tupled
       )
 
-  private def awaitNodeReady(name: NodeName, client: ToplRpc[F, Stream[F, *]]) =
+  private def awaitNodeReady(name: NodeName, client: NodeRpc[F, Stream[F, *]]) =
     Logger[F].info(show"Awaiting readiness of node=$name") >>
     Stream
       .retry(
@@ -227,7 +227,7 @@ object Orchestrator
       _                            <- Logger[F].info(show"Initializing wallet")
       implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
       // Combine the Node RPCs into one interface
-      client <- MultiToplRpc.make[F, List](nodes.values.toList)
+      client <- MultiNodeRpc.make[F, List](nodes.values.toList)
       wallet <- ToplRpcWalletInitializer
         // Parallelism value = 1, because the testnet launches from genesis so this process should be instant
         .make[F](client, 1, 1)

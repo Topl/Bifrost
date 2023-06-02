@@ -3,6 +3,7 @@ package co.topl.networking.fsnetwork
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.kernel.Concurrent
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
@@ -60,10 +61,11 @@ object ActorPeerHandlerBridgeAlgebra {
   private def makeAlgebra[F[_]: Concurrent](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
     (client: BlockchainPeerClient[F]) =>
       for {
-        hostId <- client.remotePeer.map(_.remoteAddress.host)
-        _      <- peersManager.sendNoWait(PeersManager.Message.SetupPeer(hostId, client))
-        _      <- peersManager.sendNoWait(PeersManager.Message.UpdatePeerStatus(hostId, PeerState.Hot))
-        _      <- peersManager.sendNoWait(PeersManager.Message.GetCurrentTip(hostId))
+        hostId <- client.remotePeer.map(_.remoteAddress.host).toResource
+        // TODO: Resource.onFinalize send "DestroyPeer" message?
+        _ <- peersManager.sendNoWait(PeersManager.Message.SetupPeer(hostId, client)).toResource
+        _ <- peersManager.sendNoWait(PeersManager.Message.UpdatePeerStatus(hostId, PeerState.Hot)).toResource
+        _ <- peersManager.sendNoWait(PeersManager.Message.GetCurrentTip(hostId)).toResource
       } yield ()
   }
 }

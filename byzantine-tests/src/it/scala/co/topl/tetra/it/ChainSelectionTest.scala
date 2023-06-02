@@ -42,17 +42,19 @@ class ChainSelectionTest extends IntegrationSuite {
     val resource = for {
       (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
       implicit0(dockerClient: DockerClient) = _dockerClient
-      node0 <- dockerSupport.createNode("ChainSelectionTest-node0", "ChainSelectionTest", config0.yaml)
-      node1 <- dockerSupport.createNode("ChainSelectionTest-node1", "ChainSelectionTest", config1.yaml)
+      node0 <- dockerSupport.createNode("ChainSelectionTest-node0", "ChainSelectionTest", config0)
+      node1 <- dockerSupport.createNode("ChainSelectionTest-node1", "ChainSelectionTest", config1)
 
       initialNodes = List(node0, node1)
       _ <- initialNodes.parTraverse(_.startContainer[F]).toResource
-      _ <- initialNodes.parTraverse(_.rpcClient[F].use(_.waitForRpcStartUp)).toResource
+      _ <- initialNodes
+        .parTraverse(node => node.rpcClient[F](node.config.rpcPort, tls = false).use(_.waitForRpcStartUp))
+        .toResource
       _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
       blockHeaders <- initialNodes
         .parTraverse(node =>
           node
-            .rpcClient[F]
+            .rpcClient[F](node.config.rpcPort, tls = false)
             .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(4.minutes).compile.lastOrError)
         )
         .toResource
@@ -61,19 +63,21 @@ class ChainSelectionTest extends IntegrationSuite {
       _ <- blockHeaders.distinct.size.pure[F].assertEquals(2).toResource
 
       // Create a third node
-      node2 <- dockerSupport.createNode("ChainSelectionTest-node2", "ChainSelectionTest", config2.yaml)
+      node2 <- dockerSupport.createNode("ChainSelectionTest-node2", "ChainSelectionTest", config2)
       // Stop, configure with KnownPeers, (re)start containers and run again
       allNodes = List(node0, node1, node2)
       _ <- allNodes.parTraverse(_.stop[F]).toResource
       _ <- allNodes
         .zip(nodesWithknownPeers)
-        .parTraverse { case (node, config) => node.configure[F](config.yaml) }
+        .parTraverse { case (node, newConfig) => node.configure[F](newConfig.yaml) }
         .toResource
       // Note: Launch nodes in-order so that the P2P connections properly initialize.  Once proper peer management and
       // retry logic is implemented, the relaunches can happen in parallel.
       _ <- Stream
-        .iterable(allNodes)
-        .evalMap(node => node.restartContainer[F] >> node.rpcClient[F].use(_.waitForRpcStartUp))
+        .iterable(allNodes.zip(nodesWithknownPeers))
+        .evalMap { case (node, newConfig) =>
+          node.restartContainer[F] >> node.rpcClient[F](newConfig.rpcPort, tls = false).use(_.waitForRpcStartUp)
+        }
         .compile
         .drain
         .toResource
@@ -81,10 +85,12 @@ class ChainSelectionTest extends IntegrationSuite {
         .info("ChainSelectionTest Waiting for nodes to reach target epoch.  This may take several minutes.")
         .toResource
       thirdEpochHeads <- allNodes
-        .parTraverse(
-          _.rpcClient[F]
+        .zip(nodesWithknownPeers)
+        .parTraverse { case (node, newConfig) =>
+          node
+            .rpcClient[F](newConfig.rpcPort, tls = false)
             .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(6.minutes).compile.lastOrError)
-        )
+        }
         .toResource
       _ <- Logger[F].info("Nodes have reached target epoch").toResource
       heights = thirdEpochHeads.map(_.height)
@@ -93,11 +99,14 @@ class ChainSelectionTest extends IntegrationSuite {
       _ <- (heights.max - heights.min <= 5).pure[F].assert.toResource
       // All nodes should have a shared common ancestor near the tip of the chain
       _ <- allNodes
-        .parTraverse(
-          _.rpcClient[F].use(
-            _.blockIdAtHeight(heights.min - 5)
-          )
-        )
+        .zip(nodesWithknownPeers)
+        .parTraverse { case (node, newConfig) =>
+          node
+            .rpcClient[F](newConfig.rpcPort, tls = false)
+            .use(
+              _.blockIdAtHeight(heights.min - 5)
+            )
+        }
         .map(_.toSet.size)
         .assertEquals(1)
         .toResource
