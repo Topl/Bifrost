@@ -241,7 +241,7 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.54.1",
+      "io.grpc" % "grpc-netty-shaded" % "1.55.1",
       "io.grpc" % "grpc-services"     % "1.54.1"
     )
 
