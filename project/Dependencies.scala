@@ -34,7 +34,7 @@ object Dependencies {
   val scalamock = scalamockBase        % Test
 
   val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.13" % "test",
+    "org.scalatest"    %% "scalatest"                     % "3.2.16" % "test",
     "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
     "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
     scalamock
