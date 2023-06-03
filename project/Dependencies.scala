@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.5"
-  val kamonVersion = "2.5.12"
+  val kamonVersion = "2.6.1"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.4.10"
