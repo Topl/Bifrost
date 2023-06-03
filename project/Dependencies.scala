@@ -143,7 +143,7 @@ object Dependencies {
     monitoring ++
     mUnitTestBase.map(_ % IntegrationTest) ++
     Seq(
-      "io.grpc" % "grpc-services" % "1.54.1"
+      "io.grpc" % "grpc-services" % "1.55.1"
     )
 
   val networkDelayer: Seq[ModuleID] =
@@ -242,7 +242,7 @@ object Dependencies {
     protobufSpecs ++
     Seq(
       "io.grpc" % "grpc-netty-shaded" % "1.55.1",
-      "io.grpc" % "grpc-services"     % "1.54.1"
+      "io.grpc" % "grpc-services"     % "1.55.1"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
