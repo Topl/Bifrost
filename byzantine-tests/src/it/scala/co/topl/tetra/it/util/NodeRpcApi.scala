@@ -3,7 +3,7 @@ package co.topl.tetra.it.util
 import cats.Applicative
 import cats.effect._
 import cats.implicits._
-import co.topl.algebras.{SynchronizationTraversalSteps, NodeRpc}
+import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
 import co.topl.consensus.models.BlockHeader
 import fs2.Stream
 import org.typelevel.log4cats.Logger

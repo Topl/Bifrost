@@ -1,6 +1,6 @@
 package co.topl.tetra.it
 
-import co.topl.algebras.{ToplGenusRpc, NodeRpc}
+import co.topl.algebras.{NodeRpc, ToplGenusRpc}
 import com.spotify.docker.client.DockerClient
 import scala.language.implicitConversions
 
