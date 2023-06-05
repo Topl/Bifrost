@@ -109,11 +109,11 @@ class NodeAppTest extends CatsEffectSuite {
         transactionGenerator2 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 10).toResource
         transactionGraph2 <- Stream.force(transactionGenerator2.generateTransactions).take(10).compile.toList.toResource
         _                 <- rpcClients.parTraverse(fetchUntilHeight(_, 2)).toResource
-        // Broadcast _all_ of the transactions (even the bad ones) to the nodes randomly
+        // Broadcast _all_ of the good transactions to the nodes randomly
         _ <-
           Stream
             .repeatEval(random.elementOf(rpcClients))
-            .zip(Stream.evalSeq(random.shuffleList(transactionGraph1 ++ transactionGraph2)))
+            .zip(Stream.evalSeq(random.shuffleList(transactionGraph1)))
             .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
             .compile
             .drain
@@ -123,6 +123,14 @@ class NodeAppTest extends CatsEffectSuite {
           .parTraverse(client =>
             Async[F].timeout(confirmTransactions(client)(transactionGraph1.map(_.id).toSet), 60.seconds)
           )
+          .toResource
+        // Submit the bad transactions
+        _ <- Stream
+          .repeatEval(random.elementOf(rpcClients))
+          .zip(Stream.evalSeq(random.shuffleList(transactionGraph2)))
+          .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
+          .compile
+          .drain
           .toResource
         // Verify that the nodes are still making blocks properly
         _ <- rpcClients.parTraverse(fetchUntilHeight(_, targetProductionHeight)).toResource

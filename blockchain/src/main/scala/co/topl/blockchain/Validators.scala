@@ -23,15 +23,19 @@ import co.topl.ledger.algebras.BoxStateAlgebra
 import co.topl.ledger.interpreters._
 import co.topl.quivr.api.Verifier.instances.verifierInstance
 import co.topl.typeclasses.implicits._
+import co.topl.ledger.algebras.TransactionSemanticValidationAlgebra
+import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 
 case class Validators[F[_]](
-  header:            BlockHeaderValidationAlgebra[F],
-  headerToBody:      BlockHeaderToBodyValidationAlgebra[F],
-  transactionSyntax: TransactionSyntaxVerifier[F],
-  bodySyntax:        BodySyntaxValidationAlgebra[F],
-  bodySemantics:     BodySemanticValidationAlgebra[F],
-  bodyAuthorization: BodyAuthorizationValidationAlgebra[F],
-  boxState:          BoxStateAlgebra[F]
+  header:                   BlockHeaderValidationAlgebra[F],
+  headerToBody:             BlockHeaderToBodyValidationAlgebra[F],
+  transactionSyntax:        TransactionSyntaxVerifier[F],
+  transactionSemantics:     TransactionSemanticValidationAlgebra[F],
+  transactionAuthorization: TransactionAuthorizationVerifier[F],
+  bodySyntax:               BodySyntaxValidationAlgebra[F],
+  bodySemantics:            BodySemanticValidationAlgebra[F],
+  bodyAuthorization:        BodyAuthorizationValidationAlgebra[F],
+  boxState:                 BoxStateAlgebra[F]
 )
 
 object Validators {
@@ -91,6 +95,8 @@ object Validators {
       headerValidation,
       headerToBody,
       transactionSyntaxValidation,
+      transactionSemanticValidation,
+      transactionAuthorizationValidation,
       bodySyntaxValidation,
       bodySemanticValidation,
       bodyAuthorizationValidation,

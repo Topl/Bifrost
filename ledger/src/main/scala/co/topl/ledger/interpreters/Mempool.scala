@@ -57,13 +57,9 @@ object Mempool {
         } yield ()
       removeWithExpiration = (transaction: IoTransaction) =>
         graphState
-          .modify(_.removeSubtree(transaction))
-          .map(_.map(_.id))
-          .flatTap(removed =>
-            expirationsState
-              .getAndUpdate(_.removedAll(removed))
-              .flatTap(expirations => removed.flatMap(expirations.get).toList.traverse(_.cancel))
-          )
+          .update(_.removeSingle(transaction)) *> expirationsState
+          .getAndUpdate(_.removed(transaction.id))
+          .flatTap(expirations => expirations.get(transaction.id).traverse(_.cancel))
           .void
       applyBlock = (state: State[F], blockId: BlockId) =>
         for {

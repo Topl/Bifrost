@@ -186,7 +186,8 @@ object Blockchain {
                 mempool,
                 validators.boxState,
                 rewardCalculator,
-                costCalculator
+                costCalculator,
+                validators.transactionAuthorization
               )
           )
           blockProducer <- Stream.eval(
