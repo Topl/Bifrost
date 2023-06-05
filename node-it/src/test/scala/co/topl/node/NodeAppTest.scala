@@ -60,7 +60,7 @@ class NodeAppTest extends CatsEffectSuite {
          |    0:
          |      slot-duration: 500 milli
          |genus:
-         |  enable: false
+         |  enable: true
          |""".stripMargin
     val configNodeB =
       s"""

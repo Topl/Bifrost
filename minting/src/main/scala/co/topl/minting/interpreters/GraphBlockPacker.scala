@@ -44,28 +44,24 @@ object GraphBlockPacker {
       slot:          Epoch
     ): F[Iterative[F, FullBlockBody]] =
       for {
-        iterationState <- Ref.of((0, MempoolGraph.empty))
+        // Store a `Ref` containing the "next" function to run.  Each iteration should override this Ref with a new function.
+        nextIterationFunction <- Ref.of(none[FullBlockBody => F[FullBlockBody]])
         // TODO: Transaction validation
         iterative = new Iterative[F, FullBlockBody] {
 
           def improve(current: FullBlockBody): F[FullBlockBody] =
-            iterationState.get.flatMap {
-              case (-1, _)    => Async[F].never // Exit case
-              case (0, _)     => initFromMempool
-              case (1, graph) => pruneUnresolvedTransactions(graph)
-              case (2, graph) => stripDoubleSpendUnresolved(graph)
-              case (_, graph) => stripGraph(graph)
-            }
+            nextIterationFunction.get.flatMap(_.getOrElse((_: FullBlockBody) => initFromMempool)(current))
 
           /**
            * Initializes the state with the current mempool and cedes
            */
-          private def initFromMempool =
+          private def initFromMempool: F[FullBlockBody] =
             mempool
               .read(parentBlockId)
               .flatMap(g =>
                 if (g.transactions.nonEmpty)
-                  iterationState.update(v => (v._1 + 1, g)).as(FullBlockBody.defaultInstance)
+                  nextIterationFunction.set(((_: FullBlockBody) => pruneUnresolvedTransactions(g)).some)
+                  .as(FullBlockBody.defaultInstance)
                 else
                   Async[F].never[FullBlockBody]
               )
@@ -75,7 +71,7 @@ object GraphBlockPacker {
            * does not know about some transactions yet).  These transactions (and all recursive dependents) should
            * be removed from the graph since they can't be applied to the chain yet.
            */
-          private def pruneUnresolvedTransactions(graph: MempoolGraph) =
+          private def pruneUnresolvedTransactions(graph: MempoolGraph): F[FullBlockBody] =
             graph.unresolved.toList
               .traverseFilter { case (id, indices) =>
                 val transaction = graph.transactions(id)
@@ -86,10 +82,13 @@ object GraphBlockPacker {
               }
               // Remove the unresolved transactions from the mempool graph
               .map(_.foldLeft(graph)(_.removeSubtree(_)._1))
-              .flatTap(g => iterationState.update(v => (v._1 + 1, g)))
+              .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => stripDoubleSpendUnresolved(g)).some))
               .as(FullBlockBody.defaultInstance)
 
-          private def stripDoubleSpendUnresolved(graph: MempoolGraph) =
+          /**
+            * Some of the "unresolved" transactions of the mempool may be double-spends, so prune away the lower-value sub-graphs.
+            */
+          private def stripDoubleSpendUnresolved(graph: MempoolGraph): F[FullBlockBody] =
             graph.unresolved.toList
               .flatMap { case (id, indices) =>
                 val transaction = graph.transactions(id)
@@ -101,7 +100,7 @@ object GraphBlockPacker {
               .foldLeftM(graph) { case (graph, (_, duplicates)) =>
                 pruneDoubleSpenders(graph)(duplicates.map(_._2).toSet)
               }
-              .flatTap(g => iterationState.update(v => (v._1 + 1, g)))
+              .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => stripGraph(g)).some))
               .as(FullBlockBody.defaultInstance)
 
           /**
@@ -110,14 +109,14 @@ object GraphBlockPacker {
            *
            * If no double-spends are found, moves on to the final stage of forming a block
            */
-          private def stripGraph(graph: MempoolGraph) =
+          private def stripGraph(graph: MempoolGraph): F[FullBlockBody] =
             graph.spenders.find(_._2.exists(_._2.size > 1)) match {
               // Find the first instance of a double-spender in the graph and prune its subtree
               case Some((_, spenders)) =>
                 spenders.values.toList
                   .map(_.map(_._1))
                   .foldLeftM(graph)(pruneDoubleSpenders(_)(_))
-                  .flatTap(g => iterationState.update(v => (v._1 + 1, g)))
+                  .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => stripGraph(g)).some))
                   .as(FullBlockBody.defaultInstance)
               // If there are no remaining double-spenders in the graph, form a block
               case _ =>
@@ -130,7 +129,7 @@ object GraphBlockPacker {
            * @param graph a graph with all double-spends removed
            * @return a FullBlockBody
            */
-          private def formBlockBody(graph: MempoolGraph) = {
+          private def formBlockBody(graph: MempoolGraph): F[FullBlockBody] = {
             def withDependencies(transaction: IoTransaction): ListSet[IoTransaction] =
               ListSet
                 .empty[IoTransaction]
@@ -168,7 +167,7 @@ object GraphBlockPacker {
                   accepted.pure[F]
               }
 
-            iterationState.set((-1, graph)) *>
+            nextIterationFunction.set(((_: FullBlockBody) => Async[F].never[FullBlockBody]).some) *>
             Sync[F]
               .defer(go(ListSet.empty, ListSet.from(graph.unresolved.keys.map(graph.transactions))))
               .map(transactionSet => FullBlockBody(transactionSet.toList))
@@ -203,7 +202,7 @@ object GraphBlockPacker {
            * dependents attempt to spend the same TxO, the dependents with the lowest subgraph score will be removed
            * from the returned graph
            */
-          private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]) =
+          private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]): F[MempoolGraph] =
             spenders.toList
               .map(graph.transactions)
               .traverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
