@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.data.EitherT
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
 import co.topl.genus.services.{BlockchainSizeStats, Txo, TxoState, TxoStats}

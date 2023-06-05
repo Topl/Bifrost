@@ -3,13 +3,13 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.5"
-  val kamonVersion = "2.5.12"
+  val kamonVersion = "2.6.1"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.4.10"
-  val fs2Version = "3.6.1"
+  val catsEffectVersion = "3.4.11"
+  val fs2Version = "3.7.0"
   val logback = "1.4.7"
-  val orientDbVersion = "3.2.18"
+  val orientDbVersion = "3.2.19"
   val protobufSpecsVersion = "17a28eb" // scala-steward:off
   val bramblScVersion = "c7ff17a" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
@@ -27,14 +27,14 @@ object Dependencies {
 
   val scalacheck: Seq[ModuleID] = Seq(
     "org.scalacheck"    %% "scalacheck"      % "1.16.0"  % "test",
-    "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test"
+    "org.scalatestplus" %% "scalacheck-1-15" % "3.2.11.0" % "test"
   )
 
   val scalamockBase = "org.scalamock" %% "scalamock" % "5.2.0"
   val scalamock = scalamockBase        % Test
 
   val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.13" % "test",
+    "org.scalatest"    %% "scalatest"                     % "3.2.16" % "test",
     "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
     "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
     scalamock
@@ -111,7 +111,7 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.3"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
 
@@ -143,7 +143,7 @@ object Dependencies {
     monitoring ++
     mUnitTestBase.map(_ % IntegrationTest) ++
     Seq(
-      "io.grpc" % "grpc-services" % "1.54.1"
+      "io.grpc" % "grpc-services" % "1.55.1"
     )
 
   val networkDelayer: Seq[ModuleID] =
@@ -161,7 +161,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.22.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.22.3"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -241,8 +241,8 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.54.1",
-      "io.grpc" % "grpc-services"     % "1.54.1"
+      "io.grpc" % "grpc-netty-shaded" % "1.55.1",
+      "io.grpc" % "grpc-services"     % "1.55.1"
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
