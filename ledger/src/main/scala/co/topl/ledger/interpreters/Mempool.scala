@@ -59,7 +59,7 @@ object Mempool {
         graphState
           .update(_.removeSingle(transaction)) *> expirationsState
           .getAndUpdate(_.removed(transaction.id))
-          .flatTap(expirations => expirations.get(transaction.id).traverse(_.cancel))
+          .flatTap(_.get(transaction.id).traverse(_.cancel))
           .void
       applyBlock = (state: State[F], blockId: BlockId) =>
         for {
