@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb.schema
 
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory

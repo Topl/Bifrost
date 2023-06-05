@@ -2,7 +2,6 @@ package co.topl.minting.interpreters
 
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.{

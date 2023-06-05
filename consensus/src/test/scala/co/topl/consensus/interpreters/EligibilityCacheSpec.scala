@@ -1,7 +1,6 @@
 package co.topl.consensus.interpreters
 
 import cats.effect.IO
-import cats.effect.implicits._
 import cats.implicits._
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite

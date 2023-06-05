@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress.Field
 import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
