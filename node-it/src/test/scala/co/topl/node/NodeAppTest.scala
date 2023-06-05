@@ -39,7 +39,7 @@ class NodeAppTest extends CatsEffectSuite {
     val targetProductionHeight = 10
     // All of the nodes should agree on the same block at this height
     val targetConsensusHeight = 8
-    val startTimestamp = System.currentTimeMillis() + 10_000L
+    val startTimestamp = System.currentTimeMillis() + 20_000L
     val configNodeA =
       s"""
          |bifrost:
