@@ -186,13 +186,14 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
 
   test("On fetchTransactionReceipt if IoTransactionVertex exist, Some TransactionReceipt should be returned") {
 
+    val iotxVertex = mock[Vertex]
+    val blockHeaderVertex = mock[Vertex] // OrientVertex is not possible to mock
+
     PropF.forAllF { (transactionId: TransactionId, ioTransaction: IoTransaction, blockHeader: BlockHeader) =>
       withMock {
 
         val res = for {
           vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
-          iotxVertex = mock[Vertex]
-          blockHeaderVertex = mock[Vertex] // OrientVertex is not possible to mock
 
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -287,6 +288,12 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             .once()
             .returning(blockHeader.timestamp)
 
+          _ = (blockHeaderVertex
+            .getProperty[java.lang.Long] _)
+            .expects(SchemaBlockHeader.Field.Size)
+            .once()
+            .returning(0L)
+
           _ = (blockHeaderVertex.getPropertyKeys _)
             .expects()
             .once()
@@ -303,7 +310,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
                 SchemaBlockHeader.Field.EligibilityCertificate,
                 SchemaBlockHeader.Field.OperationalCertificate,
                 SchemaBlockHeader.Field.Metadata,
-                SchemaBlockHeader.Field.Address
+                SchemaBlockHeader.Field.Address,
+                SchemaBlockHeader.Field.Size
               )
             )
 

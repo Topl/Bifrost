@@ -69,7 +69,8 @@ object SchemaBlockHeader {
         eligibilityCertificate = EligibilityCertificate.parseFrom(v(Field.EligibilityCertificate): Array[Byte]),
         operationalCertificate = OperationalCertificate.parseFrom(v(Field.OperationalCertificate): Array[Byte]),
         ByteString.copyFrom(v(Field.Metadata): Array[Byte]),
-        address = StakingAddress.parseFrom(v(Field.Address): Array[Byte])
+        address = StakingAddress.parseFrom(v(Field.Address): Array[Byte]),
+        size = Option(v(Field.Size))
       )
   )
 

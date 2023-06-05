@@ -134,6 +134,7 @@ trait TetraScodecCodecs {
       operationalCertificateCodec ::
       byteStringCodec :: // metadata
       stakingAddressCodec :: // address
+      emptyCodec[Option[Long]](None) :: // size
       unknownFieldSetCodec
   ).as[BlockHeader]
 

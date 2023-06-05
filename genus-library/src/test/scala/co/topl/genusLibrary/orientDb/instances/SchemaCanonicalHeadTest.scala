@@ -110,7 +110,8 @@ class SchemaCanonicalHeadTest
       ).toResource
 
       blockHeaderDecoded = blockHeaderSchema.decodeVertex(blockHeaderFromCanonicalHead)
-      _ <- assertIOBoolean((blockHeader == blockHeaderDecoded).pure[F]).toResource
+      blockHeaderSize = SchemaBlockHeader.size(blockHeader)
+      _ <- assertIOBoolean((blockHeader.withSize(blockHeaderSize) == blockHeaderDecoded).pure[F]).toResource
 
     } yield ()
     res.use_

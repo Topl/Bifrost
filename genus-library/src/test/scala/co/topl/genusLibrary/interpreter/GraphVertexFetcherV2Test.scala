@@ -57,6 +57,10 @@ class GraphVertexFetcherV2Test
 
         blockHeaderVertex <- graphVertexFetcher.fetchHeader(blockHeader.id).rethrow.toResource
         _                 <- assertIOBoolean(blockHeaderVertex.isDefined.pure[F]).toResource
+        _ <- assertIO(
+          blockHeaderVertex.get.getProperty[Long]("size").pure[F],
+          SchemaBlockHeader.size(blockHeader)
+        ).toResource
       } yield ()
 
       res.use_
