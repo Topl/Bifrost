@@ -32,7 +32,7 @@ import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.LockId
 import co.topl.brambl.models.box.Attestation
 
-class GraphBlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("return empty for empty mempool") {
@@ -41,7 +41,7 @@ class GraphBlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (mempool.read(_: BlockId)).expects(*).once().returning(MempoolGraph.empty.pure[F])
       val testResource =
         for {
-          underTest <- GraphBlockPacker.make[F](
+          underTest <- BlockPacker.make[F](
             mempool,
             mock[BoxStateAlgebra[F]],
             mock[TransactionRewardCalculatorAlgebra[F]],
@@ -135,7 +135,7 @@ class GraphBlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite wi
         }
       val testResource =
         for {
-          underTest <- GraphBlockPacker.make[F](
+          underTest <- BlockPacker.make[F](
             mempool,
             boxState,
             rewardCalculator,

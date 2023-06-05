@@ -174,7 +174,7 @@ object Blockchain {
           rewardCalculator <- Stream.resource(TransactionRewardCalculator.make[F])
           costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
           blockPacker <- Stream.resource(
-            GraphBlockPacker
+            BlockPacker
               .make[F](
                 mempool,
                 validators.boxState,
