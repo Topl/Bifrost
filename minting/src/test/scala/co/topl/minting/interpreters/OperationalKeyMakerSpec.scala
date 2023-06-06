@@ -4,7 +4,6 @@ import cats.Applicative
 import cats.data.Chain
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.typeclasses.Persistable

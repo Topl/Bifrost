@@ -1,10 +1,10 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.data.EitherT
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
-import co.topl.genus.services.{BlockchainSizeStats, Txo, TxoState, TxoStats}
+import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.genus.services.{BlockStats, BlockchainSizeStats, Txo, TxoState, TxoStats}
 import co.topl.genusLibrary.DbFixtureUtilV2
 import co.topl.genusLibrary.model.GE
 import co.topl.genusLibrary.orientDb.OrientThread
@@ -364,5 +364,56 @@ class GraphVertexFetcherV2Test
     } yield ()
 
     res.use_
+  }
+
+  orientDbFixtureV2.test("On fetchBlockStats, BodyStats with 1 empty result should be returned") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        tx   <- oThread.delay(odbFactory.getTx).toResource
+        notx <- oThread.delay(odbFactory.getNoTx).toResource
+
+        blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
+
+        _ <- oThread.delay {
+          val blockHeaderVertex = tx.addBlockHeader(blockHeader)
+          val bodyVertex = tx.addBody(BlockBody(Seq.empty))
+          bodyVertex.setProperty(blockBodySchema.links.head.propertyName, blockHeaderVertex.getId)
+          tx.commit()
+          tx.shutdown()
+        }.toResource
+
+        graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
+
+        _ <- assertIO(graphVertexFetcher.fetchBlockStats().rethrow, BlockStats(empty = 1, nonEmpty = 0)).toResource
+      } yield ()
+
+      res.use_
+
+  }
+
+  orientDbFixtureV2.test("On fetchBlockStats, BodyStats with 1 non empty result should be returned") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        tx   <- oThread.delay(odbFactory.getTx).toResource
+        notx <- oThread.delay(odbFactory.getNoTx).toResource
+
+        blockHeader   <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
+        ioTransaction <- BramblGenerator.arbitraryIoTransaction.arbitrary.first.pure[F].toResource
+
+        _ <- oThread.delay {
+          val blockHeaderVertex = tx.addBlockHeader(blockHeader)
+          val bodyVertex = tx.addBody(BlockBody(Seq(ioTransaction.id)))
+          bodyVertex.setProperty(blockBodySchema.links.head.propertyName, blockHeaderVertex.getId)
+          tx.commit()
+          tx.shutdown()
+        }.toResource
+
+        graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
+
+        _ <- assertIO(graphVertexFetcher.fetchBlockStats().rethrow, BlockStats(empty = 0, nonEmpty = 1)).toResource
+      } yield ()
+
+      res.use_
+
   }
 }

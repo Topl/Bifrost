@@ -221,6 +221,18 @@ lazy val node = project
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
 
+lazy val nodeIt = project
+  .in(file("node-it"))
+  .settings(
+    name := "node-it",
+    commonSettings,
+    crossScalaVersions := Seq(scala213)
+  )
+  .dependsOn(
+    node,
+    transactionGenerator % "test->compile"
+  )
+
 lazy val networkDelayer = project
   .in(file("network-delayer"))
   .settings(

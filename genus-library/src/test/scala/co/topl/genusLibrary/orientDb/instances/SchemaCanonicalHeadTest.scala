@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genusLibrary.DbFixtureUtil

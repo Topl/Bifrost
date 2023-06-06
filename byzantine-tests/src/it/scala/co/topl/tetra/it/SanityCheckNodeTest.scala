@@ -4,6 +4,7 @@ import cats.effect.implicits._
 import co.topl.tetra.it.util._
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
+import co.topl.interpreters.NodeRpcOps._
 
 class SanityCheckNodeTest extends IntegrationSuite {
 

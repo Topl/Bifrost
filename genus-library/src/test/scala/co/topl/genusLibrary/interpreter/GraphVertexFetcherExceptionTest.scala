@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.interpreter
 
-import cats.effect.implicits.effectResourceOps
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}

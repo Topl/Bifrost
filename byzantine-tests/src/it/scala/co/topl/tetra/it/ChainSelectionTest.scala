@@ -2,6 +2,7 @@ package co.topl.tetra.it
 
 import cats.effect.implicits._
 import cats.implicits._
+import co.topl.interpreters.NodeRpcOps._
 import co.topl.tetra.it.util._
 import com.spotify.docker.client.DockerClient
 import fs2._

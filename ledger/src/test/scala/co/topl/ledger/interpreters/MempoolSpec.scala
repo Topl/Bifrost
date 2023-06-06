@@ -71,13 +71,14 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             )
             .use(underTest =>
               for {
-                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TransactionId])
+                _ <- underTest.read(bodies.last._1).map(_.transactions.keySet).assertEquals(Set.empty[TransactionId])
                 _ <- underTest.add(newTx.id)
-                _ <- underTest.read(bodies.last._1).assertEquals(Set(newTx.id))
+                _ <- underTest.read(bodies.last._1).map(_.transactions.keySet).assertEquals(Set(newTx.id))
                 _ <- underTest.remove(newTx.id)
-                _ <- underTest.read(bodies.last._1).assertEquals(Set.empty[TransactionId])
+                _ <- underTest.read(bodies.last._1).map(_.transactions.keySet).assertEquals(Set.empty[TransactionId])
                 _ <- underTest
                   .read(bodies.head._1)
+                  .map(_.transactions.keySet)
                   .assertEquals(
                     bodies.tail.toList
                       .flatMap(_._2.toList.map(_.id))
@@ -165,10 +166,14 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                   Long.MaxValue
                 )
             _ <- underTest.add(transaction.id).toResource
-            _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id)).toResource
+            _ <- underTest.read(currentBlockId).map(_.transactions.keySet).assertEquals(Set(transaction.id)).toResource
             _ <- clockDeferred.complete(()).toResource
             _ <- expirationDeferred.get.toResource
-            _ <- underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]).toResource
+            _ <- underTest
+              .read(currentBlockId)
+              .map(_.transactions.keySet)
+              .assertEquals(Set.empty[TransactionId])
+              .toResource
           } yield ()
         testResource.use_
       }
@@ -214,11 +219,15 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                   100L
                 )
             _ <- underTest.add(transaction.id).toResource
-            _ <- underTest.read(currentBlockId).assertEquals(Set(transaction.id)).toResource
+            _ <- underTest.read(currentBlockId).map(_.transactions.keySet).assertEquals(Set(transaction.id)).toResource
             _ <- clockDeferred.complete(()).toResource
             _ <- expirationDeferred.get.toResource
 
-            _ <- underTest.read(currentBlockId).assertEquals(Set.empty[TransactionId]).toResource
+            _ <- underTest
+              .read(currentBlockId)
+              .map(_.transactions.keySet)
+              .assertEquals(Set.empty[TransactionId])
+              .toResource
           } yield ()
         testResource.use_
       }

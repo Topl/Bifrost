@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.genus.services.{Txo, TxoState}

@@ -2,7 +2,6 @@ package co.topl.minting.interpreters
 
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
-import cats.effect.implicits.effectResourceOps
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models._

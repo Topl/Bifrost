@@ -6,6 +6,7 @@ import cats.implicits._
 import co.topl.tetra.it.util._
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
+import co.topl.interpreters.NodeRpcOps._
 
 import java.time.Instant
 import scala.concurrent.duration._
