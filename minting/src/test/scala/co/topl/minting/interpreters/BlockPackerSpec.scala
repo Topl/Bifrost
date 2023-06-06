@@ -3,7 +3,6 @@ package co.topl.minting.interpreters
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import cats.implicits._
-import cats.effect.implicits._
 import org.scalamock.munit.AsyncMockFactory
 import cats.effect.IO
 import co.topl.ledger.algebras.MempoolAlgebra
