@@ -209,6 +209,43 @@ object GraphVertexFetcher {
                 GEs.InternalMessageCause("GraphVertexFetcher:fetchBlockchainSizeStats", tx)
               }
           )
+
+        def fetchBlockStats(): F[Either[GE, BlockStats]] =
+          OrientThread[F].delay(
+            Try {
+              val queryEmptyBlocks: java.lang.Iterable[OrientVertex] =
+                orientGraph
+                  .command(
+                    new OSQLSynchQuery[OrientVertex](
+                      "select count(*) as count from blockbody where transactionIds.size() = 0"
+                    )
+                  )
+                  .execute()
+
+              val queryNonEmptyBlocks: java.lang.Iterable[OrientVertex] =
+                orientGraph
+                  .command(
+                    new OSQLSynchQuery[OrientVertex](
+                      "select count(*) as count from blockbody where transactionIds.size() > 0"
+                    )
+                  )
+                  .execute()
+
+              queryEmptyBlocks.asScala.headOption
+                .map(_.getProperty[java.lang.Number]("count"))
+                .map(n => BlockStats.defaultInstance.withEmpty(n.longValue()))
+                .flatMap { res =>
+                  queryNonEmptyBlocks.asScala.headOption
+                    .map(_.getProperty[java.lang.Number]("count"))
+                    .map(n => res.withNonEmpty(n.longValue()))
+                }
+                .getOrElse(BlockStats.defaultInstance)
+
+            }.toEither
+              .leftMap[GE] { tx =>
+                GEs.InternalMessageCause("GraphVertexFetcher:fetchBlockStats", tx)
+              }
+          )
       }
     }
 }
