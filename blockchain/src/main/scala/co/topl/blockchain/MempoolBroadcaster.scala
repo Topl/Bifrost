@@ -7,6 +7,7 @@ import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.models.MempoolGraph
 import fs2.concurrent.Topic
 
 object MempoolBroadcaster {
@@ -19,7 +20,7 @@ object MempoolBroadcaster {
       .map { topic =>
         val interpreter =
           new MempoolAlgebra[F] {
-            def read(blockId: BlockId): F[Set[TransactionId]] = mempool.read(blockId)
+            def read(blockId: BlockId): F[MempoolGraph] = mempool.read(blockId)
 
             def add(transactionId: TransactionId): F[Unit] =
               mempool.add(transactionId) >>

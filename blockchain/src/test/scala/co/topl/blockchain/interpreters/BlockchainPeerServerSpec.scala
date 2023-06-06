@@ -18,9 +18,9 @@ import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.generators.ModelGenerators._
+import co.topl.ledger.models.MempoolGraph
 import co.topl.networking.NetworkGen._
 
-import scala.collection.immutable.ListSet
 import scala.concurrent.duration._
 
 class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -130,9 +130,17 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         adoptionC:  TransactionId
       ) =>
         withMock {
-          val currentMempoolSet: Set[TransactionId] = ListSet(mempoolTxA, mempoolTxB, mempoolTxC)
+          val currentMempool = MempoolGraph(
+            Map(
+              mempoolTxA -> IoTransaction.defaultInstance,
+              mempoolTxB -> IoTransaction.defaultInstance,
+              mempoolTxC -> IoTransaction.defaultInstance
+            ),
+            Map.empty,
+            Map.empty
+          )
           val mempool = mock[MempoolAlgebra[F]]
-          (mempool.read _).expects(head.slotId.blockId).once().returning(currentMempoolSet.pure[F])
+          (mempool.read _).expects(head.slotId.blockId).once().returning(currentMempool.pure[F])
           val localChain = mock[LocalChainAlgebra[F]]
           (() => localChain.head).expects().once().returning(head.pure[F])
           for {
