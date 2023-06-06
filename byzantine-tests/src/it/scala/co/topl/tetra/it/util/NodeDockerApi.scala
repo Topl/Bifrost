@@ -3,7 +3,7 @@ package co.topl.tetra.it.util
 import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
-import co.topl.algebras.{NodeRpc, ToplGenusRpc}
+import co.topl.algebras.{ToplGenusRpc, NodeRpc}
 import co.topl.genus.GenusGrpc
 import co.topl.grpc.NodeGrpc
 import com.spotify.docker.client.DockerClient
