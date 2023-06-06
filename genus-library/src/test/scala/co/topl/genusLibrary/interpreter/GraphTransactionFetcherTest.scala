@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.effect.IO
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.transaction.{IoTransaction, UnspentTransactionOutput}

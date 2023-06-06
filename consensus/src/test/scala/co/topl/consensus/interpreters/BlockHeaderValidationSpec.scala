@@ -5,7 +5,6 @@ import cats.Show
 import cats.data.EitherT
 import cats.effect._
 import cats.implicits._
-import cats.effect.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.Store
 import co.topl.algebras.UnsafeResource

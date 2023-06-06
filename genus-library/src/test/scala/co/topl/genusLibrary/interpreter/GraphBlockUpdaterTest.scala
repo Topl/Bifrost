@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.effect.{IO, Resource}
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.BlockData

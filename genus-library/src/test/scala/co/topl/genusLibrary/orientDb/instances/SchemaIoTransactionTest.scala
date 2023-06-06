@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import cats.effect.implicits.effectResourceOps
 import cats.effect.kernel.Async
 import cats.effect.{IO, Resource}
 import cats.implicits._
