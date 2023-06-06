@@ -9,7 +9,7 @@ Seq(
   "org.scoverage"           % "sbt-scoverage"             % "2.0.7",
   "com.github.sbt"          % "sbt-release"               % "1.1.0",
   "io.kamon"                % "sbt-kanela-runner"         % "2.0.14",
-  "com.github.cb372"        % "sbt-explicit-dependencies" % "0.2.16",
+  "com.github.cb372"        % "sbt-explicit-dependencies" % "0.3.1",
   "pl.project13.scala"      % "sbt-jmh"                   % "0.4.3",
   "org.scalameta"           % "sbt-scalafmt"              % "2.5.0",
   "ch.epfl.scala"           % "sbt-scalafix"              % "0.11.0",
