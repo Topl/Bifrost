@@ -3,7 +3,6 @@ package co.topl.ledger.interpreters
 import cats.Applicative
 import cats.data.NonEmptyChain
 import cats.effect._
-import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.generators.ModelGenerators._

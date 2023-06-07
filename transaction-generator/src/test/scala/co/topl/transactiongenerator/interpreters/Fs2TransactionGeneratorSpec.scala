@@ -1,7 +1,7 @@
 package co.topl.transactiongenerator.interpreters
 
 import cats.effect.IO
-import cats.effect.std.Random
+import cats.effect.std.{Random, SecureRandom}
 import cats.implicits._
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Event
@@ -33,7 +33,7 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
           )
           .pure[F]
       wallet = applyTransaction(emptyWallet)(seedTransaction)
-      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       underTest                    <- Fs2TransactionGenerator.make[F](wallet, 1, 10)
       stream                       <- underTest.generateTransactions
       result                       <- stream.take(500).compile.toList

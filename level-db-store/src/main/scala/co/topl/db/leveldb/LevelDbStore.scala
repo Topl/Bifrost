@@ -76,7 +76,7 @@ object LevelDbStore {
     options.compressionType(compressionType)
 
     val dbF =
-      Applicative[F].whenA(createIfMissing)(Files[F].createDirectories(baseDirectory)) >>
+      Applicative[F].whenA(createIfMissing)(Files.forAsync[F].createDirectories(baseDirectory)) >>
       Sync[F].blocking {
         org.iq80.leveldb.impl.Iq80DBFactory.factory.open(
           baseDirectory.toNioPath.toFile,

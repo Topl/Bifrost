@@ -7,6 +7,7 @@ import co.topl.genusLibrary.interpreter._
 import co.topl.genusLibrary.orientDb.OrientDBFactory
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.grpc.NodeGrpc
+import fs2.io.file.Files
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -24,7 +25,7 @@ case class Genus[F[_], S[_]](
 
 object Genus {
 
-  def make[F[_]: Async](
+  def make[F[_]: Async: Files](
     nodeRpcHost: String,
     nodeRpcPort: Int,
     dataDir:     String,
