@@ -65,7 +65,7 @@ object BlockchainPeerServer {
             Async[F].delay(
               Stream
                 .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
-                .flatMap(Stream.iterable)
+                .flatMap(g => Stream.iterable(g.transactions.keys))
                 .append(newTransactionIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
             )

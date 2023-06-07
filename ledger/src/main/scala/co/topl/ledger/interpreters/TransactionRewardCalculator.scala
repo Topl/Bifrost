@@ -3,8 +3,6 @@ package co.topl.ledger.interpreters
 import cats.effect._
 import co.topl.brambl.models.box.Value
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
-import com.google.protobuf.ByteString
-import quivr.models.Int128
 
 /**
  * Implements a TransactionRewardCalculator which returns unclaimed LVLs as a Reward.  If there are no unclaimed LVLs,
@@ -15,16 +13,7 @@ import quivr.models.Int128
 object TransactionRewardCalculator {
 
   def make[F[_]: Sync]: Resource[F, TransactionRewardCalculatorAlgebra[F]] =
-    Resource.pure(tx =>
-      Sync[F].delay {
-        val lvlRewardQuantity =
-          sumLvls(tx.inputs)(_.value) - sumLvls(tx.outputs)(_.value)
-        if (lvlRewardQuantity > 0)
-          List(Value(Value.Value.Lvl(Value.LVL(Int128(ByteString.copyFrom(lvlRewardQuantity.toByteArray))))))
-        else
-          Nil
-      }
-    )
+    Resource.pure(tx => Sync[F].delay((sumLvls(tx.inputs)(_.value) - sumLvls(tx.outputs)(_.value)).max(BigInt(0))))
 
   /**
    * Extracts LVL Box Values from the given collection, and sums the quantities

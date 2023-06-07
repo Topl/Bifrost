@@ -47,10 +47,11 @@ trait ShowInstances {
       show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
-      show" txRoot=${header.txRoot}" +
-      show" bloomFilter=${header.bloomFilter}" +
-      show" eligibilityCertificate=${header.eligibilityCertificate.toByteString}" +
-      show" operationalCertificate=${header.operationalCertificate.toByteString}" +
+      // Don't show these fields because they create too much noise in the logs
+      // show" txRoot=${header.txRoot}" +
+      // show" bloomFilter=${header.bloomFilter}" +
+      // show" eligibilityCertificate=${header.eligibilityCertificate.toByteString}" +
+      // show" operationalCertificate=${header.operationalCertificate.toByteString}" +
       show" address=${header.address}" +
       show")"
 

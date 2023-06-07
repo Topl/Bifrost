@@ -100,8 +100,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       cryptoResources <- Resource.eval(CryptoResources.make[F])
 
-      dataStores <- DataStores.init[F](appConfig)(bigBangBlock)
-      currentEventIdGetterSetters = new CurrentEventIdGetterSetters(dataStores.currentEventIds)
+      dataStores <- DataStoresInit.init[F](appConfig)(bigBangBlock)
+      currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
 
       canonicalHeadId       <- Resource.eval(currentEventIdGetterSetters.canonicalHead.get())
       canonicalHeadSlotData <- Resource.eval(dataStores.slotData.getOrRaise(canonicalHeadId))
@@ -279,20 +279,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .make[F](
           clock,
           staking,
-          dataStores.slotData,
-          dataStores.headers,
-          dataStores.bodies,
-          dataStores.transactions,
+          dataStores,
           localChain,
           chainSelectionAlgebra,
           blockIdTree,
           blockHeightTree,
-          validators.header,
-          validators.headerToBody,
-          validators.transactionSyntax,
-          validators.bodySyntax,
-          validators.bodySemantics,
-          validators.bodyAuthorization,
+          validators,
           mempool,
           cryptoResources.ed25519VRF,
           localPeer,

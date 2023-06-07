@@ -59,7 +59,7 @@ jobs:
           restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
 
       - name: Integration Tests
-        run: sbt node/IntegrationTest/test
+        run: sbt nodeIt/test
 
       # Upload JUnit test results as an artifact so that we can publish a test report in our workflow.
       # Artifacts can be found on the summary page for each individual workflow run.
