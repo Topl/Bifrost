@@ -3,6 +3,7 @@ package co.topl.genus
 import cats.data.EitherT
 import cats.effect.kernel.Async
 import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.model.GEs
@@ -23,7 +24,15 @@ class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extend
               .raiseError[BlockData](GEs.NotFound(s"BlockId:${request.blockId.show}"))
           )
       )
-      .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+      .map(blockData =>
+        BlockResponse.of(
+          FullBlock.of(
+            blockData.header,
+            FullBlockBody.of(blockData.transactions),
+            headerSize = Some(blockData.header.size)
+          )
+        )
+      )
       .adaptErrorsToGrpc
 
   override def getBlockByHeight(request: GetBlockByHeightRequest, ctx: Metadata): F[BlockResponse] =
@@ -35,7 +44,15 @@ class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extend
             Async[F].raiseError[BlockData](GEs.NotFound(s"Height:${request.height.value.show}"))
           )
       )
-      .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+      .map(blockData =>
+        BlockResponse.of(
+          FullBlock.of(
+            blockData.header,
+            FullBlockBody.of(blockData.transactions),
+            headerSize = Some(blockData.header.size)
+          )
+        )
+      )
       .adaptErrorsToGrpc
 
   override def getBlockByDepth(request: GetBlockByDepthRequest, ctx: Metadata): F[BlockResponse] =
@@ -47,7 +64,15 @@ class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extend
             Async[F].raiseError[BlockData](GEs.NotFound(s"Depth:${request.depth.value.show}"))
           )
       )
-      .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+      .map(blockData =>
+        BlockResponse.of(
+          FullBlock.of(
+            blockData.header,
+            FullBlockBody.of(blockData.transactions),
+            headerSize = Some(blockData.header.size)
+          )
+        )
+      )
       .adaptErrorsToGrpc
 
 }

@@ -249,7 +249,7 @@ class SchemaBlockHeaderTest
 
       _ <- assertIO(
         vertex.getProperty[Long](schema.properties.filter(_.name == Field.Size).head.name).pure[F],
-        SchemaBlockHeader.size(blockHeader)
+        blockHeader.size
       ).toResource
 
     } yield ()

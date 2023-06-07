@@ -10,7 +10,7 @@ import co.topl.genusLibrary.model.GE
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{blockBodySchema, Ops}
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction}
+import co.topl.genusLibrary.orientDb.instances.SchemaIoTransaction
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.node.models.BlockBody
@@ -357,7 +357,7 @@ class GraphVertexFetcherV2Test
       _ <- assertIO(
         graphVertexFetcher.fetchBlockchainSizeStats(),
         BlockchainSizeStats.defaultInstance
-          .withBlockHeaderBytes(SchemaBlockHeader.size(blockHeader))
+          .withBlockHeaderBytes(blockHeader.size)
           .withTransactionBytes(SchemaIoTransaction.size(ioTransaction))
           .asRight[GE]
       ).toResource

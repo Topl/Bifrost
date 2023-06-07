@@ -2,6 +2,7 @@ package co.topl.genus
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.typeclasses.implicits._
 import co.topl.consensus.models._
 import co.topl.genus.services._
@@ -35,7 +36,7 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
           res <- underTest.getBlockById(GetBlockByIdRequest(blockId), new Metadata())
           _ = assert(
             res == BlockResponse(
-              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions))
+              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions), Some(blockData.header.size))
             )
           )
         } yield ()
@@ -102,7 +103,7 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
           res <- underTest.getBlockByHeight(GetBlockByHeightRequest(ChainDistance(height)), new Metadata())
           _ = assert(
             res == BlockResponse(
-              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions))
+              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions), Some(blockData.header.size))
             )
           )
         } yield ()
@@ -169,7 +170,7 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
           res <- underTest.getBlockByDepth(GetBlockByDepthRequest(ChainDistance(depth)), new Metadata())
           _ = assert(
             res == BlockResponse(
-              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions))
+              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions), Some(blockData.header.size))
             )
           )
         } yield ()

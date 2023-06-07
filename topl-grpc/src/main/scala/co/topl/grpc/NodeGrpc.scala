@@ -11,6 +11,7 @@ import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
@@ -23,7 +24,6 @@ import io.grpc.ServerServiceDefinition
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.protobuf.services.ProtoReflectionService
-
 import java.net.InetSocketAddress
 
 object NodeGrpc {
@@ -187,7 +187,7 @@ object NodeGrpc {
       def fetchBlockHeader(in: FetchBlockHeaderReq, ctx: Metadata): F[FetchBlockHeaderRes] =
         interpreter
           .fetchBlockHeader(in.blockId)
-          .map(FetchBlockHeaderRes(_))
+          .map(h => FetchBlockHeaderRes(h, h.map(_.size)))
           .adaptErrorsToGrpc
 
       def fetchBlockBody(in: FetchBlockBodyReq, ctx: Metadata): F[FetchBlockBodyRes] =

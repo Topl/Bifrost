@@ -1,9 +1,10 @@
 package co.topl.codecs.bytes.tetra
 
+import co.topl.codecs.bytes.typeclasses.ImmutableCodec
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
-
 import scala.language.implicitConversions
 
 trait ProtoIdentifiableOps {
@@ -44,4 +45,11 @@ class BlockHeaderIdOps(val header: BlockHeader) extends AnyVal {
    */
   def containsValidId: Boolean =
     header.headerId.contains(computeId)
+
+  /**
+   * Block header immutable bytes size
+   * @return
+   */
+  def size: Long =
+    ImmutableCodec.fromScodecCodec[BlockHeader].immutableBytes(header).size
 }

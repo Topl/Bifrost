@@ -3,8 +3,6 @@ package co.topl.genusLibrary.orientDb.instances
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models._
 import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
-import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
-import co.topl.codecs.bytes.typeclasses.ImmutableCodec
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
 import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
 import com.google.protobuf.ByteString
@@ -34,9 +32,6 @@ object SchemaBlockHeader {
     val BlockHeaderIndex = "blockHeaderIndex"
   }
 
-  private[genusLibrary] def size(blockHeader: BlockHeader): Long =
-    ImmutableCodec.fromScodecCodec[BlockHeader].immutableBytes(blockHeader).size
-
   def make(): VertexSchema[BlockHeader] = VertexSchema.create(
     Field.SchemaName,
     GraphDataEncoder[BlockHeader]
@@ -53,7 +48,7 @@ object SchemaBlockHeader {
       .withProperty(Field.OperationalCertificate,_.operationalCertificate.toByteArray,mandatory = true, readOnly = true, notNull = true)
       .withProperty(Field.Metadata,_.metadata.toByteArray,mandatory = true, readOnly = true, notNull = false)
       .withProperty(Field.Address,_.address.toByteArray,mandatory = true, readOnly = true, notNull = true)
-      .withProperty(Field.Size, blockHeader => java.lang.Long.valueOf(size(blockHeader)) ,mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.Size, blockHeader => java.lang.Long.valueOf(blockHeader.size) ,mandatory = true, readOnly = true, notNull = true)
       .withIndex[BlockHeader](Field.BlockHeaderIndex, Field.BlockId),
       // @formatter:on
     v =>
