@@ -13,7 +13,7 @@ trait EpochDataAlgebra[F[_]] {
    * @param epoch the epoch number to request
    * @return EpochData
    */
-  def dataOf(epoch: Epoch): F[EpochData]
+  def dataOf(epoch: Epoch): F[Option[EpochData]]
 
 }
 

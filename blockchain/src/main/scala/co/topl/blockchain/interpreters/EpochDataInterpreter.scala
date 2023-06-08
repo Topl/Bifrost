@@ -1,6 +1,6 @@
 package co.topl.blockchain.interpreters
 
-import cats.MonadThrow
+import cats.{Applicative, MonadThrow}
 import cats.effect.{Async, Resource}
 import cats.effect.implicits._
 import cats.implicits._
@@ -10,7 +10,6 @@ import co.topl.blockchain.algebras.{EpochData, EpochDataAlgebra}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.interpreters.{ConsensusDataEventSourcedState, EpochBoundariesEventSourcedState}
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
@@ -20,19 +19,21 @@ import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 
+/**
+ * Invokes an EpochDataEventSourcedState implementation along the chain's canonical head to produce EpochData
+ */
 object EpochDataInterpreter {
 
   def make[F[_]: MonadThrow](
-    localChain:                 LocalChainAlgebra[F],
+    fetchCanonicalHead:         F[BlockId],
     epochDataEventSourcedState: EventSourcedState[F, EpochDataEventSourcedState.State[F], BlockId]
   ): Resource[F, EpochDataAlgebra[F]] =
-    Resource.pure((epoch: Epoch) =>
-      localChain.head
-        .map(_.slotId.blockId)
-        .flatMap(epochDataEventSourcedState.useStateAt(_)(_.getOrRaise(epoch)))
-    )
+    Resource.pure((epoch: Epoch) => fetchCanonicalHead >>= (epochDataEventSourcedState.useStateAt(_)(_.get(epoch))))
 }
 
+/**
+ * An Event-Sourced State implementation which tracks Epoch Data accumulations over epochs.
+ */
 object EpochDataEventSourcedState {
 
   type State[F[_]] = Store[F, Epoch, EpochData]
@@ -101,11 +102,22 @@ object EpochDataEventSourcedState {
           else epochBoundaryNotCrossed(state)(header, epoch)
       } yield state
 
+    /**
+     * Applies a block which starts a new epoch.  Applying this block will also complete the previous epoch.
+     * @param state The current state
+     * @param header The new header
+     * @param epoch The new epoch
+     */
     private def epochBoundaryCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
       for {
-        previousEpochData <- state.getOrRaise(epoch - 1)
-        updatedPreviousEpochData = previousEpochData.copy(isComplete = true)
-        _ <- state.put(epoch - 1, updatedPreviousEpochData)
+        // Update the previous epoch entry (unless this is the 0th epoch)
+        _ <- Applicative[F].whenA(epoch > 0)(
+          state
+            .getOrRaise(epoch - 1)
+            .map(_.copy(isComplete = true))
+            .flatMap(state.put(epoch - 1, _))
+        )
+        // Active/Inactive Stake calculation is delayed by 2 epochs
         stakesBoundaryBlock <-
           if (epoch >= 2)
             epochBoundaryEventSourcedState.useStateAt(header.id)(_.getOrRaise(epoch - 2))
@@ -118,8 +130,8 @@ object EpochDataEventSourcedState {
         newEpochBoundary <- clock.epochRange(epoch)
         newEpochDataBase = EpochData(
           epoch = epoch,
-          eon = 1,
-          era = 0,
+          eon = 1, // Hardcoded for now
+          era = 0, // Hardcoded for now
           isComplete = false,
           startHeight = header.height,
           endHeight = header.height,
@@ -134,6 +146,13 @@ object EpochDataEventSourcedState {
         _            <- state.put(epoch, newEpochData)
       } yield state
 
+    /**
+     * Applies a block in the middle of an epoch.
+     *
+     * @param state  The current state
+     * @param header The new header
+     * @param epoch  The current epoch
+     */
     private def epochBoundaryNotCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
       for {
         previousEpochData <- state.getOrRaise(epoch)
@@ -141,6 +160,12 @@ object EpochDataEventSourcedState {
         _                 <- state.put(epoch, newEpochData)
       } yield state
 
+    /**
+     * Applies the transaction count and reward accumulation to the given EpochData
+     * @param epochData the current EpochData
+     * @param header the new header
+     * @return a new EpochData
+     */
     private def applyTransactions(epochData: EpochData)(header: BlockHeader): F[EpochData] =
       fetchBlockBody(header.id)
         .flatMap(body =>
@@ -172,11 +197,17 @@ object EpochDataEventSourcedState {
         epoch       <- clock.epochOf(header.slot)
         parentEpoch <- clock.epochOf(header.parentSlot)
         _ <-
-          if (epoch != parentEpoch) epochBoundaryCrossed(state)(header, epoch)
+          if (epoch != parentEpoch) epochBoundaryCrossed(state)(epoch)
           else epochBoundaryNotCrossed(state)(header, epoch)
       } yield state
 
-    private def epochBoundaryCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
+    /**
+     * Unapplies a block which traversed an epoch boundary.  The block's epoch's Data is removed from state, and the
+     * previous epoch is marked as non-complete.
+     * @param state the current state
+     * @param epoch the unapplied block's epoch
+     */
+    private def epochBoundaryCrossed(state: State[F])(epoch: Epoch) =
       for {
         previousEpochData <- state.getOrRaise(epoch - 1)
         updatedPreviousEpochData = previousEpochData.copy(isComplete = false)
@@ -184,6 +215,12 @@ object EpochDataEventSourcedState {
         _ <- state.remove(epoch)
       } yield state
 
+    /**
+     * Unapplies a block in the middle of an epoch
+     * @param state the current state
+     * @param header the header to unapply
+     * @param epoch the header's epoch
+     */
     private def epochBoundaryNotCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
       for {
         previousEpochData <- state.getOrRaise(epoch)
@@ -191,6 +228,12 @@ object EpochDataEventSourcedState {
         _                 <- state.put(epoch, newEpochData)
       } yield state
 
+    /**
+     * Unapplies the transaction count and rewards from the given block
+     * @param epochData the current epoch data
+     * @param header the header to unapply
+     * @return a new EpochData
+     */
     private def unapplyTransactions(epochData: EpochData)(header: BlockHeader): F[EpochData] =
       fetchBlockBody(header.id)
         .flatMap(body =>
