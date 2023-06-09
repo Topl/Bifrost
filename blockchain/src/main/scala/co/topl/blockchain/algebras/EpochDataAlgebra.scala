@@ -27,8 +27,11 @@ case class EpochData(
   endHeight:              Long,
   startSlot:              Long,
   endSlot:                Long,
+  startTimestamp:         Long,
+  endTimestamp:           Long,
   transactionCount:       Long,
   totalTransactionReward: Int128,
   activeStake:            Int128,
-  inactiveStake:          Int128
+  inactiveStake:          Int128,
+  dataBytes:              Long
 )

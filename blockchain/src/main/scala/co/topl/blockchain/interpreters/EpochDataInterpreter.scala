@@ -9,6 +9,7 @@ import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.blockchain.algebras.{EpochData, EpochDataAlgebra}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.common.ContainsImmutable
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.interpreters.{ConsensusDataEventSourcedState, EpochBoundariesEventSourcedState}
 import co.topl.consensus.models.{BlockHeader, BlockId}
@@ -18,6 +19,8 @@ import co.topl.models._
 import co.topl.node.models.BlockBody
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import cats.effect.kernel.Sync
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs
 
 /**
  * Invokes an EpochDataEventSourcedState implementation along the chain's canonical head to produce EpochData
@@ -77,7 +80,7 @@ object EpochDataEventSourcedState {
       )
       .toResource
 
-  private class ApplyBlock[F[_]: MonadThrow](
+  private class ApplyBlock[F[_]: Sync](
     genesisBlockId:              BlockId,
     clock:                       ClockAlgebra[F],
     fetchBlockHeader:            BlockId => F[BlockHeader],
@@ -128,6 +131,8 @@ object EpochDataEventSourcedState {
             (s.totalActiveStake.getOrRaise(()), s.totalInactiveStake.getOrRaise(())).tupled
           )
         newEpochBoundary <- clock.epochRange(epoch)
+        startTimestamp   <- clock.slotToTimestamps(newEpochBoundary.start).map(_.start)
+        endTimestamp     <- clock.slotToTimestamps(newEpochBoundary.end).map(_.end)
         newEpochDataBase = EpochData(
           epoch = epoch,
           eon = 1, // Hardcoded for now
@@ -137,10 +142,13 @@ object EpochDataEventSourcedState {
           endHeight = header.height,
           startSlot = newEpochBoundary.start,
           endSlot = newEpochBoundary.end,
+          startTimestamp = startTimestamp,
+          endTimestamp = endTimestamp,
           transactionCount = 0,
           totalTransactionReward = 0,
           activeStake = activeStake,
-          inactiveStake = inactiveStake
+          inactiveStake = inactiveStake,
+          dataBytes = TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.length
         )
         newEpochData <- applyTransactions(newEpochDataBase)(header)
         _            <- state.put(epoch, newEpochData)
@@ -156,8 +164,13 @@ object EpochDataEventSourcedState {
     private def epochBoundaryNotCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
       for {
         previousEpochData <- state.getOrRaise(epoch)
-        newEpochData      <- applyTransactions(previousEpochData.copy(endHeight = header.height))(header)
-        _                 <- state.put(epoch, newEpochData)
+        modifiedEpochData = previousEpochData.copy(
+          endHeight = header.height,
+          dataBytes =
+            previousEpochData.dataBytes + TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.length
+        )
+        newEpochData <- applyTransactions(modifiedEpochData)(header)
+        _            <- state.put(epoch, newEpochData)
       } yield state
 
     /**
@@ -171,19 +184,29 @@ object EpochDataEventSourcedState {
         .flatMap(body =>
           if (body.transactionIds.isEmpty) epochData.pure[F]
           else
-            body.transactionIds
-              .foldMapM(fetchTransaction(_).flatMap(transactionRewardCalculator.rewardOf))
-              .map(rewards =>
-                epochData.copy(
-                  transactionCount = epochData.transactionCount + body.transactionIds.length,
-                  totalTransactionReward = epochData.totalTransactionReward + rewards
+            body.transactionIds.foldLeftM(epochData) { case (epochData, id) =>
+              fetchTransaction(id)
+                .flatMap(transaction =>
+                  (
+                    transactionRewardCalculator.rewardOf(transaction),
+                    Sync[F].delay(
+                      ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
+                    )
+                  )
+                    .mapN((reward, size) =>
+                      epochData.copy(
+                        transactionCount = epochData.transactionCount + 1,
+                        totalTransactionReward = epochData.totalTransactionReward + reward,
+                        dataBytes = epochData.dataBytes + size
+                      )
+                    )
                 )
-              )
+            }
         )
 
   }
 
-  private class UnapplyBlock[F[_]: MonadThrow](
+  private class UnapplyBlock[F[_]: Sync](
     clock:                       ClockAlgebra[F],
     fetchBlockHeader:            BlockId => F[BlockHeader],
     fetchBlockBody:              BlockId => F[BlockBody],
@@ -224,8 +247,13 @@ object EpochDataEventSourcedState {
     private def epochBoundaryNotCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
       for {
         previousEpochData <- state.getOrRaise(epoch)
-        newEpochData      <- unapplyTransactions(previousEpochData.copy(endHeight = header.height))(header)
-        _                 <- state.put(epoch, newEpochData)
+        modifiedEpochData = previousEpochData.copy(
+          endHeight = header.height - 1,
+          dataBytes =
+            previousEpochData.dataBytes - TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.length
+        )
+        newEpochData <- unapplyTransactions(modifiedEpochData)(header)
+        _            <- state.put(epoch, newEpochData)
       } yield state
 
     /**
@@ -239,14 +267,24 @@ object EpochDataEventSourcedState {
         .flatMap(body =>
           if (body.transactionIds.isEmpty) epochData.pure[F]
           else
-            body.transactionIds.reverse
-              .foldMapM(fetchTransaction(_).flatMap(transactionRewardCalculator.rewardOf))
-              .map(rewards =>
-                epochData.copy(
-                  transactionCount = epochData.transactionCount - body.transactionIds.length,
-                  totalTransactionReward = epochData.totalTransactionReward - rewards
+            body.transactionIds.reverse.foldLeftM(epochData) { case (epochData, id) =>
+              fetchTransaction(id)
+                .flatMap(transaction =>
+                  (
+                    transactionRewardCalculator.rewardOf(transaction),
+                    Sync[F].delay(
+                      ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
+                    )
+                  )
+                    .mapN((reward, size) =>
+                      epochData.copy(
+                        transactionCount = epochData.transactionCount - 1,
+                        totalTransactionReward = epochData.totalTransactionReward - reward,
+                        dataBytes = epochData.dataBytes - size
+                      )
+                    )
                 )
-              )
+            }
         )
 
   }
