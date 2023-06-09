@@ -26,7 +26,7 @@ object Dependencies {
   )
 
   val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"  % "test",
+    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
     "org.scalatestplus" %% "scalacheck-1-15" % "3.2.11.0" % "test"
   )
 
@@ -161,7 +161,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.22.3"
+      "com.google.cloud" % "google-cloud-storage" % "2.22.4"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
