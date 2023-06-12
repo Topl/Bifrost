@@ -379,7 +379,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         blockIdTree,
         currentEventIdGetterSetters.consensusData.set,
         ConsensusDataEventSourcedState
-          .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
+          .ConsensusData(
+            dataStores.operatorStakes,
+            dataStores.activeStake,
+            dataStores.inactiveStake,
+            dataStores.registrations
+          )
           .pure[F],
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise

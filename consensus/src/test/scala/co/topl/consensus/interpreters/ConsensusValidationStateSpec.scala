@@ -36,6 +36,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             consensusData <- (
               TestStore.make[F, StakingAddress, BigInt],
               TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, Unit, BigInt],
               TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- boundaryStore.put(3L, n2Id)
@@ -97,6 +98,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             consensusData <- (
               TestStore.make[F, StakingAddress, BigInt],
               TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, Unit, BigInt],
               TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- boundaryStore.put(3L, n2Id)
@@ -156,6 +158,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             consensusData <- (
               TestStore.make[F, StakingAddress, BigInt],
               TestStore.make[F, Unit, BigInt],
+              TestStore.make[F, Unit, BigInt],
               TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
             _ <- consensusData.operatorStakes.put(address, 1)
@@ -214,6 +217,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
             boundaryStore <- TestStore.make[F, Epoch, BlockId]
             consensusData <- (
               TestStore.make[F, StakingAddress, BigInt],
+              TestStore.make[F, Unit, BigInt],
               TestStore.make[F, Unit, BigInt],
               TestStore.make[F, StakingAddress, SignatureKesProduct]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])

@@ -74,7 +74,8 @@ object DataStoresInit {
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
-      activeStakeStore <- makeDb[F, Unit, BigInt](dataDir)("active-stake")
+      activeStakeStore   <- makeDb[F, Unit, BigInt](dataDir)("active-stake")
+      inactiveStakeStore <- makeDb[F, Unit, BigInt](dataDir)("inactive-stake")
       registrationsStore <- makeCachedDb[
         F,
         StakingAddress,
@@ -103,6 +104,7 @@ object DataStoresInit {
         epochBoundariesStore,
         operatorStakesStore,
         activeStakeStore,
+        inactiveStakeStore,
         registrationsStore,
         blockHeightTreeStore
       )

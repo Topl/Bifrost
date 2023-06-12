@@ -22,6 +22,7 @@ case class DataStores[F[_]](
   epochBoundaries: Store[F, Long, BlockId],
   operatorStakes:  Store[F, StakingAddress, BigInt],
   activeStake:     Store[F, Unit, BigInt],
+  inactiveStake:   Store[F, Unit, BigInt],
   registrations:   Store[F, StakingAddress, SignatureKesProduct],
   blockHeightTree: Store[F, Long, BlockId]
 )
