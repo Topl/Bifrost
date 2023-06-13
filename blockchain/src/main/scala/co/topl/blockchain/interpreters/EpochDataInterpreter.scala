@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store}
-import co.topl.blockchain.algebras.{EpochData, EpochDataAlgebra}
+import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.common.ContainsImmutable
@@ -17,10 +17,11 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.models._
 import co.topl.node.models.BlockBody
-import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
+import co.topl.numerics.implicits._
 import cats.effect.kernel.Sync
 import co.topl.codecs.bytes.tetra.TetraScodecCodecs
+import co.topl.proto.node.EpochData
 
 /**
  * Invokes an EpochDataEventSourcedState implementation along the chain's canonical head to produce EpochData

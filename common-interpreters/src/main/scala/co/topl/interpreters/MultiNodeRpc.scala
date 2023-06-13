@@ -11,8 +11,9 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
+import co.topl.models.Epoch
 import co.topl.node.models.BlockBody
-import co.topl.proto.node.NodeConfig
+import co.topl.proto.node.{EpochData, NodeConfig}
 import fs2.Stream
 
 object MultiNodeRpc {
@@ -67,5 +68,8 @@ object MultiNodeRpc {
 
       def fetchProtocolConfigs(): F[Stream[F, NodeConfig]] =
         randomDelegate.flatMap(_.fetchProtocolConfigs())
+
+      def fetchEpochData(epoch: Option[Epoch]): F[Option[EpochData]] =
+        randomDelegate.flatMap(_.fetchEpochData(epoch))
     }
 }

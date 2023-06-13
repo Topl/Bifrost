@@ -5,7 +5,6 @@ import cats.effect.{IO, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
-import co.topl.blockchain.algebras.EpochData
 import co.topl.brambl.common.ContainsImmutable
 import co.topl.brambl.models.box.{Attestation, Value}
 import co.topl.brambl.models.{Datum, LockAddress, LockId, TransactionId, TransactionOutputAddress}
@@ -26,6 +25,7 @@ import munit.ScalaCheckEffectSuite
 import org.scalamock.munit.AsyncMockFactory
 import quivr.models.Int128
 import co.topl.models._
+import co.topl.proto.node.EpochData
 import scala.collection.immutable.NumericRange
 
 class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
