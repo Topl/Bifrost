@@ -39,7 +39,7 @@ object ReputationAggregator {
     reputationUpdate: PingPongMessagePing
   ) =
     Logger[F].info(show"Received pong message from host ${reputationUpdate.hostId}") >>
-      (currentState, currentState).pure[F]
+    (currentState, currentState).pure[F]
 
   def makeActor[F[_]: Async: Logger](peersManager: PeersManagerActor[F]): Resource[F, ReputationAggregatorActor[F]] = {
     val initialState = ReputationAggregator.State[F](peersManager, Map.empty[HostId, HostReputationValue])
