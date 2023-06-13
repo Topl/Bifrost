@@ -33,6 +33,8 @@ import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
+
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -58,7 +60,8 @@ object Blockchain {
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
     experimentalP2P:           Boolean = false,
-    _epochData:                EpochDataAlgebra[F]
+    _epochData:                EpochDataAlgebra[F],
+    pingPongInterval:          FiniteDuration
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -87,7 +90,8 @@ object Blockchain {
             dataStores.headers,
             dataStores.bodies,
             dataStores.transactions,
-            blockIdTree
+            blockIdTree,
+            pingPongInterval
           )
         } else {
           Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](

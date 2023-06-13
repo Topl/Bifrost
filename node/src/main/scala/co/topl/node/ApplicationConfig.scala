@@ -50,12 +50,13 @@ object ApplicationConfig {
 
     @Lenses
     case class P2P(
-      bindHost:     String,
-      bindPort:     Int,
-      publicHost:   String,
-      publicPort:   Int,
-      knownPeers:   List[DisconnectedPeer],
-      experimental: Option[Boolean]
+      bindHost:         String,
+      bindPort:         Int,
+      publicHost:       String,
+      publicPort:       Int,
+      knownPeers:       List[DisconnectedPeer],
+      experimental:     Option[Boolean],
+      pingPongInterval: Option[FiniteDuration] // Replace by proper config for P2P discovery
     )
 
     @Lenses

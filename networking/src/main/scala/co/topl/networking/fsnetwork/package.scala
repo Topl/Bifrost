@@ -7,6 +7,8 @@ import cats.{Monad, MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
+import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
+import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 
@@ -72,6 +74,12 @@ package object fsnetwork {
 
   implicit val showBodyValidationError: Show[BodyValidationError] =
     Show.fromToString
+
+  implicit val showPongMessage: Show[PingPongMessagePing] = {
+    case PingPongMessagePing(host, Right(delay))               => s"Received pong delay $delay from host $host"
+    case PingPongMessagePing(host, Left(NoPongMessage))        => s"Failed to receive pong message from host $host"
+    case PingPongMessagePing(host, Left(IncorrectPongMessage)) => s"Receive incorrect pong message from host $host"
+  }
 
   /**
    * Get some T from chain until reach terminateOn condition, f.e.

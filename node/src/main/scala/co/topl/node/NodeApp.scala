@@ -32,6 +32,8 @@ import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
+
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
 import fs2.{io => _, _}
 import fs2.io.file.{Files, Path}
@@ -335,7 +337,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           protocolConfig,
           genusGrpcServices,
           appConfig.bifrost.p2p.experimental.getOrElse(false),
-          epochData
+          epochData,
+          appConfig.bifrost.p2p.pingPongInterval.getOrElse(FiniteDuration(0, MILLISECONDS))
         )
     } yield ()
 

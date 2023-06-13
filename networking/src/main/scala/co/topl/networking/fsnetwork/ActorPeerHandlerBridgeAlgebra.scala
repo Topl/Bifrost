@@ -20,6 +20,8 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 
+import scala.concurrent.duration.FiniteDuration
+
 object ActorPeerHandlerBridgeAlgebra {
 
   def make[F[_]: Async: Logger](
@@ -34,7 +36,8 @@ object ActorPeerHandlerBridgeAlgebra {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    blockIdTree:                 ParentChildTree[F, BlockId]
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    pingPongInterval:            FiniteDuration
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     val networkAlgebra = new NetworkAlgebraImpl[F]()
     val networkManager =
@@ -52,7 +55,8 @@ object ActorPeerHandlerBridgeAlgebra {
         transactionStore,
         blockIdTree,
         networkAlgebra,
-        List.empty
+        List.empty,
+        pingPongInterval
       )
 
     networkManager.map(makeAlgebra(_))
