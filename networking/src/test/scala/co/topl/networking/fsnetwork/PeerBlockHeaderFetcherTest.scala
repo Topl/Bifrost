@@ -244,7 +244,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
-            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
             _     <- state.fetchingFiber.get.join
           } yield ()
         }
@@ -306,7 +305,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
-            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
             _     <- state.fetchingFiber.get.join
           } yield ()
         }
@@ -372,7 +370,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           for {
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
             state <- actor.send(PeerBlockHeaderFetcher.Message.GetCurrentTip)
-            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
             _     <- state.fetchingFiber.get.join
           } yield ()
         }
@@ -437,7 +434,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           for {
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
             state <- actor.send(PeerBlockHeaderFetcher.Message.GetCurrentTip)
-            _     <- actor.send(PeerBlockHeaderFetcher.Message.StopActor)
             _     <- state.fetchingFiber.get.join
           } yield ()
         }

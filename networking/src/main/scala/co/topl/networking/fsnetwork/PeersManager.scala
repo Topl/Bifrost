@@ -21,6 +21,8 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
+import scala.concurrent.duration.FiniteDuration
+
 /**
  * Actor for managing peers
  */
@@ -112,7 +114,8 @@ object PeersManager {
     slotDataStore:          Store[F, BlockId, SlotData],
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
+    pingPongInterval:       FiniteDuration
   )
 
   type Response[F[_]] = State[F]
@@ -138,7 +141,8 @@ object PeersManager {
     slotDataStore:          Store[F, BlockId, SlotData],
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
+    pingPongInterval:       FiniteDuration
   ): Resource[F, PeersManagerActor[F]] = {
     val initialState =
       PeersManager.State[F](
@@ -151,7 +155,8 @@ object PeersManager {
         slotDataStore,
         transactionStore,
         blockIdTree,
-        headerToBodyValidation
+        headerToBodyValidation,
+        pingPongInterval
       )
     Actor.makeFull(initialState, getFsm[F], finalizeActor[F])
   }
@@ -175,11 +180,13 @@ object PeersManager {
           client,
           state.blocksChecker.get,
           state.requestsProxy.get,
+          state.reputationAggregator.get,
           state.localChain,
           state.slotDataStore,
           state.transactionStore,
           state.blockIdTree,
-          state.headerToBodyValidation
+          state.headerToBodyValidation,
+          state.pingPongInterval
         )
       )
 

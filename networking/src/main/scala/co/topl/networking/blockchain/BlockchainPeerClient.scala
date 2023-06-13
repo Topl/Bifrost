@@ -9,7 +9,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.models.utility.Ratio
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
@@ -92,6 +92,10 @@ trait BlockchainPeerClient[F[_]] {
    * @return known hosts
    */
   def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]]
+
+  /**
+   */
+  def getPongMessage(request: PingMessage): F[Option[PongMessage]]
 
   /**
    * Find the common ancestor block ID between the local node and the remote peer.
