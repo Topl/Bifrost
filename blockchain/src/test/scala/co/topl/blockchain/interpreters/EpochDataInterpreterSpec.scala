@@ -5,7 +5,6 @@ import cats.effect.{IO, Sync}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
-import co.topl.blockchain.algebras.EpochData
 import co.topl.brambl.common.ContainsImmutable
 import co.topl.brambl.models.box.{Attestation, Value}
 import co.topl.brambl.models.{Datum, LockAddress, LockId, TransactionId, TransactionOutputAddress}
@@ -18,7 +17,6 @@ import co.topl.consensus.models._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.node.models.{BlockBody, FullBlock, FullBlockBody}
-import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import munit.CatsEffectSuite
@@ -26,6 +24,7 @@ import munit.ScalaCheckEffectSuite
 import org.scalamock.munit.AsyncMockFactory
 import quivr.models.Int128
 import co.topl.models._
+import co.topl.proto.node.EpochData
 import scala.collection.immutable.NumericRange
 
 class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -179,9 +178,9 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
               startTimestamp = 0,
               endTimestamp = 9999,
               transactionCount = 3,
-              totalTransactionReward = 150,
-              activeStake = 40,
-              inactiveStake = 0,
+              totalTransactionReward = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(150).toByteArray)),
+              activeStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(40).toByteArray)),
+              inactiveStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(0).toByteArray)),
               dataBytes = blockSize(genesisBlock) + blockSize(block2)
             )
           expectedData1 = EpochData(
@@ -196,9 +195,9 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             startTimestamp = 10000,
             endTimestamp = 19999,
             transactionCount = 1,
-            totalTransactionReward = 50,
-            activeStake = 40,
-            inactiveStake = 0,
+            totalTransactionReward = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(50).toByteArray)),
+            activeStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(40).toByteArray)),
+            inactiveStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(0).toByteArray)),
             dataBytes = blockSize(block3)
           )
           expectedData2 = EpochData(
@@ -213,9 +212,9 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             startTimestamp = 20000,
             endTimestamp = 29999,
             transactionCount = 2,
-            totalTransactionReward = 100,
-            activeStake = 20,
-            inactiveStake = 20,
+            totalTransactionReward = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(100).toByteArray)),
+            activeStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(20).toByteArray)),
+            inactiveStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(20).toByteArray)),
             dataBytes = blockSize(block4)
           )
           expectedData3 = EpochData(
@@ -230,9 +229,9 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             startTimestamp = 30000,
             endTimestamp = 39999,
             transactionCount = 1,
-            totalTransactionReward = 50,
-            activeStake = 30,
-            inactiveStake = 10,
+            totalTransactionReward = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(50).toByteArray)),
+            activeStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(30).toByteArray)),
+            inactiveStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(10).toByteArray)),
             dataBytes = blockSize(block5)
           )
           _ <- List(
@@ -262,9 +261,9 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
               startTimestamp = 0,
               endTimestamp = 9999,
               transactionCount = 1,
-              totalTransactionReward = 50,
-              activeStake = 40,
-              inactiveStake = 0,
+              totalTransactionReward = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(50).toByteArray)),
+              activeStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(40).toByteArray)),
+              inactiveStake = co.topl.proto.node.Int128.of(ByteString.copyFrom(BigInt(0).toByteArray)),
               dataBytes = blockSize(genesisBlock)
             )
           _ <- OptionT(underTest.dataOf(0))

@@ -8,6 +8,7 @@ import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras._
+import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
@@ -32,7 +33,6 @@ import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
-
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -57,7 +57,8 @@ object Blockchain {
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
-    experimentalP2P:           Boolean = false
+    experimentalP2P:           Boolean = false,
+    epochDataAlgebra:          EpochDataAlgebra[F]
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -159,7 +160,8 @@ object Blockchain {
           blockHeights,
           blockIdTree,
           droppingBlockAdoptionsTopic.subscribeUnbounded,
-          nodeProtocolConfiguration
+          nodeProtocolConfiguration,
+          epochDataAlgebra
         )
       )
       nodeGrpcService <- NodeGrpc.Server.service[F](rpcInterpreter)

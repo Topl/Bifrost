@@ -12,9 +12,10 @@ import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
+import co.topl.models.Epoch
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
-import co.topl.proto.node.NodeConfig
+import co.topl.proto.node.{EpochData, NodeConfig}
 import fs2.Stream
 import fs2.grpc.syntax.all._
 import io.grpc.Metadata
@@ -23,7 +24,6 @@ import io.grpc.ServerServiceDefinition
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.protobuf.services.ProtoReflectionService
-
 import java.net.InetSocketAddress
 
 object NodeGrpc {
@@ -131,6 +131,12 @@ object NodeGrpc {
                   .fetchNodeConfig(FetchNodeConfigReq(), new Metadata())
                   .map(_.config)
               )
+
+            def fetchEpochData(epoch: Epoch): F[Option[EpochData]] =
+              client
+                .fetchEpochData(FetchEpochDataReq(epoch), new Metadata())
+                .map(_.epochData)
+
           }
         )
   }
@@ -231,6 +237,9 @@ object NodeGrpc {
         Stream
           .force(interpreter.fetchProtocolConfigs())
           .map(FetchNodeConfigRes(_))
+
+      def fetchEpochData(request: FetchEpochDataReq, ctx: Metadata): F[FetchEpochDataRes] =
+        interpreter.fetchEpochData(request.epoch).map(FetchEpochDataRes(_))
     }
   }
 }

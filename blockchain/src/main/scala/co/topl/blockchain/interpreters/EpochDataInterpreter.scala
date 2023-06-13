@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
 import co.topl.algebras.{ClockAlgebra, Store}
-import co.topl.blockchain.algebras.{EpochData, EpochDataAlgebra}
+import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.common.ContainsImmutable
@@ -17,10 +17,11 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.models._
 import co.topl.node.models.BlockBody
-import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import cats.effect.kernel.Sync
 import co.topl.codecs.bytes.tetra.TetraScodecCodecs
+import co.topl.proto.node.{EpochData, Int128}
+import com.google.protobuf.ByteString
 
 /**
  * Invokes an EpochDataEventSourcedState implementation along the chain's canonical head to produce EpochData
@@ -145,9 +146,9 @@ object EpochDataEventSourcedState {
           startTimestamp = startTimestamp,
           endTimestamp = endTimestamp,
           transactionCount = 0,
-          totalTransactionReward = 0,
-          activeStake = activeStake,
-          inactiveStake = inactiveStake,
+          totalTransactionReward = Int128(ByteString.copyFrom(BigInt(0).toByteArray)),
+          activeStake = Int128(ByteString.copyFrom(activeStake.toByteArray)),
+          inactiveStake = Int128(ByteString.copyFrom(inactiveStake.toByteArray)),
           dataBytes = TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.length
         )
         newEpochData <- applyTransactions(newEpochDataBase)(header)
@@ -196,7 +197,11 @@ object EpochDataEventSourcedState {
                     .mapN((reward, size) =>
                       epochData.copy(
                         transactionCount = epochData.transactionCount + 1,
-                        totalTransactionReward = epochData.totalTransactionReward + reward,
+                        totalTransactionReward = Int128(
+                          ByteString.copyFrom(
+                            (BigInt(epochData.totalTransactionReward.value.toByteArray) + reward).toByteArray
+                          )
+                        ),
                         dataBytes = epochData.dataBytes + size
                       )
                     )
@@ -279,7 +284,11 @@ object EpochDataEventSourcedState {
                     .mapN((reward, size) =>
                       epochData.copy(
                         transactionCount = epochData.transactionCount - 1,
-                        totalTransactionReward = epochData.totalTransactionReward - reward,
+                        totalTransactionReward = Int128(
+                          ByteString.copyFrom(
+                            (BigInt(epochData.totalTransactionReward.value.toByteArray) - reward).toByteArray
+                          )
+                        ),
                         dataBytes = epochData.dataBytes - size
                       )
                     )
