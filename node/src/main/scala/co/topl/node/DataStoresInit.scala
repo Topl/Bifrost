@@ -15,7 +15,6 @@ import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
-import co.topl.models.Epoch
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import co.topl.typeclasses.implicits._
@@ -90,7 +89,11 @@ object DataStoresInit {
         appConfig.bifrost.cache.blockHeightTree,
         Long.box
       )
-      epochDataStore <- makeDb[F, Epoch, EpochData](dataDir)("epoch-data")
+      epochDataStore <- makeCachedDb[F, Long, java.lang.Long, EpochData](dataDir)(
+        "epoch-data",
+        appConfig.bifrost.cache.epochData,
+        Long.box
+      )
 
       dataStores = DataStores(
         dataDir,

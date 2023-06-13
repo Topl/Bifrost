@@ -2,7 +2,7 @@ package co.topl.blockchain
 
 import cats.effect.IO
 import cats.implicits._
-import co.topl.algebras.{ProtocolConfigurationAlgebra, Store}
+import co.topl.algebras.{ClockAlgebra, ProtocolConfigurationAlgebra, Store}
 import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -68,7 +68,8 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[ParentChildTree[F, BlockId]],
             Stream.empty,
             mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-            mock[EpochDataAlgebra[F]]
+            mock[EpochDataAlgebra[F]],
+            mock[ClockAlgebra[F]]
           )
           _ <- underTest
             .blockIdAtHeight(canonicalHead.height)
@@ -92,7 +93,8 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[ParentChildTree[F, BlockId]],
             Stream.empty,
             mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-            mock[EpochDataAlgebra[F]]
+            mock[EpochDataAlgebra[F]],
+            mock[ClockAlgebra[F]]
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
@@ -113,7 +115,8 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[ParentChildTree[F, BlockId]],
             Stream.empty,
             mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-            mock[EpochDataAlgebra[F]]
+            mock[EpochDataAlgebra[F]],
+            mock[ClockAlgebra[F]]
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
@@ -243,9 +246,10 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .returning(epochData.some.pure[F])
 
           underTest <- createServer(
-            epochDataAlgebra = epochDataAlgebra
+            epochData = epochDataAlgebra
           )
-          _ <- underTest.fetchEpochData(0L).map(_.isDefined).assert
+          _ <- underTest.fetchEpochData(0L.some).map(_.isDefined).assert
+          _ <- underTest.fetchEpochData(Option.empty[Long]).map(_.isDefined).assert
         } yield ()
       }
     }
@@ -265,7 +269,8 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     localBlockAdoptionsStream: Stream[F, BlockId] = Stream.empty,
     protocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]] =
       mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-    epochDataAlgebra: EpochDataAlgebra[F] = mock[EpochDataAlgebra[F]]
+    epochData: EpochDataAlgebra[F] = mock[EpochDataAlgebra[F]],
+    clock:     ClockAlgebra[F] = mock[ClockAlgebra[F]]
   ) =
     ToplRpcServer
       .make[F](
@@ -279,6 +284,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         blockIdTree,
         localBlockAdoptionsStream,
         protocolConfiguration,
-        epochDataAlgebra
+        epochData,
+        clock
       )
 }

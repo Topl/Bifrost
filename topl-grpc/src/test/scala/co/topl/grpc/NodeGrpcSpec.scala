@@ -178,13 +178,13 @@ class NodeGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       val epochData = EpochData.defaultInstance
 
       (interpreter.fetchEpochData _)
-        .expects(0L)
+        .expects(0L.some)
         .once()
         .returning(epochData.some.pure[F])
 
       for {
         _ <- assertIO(
-          underTest.fetchEpochData(FetchEpochDataReq(epoch = 0), new Metadata()),
+          underTest.fetchEpochData(FetchEpochDataReq(epoch = 0L.some), new Metadata()),
           FetchEpochDataRes(epochData.some)
         )
       } yield ()

@@ -34,5 +34,5 @@ trait NodeRpc[F[_], S[_]] {
   def synchronizationTraversal(): F[S[SynchronizationTraversalStep]]
   def fetchProtocolConfigs(): F[S[NodeConfig]]
 
-  def fetchEpochData(epoch: Epoch): F[Option[EpochData]]
+  def fetchEpochData(epoch: Option[Epoch]): F[Option[EpochData]]
 }

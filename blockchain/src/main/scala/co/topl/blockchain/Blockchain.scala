@@ -58,7 +58,7 @@ object Blockchain {
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
     experimentalP2P:           Boolean = false,
-    epochDataAlgebra:          EpochDataAlgebra[F]
+    _epochData:                EpochDataAlgebra[F]
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -161,7 +161,8 @@ object Blockchain {
           blockIdTree,
           droppingBlockAdoptionsTopic.subscribeUnbounded,
           nodeProtocolConfiguration,
-          epochDataAlgebra
+          _epochData,
+          clock
         )
       )
       nodeGrpcService <- NodeGrpc.Server.service[F](rpcInterpreter)

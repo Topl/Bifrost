@@ -18,10 +18,10 @@ import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.models._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import co.topl.numerics.implicits._
 import cats.effect.kernel.Sync
 import co.topl.codecs.bytes.tetra.TetraScodecCodecs
-import co.topl.proto.node.{EpochData, Int128}
-import com.google.protobuf.ByteString
+import co.topl.proto.node.EpochData
 
 /**
  * Invokes an EpochDataEventSourcedState implementation along the chain's canonical head to produce EpochData
@@ -166,9 +166,9 @@ object EpochDataEventSourcedState {
           startTimestamp = startTimestamp,
           endTimestamp = endTimestamp,
           transactionCount = 0,
-          totalTransactionReward = Int128(ByteString.copyFrom(BigInt(0).toByteArray)),
-          activeStake = Int128(ByteString.copyFrom(activeStake.toByteArray)),
-          inactiveStake = Int128(ByteString.copyFrom(inactiveStake.toByteArray)),
+          totalTransactionReward = 0,
+          activeStake = activeStake,
+          inactiveStake = inactiveStake,
           dataBytes = TetraScodecCodecs.consensusBlockHeaderCodec.encode(header).require.length
         )
         newEpochData <- applyTransactions(newEpochDataBase)(header)
@@ -217,11 +217,7 @@ object EpochDataEventSourcedState {
                     .mapN((reward, size) =>
                       epochData.copy(
                         transactionCount = epochData.transactionCount + 1,
-                        totalTransactionReward = Int128(
-                          ByteString.copyFrom(
-                            (BigInt(epochData.totalTransactionReward.value.toByteArray) + reward).toByteArray
-                          )
-                        ),
+                        totalTransactionReward = epochData.totalTransactionReward + reward,
                         dataBytes = epochData.dataBytes + size
                       )
                     )
@@ -304,11 +300,7 @@ object EpochDataEventSourcedState {
                     .mapN((reward, size) =>
                       epochData.copy(
                         transactionCount = epochData.transactionCount - 1,
-                        totalTransactionReward = Int128(
-                          ByteString.copyFrom(
-                            (BigInt(epochData.totalTransactionReward.value.toByteArray) - reward).toByteArray
-                          )
-                        ),
+                        totalTransactionReward = epochData.totalTransactionReward - reward,
                         dataBytes = epochData.dataBytes - size
                       )
                     )

@@ -69,7 +69,7 @@ object MultiNodeRpc {
       def fetchProtocolConfigs(): F[Stream[F, NodeConfig]] =
         randomDelegate.flatMap(_.fetchProtocolConfigs())
 
-      def fetchEpochData(epoch: Epoch): F[Option[EpochData]] =
+      def fetchEpochData(epoch: Option[Epoch]): F[Option[EpochData]] =
         randomDelegate.flatMap(_.fetchEpochData(epoch))
     }
 }

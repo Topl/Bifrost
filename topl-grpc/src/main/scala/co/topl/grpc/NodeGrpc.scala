@@ -132,7 +132,7 @@ object NodeGrpc {
                   .map(_.config)
               )
 
-            def fetchEpochData(epoch: Epoch): F[Option[EpochData]] =
+            def fetchEpochData(epoch: Option[Epoch]): F[Option[EpochData]] =
               client
                 .fetchEpochData(FetchEpochDataReq(epoch), new Metadata())
                 .map(_.epochData)
