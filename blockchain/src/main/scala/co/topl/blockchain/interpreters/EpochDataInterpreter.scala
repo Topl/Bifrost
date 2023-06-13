@@ -28,6 +28,11 @@ import com.google.protobuf.ByteString
  */
 object EpochDataInterpreter {
 
+  /**
+   * Implements the EpochDataAlgebra
+   * @param fetchCanonicalHead a function to retrieve the current canonical head ID.  This will be invoked multiple times over the runtime of the program.
+   * @param epochDataEventSourcedState an implementation of a backing EventSourcedState
+   */
   def make[F[_]: MonadThrow](
     fetchCanonicalHead:         F[BlockId],
     epochDataEventSourcedState: EventSourcedState[F, EpochDataEventSourcedState.State[F], BlockId]
@@ -42,6 +47,21 @@ object EpochDataEventSourcedState {
 
   type State[F[_]] = Store[F, Epoch, EpochData]
 
+  /**
+   * Implements an EventSourcedState which tracks/accumulates data as blocks are applied
+   * @param currentBlockId The initial ID when launching the interpreter
+   * @param genesisBlockId The chain's genesis block ID
+   * @param parentChildTree A block ID parent-child tree
+   * @param currentEventChanged A callback function that is invoked whenever a block is applied or unapplied
+   * @param initialState The initial state of the event-sourced state at `currentBlockId`
+   * @param clock a clock
+   * @param fetchBlockHeader lookup a block header by ID
+   * @param fetchBlockBody lookup a block body by ID
+   * @param fetchTransaction lookup a transaction by ID
+   * @param transactionRewardCalculator calculate a transaction's rewards
+   * @param epochBoundaryEventSourcedState an event-sourced state which tracks the last block of each epoch
+   * @param consensusDataEventSourcedState an event-sourced state which tracks staking information
+   */
   def make[F[_]: Async](
     currentBlockId:              F[BlockId],
     genesisBlockId:              BlockId,
