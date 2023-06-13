@@ -1,6 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.IO
+import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.generators.TransactionGenerator
@@ -42,19 +43,18 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val pingPongInterval = FiniteDuration(100, MILLISECONDS)
-      val pingDelay = 10
+      val pingDelay = FiniteDuration(10, MILLISECONDS)
 
       val client = mock[BlockchainPeerClient[F]]
       (client.getPongMessage _).expects(*).atLeastOnce().onCall { ping: PingMessage =>
-        Thread.sleep(pingDelay)
-        Option(PongMessage(ping.ping.reverse)).pure[F]
+        Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
 
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
       (reputationAggregation.sendNoWait _).expects(*).atLeastOnce().onCall { message: ReputationAggregator.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
-            assert(t >= pingDelay)
+            assert(t >= pingDelay.toMillis)
             ().pure[F]
           case _ => throw new IllegalStateException()
         }
@@ -75,10 +75,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           pingPongInterval
         )
         .use { actor =>
-          for {
-            _ <- actor.send(PeerActor.Message.UpdateState(PeerState.Warm))
-            _ = Thread.sleep(pingPongInterval.toMillis + pingDelay * 5)
-          } yield ()
+          Async[F].andWait(actor.send(PeerActor.Message.UpdateState(PeerState.Warm)), pingPongInterval + pingDelay * 5)
         }
     }
 

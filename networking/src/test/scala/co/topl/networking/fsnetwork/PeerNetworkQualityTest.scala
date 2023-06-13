@@ -1,11 +1,12 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.IO
+import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
-import co.topl.networking.fsnetwork.PeerNetworkQualityTest.F
+import co.topl.networking.fsnetwork.PeerNetworkQualityTest.{pingDelay, pingPongInterval, F}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.node.models.{PingMessage, PongMessage}
@@ -18,6 +19,9 @@ import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object PeerNetworkQualityTest {
   type F[A] = IO[A]
+
+  val pingPongInterval: FiniteDuration = FiniteDuration(100, MILLISECONDS)
+  val pingDelay: FiniteDuration = FiniteDuration(10, MILLISECONDS)
 }
 
 class PeerNetworkQualityTest
@@ -31,20 +35,16 @@ class PeerNetworkQualityTest
 
   test("Ping shall be started and result shall be sent to reputation aggregator") {
     withMock {
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
-      val pingDelay = 10
-
       val client = mock[BlockchainPeerClient[F]]
       (client.getPongMessage _).expects(*).atLeastOnce().onCall { ping: PingMessage =>
-        Thread.sleep(pingDelay)
-        Option(PongMessage(ping.ping.reverse)).pure[F]
+        Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
 
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
       (reputationAggregation.sendNoWait _).expects(*).atLeastOnce().onCall { message: ReputationAggregator.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
-            assert(t >= pingDelay)
+            assert(t >= pingDelay.toMillis)
             ().pure[F]
           case _ => throw new IllegalStateException()
         }
@@ -58,10 +58,7 @@ class PeerNetworkQualityTest
           pingPongInterval
         )
         .use { actor =>
-          for {
-            _ <- actor.send(PeerNetworkQuality.Message.StartMeasure)
-            _ = Thread.sleep(pingPongInterval.toMillis + pingDelay * 5)
-          } yield ()
+          Async[F].andWait(actor.send(PeerNetworkQuality.Message.StartMeasure), pingPongInterval + pingDelay * 5)
         }
     }
 
@@ -69,13 +66,9 @@ class PeerNetworkQualityTest
 
   test("Ping shall be started: one success and two errors") {
     withMock {
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
-      val pingDelay = 10
-
       val client = mock[BlockchainPeerClient[F]]
       (client.getPongMessage _).expects(*).once().onCall { ping: PingMessage =>
-        Thread.sleep(pingDelay)
-        Option(PongMessage(ping.ping.reverse)).pure[F]
+        Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
       (client.getPongMessage _).expects(*).once().onCall { _: PingMessage =>
         Option.empty[PongMessage].pure[F]
@@ -88,7 +81,7 @@ class PeerNetworkQualityTest
       (reputationAggregation.sendNoWait _).expects(*).once().onCall { message: ReputationAggregator.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
-            assert(t >= pingDelay)
+            assert(t >= pingDelay.toMillis)
             ().pure[F]
           case _ => throw new IllegalStateException()
         }
@@ -114,10 +107,7 @@ class PeerNetworkQualityTest
           pingPongInterval
         )
         .use { actor =>
-          for {
-            _ <- actor.send(PeerNetworkQuality.Message.StartMeasure)
-            _ = Thread.sleep(3 * pingPongInterval.toMillis + pingDelay * 5)
-          } yield ()
+          Async[F].andWait(actor.send(PeerNetworkQuality.Message.StartMeasure), pingPongInterval * 3 + pingDelay * 5)
         }
     }
 
@@ -125,37 +115,20 @@ class PeerNetworkQualityTest
 
   test("Ping shall not be started if interval is equal to 0") {
     withMock {
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
-      val pingDelay = 0
-
       val client = mock[BlockchainPeerClient[F]]
-      (client.getPongMessage _).expects(*).never().onCall { ping: PingMessage =>
-        Thread.sleep(pingDelay)
-        Option(PongMessage(ping.ping.reverse)).pure[F]
-      }
-
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _).expects(*).never().onCall { message: ReputationAggregator.Message =>
-        message match {
-          case PingPongMessagePing(`hostId`, Right(t)) =>
-            assert(t >= pingDelay)
-            ().pure[F]
-          case _ => throw new IllegalStateException()
-        }
-      }
 
       PeerNetworkQuality
         .makeActor(
           hostId,
           client,
           reputationAggregation,
-          pingPongInterval
+          FiniteDuration(0, MILLISECONDS)
         )
         .use { actor =>
-          for {
-            _ <- actor.send(PeerNetworkQuality.Message.StartMeasure)
-            _ = Thread.sleep(pingPongInterval.toMillis + pingDelay * 5)
-          } yield ()
+          Async[F]
+            .andWait(actor.send(PeerNetworkQuality.Message.StartMeasure), pingPongInterval + pingDelay * 5)
+            .flatMap(state => assert(state.measureFiber.isEmpty).pure[F])
         }
     }
 
@@ -163,13 +136,9 @@ class PeerNetworkQualityTest
 
   test("Start and stop measuring shall works correctly") {
     withMock {
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
-      val pingDelay = 10
-
       val client = mock[BlockchainPeerClient[F]]
       (client.getPongMessage _).expects(*).anyNumberOfTimes().onCall { ping: PingMessage =>
-        Thread.sleep(pingDelay)
-        Option(PongMessage(ping.ping.reverse)).pure[F]
+        Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
 
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
@@ -177,7 +146,7 @@ class PeerNetworkQualityTest
         message: ReputationAggregator.Message =>
           message match {
             case PingPongMessagePing(`hostId`, Right(t)) =>
-              assert(t >= pingDelay)
+              assert(t >= pingDelay.toMillis)
               ().pure[F]
             case _ => throw new IllegalStateException()
           }
@@ -203,13 +172,9 @@ class PeerNetworkQualityTest
 
   test("Fiber is shutdown after release of actor") {
     withMock {
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
-      val pingDelay = 10
-
       val client = mock[BlockchainPeerClient[F]]
       (client.getPongMessage _).expects(*).anyNumberOfTimes().onCall { ping: PingMessage =>
-        Thread.sleep(pingDelay)
-        Option(PongMessage(ping.ping.reverse)).pure[F]
+        Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
 
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
@@ -217,7 +182,7 @@ class PeerNetworkQualityTest
         message: ReputationAggregator.Message =>
           message match {
             case PingPongMessagePing(`hostId`, Right(t)) =>
-              assert(t >= pingDelay)
+              assert(t >= pingDelay.toMillis)
               ().pure[F]
             case _ => throw new IllegalStateException()
           }

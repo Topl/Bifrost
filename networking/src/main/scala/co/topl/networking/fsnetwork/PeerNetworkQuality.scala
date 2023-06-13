@@ -52,32 +52,30 @@ object PeerNetworkQuality {
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
     stopMeasure(state).void
 
-  private def startMeasure[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    if (state.measureFiber.isEmpty) {
+  private def startMeasure[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
+    val host = state.hostId
+    val interval = state.pingPongInterval
+    if (state.measureFiber.isEmpty && state.pingPongInterval.toMillis > 0) {
       for {
-        _     <- Logger[F].info(show"Start network quality fiber for host ${state.hostId}")
+        _     <- Logger[F].info(show"Start network quality fiber for host $host")
         fiber <- Spawn[F].start(startPingPongStream(state).compile.drain)
         newState = state.copy(measureFiber = Option(fiber))
       } yield (newState, newState)
     } else {
-      Logger[F].info(show"Ignoring Start network quality fiber for host ${state.hostId}") >>
+      Logger[F].info(show"Ignoring starting network quality fiber for host $host with interval $interval") >>
       (state, state).pure[F]
     }
+  }
 
   private def startPingPongStream[F[_]: Async: Logger](state: State[F]) =
-    if (state.pingPongInterval.toMillis > 0) {
-      Stream
-        .awakeEvery(state.pingPongInterval)
-        .evalMap(_ => getPing(state).value)
-        .evalMap { res =>
-          val message = ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
-          Logger[F].info(show"From host ${state.hostId} sent quality message: $message") >>
-          state.reputationAggregator.sendNoWait(message)
-        }
-    } else {
-      Logger[F].error(s"Try to start network quality actor with incorrect ping pong interval ${state.pingPongInterval}")
-      Stream.never[F]
-    }
+    Stream
+      .awakeEvery(state.pingPongInterval)
+      .evalMap(_ => getPing(state).value)
+      .evalMap { res =>
+        val message = ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
+        Logger[F].info(show"From host ${state.hostId} sent quality message: $message") >>
+        state.reputationAggregator.sendNoWait(message)
+      }
 
   private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
   private val pingMessageSize = 1024 // 1024 hardcoded on protobuf level
