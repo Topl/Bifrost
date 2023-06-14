@@ -7,7 +7,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
 import co.topl.networking.p2p.ConnectionLeader
@@ -119,6 +119,14 @@ object BlockchainSocketHandler {
           18: Byte
         )
 
+    val pingPongF =
+      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, PingMessage, PongMessage](
+        BlockchainProtocols.PingPong,
+        protocolServer.getPong,
+        19: Byte,
+        20: Byte
+      )
+
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
         (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
@@ -132,6 +140,7 @@ object BlockchainSocketHandler {
         (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
         (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
         (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
+        (pingPongHandlers, pingMessageReceivedCallback)            <- pingPongF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
@@ -158,7 +167,10 @@ object BlockchainSocketHandler {
 
           def getRemoteKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
             knownHostsReceivedCallback(req)
+
+          def getPongMessage(req: PingMessage): F[Option[PongMessage]] = pingMessageReceivedCallback(req)
         }
+
         subHandlers =
           adoptionTypedSubHandlers ++
             transactionNotificationTypedSubHandlers ++
@@ -168,7 +180,8 @@ object BlockchainSocketHandler {
             transactionTypedSubHandlers ++
             idAtHeightTypedSubHandlers ++
             idAtDepthTypedSubHandlers ++
-            knownHostsTypedSubHandlers
+            knownHostsTypedSubHandlers ++
+            pingPongHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 

@@ -10,7 +10,7 @@ object Dependencies {
   val fs2Version = "3.7.0"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.19"
-  val protobufSpecsVersion = "ae3f01df" // scala-steward:off
+  val protobufSpecsVersion = "e3cc5f8" // scala-steward:off
   val bramblScVersion = "c7ff17a" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
 
@@ -26,7 +26,7 @@ object Dependencies {
   )
 
   val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"  % "test",
+    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
     "org.scalatestplus" %% "scalacheck-1-15" % "3.2.11.0" % "test"
   )
 

@@ -2,7 +2,8 @@ package co.topl.blockchain
 
 import cats.effect.IO
 import cats.implicits._
-import co.topl.algebras.{ProtocolConfigurationAlgebra, Store}
+import co.topl.algebras.{ClockAlgebra, ProtocolConfigurationAlgebra, Store}
+import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
@@ -13,7 +14,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
-import co.topl.proto.node.NodeConfig
+import co.topl.proto.node.{EpochData, NodeConfig}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -66,7 +67,9 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             blockHeights,
             mock[ParentChildTree[F, BlockId]],
             Stream.empty,
-            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
+            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
+            mock[EpochDataAlgebra[F]],
+            mock[ClockAlgebra[F]]
           )
           _ <- underTest
             .blockIdAtHeight(canonicalHead.height)
@@ -89,7 +92,9 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             blockHeights,
             mock[ParentChildTree[F, BlockId]],
             Stream.empty,
-            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
+            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
+            mock[EpochDataAlgebra[F]],
+            mock[ClockAlgebra[F]]
           )
           _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
@@ -109,7 +114,9 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             blockHeights,
             mock[ParentChildTree[F, BlockId]],
             Stream.empty,
-            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
+            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
+            mock[EpochDataAlgebra[F]],
+            mock[ClockAlgebra[F]]
           )
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
           _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
@@ -227,6 +234,26 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
       } yield ()
     }
 
+    test("Fetch EpochData Rpc") {
+
+      withMock {
+        for {
+          epochDataAlgebra <- mock[EpochDataAlgebra[F]].pure[F]
+          epochData = EpochData.defaultInstance
+          _ = (epochDataAlgebra.dataOf _)
+            .expects(0L)
+            .once()
+            .returning(epochData.some.pure[F])
+
+          underTest <- createServer(
+            epochData = epochDataAlgebra
+          )
+          _ <- underTest.fetchEpochData(0L.some).map(_.isDefined).assert
+          _ <- underTest.fetchEpochData(Option.empty[Long]).map(_.isDefined).assert
+        } yield ()
+      }
+    }
+
   }
 
   private def createServer(
@@ -241,7 +268,9 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     blockIdTree:               ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
     localBlockAdoptionsStream: Stream[F, BlockId] = Stream.empty,
     protocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]] =
-      mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]]
+      mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
+    epochData: EpochDataAlgebra[F] = mock[EpochDataAlgebra[F]],
+    clock:     ClockAlgebra[F] = mock[ClockAlgebra[F]]
   ) =
     ToplRpcServer
       .make[F](
@@ -254,6 +283,8 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         blockHeights,
         blockIdTree,
         localBlockAdoptionsStream,
-        protocolConfiguration
+        protocolConfiguration,
+        epochData,
+        clock
       )
 }

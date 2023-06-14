@@ -18,6 +18,8 @@ import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 
+import scala.concurrent.duration.FiniteDuration
+
 trait NetworkAlgebra[F[_]] {
 
   def makePeerManger(
@@ -26,7 +28,8 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:          Store[F, BlockId, SlotData],
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
+    pingPongInterval:       FiniteDuration
   ): Resource[F, PeersManagerActor[F]]
 
   def makeReputationAggregation(peersManager: PeersManagerActor[F]): Resource[F, ReputationAggregatorActor[F]]
@@ -61,7 +64,8 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     slotDataStore:          Store[F, BlockId, SlotData],
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
+    pingPongInterval:       FiniteDuration
   ): Resource[F, PeersManagerActor[F]] =
     PeersManager.makeActor(
       networkAlgebra,
@@ -69,7 +73,8 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
       slotDataStore,
       transactionStore,
       blockIdTree,
-      headerToBodyValidation
+      headerToBodyValidation,
+      pingPongInterval
     )
 
   override def makeReputationAggregation(

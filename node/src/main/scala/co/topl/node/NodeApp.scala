@@ -8,16 +8,19 @@ import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
+import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.consensus.algebras._
+import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
+import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.interpreters._
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
-import co.topl.eventtree.ParentChildTree
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
@@ -29,6 +32,8 @@ import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
+
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
 import fs2.{io => _, _}
 import fs2.io.file.{Files, Path}
@@ -161,13 +166,29 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         )
       )
       leaderElectionThreshold <- Resource.eval(makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig))
-      consensusValidationState <- Resource.eval(
-        makeConsensusValidationState(
+
+      epochBoundariesState <- Resource.eval(
+        makeEpochBoundariesState(
           clock,
           dataStores,
           currentEventIdGetterSetters,
-          bigBangBlockId,
           blockIdTree
+        )
+      )
+      consensusDataState <- Resource.eval(
+        makeConsensusDataState(
+          dataStores,
+          currentEventIdGetterSetters,
+          blockIdTree
+        )
+      )
+
+      consensusValidationState <- Resource.eval(
+        makeConsensusValidationState(
+          epochBoundariesState,
+          consensusDataState,
+          clock,
+          bigBangBlockId
         )
       )
       chainSelectionAlgebra = ChainSelection
@@ -274,6 +295,26 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         appConfig.bifrost.protocols.map { case (slot, protocol) => protocol.nodeConfig(slot) }.toSeq
       )
 
+      transactionRewardCalculator <- TransactionRewardCalculator.make[F]
+
+      epochDataEventSourcedState <- EpochDataEventSourcedState.make[F](
+        currentEventIdGetterSetters.epochData.get(),
+        bigBangBlockId,
+        blockIdTree,
+        currentEventIdGetterSetters.epochData.set,
+        dataStores.epochData.pure[F],
+        clock,
+        dataStores.headers.getOrRaise,
+        dataStores.bodies.getOrRaise,
+        dataStores.transactions.getOrRaise,
+        transactionRewardCalculator,
+        epochBoundariesState,
+        consensusDataState
+      )
+
+      epochData <- EpochDataInterpreter
+        .make[F](Sync[F].defer(localChain.head).map(_.slotId.blockId), epochDataEventSourcedState)
+
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -295,7 +336,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
           genusGrpcServices,
-          appConfig.bifrost.p2p.experimental.getOrElse(false)
+          appConfig.bifrost.p2p.experimental.getOrElse(false),
+          epochData,
+          appConfig.bifrost.p2p.pingPongInterval.getOrElse(FiniteDuration(0, MILLISECONDS))
         )
     } yield ()
 
@@ -358,13 +401,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       )
     } yield staking
 
-  private def makeConsensusValidationState(
+  private def makeEpochBoundariesState(
     clock:                       ClockAlgebra[F],
     dataStores:                  DataStores[F],
     currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    bigBangBlockId:              BlockId,
     blockIdTree:                 ParentChildTree[F, BlockId]
-  ) =
+  ): F[EventSourcedState[F, EpochBoundaries[F], BlockId]] =
     for {
       epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
         clock,
@@ -374,19 +416,39 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         dataStores.epochBoundaries.pure[F],
         dataStores.slotData.getOrRaise
       )
+    } yield epochBoundariesState
+
+  private def makeConsensusDataState(
+    dataStores:                  DataStores[F],
+    currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
+    blockIdTree:                 ParentChildTree[F, BlockId]
+  ): F[EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F], BlockId]] =
+    for {
       consensusDataState <- ConsensusDataEventSourcedState.make[F](
         currentEventIdGetterSetters.consensusData.get(),
         blockIdTree,
         currentEventIdGetterSetters.consensusData.set,
         ConsensusDataEventSourcedState
-          .ConsensusData(dataStores.operatorStakes, dataStores.activeStake, dataStores.registrations)
+          .ConsensusData(
+            dataStores.operatorStakes,
+            dataStores.activeStake,
+            dataStores.inactiveStake,
+            dataStores.registrations
+          )
           .pure[F],
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise
       )
-      consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
-    } yield consensusValidationState
+    } yield consensusDataState
+
+  private def makeConsensusValidationState(
+    epochBoundariesState: EventSourcedState[F, EpochBoundaries[F], BlockId],
+    consensusDataState:   EventSourcedState[F, ConsensusData[F], BlockId],
+    clock:                ClockAlgebra[F],
+    bigBangBlockId:       BlockId
+  ): F[ConsensusValidationStateAlgebra[F]] =
+    ConsensusValidationState
+      .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
 
   private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =
     for {

@@ -33,7 +33,8 @@ object ClockAlgebra {
 
     implicit final class ClockOps[F[_]: Apply](clock: ClockAlgebra[F]) {
 
-      def epochOf(slot: Slot): F[Epoch] = clock.slotsPerEpoch.map(numberOfSlots => slot / numberOfSlots)
+      def epochOf(slot: Slot): F[Epoch] =
+        clock.slotsPerEpoch.map(numberOfSlots => slot / numberOfSlots).map(v => if (slot < 0) v - 1 else v)
 
       def epochRange(epoch: Epoch): F[EpochBoundary] =
         clock.slotsPerEpoch.map(slotsPerEpoch => (epoch * slotsPerEpoch) to (((epoch + 1) * slotsPerEpoch) - 1))
