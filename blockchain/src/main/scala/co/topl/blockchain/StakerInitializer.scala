@@ -50,8 +50,8 @@ object StakerInitializers {
       new Ed25519().getVerificationKey(Ed25519.SecretKey(operatorSK.toByteArray)).bytes
     )
 
-    val registration: SignatureKesProduct =
-      new KesProduct().sign(kesSK, new Blake2b256().hash(vrfVK, operatorVK).toArray)
+    val registrationSignature: SignatureKesProduct =
+      new KesProduct().sign(kesSK, new Blake2b256().hash(vrfVK, operatorVK))
 
     val stakingAddress: StakingAddress =
       StakingAddress(
@@ -59,6 +59,9 @@ object StakerInitializers {
           new Ed25519().getVerificationKey(Ed25519.SecretKey(operatorSK.toByteArray)).bytes
         )
       )
+
+    val registration: StakingRegistration =
+      StakingRegistration(stakingAddress, registrationSignature)
 
     val spendingVK: ByteString = ByteString.copyFrom(
       new Ed25519().getVerificationKey(Ed25519.SecretKey(spendingSK.toByteArray)).bytes
@@ -88,12 +91,13 @@ object StakerInitializers {
     /**
      * This staker's initial stake in the network
      */
-    def bigBangOutputs(stake: Int128)(implicit networkPrefix: NetworkPrefix): List[UnspentTransactionOutput] = {
-      val toplValue = Value.defaultInstance.withTopl(Value.TOPL(stake, stakingAddress.some))
-      val registrationValue = Value.defaultInstance.withRegistration(Value.Registration(registration, stakingAddress))
+    def bigBangOutputs(stake: Int128): List[UnspentTransactionOutput] = {
+      val toplValue =
+        Value.defaultInstance.withTopl(
+          Value.TOPL(stake, StakingRegistration(stakingAddress, registrationSignature).some)
+        )
       List(
-        UnspentTransactionOutput(lockAddress, toplValue),
-        UnspentTransactionOutput(lockAddress, registrationValue)
+        UnspentTransactionOutput(lockAddress, toplValue)
       )
     }
   }
