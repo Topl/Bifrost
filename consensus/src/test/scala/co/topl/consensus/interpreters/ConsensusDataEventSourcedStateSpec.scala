@@ -29,22 +29,22 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
 
   test("Retrieve the stake information for an operator at a particular block") {
     withMock {
-      val stakingAddress = arbitraryStakingAddress.arbitrary.first
       val bigBangParentId = arbitraryBlockId.arbitrary.first
       val bigBangId = arbitraryBlockId.arbitrary.first
+      val registration = arbitraryStakingRegistration.arbitrary.first
       val bigBangBlockTransaction =
         IoTransaction(datum = Datum.IoTransaction.defaultInstance)
           .withOutputs(
-            List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, stakingAddress.some))))
+            List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, registration.some))))
           )
+          .embedId
 
       for {
         parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
         initialState <- (
-          TestStore.make[F, StakingAddress, BigInt],
           TestStore.make[F, Unit, BigInt],
           TestStore.make[F, Unit, BigInt],
-          TestStore.make[F, StakingAddress, SignatureKesProduct]
+          TestStore.make[F, StakingAddress, ActiveStaker]
         ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
         _                <- initialState.totalActiveStake.put((), 0)
         _                <- initialState.totalInactiveStake.put((), 0)
@@ -63,17 +63,17 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         _ <- bodyStore.put(bigBangId, BlockBody(List(bigBangBlockTransaction.id)))
         _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
 
-        // Start from 0 Arbits
-        // Move 5 Arbits to the Operator
+        // Start from 0 Topls (pre-big-bang)
 
+        // Move 5 Topls to the Operator
         _ <- underTest.useStateAt(bigBangId)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(5: BigInt) >>
           state.totalInactiveStake.getOrRaise(()).assertEquals(0: BigInt) >>
-          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(5: BigInt)
+          state.stakers.get(registration.address).assertEquals(ActiveStaker(registration, 5).some)
         )
 
-        // Now spend those 5 arbits from the Operator
-        // And create 3 arbits for the Operator and 2 arbits for a non-operator
+        // Now spend those 5 Topls from the Operator
+        // And create 3 Topls for the Operator and 2 Topls for a non-operator
         transaction2 = IoTransaction(datum = Datum.IoTransaction.defaultInstance)
           .withInputs(
             List(
@@ -86,7 +86,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           )
           .withOutputs(
             List(
-              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, stakingAddress.some))),
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, registration.some))),
               UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
             )
           )
@@ -102,7 +102,7 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
           )
           .withOutputs(
             List(
-              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, stakingAddress.some))),
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(3, registration.some))),
               UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
             )
           )
@@ -119,11 +119,11 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         _ <- underTest.useStateAt(blockId2)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(3: BigInt) >>
           state.totalInactiveStake.getOrRaise(()).assertEquals(2: BigInt) >>
-          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(3: BigInt)
+          state.stakers.get(registration.address).assertEquals(ActiveStaker(registration, 3).some)
         )
 
-        // Spend the 2 Arbits from the non-operator
-        // And create 1 Arbit for the operator and 1 Arbit for the non-operator
+        // Spend the 2 Topls from the non-operator and 3 Topls from the operator
+        // And create 4 Topl for the operator and 1 Topl for the non-operator
         transaction4 = IoTransaction(datum = Datum.IoTransaction.defaultInstance)
           .withInputs(
             List(
@@ -136,12 +136,17 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
                 transaction3.id.outputAddress(0, 0, 1),
                 Attestation().withPredicate(Attestation.Predicate.defaultInstance),
                 transaction3.outputs(1).value
+              ),
+              SpentTransactionOutput(
+                transaction3.id.outputAddress(0, 0, 0),
+                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
+                transaction3.outputs(0).value
               )
             )
           )
           .withOutputs(
             List(
-              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, stakingAddress.some))),
+              UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(4, registration.some))),
               UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(1, none)))
             )
           )
@@ -157,101 +162,18 @@ class ConsensusDataEventSourcedStateSpec extends CatsEffectSuite with ScalaCheck
         _ <- underTest.useStateAt(blockId3)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(4: BigInt) >>
           state.totalInactiveStake.getOrRaise(()).assertEquals(1: BigInt) >>
-          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(4: BigInt)
+          state.stakers.get(registration.address).assertEquals(ActiveStaker(registration, 4).some)
         )
         // Double check that UnapplyBlock works
         _ <- underTest.useStateAt(blockId2)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(3: BigInt) >>
           state.totalInactiveStake.getOrRaise(()).assertEquals(2: BigInt) >>
-          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(3: BigInt)
+          state.stakers.get(registration.address).assertEquals(ActiveStaker(registration, 3).some)
         )
         _ <- underTest.useStateAt(bigBangId)(state =>
           state.totalActiveStake.getOrRaise(()).assertEquals(5: BigInt) >>
           state.totalInactiveStake.getOrRaise(()).assertEquals(0: BigInt) >>
-          state.operatorStakes.getOrRaise(stakingAddress).assertEquals(5: BigInt)
-        )
-      } yield ()
-    }
-  }
-
-  test("Return the registration of an operator at a particular block") {
-    withMock {
-      val stakingAddress = arbitraryStakingAddress.arbitrary.first
-      val bigBangParentId = arbitraryBlockId.arbitrary.first
-      val bigBangId = arbitraryBlockId.arbitrary.first
-      val registration = signatureKesProductArbitrary.arbitrary.first
-      val bigBangBlockTransaction =
-        IoTransaction(datum = Datum.IoTransaction.defaultInstance)
-          .withOutputs(
-            List(
-              UnspentTransactionOutput(
-                lockAddress,
-                Value().withRegistration(Value.Registration(registration, stakingAddress))
-              )
-            )
-          )
-
-      for {
-        parentChildTree <- ParentChildTree.FromRef.make[F, BlockId]
-        initialState <- (
-          TestStore.make[F, StakingAddress, BigInt],
-          TestStore.make[F, Unit, BigInt],
-          TestStore.make[F, Unit, BigInt],
-          TestStore.make[F, StakingAddress, SignatureKesProduct]
-        ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
-        _                <- initialState.totalActiveStake.put((), 0)
-        _                <- initialState.totalInactiveStake.put((), 0)
-        bodyStore        <- TestStore.make[F, BlockId, BlockBody]
-        transactionStore <- TestStore.make[F, TransactionId, IoTransaction]
-        underTest <- ConsensusDataEventSourcedState.make[F](
-          bigBangParentId.pure[F],
-          parentChildTree,
-          _ => Applicative[F].unit,
-          initialState.pure[F],
-          bodyStore.getOrRaise,
-          transactionStore.getOrRaise
-        )
-
-        _ <- parentChildTree.associate(bigBangId, bigBangParentId)
-        _ <- bodyStore.put(bigBangId, BlockBody(List(bigBangBlockTransaction.id)))
-        _ <- transactionStore.put(bigBangBlockTransaction.id, bigBangBlockTransaction)
-
-        _ <- underTest.useStateAt(bigBangId)(state =>
-          state.registrations
-            .getOrRaise(stakingAddress)
-            .assertEquals(
-              bigBangBlockTransaction.outputs.headOption.get.value.getRegistration.registration
-            )
-        )
-
-        transaction2 = IoTransaction(datum = Datum.IoTransaction.defaultInstance)
-          .withInputs(
-            List(
-              SpentTransactionOutput(
-                bigBangBlockTransaction.id.outputAddress(0, 0, 0),
-                Attestation().withPredicate(Attestation.Predicate.defaultInstance),
-                bigBangBlockTransaction.outputs(0).value
-              )
-            )
-          )
-
-        blockId2 = arbitraryBlockId.arbitrary.first
-        _ <- parentChildTree.associate(blockId2, bigBangId)
-        _ <- bodyStore.put(
-          blockId2,
-          BlockBody(List(transaction2.id))
-        )
-        _ <- transactionStore.put(transaction2.id, transaction2)
-
-        _ <- underTest.useStateAt(blockId2)(state => state.registrations.get(stakingAddress).assertEquals(None))
-
-        // Double check that UnapplyBlock works
-        _ <- underTest.useStateAt(bigBangId)(state =>
-          state.registrations
-            .getOrRaise(stakingAddress)
-            .assertEquals(
-              bigBangBlockTransaction.outputs(0).value.getRegistration.registration
-            )
+          state.stakers.get(registration.address).assertEquals(ActiveStaker(registration, 5).some)
         )
       } yield ()
     }

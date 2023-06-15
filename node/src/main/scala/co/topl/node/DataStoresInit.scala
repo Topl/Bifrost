@@ -78,7 +78,7 @@ object DataStoresInit {
         F,
         StakingAddress,
         StakingAddress,
-        SignatureKesProduct
+        ActiveStaker
       ](dataDir)(
         "registrations",
         appConfig.bifrost.cache.registrations,
