@@ -70,20 +70,6 @@ object ConsensusDataEventSourcedState {
         _ <- addedRegistrations.traverseTap(r => state.stakers.put(r.registration.address, r))
       } yield state
 
-    private def activeQuantityOf(values: Seq[Value]) =
-      values
-        .flatMap(_.value.topl)
-        .filter(_.registration.nonEmpty)
-        .map(_.quantity.value.toByteArray)
-        .foldMap(BigInt(_))
-
-    private def inactiveQuantityOf(values: Seq[Value]) =
-      values
-        .flatMap(_.value.topl)
-        .filter(_.registration.isEmpty)
-        .map(_.quantity.value.toByteArray)
-        .foldMap(BigInt(_))
-
     private def removedStakersOf(transaction: IoTransaction): List[ActiveStaker] =
       transaction.inputs
         .flatMap(_.value.value.topl)
@@ -121,20 +107,6 @@ object ConsensusDataEventSourcedState {
         _ <- removedStakers.traverseTap(r => state.stakers.put(r.registration.address, r))
       } yield state
 
-    private def activeQuantityOf(values: Seq[Value]) =
-      values
-        .flatMap(_.value.topl)
-        .filter(_.registration.nonEmpty)
-        .map(_.quantity.value.toByteArray)
-        .foldMap(BigInt(_))
-
-    private def inactiveQuantityOf(values: Seq[Value]) =
-      values
-        .flatMap(_.value.topl)
-        .filter(_.registration.isEmpty)
-        .map(_.quantity.value.toByteArray)
-        .foldMap(BigInt(_))
-
     private def removedStakersOf(transaction: IoTransaction): List[ActiveStaker] =
       transaction.inputs.reverse
         .flatMap(_.value.value.topl)
@@ -148,4 +120,18 @@ object ConsensusDataEventSourcedState {
         .toList
 
   }
+
+  private def activeQuantityOf(values: Seq[Value]) =
+    values
+      .flatMap(_.value.topl)
+      .filter(_.registration.nonEmpty)
+      .map(_.quantity.value.toByteArray)
+      .foldMap(BigInt(_))
+
+  private def inactiveQuantityOf(values: Seq[Value]) =
+    values
+      .flatMap(_.value.topl)
+      .filter(_.registration.isEmpty)
+      .map(_.quantity.value.toByteArray)
+      .foldMap(BigInt(_))
 }
