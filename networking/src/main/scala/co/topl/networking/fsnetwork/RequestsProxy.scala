@@ -333,7 +333,7 @@ object RequestsProxy {
   ): F[(State[F], Response[F])] =
     // TODO add cache for invalid block thus no longer accept blocks with that particular id
     state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectBlock(source)) >>
-      (state, state).pure[F]
+    (state, state).pure[F]
 
   // Send to block checker first available body for checking,
   // i.e. successfully downloaded body with already stored parent.
