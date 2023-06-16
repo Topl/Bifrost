@@ -128,7 +128,7 @@ object PeersManager {
         case (state, checker: SetupBlockChecker[F] @unchecked)     => setupBlockChecker(state, checker.blockChecker)
         case (state, checker: SetupRequestsProxy[F] @unchecked)    => setupRequestsProxy(state, checker.requestsProxy)
         case (state, agr: SetupReputationAggregator[F] @unchecked) => setupRepAggregator(state, agr.aggregator)
-        case (state, update: UpdatePeerStatus)                     => updatePeerStatus(state, update)
+        case (state, update: UpdatePeerStatus)                     => updatePeerStatus(thisActor, state, update)
         case (state, BlockHeadersRequest(hostId, blocks))          => blockHeadersRequest(state, hostId, blocks)
         case (state, BlockBodyRequest(hostId, blockHeaders))       => blockDownloadRequest(state, hostId, blockHeaders)
         case (state, GetCurrentTips)                               => getCurrentTips(state)
@@ -224,19 +224,34 @@ object PeersManager {
     (newState, newState).pure[F]
   }
 
-  private def updatePeerStatus[F[_]: Applicative](
+  private def updatePeerStatus[F[_]: Async: Logger](
+    thisActor: PeersManagerActor[F],
     state:     State[F],
     newStatus: UpdatePeerStatus
   ): F[(State[F], Response[F])] = {
     val hostId: HostId = newStatus.hostId
 
-    val peer: Peer[F] = state.peers.getOrElse(hostId, createNewPeer(state, hostId))
+    if (newStatus.newState != PeerState.Banned) {
+      val peer: Peer[F] = state.peers.getOrElse(hostId, createNewPeer(state, hostId))
+      for {
+        _ <- peer.sendNoWait(PeerActor.Message.UpdateState(newStatus.newState))
+        newPeers = state.peers + (hostId -> peer)
+        newState = state.copy(peers = newPeers)
 
-    for {
-      _ <- peer.sendNoWait(PeerActor.Message.UpdateState(newStatus.newState))
-      newPeers = state.peers + (hostId -> peer)
-      newState = state.copy(peers = newPeers)
-    } yield (newState, newState)
+      } yield (newState, newState)
+    } else {
+      val newState = state.copy(peers = state.peers - hostId)
+
+      val releaseAction =
+        for {
+          peer      <- state.peers.get(hostId)
+          peerActor <- peer.actorOpt
+        } yield peerActor.sendNoWait(PeerActor.Message.UpdateState(PeerState.Banned)) >> thisActor.releaseActor(
+          peerActor
+        )
+
+      releaseAction.getOrElse(().pure[F]) >> (newState, newState).pure[F]
+    }
   }
 
   private def createNewPeer[F[_]](state: State[F], hostId: HostId): Peer[F] = ???

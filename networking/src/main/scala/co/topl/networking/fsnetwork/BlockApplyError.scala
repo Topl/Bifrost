@@ -11,7 +11,7 @@ object BlockApplyError {
 
   object HeaderApplyException {
 
-    case class HeaderValidationException(blockId: BlockId, error: BlockHeaderValidationFailure)
+    case class HeaderValidationException(blockId: BlockId, source: HostId, error: BlockHeaderValidationFailure)
         extends HeaderApplyException
 
     case class UnknownError(ex: Throwable) extends HeaderApplyException {
@@ -29,7 +29,7 @@ object BlockApplyError {
 
   object BodyApplyException {
 
-    case class BodyValidationException(blockId: BlockId, errors: NonEmptyChain[BodyValidationError])
+    case class BodyValidationException(blockId: BlockId, source: HostId, errors: NonEmptyChain[BodyValidationError])
         extends BodyApplyException
 
     case class UnknownError(ex: Throwable) extends BodyApplyException {
