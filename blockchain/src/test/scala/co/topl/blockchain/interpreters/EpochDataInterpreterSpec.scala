@@ -123,7 +123,7 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
                 TestStore.make[F, Unit, BigInt].flatTap(_.put((), 40)),
                 TestStore.make[F, Unit, BigInt].flatTap(_.put((), 0))
               )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(null, _, _, null))
+                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
                 .flatMap(f)
             }
           _ = (consensusDataEss
@@ -135,7 +135,7 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
                 TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20)),
                 TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20))
               )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(null, _, _, null))
+                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
                 .flatMap(f)
             }
           _ = (consensusDataEss
@@ -147,7 +147,7 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
                 TestStore.make[F, Unit, BigInt].flatTap(_.put((), 30)),
                 TestStore.make[F, Unit, BigInt].flatTap(_.put((), 10))
               )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(null, _, _, null))
+                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
                 .flatMap(f)
             }
           ess <- EpochDataEventSourcedState.make[F](

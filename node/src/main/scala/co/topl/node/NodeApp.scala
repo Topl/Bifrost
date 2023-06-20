@@ -430,7 +430,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         currentEventIdGetterSetters.consensusData.set,
         ConsensusDataEventSourcedState
           .ConsensusData(
-            dataStores.operatorStakes,
             dataStores.activeStake,
             dataStores.inactiveStake,
             dataStores.registrations

@@ -50,7 +50,7 @@ object FS2P2PServer {
           .fromOption[F](Port.fromInt(port))
           .getOrRaise(new IllegalArgumentException("Invalid bindPort"))
           .toResource
-    } yield Network[F].server(parsedHost.some, parsedPort.some)
+    } yield Network.forAsync[F].server(parsedHost.some, parsedPort.some)
 
   private def server[F[_]: Async](sockets: Stream[F, Socket[F]])(
     peerChangesTopic: Topic[F, PeerConnectionChange],
@@ -103,7 +103,7 @@ object FS2P2PServer {
               .fromOption[F](Port.fromInt(disconnected.remoteAddress.port))
               .getOrRaise(new IllegalArgumentException("Invalid destinationPort"))
               .toResource
-            socket <- Network[F].client(SocketAddress(host, port))
+            socket <- Network.forAsync[F].client(SocketAddress(host, port))
             connected = ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate)
             _      <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(connected)).toResource
             result <- peerHandler(connected, socket).attempt

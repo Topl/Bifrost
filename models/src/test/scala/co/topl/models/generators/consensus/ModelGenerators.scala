@@ -68,6 +68,14 @@ trait ModelGenerators {
       )
     )
 
+  implicit val arbitraryStakingRegistration: Arbitrary[StakingRegistration] =
+    Arbitrary(
+      for {
+        address   <- arbitraryStakingAddress.arbitrary
+        signature <- signatureKesProductArbitrary.arbitrary
+      } yield StakingRegistration(address, signature)
+    )
+
   // Verifications
   def vkVrfEd25519Gen: Gen[ByteString] =
     genSizedStrictByteString[Lengths.`32`.type]().map(_.data)

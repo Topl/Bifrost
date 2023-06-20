@@ -301,9 +301,9 @@ object BlockHeaderValidation {
       header: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
-        commitment <-
+        staker <-
           EitherT.fromOptionF(
-            consensusValidationState.operatorRegistration(header.id, header.slot)(header.address),
+            consensusValidationState.staker(header.id, header.slot)(header.address),
             BlockHeaderValidationFailures.Unregistered(header.address)
           )
         message <- EitherT.liftF(
@@ -318,7 +318,7 @@ object BlockHeaderValidation {
           kesProductResource
             .use(p =>
               Sync[F].delay(
-                p.verify(commitment, message.toArray, header.operationalCertificate.parentVK.copy(step = 0))
+                p.verify(staker.registration.signature, message, header.operationalCertificate.parentVK.copy(step = 0))
               )
             )
         )
@@ -327,7 +327,11 @@ object BlockHeaderValidation {
             isValid,
             (),
             BlockHeaderValidationFailures
-              .RegistrationCommitmentMismatch(commitment, header.eligibilityCertificate.vrfVK, header.address)
+              .RegistrationCommitmentMismatch(
+                staker.registration.signature,
+                header.eligibilityCertificate.vrfVK,
+                header.address
+              )
           )
           .leftWiden[BlockHeaderValidationFailure]
       } yield header

@@ -1,7 +1,6 @@
 package co.topl.ledger.interpreters
 
 import cats.effect.IO
-import cats.effect.implicits._
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.box.Value

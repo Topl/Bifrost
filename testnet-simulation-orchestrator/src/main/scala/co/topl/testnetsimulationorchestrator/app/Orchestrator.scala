@@ -3,7 +3,7 @@ package co.topl.testnetsimulationorchestrator.app
 import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
-import cats.effect.std.Random
+import cats.effect.std.{Random, SecureRandom}
 import cats.implicits._
 import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
 import co.topl.brambl.models.TransactionId
@@ -22,7 +22,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.NodeGrpc
 import co.topl.typeclasses.implicits._
-
 import scala.concurrent.duration._
 
 object Orchestrator
@@ -225,7 +224,7 @@ object Orchestrator
     for {
       // Assemble a base wallet of available UTxOs
       _                            <- Logger[F].info(show"Initializing wallet")
-      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       // Combine the Node RPCs into one interface
       client <- MultiNodeRpc.make[F, List](nodes.values.toList)
       wallet <- ToplRpcWalletInitializer
