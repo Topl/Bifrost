@@ -29,7 +29,7 @@ object DataStoresInit {
       dataDir <- Resource.pure[F, Path](
         Path(appConfig.bifrost.data.directory) / bigBangBlock.header.id.show
       )
-      _ <- Resource.eval(Files[F].createDirectories(dataDir))
+      _ <- Resource.eval(Files.forAsync[F].createDirectories(dataDir))
       _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
       parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir)(
         "parent-child-tree",
