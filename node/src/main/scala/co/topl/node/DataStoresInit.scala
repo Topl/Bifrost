@@ -2,12 +2,10 @@ package co.topl.node
 
 import cats._
 import cats.data.NonEmptySet
-import cats.effect.Async
-import cats.effect.Resource
+import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.blockchain.CurrentEventIdGetterSetters
-import co.topl.blockchain.DataStores
+import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -18,10 +16,10 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
 import co.topl.node.models._
+import co.topl.proto.node.EpochData
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
-import fs2.io.file.Files
-import fs2.io.file.Path
+import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 
 object DataStoresInit {
@@ -74,12 +72,13 @@ object DataStoresInit {
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
-      activeStakeStore <- makeDb[F, Unit, BigInt](dataDir)("active-stake")
+      activeStakeStore   <- makeDb[F, Unit, BigInt](dataDir)("active-stake")
+      inactiveStakeStore <- makeDb[F, Unit, BigInt](dataDir)("inactive-stake")
       registrationsStore <- makeCachedDb[
         F,
         StakingAddress,
         StakingAddress,
-        SignatureKesProduct
+        ActiveStaker
       ](dataDir)(
         "registrations",
         appConfig.bifrost.cache.registrations,
@@ -88,6 +87,11 @@ object DataStoresInit {
       blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir)(
         "block-heights",
         appConfig.bifrost.cache.blockHeightTree,
+        Long.box
+      )
+      epochDataStore <- makeCachedDb[F, Long, java.lang.Long, EpochData](dataDir)(
+        "epoch-data",
+        appConfig.bifrost.cache.epochData,
         Long.box
       )
 
@@ -103,8 +107,10 @@ object DataStoresInit {
         epochBoundariesStore,
         operatorStakesStore,
         activeStakeStore,
+        inactiveStakeStore,
         registrationsStore,
-        blockHeightTreeStore
+        blockHeightTreeStore,
+        epochDataStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
@@ -143,7 +149,8 @@ object DataStoresInit {
             CurrentEventIdGetterSetters.Indices.EpochBoundaries,
             CurrentEventIdGetterSetters.Indices.BlockHeightTree,
             CurrentEventIdGetterSetters.Indices.BoxState,
-            CurrentEventIdGetterSetters.Indices.Mempool
+            CurrentEventIdGetterSetters.Indices.Mempool,
+            CurrentEventIdGetterSetters.Indices.EpochData
           ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
         )
       _ <- dataStores.slotData.put(
@@ -160,6 +167,8 @@ object DataStoresInit {
       )
       _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)
       _ <- dataStores.activeStake.contains(()).ifM(Applicative[F].unit, dataStores.activeStake.put((), 0))
+      _ <- dataStores.inactiveStake.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStake.put((), 0))
+      _ <- dataStores.epochData.put(0, EpochData.defaultInstance)
     } yield ()
 
 }

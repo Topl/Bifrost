@@ -1,10 +1,10 @@
 package co.topl.networking.fsnetwork
 
+import cats.MonadThrow
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.kernel.{Async, Fiber}
 import cats.effect.{Resource, Spawn}
 import cats.implicits._
-import cats.{Applicative, MonadThrow}
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
@@ -71,19 +71,24 @@ object PeerBlockHeaderFetcher {
     blockIdTree:   ParentChildTree[F, BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState = State(hostId, client, blockChecker, requestsProxy, localChain, slotDataStore, blockIdTree, None)
-    Actor.make(initialState, getFsm[F])
+    Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
   }
 
-  private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
-    require(state.fetchingFiber.isEmpty)
+  private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
+    stopActor(state).void
 
-    for {
-      _                 <- Logger[F].info(show"Start block header actor for host ${state.hostId}")
-      newBlockIdsStream <- state.client.remotePeerAdoptions
-      fiber             <- Spawn[F].start(slotDataFetcher(state, newBlockIdsStream).compile.drain)
-      newState = state.copy(fetchingFiber = Option(fiber))
-    } yield (newState, newState)
-  }
+  private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    if (state.fetchingFiber.isEmpty) {
+      for {
+        _                 <- Logger[F].info(show"Start block header actor for host ${state.hostId}")
+        newBlockIdsStream <- state.client.remotePeerAdoptions
+        fiber             <- Spawn[F].start(slotDataFetcher(state, newBlockIdsStream).compile.drain)
+        newState = state.copy(fetchingFiber = Option(fiber))
+      } yield (newState, newState)
+    } else {
+      Logger[F].info(show"Ignore starting block header actor for host ${state.hostId}") >>
+      (state, state).pure[F]
+    }
 
   private def slotDataFetcher[F[_]: Async: Logger](
     state:             State[F],
@@ -255,10 +260,17 @@ object PeerBlockHeaderFetcher {
     state.requestsProxy.sendNoWait(message)
   }
 
-  private def stopActor[F[_]: Applicative](state: State[F]): F[(State[F], Response[F])] = {
-    state.fetchingFiber.map(_.cancel)
-    val newState = state.copy(fetchingFiber = None)
-    (newState, newState).pure[F]
-  }
+  private def stopActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    state.fetchingFiber
+      .map { fiber =>
+        val newState = state.copy(fetchingFiber = None)
+        Logger[F].info(s"Stop block header fetcher fiber for host ${state.hostId}") >>
+        fiber.cancel >>
+        (newState, newState).pure[F]
+      }
+      .getOrElse {
+        Logger[F].info(s"Ignoring stopping block header fetcher fiber for host ${state.hostId}") >>
+        (state, state).pure[F]
+      }
 
 }

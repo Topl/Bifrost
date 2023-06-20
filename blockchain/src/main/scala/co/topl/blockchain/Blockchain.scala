@@ -8,6 +8,7 @@ import cats.effect._
 import cats.effect.std.Random
 import cats.implicits._
 import co.topl.algebras._
+import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
@@ -33,6 +34,7 @@ import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
 
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -57,7 +59,9 @@ object Blockchain {
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
-    experimentalP2P:           Boolean = false
+    experimentalP2P:           Boolean = false,
+    _epochData:                EpochDataAlgebra[F],
+    pingPongInterval:          FiniteDuration
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -86,7 +90,8 @@ object Blockchain {
             dataStores.headers,
             dataStores.bodies,
             dataStores.transactions,
-            blockIdTree
+            blockIdTree,
+            pingPongInterval
           )
         } else {
           Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
@@ -159,7 +164,9 @@ object Blockchain {
           blockHeights,
           blockIdTree,
           droppingBlockAdoptionsTopic.subscribeUnbounded,
-          nodeProtocolConfiguration
+          nodeProtocolConfiguration,
+          _epochData,
+          clock
         )
       )
       nodeGrpcService <- NodeGrpc.Server.service[F](rpcInterpreter)

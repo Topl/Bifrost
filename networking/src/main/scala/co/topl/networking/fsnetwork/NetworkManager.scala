@@ -14,6 +14,8 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 
+import scala.concurrent.duration.FiniteDuration
+
 object NetworkManager {
 
   def startNetwork[F[_]: Logger](
@@ -30,7 +32,8 @@ object NetworkManager {
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
-    initialHosts:                List[HostId]
+    initialHosts:                List[HostId],
+    pingPongInterval:            FiniteDuration
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _ <- Resource.liftK(Logger[F].info("Start actors network"))
@@ -40,7 +43,8 @@ object NetworkManager {
         slotDataStore,
         transactionStore,
         blockIdTree,
-        headerToBodyValidation
+        headerToBodyValidation,
+        pingPongInterval
       )
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager)
       requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)

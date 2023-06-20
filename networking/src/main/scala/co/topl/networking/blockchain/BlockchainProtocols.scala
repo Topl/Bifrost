@@ -7,7 +7,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotData
 import co.topl.networking.typedprotocols.NotificationProtocol
 import co.topl.networking.typedprotocols.RequestResponseProtocol
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes}
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
 
 /**
  * Defines the various Typed Protocols which are used for the purposes of exchanging blockchain data between
@@ -81,4 +81,9 @@ object BlockchainProtocols {
    * Requests known hosts from remote peer
    */
   object KnownHosts extends RequestResponseProtocol[CurrentKnownHostsReq, CurrentKnownHostsRes]
+
+  /**
+   * Request pong message from remote peer
+   */
+  object PingPong extends RequestResponseProtocol[PingMessage, PongMessage]
 }

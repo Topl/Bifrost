@@ -7,7 +7,9 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
+import co.topl.models.Epoch
 import co.topl.node.models._
+import co.topl.proto.node.EpochData
 import fs2.io.file.Path
 
 case class DataStores[F[_]](
@@ -22,8 +24,10 @@ case class DataStores[F[_]](
   epochBoundaries: Store[F, Long, BlockId],
   operatorStakes:  Store[F, StakingAddress, BigInt],
   activeStake:     Store[F, Unit, BigInt],
-  registrations:   Store[F, StakingAddress, SignatureKesProduct],
-  blockHeightTree: Store[F, Long, BlockId]
+  inactiveStake:   Store[F, Unit, BigInt],
+  registrations:   Store[F, StakingAddress, ActiveStaker],
+  blockHeightTree: Store[F, Long, BlockId],
+  epochData:       Store[F, Epoch, EpochData]
 )
 
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {
@@ -47,6 +51,8 @@ class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockI
   val mempool: CurrentEventIdGetterSetters.GetterSetter[F] =
     CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.Mempool)
 
+  val epochData: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.EpochData)
 }
 
 object CurrentEventIdGetterSetters {
@@ -71,5 +77,6 @@ object CurrentEventIdGetterSetters {
     val BlockHeightTree: Byte = 3
     val BoxState: Byte = 4
     val Mempool: Byte = 5
+    val EpochData: Byte = 6
   }
 }

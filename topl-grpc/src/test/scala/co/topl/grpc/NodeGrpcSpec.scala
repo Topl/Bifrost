@@ -14,7 +14,7 @@ import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.node.services._
-import co.topl.proto.node.NodeConfig
+import co.topl.proto.node.{EpochData, NodeConfig}
 import fs2.Stream
 import io.grpc.Metadata
 import munit.CatsEffectSuite
@@ -164,6 +164,28 @@ class NodeGrpcSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         _ <- assertIO(
           underTest.fetchNodeConfig(FetchNodeConfigReq(), new Metadata()).compile.toList,
           List(FetchNodeConfigRes(nodeConfig.head), FetchNodeConfigRes(nodeConfig.tail.head))
+        )
+      } yield ()
+    }
+
+  }
+
+  test("FetchEpochData can be retrieved") {
+
+    withMock {
+      val interpreter = mock[NodeRpc[F, Stream[F, *]]]
+      val underTest = new NodeGrpc.Server.GrpcServerImpl[F](interpreter)
+      val epochData = EpochData.defaultInstance
+
+      (interpreter.fetchEpochData _)
+        .expects(0L.some)
+        .once()
+        .returning(epochData.some.pure[F])
+
+      for {
+        _ <- assertIO(
+          underTest.fetchEpochData(FetchEpochDataReq(epoch = 0L.some), new Metadata()),
+          FetchEpochDataRes(epochData.some)
         )
       } yield ()
     }
