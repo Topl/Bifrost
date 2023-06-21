@@ -10,7 +10,7 @@ object Dependencies {
   val fs2Version = "3.7.0"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.19"
-  val ioGrpc = "1.55.1"
+  val ioGrpcVersion = "1.55.1"
   val protobufSpecsVersion = "e03a093" // scala-steward:off
   val bramblScVersion = "d5bc746" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
@@ -130,7 +130,7 @@ object Dependencies {
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
 
-  val grpcServices = "io.grpc" % "grpc-services" % ioGrpc
+  val grpcServices = "io.grpc" % "grpc-services" % ioGrpcVersion
 
   val node: Seq[ModuleID] =
     Seq(
@@ -242,7 +242,7 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % ioGrpc,
+      "io.grpc" % "grpc-netty-shaded" % ioGrpcVersion,
       grpcServices
     )
 
