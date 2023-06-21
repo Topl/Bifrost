@@ -10,6 +10,7 @@ object Dependencies {
   val fs2Version = "3.7.0"
   val logback = "1.4.7"
   val orientDbVersion = "3.2.19"
+  val ioGrpcVersion = "1.55.1"
   val protobufSpecsVersion = "e03a093" // scala-steward:off
   val bramblScVersion = "d5bc746" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
@@ -129,6 +130,8 @@ object Dependencies {
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
 
+  val grpcServices = "io.grpc" % "grpc-services" % ioGrpcVersion
+
   val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
@@ -141,10 +144,8 @@ object Dependencies {
     logging ++
     monocle ++
     monitoring ++
-    mUnitTestBase.map(_ % IntegrationTest) ++
-    Seq(
-      "io.grpc" % "grpc-services" % "1.55.1"
-    )
+    mUnitTestBase ++
+    Seq(grpcServices)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -241,8 +242,8 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.55.1",
-      "io.grpc" % "grpc-services"     % "1.55.1"
+      "io.grpc" % "grpc-netty-shaded" % ioGrpcVersion,
+      grpcServices
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
@@ -273,6 +274,6 @@ object Dependencies {
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
 
-  lazy val byzantineTests: Seq[ModuleID] =
-    (mUnitTestBase :+ dockerClient).map(_ % IntegrationTest)
+  lazy val byzantineIt: Seq[ModuleID] =
+    (mUnitTestBase :+ dockerClient).map(_ % Test)
 }

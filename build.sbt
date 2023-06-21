@@ -155,7 +155,6 @@ lazy val bifrost = project
     publish / skip := true,
     crossScalaVersions := Nil
   )
-  .configs(IntegrationTest)
   .aggregate(
     node,
     typeclasses,
@@ -191,7 +190,6 @@ lazy val node = project
     assemblySettings("co.topl.node.NodeApp"),
     assemblyJarName := s"bifrost-node-${version.value}.jar",
     nodeDockerSettings,
-    Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.node.NodeApp"),
     publish / skip := true,
@@ -199,9 +197,7 @@ lazy val node = project
     buildInfoPackage := "co.topl.buildinfo.node",
     libraryDependencies ++= Dependencies.node
   )
-  .configs(IntegrationTest)
   .settings(
-    IntegrationTest / parallelExecution := false,
     classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat // required for correct loading https://github.com/kamon-io/sbt-kanela-runner
   )
   .dependsOn(
@@ -221,17 +217,6 @@ lazy val node = project
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
 
-lazy val nodeIt = project
-  .in(file("node-it"))
-  .settings(
-    name := "node-it",
-    commonSettings,
-    crossScalaVersions := Seq(scala213)
-  )
-  .dependsOn(
-    node,
-    transactionGenerator % "test->compile"
-  )
 
 lazy val networkDelayer = project
   .in(file("network-delayer"))
@@ -242,17 +227,12 @@ lazy val networkDelayer = project
     assemblySettings("co.topl.networkdelayer.NetworkDelayer"),
     assemblyJarName := s"network-delayer-${version.value}.jar",
     networkDelayerDockerSettings,
-    Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.networkdelayer.NetworkDelayer"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.networkdelayer",
     libraryDependencies ++= Dependencies.networkDelayer
-  )
-  .configs(IntegrationTest)
-  .settings(
-    IntegrationTest / parallelExecution := false
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
@@ -267,7 +247,6 @@ lazy val testnetSimulationOrchestrator = project
     assemblySettings("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
     assemblyJarName := s"testnet-simulation-orchestrator-${version.value}.jar",
     testnetSimulationOrchestratorDockerSettings,
-    Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
     publish / skip := true,
@@ -659,18 +638,31 @@ lazy val munitScalamock = project
     libraryDependencies ++= Dependencies.munitScalamock
   )
 
-lazy val byzantineTests = project
-  .in(file("byzantine-tests"))
+lazy val nodeIt = project
+  .in(file("node-it"))
   .settings(
-    name := "byzantine-tests",
+    name := "node-it",
     commonSettings,
-    Defaults.itSettings,
-    IntegrationTest / parallelExecution := false,
-    libraryDependencies ++= Dependencies.byzantineTests
+    crossScalaVersions := Seq(scala213)
   )
-  .configs(IntegrationTest)
+  .dependsOn(
+    node,
+    transactionGenerator % "test->compile"
+  )
+
+lazy val byzantineIt = project
+  .in(file("byzantine-it"))
+  .settings(
+    name := "byzantine-it",
+    commonSettings,
+    Test / parallelExecution := false,
+    libraryDependencies ++= Dependencies.byzantineIt
+  )
   .dependsOn(node)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; IntegrationTest/compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; IntegrationTest/compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; IntegrationTest/compile")
+lazy val integration = (project in file("integration"))
+  .aggregate(nodeIt, byzantineIt)
+
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/compile")

@@ -68,7 +68,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Scala Integration Test Results (Java ${{ matrix.java }})
-          path: node/target/it-reports/*.xml
+          path: node-it/target/test-reports/*.xml
 
       - name: Cleanup before cache
         shell: bash

@@ -64,7 +64,7 @@ jobs:
           restore-keys: ${{ inputs.preserve-cache-between-runs && format('{0}-project-{1}-', runner.os, github.base_ref) || format('{0}-project-{1}-{2}', runner.os, github.base_ref, github.run_number) }}
 
       - name: Byzantine Tests
-        run: sbt ";node/Docker/publishLocal;byzantineTests/IntegrationTest/test"
+        run: sbt ";node/Docker/publishLocal;byzantineIt/test"
         env:
           DEBUG: ${{ inputs.debug-logging-enabled }}
 
@@ -75,13 +75,13 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Scala Byzantine Test Results (Java ${{ matrix.java }})
-          path: byzantine-tests/target/it-reports/*.xml
+          path: byzantine-it/target/test-reports/*.xml
       - name: Upload Test Logs
         if: always()
         uses: actions/upload-artifact@v3
         with:
           name: Scala Byzantine Test Logs (Java ${{ matrix.java }})
-          path: byzantine-tests/target/logs/*.log
+          path: byzantine-it/target/logs/*.log
       - name: Cleanup before cache
         shell: bash
         run: |
