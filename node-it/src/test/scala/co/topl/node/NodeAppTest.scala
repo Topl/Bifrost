@@ -15,7 +15,6 @@ import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.transactiongenerator.interpreters.Fs2TransactionGenerator
 import co.topl.transactiongenerator.interpreters.ToplRpcWalletInitializer
-import co.topl.typeclasses.implicits._
 import fs2._
 import fs2.io.file.Files
 import fs2.io.file.Path

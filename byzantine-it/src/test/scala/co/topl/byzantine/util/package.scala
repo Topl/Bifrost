@@ -1,4 +1,4 @@
-package co.topl.tetra.it
+package co.topl.byzantine
 
 import co.topl.algebras.ToplGenusRpc
 import com.spotify.docker.client.DockerClient
@@ -9,8 +9,8 @@ package object util {
   implicit def rpcToGenusRpcApi[F[_]](rpc: ToplGenusRpc[F]): GenusRpcApi[F] =
     new GenusRpcApi(rpc)
 
-  implicit def nodeToDockerApi(node: BifrostDockerTetraNode)(implicit
-    dockerClient: DockerClient
+  implicit def nodeToDockerApi(node: BifrostDockerNode)(implicit
+                                                        dockerClient: DockerClient
   ): NodeDockerApi =
     new NodeDockerApi(node.containerId)
 }

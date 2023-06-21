@@ -1,4 +1,4 @@
-package co.topl.tetra.it
+package co.topl.byzantine
 
 import cats.effect.IO
 import munit.CatsEffectSuite

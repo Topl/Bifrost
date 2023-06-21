@@ -1,9 +1,9 @@
-package co.topl.tetra.it
+package co.topl.byzantine
 
 import cats.effect.IO
 import cats.effect.implicits._
 import cats.implicits._
-import co.topl.tetra.it.util._
+import co.topl.byzantine.util._
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
 import co.topl.interpreters.NodeRpcOps._
