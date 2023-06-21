@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.effect.IO
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader

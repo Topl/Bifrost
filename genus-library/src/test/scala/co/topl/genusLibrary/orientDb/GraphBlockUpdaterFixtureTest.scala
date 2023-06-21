@@ -1,6 +1,5 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.effect.implicits.effectResourceOps
 import cats.implicits.toTraverseOps
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.transaction.IoTransaction

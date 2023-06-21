@@ -1,11 +1,9 @@
 package co.topl.consensus.interpreters
 
-import cats.MonadThrow
-import cats.Show
+import cats.{Monad, MonadThrow, Show}
 import cats.data.EitherT
 import cats.effect._
 import cats.implicits._
-import cats.effect.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.Store
 import co.topl.algebras.UnsafeResource
@@ -26,6 +24,7 @@ import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
+import co.topl.numerics.implicits._
 import co.topl.numerics.interpreters.ExpInterpreter
 import co.topl.numerics.interpreters.Log1pInterpreter
 import com.google.common.primitives.Longs
@@ -116,7 +115,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
   }
 
   test("invalidate blocks with non-forward slot") {
-    PropF.forAllF(genValid(u => u.copy(slot = 0L))) { case (parent, child, _: SignatureKesProduct, _: Eta, _: Ratio) =>
+    PropF.forAllF(genValid(u => u.copy(slot = 0L))) { case (parent, child, _, _: Eta, _: Ratio) =>
       withMock {
         val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
 
@@ -133,27 +132,26 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
 
   test("invalidate blocks with non-forward timestamp") {
     PropF
-      .forAllF(genValid(u => u.copy(timestamp = 0L))) {
-        case (parent, child, _: SignatureKesProduct, _: Eta, _: Ratio) =>
-          withMock {
-            val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
+      .forAllF(genValid(u => u.copy(timestamp = 0L))) { case (parent, child, _, _: Eta, _: Ratio) =>
+        withMock {
+          val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
 
-            createValidation(headerStore = headerStore)
-              .evalMap(
-                validateErrorValue(_)(child)(
-                  BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp)
-                )
+          createValidation(headerStore = headerStore)
+            .evalMap(
+              validateErrorValue(_)(child)(
+                BlockHeaderValidationFailures.NonForwardTimestamp(child.timestamp, parent.timestamp)
               )
-              .use_
-          }
+            )
+            .use_
+        }
       }
   }
 
   test("invalidate blocks with incorrect timestamp for slot") {
     PropF
       .forAllF(for {
-        slotError <- Gen.chooseNum[Long](Int.MinValue, Int.MaxValue).suchThat(_ != 0)
-        (parent, child, _: SignatureKesProduct, _: Eta, _: Ratio) <- genValid()
+        slotError                            <- Gen.chooseNum[Long](Int.MinValue, Int.MaxValue).suchThat(_ != 0)
+        (parent, child, _, _: Eta, _: Ratio) <- genValid()
       } yield (parent, child, slotError)) { case (parent, child, slotError) =>
         withMock {
           val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
@@ -194,7 +192,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
         forwardSlotWindow <- Gen.chooseNum[Long](1, Int.MaxValue)
         biasValue         <- Gen.chooseNum[Long](1, Int.MaxValue)
         slotFromFuture    <- Gen.chooseNum[Long](globalSlot + forwardSlotWindow + biasValue, Long.MaxValue)
-        (parent, child, _: SignatureKesProduct, _: Eta, _: Ratio) <- genValid(
+        (parent, child, _, _: Eta, _: Ratio) <- genValid(
           childHeader => childHeader.copy(slot = slotFromFuture),
           parentSlot = parentSlot
         )
@@ -281,7 +279,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
 
   test("invalidate blocks with a syntactically incorrect KES certificate") {
     PropF
-      .forAllF(genValid()) { case (parent, child, _: SignatureKesProduct, eta, _: Ratio) =>
+      .forAllF(genValid()) { case (parent, child, _, eta, _: Ratio) =>
         withMock {
           val etaInterpreter = mock[EtaCalculationAlgebra[F]]
           val clockAlgebra = createDummyClockAlgebra(child)
@@ -330,10 +328,10 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
           val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
 
           (consensusValidationState
-            .operatorRegistration(_: BlockId, _: Slot)(_: StakingAddress))
+            .staker(_: BlockId, _: Slot)(_: StakingAddress))
             .expects(*, *, *)
             .once()
-            .returning(registration.some.pure[F])
+            .returning(ActiveStaker(registration, 5).some.pure[F])
 
           (etaInterpreter
             .etaToBe(_: SlotId, _: Slot))
@@ -369,10 +367,10 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
           val headerStore = simpleHeaderStore(child.parentHeaderId, parent)
 
           (consensusValidationState
-            .operatorRegistration(_: BlockId, _: Slot)(_: StakingAddress))
+            .staker(_: BlockId, _: Slot)(_: StakingAddress))
             .expects(*, *, *)
             .once()
-            .returning(registration.some.pure[F])
+            .returning(ActiveStaker(registration, 0).some.pure[F])
 
           (etaInterpreter
             .etaToBe(_: SlotId, _: Slot))
@@ -381,8 +379,8 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
             .returning(eta.pure[F])
 
           (consensusValidationState
-            .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
-            .expects(*, *, *)
+            .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
+            .expects(*, *, *, *)
             .once()
             .returning(Ratio.Zero.some.pure[F])
 
@@ -416,10 +414,10 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
           val eligibilityCache = mock[EligibilityCacheAlgebra[F]]
 
           (consensusValidationState
-            .operatorRegistration(_: BlockId, _: Slot)(_: StakingAddress))
+            .staker(_: BlockId, _: Slot)(_: StakingAddress))
             .expects(*, *, *)
             .once()
-            .returning(registration.some.pure[F])
+            .returning(ActiveStaker(registration, relativeStake.numerator).some.pure[F])
 
           (etaInterpreter
             .etaToBe(_: SlotId, _: Slot))
@@ -428,8 +426,8 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
             .returning(eta.pure[F])
 
           (consensusValidationState
-            .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
-            .expects(*, *, *)
+            .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
+            .expects(*, *, *, *)
             .once()
             .returning(relativeStake.some.pure[F])
 
@@ -471,10 +469,10 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
           val eligibilityCache = mock[EligibilityCacheAlgebra[F]]
 
           (consensusValidationState
-            .operatorRegistration(_: BlockId, _: Slot)(_: StakingAddress))
+            .staker(_: BlockId, _: Slot)(_: StakingAddress))
             .expects(*, *, *)
             .once()
-            .returning(registration.some.pure[F])
+            .returning(ActiveStaker(registration, relativeStake.numerator).some.pure[F])
 
           (etaInterpreter
             .etaToBe(_: SlotId, _: Slot))
@@ -483,8 +481,8 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
             .returning(eta.pure[F])
 
           (consensusValidationState
-            .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
-            .expects(*, *, *)
+            .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
+            .expects(*, *, *, *)
             .once()
             .returning(relativeStake.some.pure[F])
 
@@ -573,7 +571,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
   private def genValid(
     preSign:    UnsignedBlockHeader => UnsignedBlockHeader = identity,
     parentSlot: Slot = 5000L
-  ): Gen[(BlockHeader, BlockHeader, SignatureKesProduct, Eta, Ratio)] =
+  ): Gen[(BlockHeader, BlockHeader, StakingRegistration, Eta, Ratio)] =
     for {
       parent      <- headerGen(slotGen = Gen.const[Long](parentSlot))
       txRoot      <- genSizedStrictByteString[Lengths.`32`.type]()
@@ -587,11 +585,13 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
       val stakingAddress = StakingAddress(poolVK)
       val vrfSecret = ByteString.copyFrom(vrfSecretBytes)
 
-      val registration = validRegistrationNew(
+      val registrationSignature = validRegistrationSignatureNew(
         ByteString.copyFrom(Ed25519VRF.precomputed().getVerificationKey(vrfSecretBytes)),
         stakingAddress,
         kesSK0
       )(new KesProduct)
+
+      val registration = StakingRegistration(stakingAddress, registrationSignature)
 
       val (eligibilityCertificate, slot) =
         validEligibilityCertificate(vrfSecret, sharedLeaderElectionInterpreter(), eta, relativeStake, parent.slot)
@@ -702,7 +702,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
 object BlockHeaderValidationSpec {
 
   // Note: These methods are in the companion object because `digest.Digest32#value` conflicts with a ScalaTest member
-  def validRegistrationNew(
+  def validRegistrationSignatureNew(
     vkVrf:  ByteString,
     poolVK: StakingAddress,
     skKes:  SecretKeyKesProduct

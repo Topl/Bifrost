@@ -1,17 +1,13 @@
 package co.topl.consensus.interpreters
 
-import cats.data.OptionT
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SignatureKesProduct
-import co.topl.consensus.models.StakingAddress
+import co.topl.consensus.models.{ActiveStaker, BlockId, StakingAddress}
 import co.topl.eventtree.EventSourcedState
 import co.topl.models._
-import co.topl.models.utility.Ratio
 
 object ConsensusValidationState {
 
@@ -31,21 +27,13 @@ object ConsensusValidationState {
   ): F[ConsensusValidationStateAlgebra[F]] =
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {
-        def operatorRelativeStake(currentBlockId: BlockId, slot: Slot)(address: StakingAddress): F[Option[Ratio]] =
-          useStateAtTargetBoundary(currentBlockId, slot)(consensusData =>
-            OptionT(consensusData.operatorStakes.get(address))
-              .semiflatMap(operatorStake =>
-                consensusData.totalActiveStake
-                  .getOrRaise(())
-                  .map(totalActiveStake => Ratio(operatorStake, totalActiveStake))
-              )
-              .value
-          )
+        def totalActiveStake(currentBlockId: BlockId, slot: Slot): F[BigInt] =
+          useStateAtTargetBoundary(currentBlockId, slot)(_.totalActiveStake.getOrRaise(()))
 
-        def operatorRegistration(currentBlockId: BlockId, slot: Slot)(
+        def staker(currentBlockId: BlockId, slot: Slot)(
           address: StakingAddress
-        ): F[Option[SignatureKesProduct]] =
-          useStateAtTargetBoundary(currentBlockId, slot)(_.registrations.get(address))
+        ): F[Option[ActiveStaker]] =
+          useStateAtTargetBoundary(currentBlockId, slot)(_.stakers.get(address))
 
         /**
          * Determines the N-2 epoch from the given block, then determines the final block ID of the N-2 epoch.  That

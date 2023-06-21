@@ -10,7 +10,7 @@ import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost}
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
 import co.topl.typeclasses.implicits._
 import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
 import co.topl.networking.p2p.ConnectedPeer
@@ -65,7 +65,7 @@ object BlockchainPeerServer {
             Async[F].delay(
               Stream
                 .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
-                .flatMap(Stream.iterable)
+                .flatMap(g => Stream.iterable(g.transactions.keys))
                 .append(newTransactionIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
             )
@@ -98,6 +98,9 @@ object BlockchainPeerServer {
 
             Option(CurrentKnownHostsRes(knownHostsStub, knownHostsStub, knownHostsStub)).pure[F]
           }
+
+          def getPong(req: PingMessage): F[Option[PongMessage]] =
+            Option(PongMessage(req.ping.reverse)).pure[F]
         }
       )
 }

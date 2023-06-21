@@ -7,6 +7,9 @@ import cats.{Monad, MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
+import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
+import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 
@@ -73,6 +76,12 @@ package object fsnetwork {
   implicit val showBodyValidationError: Show[BodyValidationError] =
     Show.fromToString
 
+  implicit val showPongMessage: Show[PingPongMessagePing] = {
+    case PingPongMessagePing(host, Right(delay))               => s"Received pong delay $delay from host $host"
+    case PingPongMessagePing(host, Left(NoPongMessage))        => s"Failed to receive pong message from host $host"
+    case PingPongMessagePing(host, Left(IncorrectPongMessage)) => s"Receive incorrect pong message from host $host"
+  }
+
   /**
    * Get some T from chain until reach terminateOn condition, f.e.
    * let assume we have chain:
@@ -125,8 +134,11 @@ package object fsnetwork {
         .map(NonEmptyChain.fromSeq)
     )
 
-  def dropKnownPrefix[F[_]: Async, I, T](data: Seq[(I, T)], store: Store[F, BlockId, T])(
+  def dropKnownPrefix[F[_]: Async, I, T, D](data: Seq[(I, D)], store: Store[F, BlockId, T])(
     iToId: I => BlockId
-  ): F[Option[NonEmptyChain[(I, T)]]] =
+  ): F[Option[NonEmptyChain[(I, D)]]] =
     data.dropWhileF(d => store.contains(iToId(d._1))).map(NonEmptyChain.fromSeq)
+
+  case class UnverifiedBlockHeader(source: HostId, blockHeader: BlockHeader)
+  case class UnverifiedBlockBody(source: HostId, blockBody: BlockBody)
 }

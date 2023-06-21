@@ -4,8 +4,10 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
+import co.topl.models.Epoch
 import co.topl.node.models.BlockBody
 import co.topl.proto.node.NodeConfig
+import co.topl.proto.node.EpochData
 
 /**
  * Node Rpc
@@ -31,4 +33,6 @@ trait NodeRpc[F[_], S[_]] {
 
   def synchronizationTraversal(): F[S[SynchronizationTraversalStep]]
   def fetchProtocolConfigs(): F[S[NodeConfig]]
+
+  def fetchEpochData(epoch: Option[Epoch]): F[Option[EpochData]]
 }

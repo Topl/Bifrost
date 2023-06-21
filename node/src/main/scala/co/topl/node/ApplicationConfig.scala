@@ -50,12 +50,13 @@ object ApplicationConfig {
 
     @Lenses
     case class P2P(
-      bindHost:     String,
-      bindPort:     Int,
-      publicHost:   String,
-      publicPort:   Int,
-      knownPeers:   List[DisconnectedPeer],
-      experimental: Option[Boolean]
+      bindHost:         String,
+      bindPort:         Int,
+      publicHost:       String,
+      publicPort:       Int,
+      knownPeers:       List[DisconnectedPeer],
+      experimental:     Option[Boolean],
+      pingPongInterval: Option[FiniteDuration] // Replace by proper config for P2P discovery
     )
 
     @Lenses
@@ -122,7 +123,8 @@ object ApplicationConfig {
       operatorStakes:  Cache.CacheConfig,
       registrations:   Cache.CacheConfig,
       blockHeightTree: Cache.CacheConfig,
-      eligibilities:   Cache.CacheConfig
+      eligibilities:   Cache.CacheConfig,
+      epochData:       Cache.CacheConfig
     )
 
     object Cache {

@@ -1,9 +1,9 @@
 package co.topl.transactiongenerator.interpreters
 
 import cats.Applicative
+import cats.data.OptionT
 import cats.effect._
 import cats.effect.std.Queue
-import cats.effect.std.Random
 import cats.implicits._
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Event
@@ -26,10 +26,11 @@ object Fs2TransactionGenerator {
    * updating the local wallet along the way.
    * @param wallet An initial wallet containing an initial set of spendable UTxOs
    */
-  def make[F[_]: Async: Random](
+  def make[F[_]: Async](
     wallet:        Wallet,
     parallelism:   Int,
-    maxWalletSize: Int
+    maxWalletSize: Int,
+    feeF:          BigInt => BigInt = _ => 0
   ): F[TransactionGenerator[F, Stream[F, *]]] =
     Sync[F].delay(
       new TransactionGenerator[F, Stream[F, *]] {
@@ -38,26 +39,29 @@ object Fs2TransactionGenerator {
           Queue
             // Create a queue of wallets to process.  The queue is "recursive" in that processing a wallet
             // will subsequently enqueue at least one new wallet after processing.
-            .unbounded[F, Wallet]
-            .flatTap(_.offer(wallet))
-            .map { queue =>
+            .unbounded[F, Option[Wallet]]
+            .flatTap(_.offer(wallet.some))
+            .map(queue =>
               Stream
-                .fromQueueUnterminated(queue)
-                .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_))
-                .evalMap { case (transaction, wallet) =>
-                  // Now that we've processed the old wallet, determine if the new wallet is big
-                  // enough to split in half.
-                  Sync[F]
-                    .delay(
-                      if (wallet.spendableBoxes.size > maxWalletSize) WalletSplitter.split(wallet, 2)
-                      else Vector(wallet)
-                    )
-                    // Enqueue the updated wallet(s)
-                    .flatTap(_.traverse(queue.offer))
-                    // And return the transaction
-                    .as(transaction)
+                .fromQueueNoneTerminated(queue)
+                .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_, feeF).value)
+                .evalMap {
+                  case Some((transaction, wallet)) =>
+                    // Now that we've processed the old wallet, determine if the new wallet is big
+                    // enough to split in half.
+                    Sync[F]
+                      .delay(
+                        if (wallet.spendableBoxes.size > maxWalletSize) WalletSplitter.split(wallet, 2)
+                        else Vector(wallet)
+                      )
+                      // Enqueue the updated wallet(s)
+                      .flatTap(_.map(_.some).traverse(queue.offer))
+                      // And return the transaction
+                      .as(transaction.some)
+                  case _ => queue.offer(None).as(none[IoTransaction])
                 }
-            }
+                .collect { case Some(tx) => tx }
+            )
       }
     )
 
@@ -66,64 +70,58 @@ object Fs2TransactionGenerator {
    * will spend a random input from the wallet and produce two new outputs
    */
   private def nextTransactionOf[F[_]: Async](
-    wallet: Wallet
-  ): F[(IoTransaction, Wallet)] =
-    for {
-      (inputBoxId, inputBox) <- pickInput[F](wallet)
-      predicate = Attestation.Predicate(inputBox.lock.getPredicate, Nil)
-      unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
-      inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
-      outputs   <- createOutputs[F](inputBox)
-      timestamp <- Async[F].realTimeInstant
-      schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
-      datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
-      unprovenTransaction = IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
-      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
-      provenTransaction = unprovenTransaction.copy(
-        inputs = unprovenTransaction.inputs.map(
-          _.copy(attestation =
-            Attestation(
-              Attestation.Value.Predicate(
-                predicate.copy(responses = List(proof))
+    wallet: Wallet,
+    feeF:   BigInt => BigInt
+  ): OptionT[F, (IoTransaction, Wallet)] =
+    pickInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
+      for {
+        predicate <- Attestation.Predicate(inputBox.lock.getPredicate, Nil).pure[F]
+        unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
+        inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
+        outputs   <- createOutputs[F](inputBox, feeF)
+        timestamp <- Async[F].realTimeInstant
+        schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
+        datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
+        unprovenTransaction = IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+        proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+        provenTransaction = unprovenTransaction.copy(
+          inputs = unprovenTransaction.inputs.map(
+            _.copy(attestation =
+              Attestation(
+                Attestation.Value.Predicate(
+                  predicate.copy(responses = List(proof))
+                )
               )
             )
           )
         )
-      )
-      updatedWallet = applyTransaction(wallet)(provenTransaction)
-    } yield (provenTransaction, updatedWallet)
+        updatedWallet = applyTransaction(wallet)(provenTransaction)
+      } yield (provenTransaction, updatedWallet)
+    }
 
   /**
    * Selects a spendable box from the wallet
    */
-  private def pickInput[F[_]: Applicative](wallet: Wallet): F[(TransactionOutputAddress, Box)] =
-    wallet.spendableBoxes.toList
-      .maxBy(_._2.value.getLvl.quantity: BigInt)
-      .pure[F]
+  private def pickInput[F[_]: Applicative](wallet: Wallet): OptionT[F, (TransactionOutputAddress, Box)] =
+    OptionT.fromOption[F](wallet.spendableBoxes.toList.maximumByOption(_._2.value.getLvl.quantity: BigInt))
 
   /**
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
    */
-  private def createOutputs[F[_]: Applicative](inputBox: Box): F[List[UnspentTransactionOutput]] = {
+  private def createOutputs[F[_]: Applicative](
+    inputBox: Box,
+    feeF:     BigInt => BigInt
+  ): F[List[UnspentTransactionOutput]] = {
     val lvlBoxValue = inputBox.value.getLvl
-    if (lvlBoxValue.quantity > BigInt(1)) {
-      val quantityOutput0 = lvlBoxValue.quantity / 2
-      val output0 = UnspentTransactionOutput(
-        HeightLockOneSpendingAddress,
-        Value().withLvl(Value.LVL(quantityOutput0))
-      )
-      val output1 = UnspentTransactionOutput(
-        HeightLockOneSpendingAddress,
-        Value().withLvl(Value.LVL(lvlBoxValue.quantity - quantityOutput0))
-      )
-      List(output0, output1)
+    val inQuantity: BigInt = lvlBoxValue.quantity
+    val spendableQuantity = inQuantity - feeF(inQuantity)
+    if (spendableQuantity > 0) {
+      val quantityOutput0 = spendableQuantity / 2
+      List(quantityOutput0, spendableQuantity - quantityOutput0)
+        .filter(_ > 0)
+        .map(quantity => UnspentTransactionOutput(HeightLockOneSpendingAddress, Value().withLvl(Value.LVL(quantity))))
     } else {
-      List(
-        UnspentTransactionOutput(
-          HeightLockOneSpendingAddress,
-          Value().withLvl(lvlBoxValue)
-        )
-      )
+      Nil
     }
   }
     .pure[F]

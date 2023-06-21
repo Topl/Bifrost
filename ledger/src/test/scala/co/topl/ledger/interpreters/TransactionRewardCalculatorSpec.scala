@@ -1,7 +1,6 @@
 package co.topl.ledger.interpreters
 
 import cats.effect.IO
-import cats.effect.implicits._
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.box.Attestation
 import co.topl.brambl.models.box.Value
@@ -21,8 +20,7 @@ class TransactionRewardCalculatorSpec extends CatsEffectSuite with ScalaCheckEff
     val testResource =
       for {
         underTest <- TransactionRewardCalculator.make[F]
-        rewards   <- underTest.rewardsOf(tx).toResource
-        _         <- IO(rewards.isEmpty).assert.toResource
+        _         <- underTest.rewardOf(tx).assertEquals(BigInt(0)).toResource
       } yield ()
 
     testResource.use_
@@ -44,9 +42,8 @@ class TransactionRewardCalculatorSpec extends CatsEffectSuite with ScalaCheckEff
     val testResource =
       for {
         underTest <- TransactionRewardCalculator.make[F]
-        rewards   <- underTest.rewardsOf(tx).toResource
-        expectedReward = Value(Value.Value.Lvl(Value.LVL(Int128(ByteString.copyFrom(BigInt(1200).toByteArray)))))
-        _ <- IO(rewards).assertEquals(Seq(expectedReward)).toResource
+        rewards   <- underTest.rewardOf(tx).toResource
+        _         <- IO(rewards).assertEquals(BigInt(1200)).toResource
       } yield ()
 
     testResource.use_
@@ -68,8 +65,7 @@ class TransactionRewardCalculatorSpec extends CatsEffectSuite with ScalaCheckEff
     val testResource =
       for {
         underTest <- TransactionRewardCalculator.make[F]
-        rewards   <- underTest.rewardsOf(tx).toResource
-        _         <- IO(rewards.isEmpty).assert.toResource
+        _         <- underTest.rewardOf(tx).assertEquals(BigInt(0)).toResource
       } yield ()
 
     testResource.use_

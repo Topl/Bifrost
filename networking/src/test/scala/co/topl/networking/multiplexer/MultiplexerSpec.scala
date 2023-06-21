@@ -2,7 +2,6 @@ package co.topl.networking.multiplexer
 
 import cats.data.NonEmptyChain
 import cats.effect.IO
-import cats.effect.implicits._
 import cats.effect.std.Queue
 import fs2._
 import munit.CatsEffectSuite

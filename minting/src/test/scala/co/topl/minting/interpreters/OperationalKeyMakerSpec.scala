@@ -1,10 +1,9 @@
 package co.topl.minting.interpreters
 
-import cats.Applicative
+import cats.{Applicative, Monad}
 import cats.data.Chain
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.typeclasses.Persistable
@@ -115,8 +114,8 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         }
 
       (consensusState
-        .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
-        .expects(*, *, *)
+        .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
+        .expects(*, *, *, *)
         .once()
         .returning(Ratio.One.some.pure[F])
 
@@ -220,8 +219,8 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         .returning(eta.pure[F])
 
       (consensusState
-        .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
-        .expects(*, *, *)
+        .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
+        .expects(*, *, *, *)
         .once()
         .returning(Ratio.One.some.pure[F])
 

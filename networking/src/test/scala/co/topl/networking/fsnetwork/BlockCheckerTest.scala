@@ -422,6 +422,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
           (headerValidation.validate _).expects(*).never()
 
+          val message = headers.map(UnverifiedBlockHeader(hostId, _))
           BlockChecker
             .makeActor(
               reputationAggregator,
@@ -438,7 +439,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             )
             .use { actor =>
               for {
-                _ <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(hostId, headers))
+                _ <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(message))
               } yield ()
             }
         }
@@ -464,6 +465,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
           (headerValidation.validate _).expects(*).never()
 
+          val message = headers.map(UnverifiedBlockHeader(hostId, _))
+
           BlockChecker
             .makeActor(
               reputationAggregator,
@@ -480,7 +483,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             )
             .use { actor =>
               for {
-                _ <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(hostId, headers))
+                _ <- actor.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(message))
               } yield ()
             }
         }
@@ -560,6 +563,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedHeaders)
           (requestsProxy.sendNoWait _).expects(expectedMessage).returning(().pure[F])
 
+          val message = headers.map(UnverifiedBlockHeader(hostId, _))
+
           BlockChecker
             .makeActor(
               reputationAggregator,
@@ -576,7 +581,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             )
             .use { actor =>
               for {
-                _ <- actor.send(BlockChecker.Message.RemoteBlockHeaders(hostId, headers))
+                _ <- actor.send(BlockChecker.Message.RemoteBlockHeaders(message))
                 _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
               } yield ()
             }
@@ -688,6 +693,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             RequestsProxy.Message.DownloadHeadersRequest(hostId, NonEmptyChain.fromSeq(nextHeaders).get)
           (requestsProxy.sendNoWait _).expects(nextHeaderMessage).once().returning(().pure[F])
 
+          val message = headers.map(UnverifiedBlockHeader(hostId, _))
+
           BlockChecker
             .makeActor(
               reputationAggregator,
@@ -706,7 +713,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             )
             .use { actor =>
               for {
-                _ <- actor.send(BlockChecker.Message.RemoteBlockHeaders(hostId, headers))
+                _ <- actor.send(BlockChecker.Message.RemoteBlockHeaders(message))
                 _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
               } yield ()
             }
@@ -790,8 +797,17 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val expectedHeaders = NonEmptyChain.fromSeq(idAndHeaders.toList.take(chunkSize).map(_._2)).get
           val expectedMessage: RequestsProxy.Message =
             RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedHeaders)
-          (requestsProxy.sendNoWait _).expects(expectedMessage).returning(().pure[F])
-          (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
+          (requestsProxy.sendNoWait _)
+            .expects(expectedMessage)
+            .returning(().pure[F])
+          (requestsProxy.sendNoWait _)
+            .expects(RequestsProxy.Message.InvalidateBlockId(hostId, newIdAndHeaders(1)._1))
+            .returning(().pure[F])
+          (requestsProxy.sendNoWait _)
+            .expects(RequestsProxy.Message.GetCurrentTips)
+            .returns(().pure[F])
+
+          val message = headers.map(UnverifiedBlockHeader(hostId, _))
 
           BlockChecker
             .makeActor(
@@ -810,7 +826,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             )
             .use { actor =>
               for {
-                state <- actor.send(BlockChecker.Message.RemoteBlockHeaders(hostId, headers))
+                state <- actor.send(BlockChecker.Message.RemoteBlockHeaders(message))
                 _ = assert(addedHeader.contains(newIdAndHeaders.head._1))
                 _ = assert(state.bestKnownRemoteSlotDataOpt.isEmpty)
                 _ = assert(state.bestKnownRemoteSlotDataHost.isEmpty)
@@ -842,7 +858,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val blocks: NonEmptyChain[Block] =
           ids.zipWith(bodies)((_, _)).map { case (header, body) => Block(header, body) }
 
-        val message = BlockChecker.Message.RemoteBlockBodies(hostId, blocks)
+        val message =
+          BlockChecker.Message.RemoteBlockBodies(blocks.map(d => (d.header, UnverifiedBlockBody(hostId, d.body))))
 
         (bodyStore.contains _).expects(*).rep(bodies.size.toInt).returning(true.pure[F])
 
@@ -893,7 +910,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] = headers.map(h => (h.id, h))
         val idAndBody = blocks.map(block => (block.header.id, block.body))
 
-        val message = BlockChecker.Message.RemoteBlockBodies(hostId, blocks)
+        val message =
+          BlockChecker.Message.RemoteBlockBodies(blocks.map(d => (d.header, UnverifiedBlockBody(hostId, d.body))))
 
         val knownBodiesSize = Gen.choose[Int](1, bodies.size.toInt - 1).first
         val (knownIdAndHeaders, newIdAndHeaders) = idAndBody.toList.splitAt(knownBodiesSize)
@@ -999,7 +1017,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val idAndHeader: NonEmptyChain[(BlockId, BlockHeader)] = headers.map(h => (h.id, h))
         val idAndBody = blocks.map(block => (block.header.id, block.body))
 
-        val message = BlockChecker.Message.RemoteBlockBodies(hostId, blocks)
+        val message =
+          BlockChecker.Message.RemoteBlockBodies(blocks.map(d => (d.header, UnverifiedBlockBody(hostId, d.body))))
 
         val knownBodiesSize = Gen.choose[Int](1, bodies.size.toInt - 1).first
         val (knownIdAndHeaders, newIdAndHeaders) = idAndBody.toList.splitAt(knownBodiesSize)
@@ -1138,7 +1157,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       val messageData = NonEmptyChain.fromSeq(requestIdSlotDataHeaderBlock.map(d => Block(d._3, d._4))).get
 
-      val message = BlockChecker.Message.RemoteBlockBodies(hostId, messageData)
+      val message =
+        BlockChecker.Message.RemoteBlockBodies(messageData.map(d => (d.header, UnverifiedBlockBody(hostId, d.body))))
 
       val knownBodyStorageData: mutable.Map[BlockId, BlockBody] =
         mutable.Map.empty[BlockId, BlockBody] ++ knownBody.toMap
@@ -1279,7 +1299,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         NonEmptyChain.fromSeq(requestIdSlotDataHeaderBlock.map(d => Block(d._3, d._4))).get
 
       val message =
-        BlockChecker.Message.RemoteBlockBodies(hostId, messageData)
+        BlockChecker.Message.RemoteBlockBodies(messageData.map(d => (d.header, UnverifiedBlockBody(hostId, d.body))))
 
       val knownBodyStorageData: mutable.Map[BlockId, BlockBody] =
         mutable.Map.empty[BlockId, BlockBody] ++ knownBody.toMap
@@ -1414,7 +1434,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         NonEmptyChain.fromSeq(requestIdSlotDataHeaderBlock.map(d => Block(d._3, d._4))).get
 
       val message =
-        BlockChecker.Message.RemoteBlockBodies(hostId, messageData)
+        BlockChecker.Message.RemoteBlockBodies(messageData.map(d => (d.header, UnverifiedBlockBody(hostId, d.body))))
 
       val knownBodyStorageData: mutable.Map[BlockId, BlockBody] =
         mutable.Map.empty[BlockId, BlockBody] ++ knownBody.toMap
@@ -1481,7 +1501,12 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (localChain.isWorseThan _).expects(lastAdoptedBlockSlotData).once().returning(true.pure[F])
       (localChain.adopt _).expects(Validated.Valid(lastAdoptedBlockSlotData)).once().returning(().pure[F])
 
-      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(RequestsProxy.Message.InvalidateBlockId(hostId, requestIdSlotDataHeaderBlock(1)._1))
+        .returns(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(RequestsProxy.Message.GetCurrentTips)
+        .returns(().pure[F])
 
       BlockChecker
         .makeActor(

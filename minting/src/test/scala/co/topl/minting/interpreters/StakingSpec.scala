@@ -1,8 +1,8 @@
 package co.topl.minting.interpreters
 
+import cats.Monad
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
-import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.{
@@ -60,8 +60,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .returning(eta.pure[F])
 
         (consensusState
-          .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress))
-          .expects(blockId, slot, address)
+          .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
+          .expects(blockId, slot, address, *)
           .once()
           .returning(relativeStake.some.pure[F])
 

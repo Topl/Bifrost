@@ -4,6 +4,7 @@ import cats.Show
 import cats.data._
 import cats.effect._
 import cats.effect.std.Random
+import cats.effect.std.SecureRandom
 import cats.implicits._
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
@@ -33,7 +34,7 @@ object TransactionGeneratorApp
   override def run: IO[Unit] =
     for {
       _                            <- Logger[F].info(show"Launching Transaction Generator with appConfig=$appConfig")
-      implicit0(random: Random[F]) <- Random.javaSecuritySecureRandom[F]
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       // Initialize gRPC Clients
       clientAddresses <- parseClientAddresses
       _               <- Logger[F].info(show"Initializing clients=$clientAddresses")

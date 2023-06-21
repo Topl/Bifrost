@@ -2,8 +2,7 @@ package co.topl.genusLibrary.algebras
 
 import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.BlockId
-import co.topl.genus.services.BlockchainSizeStats
-import co.topl.genus.services.TxoStats
+import co.topl.genus.services.{BlockStats, BlockchainSizeStats, TxoStats}
 import co.topl.genusLibrary.model.GE
 import com.tinkerpop.blueprints.Vertex
 
@@ -90,5 +89,11 @@ trait VertexFetcherAlgebra[F[_]] {
   def fetchTxoStats(): F[Either[GE, TxoStats]]
 
   def fetchBlockchainSizeStats(): F[Either[GE, BlockchainSizeStats]]
+
+  /**
+   * Fetch Block Stats
+   * Returns total blocks with and without transactions in them
+   */
+  def fetchBlockStats(): F[Either[GE, BlockStats]]
 
 }
