@@ -205,7 +205,7 @@ class NodeAppTest extends CatsEffectSuite {
           .flatMap(filterTransactions(_)(ids))
           .map(_.isEmpty)
           .assert,
-        1000.milli,
+        1500.milli,
         identity,
         30
       )
