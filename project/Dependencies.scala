@@ -8,9 +8,9 @@ object Dependencies {
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.5.0"
   val fs2Version = "3.7.0"
-  val logback = "1.4.7"
-  val orientDbVersion = "3.2.19"
-  val ioGrpcVersion = "1.55.1"
+  val logback = "1.4.8"
+  val orientDbVersion = "3.2.20"
+  val ioGrpcVersion = "1.56.0"
   val protobufSpecsVersion = "e03a093" // scala-steward:off
   val bramblScVersion = "d5bc746" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
@@ -27,7 +27,7 @@ object Dependencies {
   )
 
   val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"  % "test",
+    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
     "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % "test"
   )
 
@@ -86,7 +86,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.73"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.74"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -162,7 +162,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.22.3"
+      "com.google.cloud" % "google-cloud-storage" % "2.22.4"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
