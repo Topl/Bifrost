@@ -90,8 +90,8 @@ object Dependencies {
   )
 
   val levelDb: Seq[ModuleID] = Seq(
-    "org.ethereum"     % "leveldbjni-all" % "1.18.3",
-    "org.iq80.leveldb" % "leveldb"        % "0.12"
+    "io.github.tronprotocol" % "leveldbjni-all" % "1.18.3",
+    "org.iq80.leveldb"       % "leveldb"        % "0.12"
   )
 
   val scodec = Seq(
