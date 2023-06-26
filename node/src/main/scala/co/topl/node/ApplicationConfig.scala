@@ -113,18 +113,19 @@ object ApplicationConfig {
 
     @Lenses
     case class Cache(
-      parentChildTree: Cache.CacheConfig,
-      slotData:        Cache.CacheConfig,
-      headers:         Cache.CacheConfig,
-      bodies:          Cache.CacheConfig,
-      transactions:    Cache.CacheConfig,
-      spendableBoxIds: Cache.CacheConfig,
-      epochBoundaries: Cache.CacheConfig,
-      operatorStakes:  Cache.CacheConfig,
-      registrations:   Cache.CacheConfig,
-      blockHeightTree: Cache.CacheConfig,
-      eligibilities:   Cache.CacheConfig,
-      epochData:       Cache.CacheConfig
+      parentChildTree:         Cache.CacheConfig,
+      slotData:                Cache.CacheConfig,
+      headers:                 Cache.CacheConfig,
+      bodies:                  Cache.CacheConfig,
+      transactions:            Cache.CacheConfig,
+      spendableBoxIds:         Cache.CacheConfig,
+      epochBoundaries:         Cache.CacheConfig,
+      operatorStakes:          Cache.CacheConfig,
+      registrations:           Cache.CacheConfig,
+      blockHeightTree:         Cache.CacheConfig,
+      eligibilities:           Cache.CacheConfig,
+      epochData:               Cache.CacheConfig,
+      registrationAccumulator: Cache.CacheConfig
     )
 
     object Cache {

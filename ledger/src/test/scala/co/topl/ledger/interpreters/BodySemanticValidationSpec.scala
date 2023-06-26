@@ -9,7 +9,7 @@ import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.brambl.syntax._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.consensus.models.BlockId
-import co.topl.ledger.algebras.TransactionSemanticValidationAlgebra
+import co.topl.ledger.algebras.{RegistrationAccumulatorAlgebra, TransactionSemanticValidationAlgebra}
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
 import munit.CatsEffectSuite
@@ -39,9 +39,11 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
                 (TransactionSemanticErrors
                   .InputDataMismatch(input): TransactionSemanticError).invalidNec[IoTransaction].pure[F]
               )
-            underTest <- BodySemanticValidation.make[F](fetchTransaction, transactionSemanticValidation)
-            result    <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(body)
-            _         <- IO(result.isInvalid).assert
+            registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
+            underTest <- BodySemanticValidation
+              .make[F](fetchTransaction, transactionSemanticValidation, registrationAccumulator)
+            result <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(body)
+            _      <- IO(result.isInvalid).assert
           } yield ()
         }
     }
@@ -84,8 +86,9 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
               .validate(_: TransactionValidationContext)(_: IoTransaction))
               .expects(*, *)
               .never() // TransactionB should fail before reaching transaction semantic validation
+            registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
             underTest <- BodySemanticValidation
-              .make[F](fetchTransaction, transactionSemanticValidation)
+              .make[F](fetchTransaction, transactionSemanticValidation, registrationAccumulator)
             result <- underTest.validate(StaticBodyValidationContext(parentBlockId, height, slot))(body)
             _      <- IO(result.isInvalid).assert
           } yield ()

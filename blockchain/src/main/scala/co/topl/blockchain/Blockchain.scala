@@ -187,7 +187,8 @@ object Blockchain {
                 validators.boxState,
                 rewardCalculator,
                 costCalculator,
-                validators.transactionAuthorization
+                validators.transactionAuthorization,
+                validators.registrationAccumulator
               )
           )
           blockProducer <- Stream.eval(
