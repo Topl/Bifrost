@@ -109,6 +109,9 @@ class RegistrationAccumulatorSpec extends CatsEffectSuite with ScalaCheckEffectS
         _ <- underTest.contains(blockId1)(registration2.address).assert.toResource
         _ <- underTest.contains(blockId2)(registration2.address).map(!_).assert.toResource
         _ <- underTest.contains(blockId2)(registration3.address).assert.toResource
+        _ <- underTest.contains(blockId1)(registration2.address).assert.toResource
+        _ <- underTest.contains(blockId0)(registration0.address).assert.toResource
+        _ <- underTest.contains(blockId0)(registration1.address).map(!_).assert.toResource
       } yield ()
 
     testResource.use_

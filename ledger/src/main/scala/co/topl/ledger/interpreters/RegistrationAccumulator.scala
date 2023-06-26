@@ -13,6 +13,11 @@ import co.topl.ledger.algebras.RegistrationAccumulatorAlgebra
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
+/**
+ * A RegistrationAccumulatorAlgebra interpreter which uses an EventSourcedState to track a set of Staking Addresses.
+ * Each transaction in each block contains several inputs which spend (remove) addresses from the set, and several outputs
+ * which create (add) addresses to the set.
+ */
 object RegistrationAccumulator {
 
   type State[F[_]] = Store[F, StakingAddress, Unit]
@@ -59,6 +64,8 @@ object RegistrationAccumulator {
         .traverse(
           fetchTransaction(_)
             .flatMap(transaction =>
+              // Construct a Map by stepping through inputs and marking addresses for removal, then stepping through
+              // the outputs marking addresses for addition (while overriding the inputs)
               (
                 transaction.inputs.flatMap(_.value.value.topl.flatMap(_.registration)).tupleRight(false) ++
                 transaction.outputs.flatMap(_.value.value.topl.flatMap(_.registration)).tupleRight(true)
@@ -88,6 +95,8 @@ object RegistrationAccumulator {
         .traverse(
           fetchTransaction(_)
             .flatMap(transaction =>
+              // Similar to "applyBlock", but reversed.  Start with the reversed outputs (marked for deletion), then step
+              // through the reversed inputs (marked for addition) and override the outputs.
               (
                 transaction.outputs.reverse.flatMap(_.value.value.topl.flatMap(_.registration)).tupleRight(false) ++
                 transaction.inputs.reverse.flatMap(_.value.value.topl.flatMap(_.registration)).tupleRight(true)
