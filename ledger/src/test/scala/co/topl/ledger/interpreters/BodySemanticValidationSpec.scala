@@ -2,13 +2,16 @@ package co.topl.ledger.interpreters
 
 import cats.effect.IO
 import cats.implicits._
+import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.{Datum, LockAddress, TransactionId}
+import co.topl.brambl.models.box.{Lock, Value}
+import co.topl.brambl.models.transaction.{IoTransaction, SpentTransactionOutput, UnspentTransactionOutput}
 import co.topl.brambl.syntax._
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.consensus.models.BlockId
+import co.topl.models.ModelGenerators._
+import co.topl.numerics.implicits._
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.ledger.algebras.{RegistrationAccumulatorAlgebra, TransactionSemanticValidationAlgebra}
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
@@ -93,6 +96,47 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
             _      <- IO(result.isInvalid).assert
           } yield ()
         }
+    }
+  }
+
+  test("validation should if a duplicate staking address is found") {
+    withMock {
+      val parentBlockId = arbitraryBlockId.arbitrary.first
+      val lock: Lock = Lock().withPredicate(Lock.Predicate())
+      val lockAddress: LockAddress =
+        lock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+      val registration0 = arbitraryStakingRegistration.arbitrary.first
+      val tx0 =
+        IoTransaction(datum = Datum.IoTransaction.defaultInstance)
+          .withOutputs(
+            List(UnspentTransactionOutput(lockAddress, Value().withTopl(Value.TOPL(5, registration0.some))))
+          )
+          .embedId
+      val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
+      fetchTransaction
+        .expects(tx0.id)
+        .anyNumberOfTimes()
+        .returning(tx0.pure[F])
+      val transactionSemanticValidation = mock[TransactionSemanticValidationAlgebra[F]]
+      (transactionSemanticValidation
+        .validate(_: TransactionValidationContext)(_: IoTransaction))
+        .expects(*, *)
+        .once()
+        .returning(tx0.validNec[TransactionSemanticError].pure[F])
+      val registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
+      (registrationAccumulator
+        .contains(_: BlockId)(_: StakingAddress))
+        .expects(parentBlockId, registration0.address)
+        .once()
+        .returning(true.pure[F])
+
+      val body = BlockBody(List(tx0.id))
+      for {
+        underTest <- BodySemanticValidation
+          .make[F](fetchTransaction, transactionSemanticValidation, registrationAccumulator)
+        result <- underTest.validate(StaticBodyValidationContext(parentBlockId, 5, 10))(body)
+        _      <- IO(result.isInvalid).assert
+      } yield ()
     }
   }
 }
