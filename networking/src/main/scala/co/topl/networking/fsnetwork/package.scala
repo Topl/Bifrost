@@ -16,7 +16,9 @@ import com.github.benmanes.caffeine.cache.Cache
 package object fsnetwork {
 
   type HostId = String // IP address? IP address could be changed and bad for identify good peer
-  type HostReputationValue = Long // will be more complex, to get high reputation host shall fulfill different criteria
+
+  type HostReputationValue =
+    Double // will be more complex, to get high reputation host shall fulfill different criteria
 
   // how many block/headers could be requested from remote host in the same time,
   // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
@@ -76,10 +78,14 @@ package object fsnetwork {
   implicit val showBodyValidationError: Show[BodyValidationError] =
     Show.fromToString
 
+  implicit val showNoPongMessage: Show[NetworkQualityError] = {
+    case _: NoPongMessage.type        => "Failed to receive pong message"
+    case _: IncorrectPongMessage.type => "Receive incorrect pong message"
+  }
+
   implicit val showPongMessage: Show[PingPongMessagePing] = {
-    case PingPongMessagePing(host, Right(delay))               => s"Received pong delay $delay from host $host"
-    case PingPongMessagePing(host, Left(NoPongMessage))        => s"Failed to receive pong message from host $host"
-    case PingPongMessagePing(host, Left(IncorrectPongMessage)) => s"Receive incorrect pong message from host $host"
+    case PingPongMessagePing(host, Right(delay))       => show"Received pong delay $delay from host $host"
+    case PingPongMessagePing(host, Left(networkError)) => show"$networkError from host $host"
   }
 
   /**
@@ -139,6 +145,13 @@ package object fsnetwork {
   ): F[Option[NonEmptyChain[(I, D)]]] =
     data.dropWhileF(d => store.contains(iToId(d._1))).map(NonEmptyChain.fromSeq)
 
-  case class UnverifiedBlockHeader(source: HostId, blockHeader: BlockHeader)
-  case class UnverifiedBlockBody(source: HostId, blockBody: BlockBody)
+  case class UnverifiedBlockHeader(source: HostId, blockHeader: BlockHeader, downloadTimeMs: Long)
+
+  case class UnverifiedBlockBody(
+    source:           HostId,
+    blockBody:        BlockBody,
+    downloadTimeMs:   Long,
+    downloadTimeTxMs: Seq[Long] = Seq.empty
+  )
+
 }

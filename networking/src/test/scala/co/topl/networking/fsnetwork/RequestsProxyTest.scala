@@ -73,6 +73,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         withMock {
 
           val reputationAggregator = mock[ReputationAggregatorActor[F]]
+
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -84,7 +85,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           headerWithStatus
             .collect {
               case (h, InProgress) => (h.id, None)
-              case (h, ReceivedOk) => (h.id, Option(UnverifiedBlockHeader(hostId, h)))
+              case (h, ReceivedOk) => (h.id, Option(UnverifiedBlockHeader(hostId, h, 0)))
             }
             .map { case (id, headerOpt) => headerRequestsCache.put(id, headerOpt) }
 
@@ -114,7 +115,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             } yield newHeaders
 
           blockCheckerMessageOpt.map { m =>
-            val unverifiedHeaders = m.map(UnverifiedBlockHeader(hostId, _))
+            val unverifiedHeaders = m.map(UnverifiedBlockHeader(hostId, _, 0))
             (blockChecker.sendNoWait _)
               .expects(BlockChecker.Message.RemoteBlockHeaders(unverifiedHeaders))
               .returns(().pure[F])
@@ -148,7 +149,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             headers.map(h => (h, ResponseStatus.getFor(h)))
 
           val response = headerWithStatus.map {
-            case (header, DownloadedOk)  => (header.id, Either.right(header))
+            case (header, DownloadedOk)  => (header.id, Either.right(UnverifiedBlockHeader(hostId, header, 0)))
             case (header, DownloadError) => (header.id, Either.left(HeaderNotFoundInPeer: BlockHeaderDownloadError))
           }
 
@@ -166,18 +167,24 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .dropWhile_ { case (id, _) => inHeaderStorage(id) }
             .headOption
             .map {
-              case (_, header) if inHeaderStorage(header.parentHeaderId) =>
+              case (_, header) if inHeaderStorage(header.blockHeader.parentHeaderId) =>
                 (blockChecker.sendNoWait _)
                   .expects(
-                    BlockChecker.Message.RemoteBlockHeaders(NonEmptyChain.one(UnverifiedBlockHeader(hostId, header)))
+                    BlockChecker.Message.RemoteBlockHeaders(NonEmptyChain.one(header))
                   )
                   .returns(().pure[F])
               case _ =>
             }
 
+          response.collect { case (_, Right(_)) =>
+            (reputationAggregator.sendNoWait _)
+              .expects(ReputationAggregator.Message.DownloadTimeHeader(hostId, 0))
+              .returns(().pure[F])
+          }
+
           response.collect { case (id, Left(_)) =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.UpdatePeerReputation(hostId, -1))
+              .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockHeadersRequest(hostId, NonEmptyChain.one(id)))
@@ -222,7 +229,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           idsWithStatus
             .collect {
               case (id, InProgress) => (id, None)
-              case (id, ReceivedOk) => (id, Option(UnverifiedBlockBody(hostId, dataMap(id)._2)))
+              case (id, ReceivedOk) => (id, Option(UnverifiedBlockBody(hostId, dataMap(id)._2, 0)))
             }
             .foreach { case (id, blockBodyOpt) => bodyRequestsCache.put(id, blockBodyOpt) }
 
@@ -254,7 +261,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             }
 
           blockCheckerMessageOpt.map { m =>
-            val data = m.map(d => (d.header, UnverifiedBlockBody(hostId, d.body)))
+            val data = m.map(d => (d.header, UnverifiedBlockBody(hostId, d.body, 0)))
             (blockChecker.sendNoWait _).expects(BlockChecker.Message.RemoteBlockBodies(data)).returns(().pure[F])
           }
 
@@ -331,28 +338,38 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 (blockChecker.sendNoWait _)
                   .expects(
                     BlockChecker.Message
-                      .RemoteBlockBodies(NonEmptyChain.one((header, UnverifiedBlockBody(hostId, body))))
+                      .RemoteBlockBodies(NonEmptyChain.one((header, UnverifiedBlockBody(hostId, body, 0))))
                   )
                   .returns(().pure[F])
               case _ =>
             }
 
+          response
+            .collect { case (_, Right(_)) =>
+              (reputationAggregator.sendNoWait _)
+                .expects(ReputationAggregator.Message.DownloadTimeBody(hostId, 0, Seq.empty))
+                .returns(().pure[F])
+            }
+
           response.collect { case (header, Left(_)) =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.UpdatePeerReputation(hostId, -1))
+              .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockBodyRequest(hostId, NonEmptyChain.one(header)))
               .returns(().pure[F])
           }
 
+          val messageToSend = response.map { case (header, errorOrBody) =>
+            (header, errorOrBody.map(UnverifiedBlockBody(hostId, _, 0)))
+          }
           RequestsProxy
             .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
             .use { actor =>
               for {
                 _ <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
                 state <- actor.send(
-                  RequestsProxy.Message.DownloadBodiesResponse(hostId, NonEmptyChain.fromSeq(response).get)
+                  RequestsProxy.Message.DownloadBodiesResponse(hostId, NonEmptyChain.fromSeq(messageToSend).get)
                 )
                 _ = assert(
                   headersWithStatus

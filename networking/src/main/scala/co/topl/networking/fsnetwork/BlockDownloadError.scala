@@ -27,7 +27,7 @@ object BlockDownloadError {
       override def toString: String = {
         val name = Option(ex.getClass.getName).getOrElse("")
         val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during getting header from peer due next throwable $name : $message"
+        show"Unknown error during getting header from peer due next throwable $name : $message"
       }
     }
   }
@@ -59,7 +59,7 @@ object BlockDownloadError {
       override def toString: String = {
         val name = Option(ex.getClass.getName).getOrElse("")
         val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during getting block from peer due next throwable $name : $message"
+        show"Unknown error during getting block from peer due next throwable $name : $message"
       }
     }
   }
