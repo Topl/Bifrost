@@ -245,19 +245,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               dataStores.headers.getOrRaise
             )
           )
-      validators <- Resource.eval(
-        Validators.make[F](
-          cryptoResources,
-          dataStores,
-          bigBangBlockId,
-          eligibilityCache,
-          currentEventIdGetterSetters,
-          blockIdTree,
-          etaCalculation,
-          consensusValidationState,
-          leaderElectionThreshold,
-          clock
-        )
+      validators <- Validators.make[F](
+        cryptoResources,
+        dataStores,
+        bigBangBlockId,
+        eligibilityCache,
+        currentEventIdGetterSetters,
+        blockIdTree,
+        etaCalculation,
+        consensusValidationState,
+        leaderElectionThreshold,
+        clock
       )
       genusGrpcServices <-
         if (appConfig.genus.enable) {

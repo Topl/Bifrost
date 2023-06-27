@@ -25,6 +25,8 @@ object BodySemanticErrors {
     transaction:    IoTransaction,
     semanticErrors: NonEmptyChain[TransactionSemanticError]
   ) extends BodySemanticError
+
+  case class TransactionRegistrationError(transaction: IoTransaction) extends BodySemanticError
 }
 
 sealed trait BodySyntaxError extends BodyValidationError

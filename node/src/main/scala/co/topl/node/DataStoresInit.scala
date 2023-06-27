@@ -94,7 +94,16 @@ object DataStoresInit {
         appConfig.bifrost.cache.epochData,
         Long.box
       )
-
+      registrationAccumulatorStore <- makeCachedDb[
+        F,
+        StakingAddress,
+        StakingAddress,
+        Unit
+      ](dataDir)(
+        "registration-accumulator",
+        appConfig.bifrost.cache.registrationAccumulator,
+        identity
+      )
       dataStores = DataStores(
         dataDir,
         parentChildTree,
@@ -110,7 +119,8 @@ object DataStoresInit {
         inactiveStakeStore,
         registrationsStore,
         blockHeightTreeStore,
-        epochDataStore
+        epochDataStore,
+        registrationAccumulatorStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
@@ -150,7 +160,8 @@ object DataStoresInit {
             CurrentEventIdGetterSetters.Indices.BlockHeightTree,
             CurrentEventIdGetterSetters.Indices.BoxState,
             CurrentEventIdGetterSetters.Indices.Mempool,
-            CurrentEventIdGetterSetters.Indices.EpochData
+            CurrentEventIdGetterSetters.Indices.EpochData,
+            CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
           ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
         )
       _ <- dataStores.slotData.put(
