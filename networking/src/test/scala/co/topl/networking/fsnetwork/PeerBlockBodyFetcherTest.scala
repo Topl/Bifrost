@@ -1,6 +1,7 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.IO
+import cats.data.NonEmptyChain
+import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.generators.TransactionGenerator
@@ -23,11 +24,13 @@ import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalamock.function.FunctionAdapter1
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.mutable
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object PeerBlockBodyFetcherTest {
   type F[A] = IO[A]
@@ -42,6 +45,25 @@ class PeerBlockBodyFetcherTest
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
+
+  private def compareWithoutDownloadTimeMatcher(
+    rawExpectedMessage: RequestsProxy.Message
+  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
+    val matchingFunction: RequestsProxy.Message => Boolean =
+      (rawActualMessage: RequestsProxy.Message) =>
+        (rawExpectedMessage, rawActualMessage) match {
+          case (
+                expectedMessage: RequestsProxy.Message.DownloadBodiesResponse,
+                actualMessage: RequestsProxy.Message.DownloadBodiesResponse
+              ) =>
+            val newResp =
+              actualMessage.response.map { case (header, res) =>
+                (header, res.map(b => b.copy(downloadTimeMs = 0, downloadTimeTxMs = Seq.empty)))
+              }
+            expectedMessage == actualMessage.copy(response = newResp)
+        }
+    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
+  }
 
   test("Block bodies shall return error if block is not present on client") {
     withMock {
@@ -96,14 +118,20 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         blockHeadersAndBodies.map { case (header, body) =>
           if (clientBodiesData.contains(header.id)) {
-            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
           } else {
-            (header, Either.left[BlockBodyDownloadError, BlockBody](BlockBodyDownloadError.BodyNotFoundInPeer))
+            (
+              header,
+              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](BlockBodyDownloadError.BodyNotFoundInPeer)
+            )
           }
         }
 
-      val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      val expectedMessage: RequestsProxy.Message = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       PeerBlockBodyFetcher
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
@@ -180,11 +208,11 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         blockIdsBodiesHeaders.map { case (id, body, header) =>
           if (correctTxRootBlockIds.contains(id)) {
-            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
           } else {
             (
               header,
-              Either.left[BlockBodyDownloadError, BlockBody](
+              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
                 BlockBodyDownloadError.BodyHaveIncorrectTxRoot(body.merkleTreeRootHash, incorrectTxRoot)
               )
             )
@@ -192,7 +220,10 @@ class PeerBlockBodyFetcherTest
         }
 
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       val sendMessage = blockIdsBodiesHeaders.map(_._3)
       PeerBlockBodyFetcher
@@ -263,19 +294,24 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         headerBodyTxIdTx.map { case (header, body, _) =>
           if (!blockIsMissed(body)) {
-            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
           } else {
             val missedId = body.transactionIds.find(transactionIsMissed).get
             (
               header,
-              Either.left[BlockBodyDownloadError, BlockBody](BlockBodyDownloadError.TransactionNotFoundInPeer(missedId))
+              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
+                BlockBodyDownloadError.TransactionNotFoundInPeer(missedId)
+              )
             )
           }
         }
 
       val expectedMessage =
         RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       PeerBlockBodyFetcher
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
@@ -349,12 +385,12 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         headerBodyTxIdTx.map { case (header, body, _) =>
           if (!blockIsMissed(body)) {
-            (header, Either.right[BlockBodyDownloadError, BlockBody](body))
+            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
           } else {
             val expectedId = body.transactionIds.find(transactionHaveIncorrectId).get
             (
               header,
-              Either.left[BlockBodyDownloadError, BlockBody](
+              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
                 BlockBodyDownloadError.TransactionHaveIncorrectId(expectedId, incorrectTransactionId)
               )
             )
@@ -363,7 +399,10 @@ class PeerBlockBodyFetcherTest
 
       val expectedMessage =
         RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       PeerBlockBodyFetcher
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
@@ -428,9 +467,14 @@ class PeerBlockBodyFetcherTest
       }
 
       val wrappedBodies =
-        headerBody.map { case (header, body) => (header, Either.right[BlockBodyDownloadError, BlockBody](body)) }
+        headerBody.map { case (header, body) =>
+          (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
+        }
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       PeerBlockBodyFetcher
         .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
@@ -438,6 +482,77 @@ class PeerBlockBodyFetcherTest
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBody.map(_._1)))
             _ = assert(downloadedTxs == missedTxs.toMap)
+          } yield ()
+        }
+    }
+  }
+
+  test("Block bodies and transactions shall have proper download time") {
+    withMock {
+      val bodyDelay = 90
+      val txDelay = 10
+      val client = mock[BlockchainPeerClient[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+
+      val (txs, body) =
+        TestHelper.arbitraryTxsAndBlock.arbitrary.first
+
+      val header =
+        ModelGenerators.arbitraryHeader.arbitrary.first.embedId.copy(txRoot = body.merkleTreeRootHash.data)
+
+      val txIdsAndTxs = txs.map(tx => (tx.id, tx)).toMap
+
+      (client.getRemoteBody _)
+        .expects(header.id)
+        .once
+        .returns(
+          Async[F].delayBy(Option(body).pure[F], FiniteDuration(bodyDelay, MILLISECONDS))
+        )
+
+      (transactionStore.contains _).expects(*).once.returns(true.pure[F])
+      (transactionStore.contains _).expects(*).rep(txIdsAndTxs.size - 1).returns(false.pure[F])
+
+      (client.getRemoteTransaction _).expects(*).rep(txIdsAndTxs.size - 1).onCall { id: TransactionId =>
+        Async[F].delayBy(txIdsAndTxs.get(id).pure[F], FiniteDuration(txDelay, MILLISECONDS))
+      }
+
+      val downloadedTxs =
+        mutable.Map.empty[TransactionId, IoTransaction]
+      (transactionStore.put _).expects(*, *).rep(txIdsAndTxs.size - 1).onCall {
+        case (id: TransactionId, tx: IoTransaction) =>
+          downloadedTxs.put(id, tx).pure[F].void
+      }
+
+      (headerToBodyValidation.validate _).expects(*).once().onCall { block: Block =>
+        Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
+      }
+
+      (requestsProxy.sendNoWait _).expects(*).once().onCall { message: RequestsProxy.Message =>
+        message match {
+          case RequestsProxy.Message.DownloadBodiesResponse(`hostId`, bodies) =>
+            if (
+              bodies.forall { case (_, resp) =>
+                resp.forall(body =>
+                  (body.downloadTimeMs >= bodyDelay) &&
+                  (body.downloadTimeMs < bodyDelay + 30) &&
+                  body.downloadTimeTxMs.size == txIdsAndTxs.size - 1 &&
+                  body.downloadTimeTxMs.forall(tx => tx >= txDelay && tx < txDelay + 10)
+                )
+              }
+            )
+              ().pure[F]
+            else
+              throw new IllegalStateException()
+        }
+      }
+
+      PeerBlockBodyFetcher
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(NonEmptyChain.one(header)))
           } yield ()
         }
     }

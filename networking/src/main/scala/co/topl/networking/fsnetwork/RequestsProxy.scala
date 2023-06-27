@@ -33,7 +33,7 @@ object RequestsProxy {
     // then A is parent of B and B is parent of C
     case class DownloadHeadersResponse(
       hostId:   HostId,
-      response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+      response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
     ) extends Message
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
@@ -44,7 +44,7 @@ object RequestsProxy {
     // then A is parent of B and B is parent of C
     case class DownloadBodiesResponse(
       source:   HostId,
-      response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])]
+      response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
     ) extends Message
 
     // If verification of block is failed then we shall no longer process that particular blockId
@@ -162,16 +162,17 @@ object RequestsProxy {
   private def downloadHeadersResponse[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+    response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
   ): F[(State[F], Response[F])] = {
     val responseLog =
       response.map { case (id, res) => show"$id with res ${res.isRight}" }.mkString_(", ")
 
     val successfullyDownloadedHeaders =
-      response.collect { case (id, Right(header)) => (id, UnverifiedBlockHeader(source, header)) }.toList
+      response.collect { case (id, Right(header)) => (id, header) }.toList
 
     for {
       _       <- Logger[F].info(show"Download next headers: $responseLog")
+      _       <- processHeaderDownloadPerformance(state.reputationAggregator, response)
       _       <- processHeaderDownloadErrors(state.reputationAggregator, state.peersManager, source, response)
       sentIds <- sendSuccessfulHeadersPrefix(state, successfullyDownloadedHeaders)
       _       <- Logger[F].info(show"Send headers prefix to block checker $sentIds")
@@ -179,20 +180,30 @@ object RequestsProxy {
     } yield (state, state)
   }
 
+  private def processHeaderDownloadPerformance[F[_]: Async](
+    reputationAggregator: ReputationAggregatorActor[F],
+    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
+  ): F[Unit] =
+    response
+      .collect { case (_, Right(header)) => header }
+      .traverse { h =>
+        reputationAggregator.sendNoWait(ReputationAggregator.Message.DownloadTimeHeader(h.source, h.downloadTimeMs))
+      }
+      .void
+
   private def processHeaderDownloadErrors[F[_]: Async](
     reputationAggregator: ReputationAggregatorActor[F],
     peersManager:         PeersManagerActor[F],
     source:               HostId,
-    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
   ): F[Unit] = {
     val errorsOpt =
       NonEmptyChain.fromChain(response.collect { case (id, Left(error)) => (id, error) })
 
     errorsOpt match {
       case Some(errors) =>
-        // TODO translate error to reputation value or send error itself?
         val reputationMessage: ReputationAggregator.Message =
-          ReputationAggregator.Message.UpdatePeerReputation(source, -1)
+          ReputationAggregator.Message.HostProvideIncorrectBlock(source)
 
         errors.traverse { case (id, _) =>
           reputationAggregator.sendNoWait(reputationMessage) >>
@@ -278,16 +289,17 @@ object RequestsProxy {
   private def downloadBodiesResponse[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])]
+    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
   ): F[(State[F], Response[F])] = {
     val responseLog =
       response.map { case (header, res) => show"${header.id} with res ${res.isRight}" }.mkString_(", ")
 
     val successfullyDownloadedBodies =
-      response.collect { case (header, Right(body)) => (header, UnverifiedBlockBody(source, body)) }.toList
+      response.collect { case (header, Right(body)) => (header, body) }.toList
 
     for {
       _       <- Logger[F].info(show"Download next bodies: $responseLog")
+      _       <- processBodyDownloadPerformance(state.reputationAggregator, response)
       _       <- processBlockBodyDownloadErrors(state, source, response)
       sentIds <- sendSuccessfulBodiesPrefix(state, successfullyDownloadedBodies)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
@@ -295,10 +307,23 @@ object RequestsProxy {
     } yield (state, state)
   }
 
+  private def processBodyDownloadPerformance[F[_]: Async](
+    reputationAggregator: ReputationAggregatorActor[F],
+    response:             NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
+  ): F[Unit] =
+    response
+      .collect { case (_, Right(body)) => body }
+      .traverse { h =>
+        reputationAggregator.sendNoWait(
+          ReputationAggregator.Message.DownloadTimeBody(h.source, h.downloadTimeMs, h.downloadTimeTxMs)
+        )
+      }
+      .void
+
   private def processBlockBodyDownloadErrors[F[_]: Async](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])]
+    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
   ): F[Unit] = {
     val reputationAggregator: ReputationAggregatorActor[F] = state.reputationAggregator
     val peersManager: PeersManagerActor[F] = state.peersManager
@@ -307,9 +332,8 @@ object RequestsProxy {
       NonEmptyChain.fromChain(response.collect { case (header, Left(error)) => (header, error) })
 
     def processError(header: BlockHeader): F[Unit] = {
-      // TODO translate error to reputation value or send error itself?
       val reputationMessage: ReputationAggregator.Message =
-        ReputationAggregator.Message.UpdatePeerReputation(source, -1)
+        ReputationAggregator.Message.HostProvideIncorrectBlock(source)
 
       {
         for {

@@ -10,6 +10,7 @@ import co.topl.actor.Fsm
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
@@ -100,7 +101,7 @@ object PeersManager {
     def sendNoWait(message: PeerActor.Message): F[Unit] =
       actorOpt match {
         case Some(actor) => actor.sendNoWait(message)
-        case None        => Logger[F].error(s"Try to send message $message to peer with no running client")
+        case None        => Logger[F].error(show"Try to send message to peer with no running client")
       }
   }
 
@@ -224,7 +225,7 @@ object PeersManager {
     (newState, newState).pure[F]
   }
 
-  private def updatePeerStatus[F[_]: Async: Logger](
+  private def updatePeerStatus[F[_]: Async](
     thisActor: PeersManagerActor[F],
     state:     State[F],
     newStatus: UpdatePeerStatus
@@ -233,12 +234,11 @@ object PeersManager {
 
     if (newStatus.newState != PeerState.Banned) {
       val peer: Peer[F] = state.peers.getOrElse(hostId, createNewPeer(state, hostId))
-      for {
-        _ <- peer.sendNoWait(PeerActor.Message.UpdateState(newStatus.newState))
-        newPeers = state.peers + (hostId -> peer)
-        newState = state.copy(peers = newPeers)
+      val newPeers = state.peers + (hostId -> peer)
+      val newState = state.copy(peers = newPeers)
 
-      } yield (newState, newState)
+      peer.sendNoWait(PeerActor.Message.UpdateState(newStatus.newState)) >>
+      (newState, newState).pure[F]
     } else {
       val newState = state.copy(peers = state.peers - hostId)
 
@@ -246,11 +246,14 @@ object PeersManager {
         for {
           peer      <- state.peers.get(hostId)
           peerActor <- peer.actorOpt
-        } yield peerActor.sendNoWait(PeerActor.Message.UpdateState(PeerState.Banned)) >> thisActor.releaseActor(
-          peerActor
-        )
+        } yield peerActor.sendNoWait(PeerActor.Message.UpdateState(PeerState.Banned)) >>
+        thisActor.releaseActor(peerActor)
 
-      releaseAction.getOrElse(().pure[F]) >> (newState, newState).pure[F]
+      releaseAction.getOrElse(().pure[F]) >>
+      state.reputationAggregator
+        .map(_.sendNoWait(ReputationAggregator.Message.RemoveReputationForHost(hostId)))
+        .getOrElse(().pure[F]) >>
+      (newState, newState).pure[F]
     }
   }
 
@@ -266,7 +269,12 @@ object PeersManager {
         // TODO add logic if no peer actor is present
         peer.sendNoWait(PeerActor.Message.DownloadBlockBodies(blocks)) >>
         (state, state).pure[F]
-      case None => ???
+      // TODO temporary solution, we shall check is block is available on other hosts first
+      case None =>
+        state.blocksChecker
+          .map(_.sendNoWait(BlockChecker.Message.InvalidateBlockIds(blocks.map(_.id))))
+          .getOrElse(().pure[F]) >>
+        (state, state).pure[F]
     }
 
   private def blockHeadersRequest[F[_]: Async](
@@ -278,7 +286,12 @@ object PeersManager {
       case Some(peer) =>
         peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds)) >>
         (state, state).pure[F]
-      case None => ???
+      // TODO temporary solution, we shall check is block is available on other hosts first
+      case None =>
+        state.blocksChecker
+          .map(_.sendNoWait(BlockChecker.Message.InvalidateBlockIds(blockIds)))
+          .getOrElse(().pure[F]) >>
+        (state, state).pure[F]
     }
 
   private def getCurrentTips[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =

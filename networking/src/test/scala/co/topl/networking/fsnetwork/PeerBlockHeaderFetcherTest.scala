@@ -2,7 +2,7 @@ package co.topl.networking.fsnetwork
 
 import cats.MonadThrow
 import cats.data.{NonEmptyChain, OptionT}
-import cats.effect.IO
+import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
@@ -22,11 +22,13 @@ import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
+import org.scalamock.function.FunctionAdapter1
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.mutable
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object PeerBlockHeaderFetcherTest {
   type F[A] = IO[A]
@@ -38,6 +40,25 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
+
+  private def compareWithoutDownloadTimeMatcher(
+    rawExpectedMessage: RequestsProxy.Message
+  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
+    val matchingFunction: RequestsProxy.Message => Boolean =
+      (rawActualMessage: RequestsProxy.Message) =>
+        (rawExpectedMessage, rawActualMessage) match {
+          case (
+                expectedMessage: RequestsProxy.Message.DownloadHeadersResponse,
+                actualMessage: RequestsProxy.Message.DownloadHeadersResponse
+              ) =>
+            val newResp =
+              actualMessage.response.map { case (header, res) =>
+                (header, res.map(b => b.copy(downloadTimeMs = 0)))
+              }
+            expectedMessage == actualMessage.copy(response = newResp)
+        }
+    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
+  }
 
   test("Block header shall be downloaded by request") {
     withMock {
@@ -63,9 +84,12 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val expectedMessage: RequestsProxy.Message =
         RequestsProxy.Message.DownloadHeadersResponse(
           hostId,
-          idAndHeader.map { case (id, header) => (id, Either.right(header)) }
+          idAndHeader.map { case (id, header) => (id, Either.right(UnverifiedBlockHeader(hostId, header, 0))) }
         )
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       val localChain = mock[LocalChainAlgebra[F]]
 
@@ -78,6 +102,52 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .use { actor =>
           for {
             _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(idAndHeader.map(_._1)))
+          } yield ()
+        }
+    }
+  }
+
+  test("One block header shall be downloaded by request proper with delay measurements") {
+    withMock {
+      val pingDelay = 90
+
+      val header: BlockHeader = arbitraryHeader.arbitrary.first.embedId
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(header.id, *, *)
+        .once
+        .returns(Async[F].delayBy(header.pure[F], FiniteDuration(pingDelay, MILLISECONDS)))
+
+      val blockChecker = mock[BlockCheckerActor[F]]
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+
+      (requestsProxy.sendNoWait _)
+        .expects(*)
+        .once()
+        .onCall { message: RequestsProxy.Message =>
+          message match {
+            case RequestsProxy.Message.DownloadHeadersResponse(`hostId`, response) =>
+              if (response.head._2.forall(b => b.downloadTimeMs < pingDelay || b.downloadTimeMs > pingDelay + 30))
+                throw new IllegalStateException()
+              else
+                ().pure[F]
+            case _ => throw new IllegalStateException()
+          }
+        }
+
+      val localChain = mock[LocalChainAlgebra[F]]
+
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, blockChecker, requestsProxy, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(NonEmptyChain.one(header.id)))
           } yield ()
         }
     }
@@ -112,11 +182,14 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
             if (missedBlockId(id)) {
               (id, Either.left(HeaderNotFoundInPeer))
             } else {
-              (id, Either.right(header))
+              (id, Either.right(UnverifiedBlockHeader(hostId, header, 0)))
             }
           }
         )
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       val localChain = mock[LocalChainAlgebra[F]]
 
@@ -169,11 +242,14 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
             if (missedBlockId(id)) {
               (id, Either.left(HeaderHaveIncorrectId(id, incorrectHeaderId)))
             } else {
-              (id, Either.right(header))
+              (id, Either.right(UnverifiedBlockHeader(hostId, header, 0)))
             }
           }
         )
-      (requestsProxy.sendNoWait _).expects(expectedMessage).once().returning(().pure[F])
+      (requestsProxy.sendNoWait _)
+        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
 
       val localChain = mock[LocalChainAlgebra[F]]
 
