@@ -158,6 +158,7 @@ lazy val bifrost = project
   .aggregate(
     node,
     typeclasses,
+    config,
     toplGrpc,
     nodeCrypto,
     catsUtils,
@@ -202,6 +203,7 @@ lazy val node = project
   )
   .dependsOn(
     models % "compile->compile;test->test",
+    config,
     typeclasses,
     consensus,
     minting,
@@ -217,6 +219,16 @@ lazy val node = project
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
 
+lazy val config = project
+  .in(file("config"))
+  .settings(
+    name := "config",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    libraryDependencies ++= Dependencies.monocle
+  )
+  .dependsOn(models, numerics)
+  .settings(scalamacrosParadiseSettings)
 
 lazy val networkDelayer = project
   .in(file("network-delayer"))
@@ -468,6 +480,7 @@ lazy val networking = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
+    config,
     typeclasses,
     nodeCrypto,
     byteCodecs,
@@ -545,6 +558,7 @@ lazy val blockchain = project
   .dependsOn(
     models   % "compile->compile;test->test",
     algebras % "compile->compile;test->test",
+    config,
     typeclasses,
     eventTree,
     ledger,

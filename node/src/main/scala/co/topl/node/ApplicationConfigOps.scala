@@ -2,152 +2,24 @@ package co.topl.node
 
 import cats.Show
 import cats.implicits._
+import co.topl.config.ApplicationConfig
+import co.topl.config.ApplicationConfig.Bifrost
+import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
-import co.topl.networking.p2p.{DisconnectedPeer, RemoteAddress}
-import co.topl.numerics.implicits._
-import co.topl.proto.node.NodeConfig
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
 import pureconfig._
+import pureconfig.configurable._
 import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
-import pureconfig.configurable._
-import scala.concurrent.duration.FiniteDuration
+
 import scala.util.Try
 
 // $COVERAGE-OFF$
-@Lenses
-case class ApplicationConfig(
-  bifrost: ApplicationConfig.Bifrost,
-  genus:   ApplicationConfig.Genus,
-  kamon:   ApplicationConfig.Kamon
-)
 
-object ApplicationConfig {
-
-  @Lenses
-  case class Bifrost(
-    data:      Bifrost.Data,
-    staking:   Bifrost.Staking,
-    p2p:       Bifrost.P2P,
-    rpc:       Bifrost.RPC,
-    mempool:   Bifrost.Mempool,
-    bigBang:   Bifrost.BigBang,
-    protocols: Map[Slot, Bifrost.Protocol],
-    cache:     Bifrost.Cache,
-    ntp:       Bifrost.Ntp
-  )
-
-  object Bifrost {
-
-    @Lenses
-    case class Data(directory: String)
-
-    @Lenses
-    case class Staking(directory: String)
-
-    @Lenses
-    case class P2P(
-      bindHost:         String,
-      bindPort:         Int,
-      publicHost:       String,
-      publicPort:       Int,
-      knownPeers:       List[DisconnectedPeer],
-      experimental:     Option[Boolean],
-      pingPongInterval: Option[FiniteDuration] // Replace by proper config for P2P discovery
-    )
-
-    @Lenses
-    case class RPC(bindHost: String, bindPort: Int)
-
-    @Lenses
-    case class Mempool(defaultExpirationSlots: Long)
-    sealed abstract class BigBang
-
-    object BigBangs {
-
-      @Lenses
-      case class Private(
-        timestamp:        Long = System.currentTimeMillis() + 5_000L,
-        stakerCount:      Int,
-        stakes:           Option[List[BigInt]],
-        localStakerIndex: Option[Int]
-      ) extends BigBang
-    }
-
-    @Lenses
-    case class Protocol(
-      fEffective:                 Ratio,
-      vrfLddCutoff:               Int,
-      vrfPrecision:               Int,
-      vrfBaselineDifficulty:      Ratio,
-      vrfAmplitude:               Ratio,
-      chainSelectionKLookback:    Long,
-      slotDuration:               FiniteDuration,
-      forwardBiasedSlotWindow:    Slot,
-      operationalPeriodsPerEpoch: Long,
-      kesKeyHours:                Int,
-      kesKeyMinutes:              Int
-    ) {
-
-      val chainSelectionSWindow: Long =
-        (Ratio(chainSelectionKLookback, 4L) * fEffective.inverse).round.toLong
-
-      val epochLength: Long =
-        chainSelectionKLookback * 6
-
-      val operationalPeriodLength: Long =
-        epochLength / operationalPeriodsPerEpoch
-
-      val vrfCacheSize: Long =
-        operationalPeriodLength * 4
-
-      def nodeConfig(slot: Slot): NodeConfig = NodeConfig(
-        slot = slot,
-        slotDurationMillis = slotDuration.toMillis,
-        epochLength = epochLength
-      )
-    }
-
-    @Lenses
-    case class Cache(
-      parentChildTree:         Cache.CacheConfig,
-      slotData:                Cache.CacheConfig,
-      headers:                 Cache.CacheConfig,
-      bodies:                  Cache.CacheConfig,
-      transactions:            Cache.CacheConfig,
-      spendableBoxIds:         Cache.CacheConfig,
-      epochBoundaries:         Cache.CacheConfig,
-      operatorStakes:          Cache.CacheConfig,
-      registrations:           Cache.CacheConfig,
-      blockHeightTree:         Cache.CacheConfig,
-      eligibilities:           Cache.CacheConfig,
-      epochData:               Cache.CacheConfig,
-      registrationAccumulator: Cache.CacheConfig
-    )
-
-    object Cache {
-
-      @Lenses
-      case class CacheConfig(maximumEntries: Long, ttl: Option[FiniteDuration])
-    }
-
-    @Lenses
-    case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
-
-  }
-
-  @Lenses
-  case class Genus(
-    enable:            Boolean,
-    orientDbDirectory: String,
-    orientDbPassword:  String
-  )
-
-  @Lenses
-  case class Kamon(enable: Boolean)
+object ApplicationConfigOps {
 
   /**
    * Construct an ApplicationConfig based on the given command-line arguments and a merged HOCON config.
@@ -214,13 +86,13 @@ object ApplicationConfig {
    * Parses the given comma-delimited string of host:port combinations
    * i.e. "1.2.3.4:9095,5.6.7.8:9095"
    */
-  private def parseKnownPeers(str: String): List[DisconnectedPeer] =
+  private def parseKnownPeers(str: String): List[KnownPeer] =
     str.split(',').toList.filterNot(_.isEmpty).map { addr =>
       val Array(host, portStr) = addr.split(':')
-      DisconnectedPeer(RemoteAddress(host, portStr.toInt), (0, 0))
+      KnownPeer(host, portStr.toInt)
     }
 
-  implicit val knownPeersReader: ConfigReader[List[DisconnectedPeer]] =
+  implicit val knownPeersReader: ConfigReader[List[KnownPeer]] =
     ConfigReader[String].emap(str =>
       Try(
         parseKnownPeers(str)

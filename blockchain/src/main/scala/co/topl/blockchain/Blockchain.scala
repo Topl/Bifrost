@@ -13,6 +13,7 @@ import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
@@ -34,7 +35,6 @@ import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
 
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -59,9 +59,8 @@ object Blockchain {
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
-    experimentalP2P:           Boolean = false,
     _epochData:                EpochDataAlgebra[F],
-    pingPongInterval:          FiniteDuration
+    networkProperties:         NetworkProperties
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -77,7 +76,7 @@ object Blockchain {
           .drain
       )
       synchronizationHandler <-
-        if (experimentalP2P) {
+        if (networkProperties.experimental) {
           ActorPeerHandlerBridgeAlgebra.make(
             localChain,
             chainSelectionAlgebra,
@@ -91,7 +90,7 @@ object Blockchain {
             dataStores.bodies,
             dataStores.transactions,
             blockIdTree,
-            pingPongInterval
+            networkProperties
           )
         } else {
           Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](

@@ -8,6 +8,7 @@ import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.BlockId
@@ -19,8 +20,6 @@ import co.topl.networking.blockchain.BlockchainPeerHandlerAlgebra
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
-
-import scala.concurrent.duration.FiniteDuration
 
 object ActorPeerHandlerBridgeAlgebra {
 
@@ -37,7 +36,7 @@ object ActorPeerHandlerBridgeAlgebra {
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    pingPongInterval:            FiniteDuration
+    networkProperties:           NetworkProperties
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     val networkAlgebra = new NetworkAlgebraImpl[F]()
     val networkManager =
@@ -56,7 +55,7 @@ object ActorPeerHandlerBridgeAlgebra {
         blockIdTree,
         networkAlgebra,
         List.empty,
-        pingPongInterval
+        networkProperties
       )
 
     networkManager.map(makeAlgebra(_))

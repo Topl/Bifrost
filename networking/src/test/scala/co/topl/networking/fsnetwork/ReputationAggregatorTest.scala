@@ -186,7 +186,7 @@ class ReputationAggregatorTest
         val initialNewMap = Map(host -> 0.5)
 
         val downloadTime: Long = 120
-        val reputation = ReputationAggregator.delayToReputation((txDownloadTime :+ downloadTime).max)
+        val reputation = ReputationAggregator.delayToReputation((txDownloadTime.filter(_ > 0) :+ downloadTime).max)
 
         ReputationAggregator
           .makeActor(peersManager, initialPerfMap, initialBlockMap, initialNewMap)
