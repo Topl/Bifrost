@@ -11,6 +11,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore

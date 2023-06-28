@@ -11,6 +11,7 @@ import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
@@ -32,8 +33,8 @@ import co.topl.models.utility._
 import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
+import co.topl.node.ApplicationConfigOps._
 
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
 import fs2.{io => _, _}
 import fs2.io.file.{Files, Path}
@@ -52,7 +53,7 @@ abstract class AbstractNodeApp
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf),
+      parseConfig = (args, conf) => ApplicationConfigOps.unsafe(args, conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
   def run: IO[Unit] = new ConfiguredNodeApp(args, appConfig).run
@@ -328,15 +329,15 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           cryptoResources.ed25519VRF,
           localPeer,
           Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
-          Stream.iterable[F, DisconnectedPeer](appConfig.bifrost.p2p.knownPeers) ++
-          Stream.never[F],
+          Stream.iterable[F, DisconnectedPeer](
+            appConfig.bifrost.p2p.knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
+          ) ++ Stream.never[F],
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
           genusGrpcServices,
-          appConfig.bifrost.p2p.experimental.getOrElse(false),
           epochData,
-          appConfig.bifrost.p2p.pingPongInterval.getOrElse(FiniteDuration(0, MILLISECONDS))
+          appConfig.bifrost.p2p.networkProperties
         )
     } yield ()
 

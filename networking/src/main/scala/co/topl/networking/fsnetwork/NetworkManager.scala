@@ -4,17 +4,14 @@ import cats.effect.kernel.Resource
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
-
-import scala.concurrent.duration.FiniteDuration
 
 object NetworkManager {
 
@@ -33,7 +30,7 @@ object NetworkManager {
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                List[HostId],
-    pingPongInterval:            FiniteDuration
+    networkProperties:           NetworkProperties
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _ <- Resource.liftK(Logger[F].info("Start actors network"))
@@ -44,7 +41,7 @@ object NetworkManager {
         transactionStore,
         blockIdTree,
         headerToBodyValidation,
-        pingPongInterval
+        networkProperties.pingPongInterval
       )
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager)
       requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)
