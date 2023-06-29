@@ -49,7 +49,7 @@ object ApplicationConfig {
       networkProperties: NetworkProperties
     )
 
-    case class NetworkProperties(experimental: Boolean, pingPongInterval: FiniteDuration)
+    case class NetworkProperties(legacyNetwork: Boolean, pingPongInterval: FiniteDuration)
 
     case class KnownPeer(host: String, port: Int)
 
