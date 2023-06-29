@@ -50,7 +50,7 @@ class NodeAppTest extends CatsEffectSuite {
          |    bind-port: 9150
          |    public-port: 9150
          |    network-properties:
-         |      experimental: false
+         |      legacy-network: false
          |  rpc:
          |    bind-port: 9151
          |  big-bang:
@@ -74,7 +74,7 @@ class NodeAppTest extends CatsEffectSuite {
          |    public-port: 9152
          |    known-peers: localhost:9150
          |    network-properties:
-         |      experimental: false
+         |      legacy-network: false
          |  rpc:
          |    bind-port: 9153
          |  big-bang:

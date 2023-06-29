@@ -76,23 +76,7 @@ object Blockchain {
           .drain
       )
       synchronizationHandler <-
-        if (networkProperties.experimental) {
-          ActorPeerHandlerBridgeAlgebra.make(
-            localChain,
-            chainSelectionAlgebra,
-            validators.header,
-            validators.headerToBody,
-            validators.bodySyntax,
-            validators.bodySemantics,
-            validators.bodyAuthorization,
-            dataStores.slotData,
-            dataStores.headers,
-            dataStores.bodies,
-            dataStores.transactions,
-            blockIdTree,
-            networkProperties
-          )
-        } else {
+        if (networkProperties.legacyNetwork) {
           Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
             BlockchainPeerHandler.ChainSynchronizer.make[F](
               clock,
@@ -108,6 +92,22 @@ object Blockchain {
               dataStores.transactions,
               blockIdTree
             )
+          )
+        } else {
+          ActorPeerHandlerBridgeAlgebra.make(
+            localChain,
+            chainSelectionAlgebra,
+            validators.header,
+            validators.headerToBody,
+            validators.bodySyntax,
+            validators.bodySemantics,
+            validators.bodyAuthorization,
+            dataStores.slotData,
+            dataStores.headers,
+            dataStores.bodies,
+            dataStores.transactions,
+            blockIdTree,
+            networkProperties
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
