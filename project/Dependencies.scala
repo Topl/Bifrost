@@ -90,7 +90,7 @@ object Dependencies {
   )
 
   val levelDb: Seq[ModuleID] = Seq(
-    "io.github.tronprotocol" % "leveldbjni-all" % "1.18.3",
+    "io.github.tronprotocol" % "leveldbjni-all" % "1.23.2",
     "org.iq80.leveldb"       % "leveldb"        % "0.12"
   )
 
