@@ -49,16 +49,17 @@ package object interpreters {
     val spentBoxIds = transaction.inputs.map(_.address)
 
     val transactionId = transaction.id
-    val newBoxes = transaction.outputs.zipWithIndex.flatMap { case (output, index) =>
-      wallet.propositions
-        .get(output.address)
-        .map(lock =>
-          (
-            transactionId.outputAddress(0, 0, index),
-            Box(lock, output.value)
+    val newBoxes =
+      transaction.outputs.zipWithIndex.filter(_._1.value.value.isLvl).flatMap { case (output, index) =>
+        wallet.propositions
+          .get(output.address)
+          .map(lock =>
+            (
+              transactionId.outputAddress(0, 0, index),
+              Box(lock, output.value)
+            )
           )
-        )
-    }
+      }
     wallet.copy(spendableBoxes = wallet.spendableBoxes -- spentBoxIds ++ newBoxes)
   }
 }
