@@ -285,11 +285,10 @@ object BlockPacker {
                 .toList
                 .map(_._2)
                 .foldMapM(spenders =>
-
-                /**
-                 * TODO FIX: java.lang.UnsupportedOperationException: empty.max https://topl.atlassian.net/browse/BN-1124
-                 */
-                spenders.toList.map(_._1).map(graph.transactions).traverse(subgraphScore(graph)).map(_.max)
+                  /**
+                   * TODO FIX: java.lang.UnsupportedOperationException: empty.max https://topl.atlassian.net/browse/BN-1124
+                   */
+                  spenders.toList.map(_._1).map(graph.transactions).traverse(subgraphScore(graph)).map(_.max)
                 )
             ).mapN(_ + _)
 
