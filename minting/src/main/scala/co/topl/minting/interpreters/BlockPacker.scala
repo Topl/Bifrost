@@ -285,7 +285,11 @@ object BlockPacker {
                 .toList
                 .map(_._2)
                 .foldMapM(spenders =>
-                  spenders.toList.map(_._1).map(graph.transactions).traverse(subgraphScore(graph)).map(_.max)
+                  spenders.toList
+                    .map(_._1)
+                    .map(graph.transactions)
+                    .traverse(subgraphScore(graph))
+                    .map(_.appended(BigInt(0)).max)
                 )
             ).mapN(_ + _)
 
