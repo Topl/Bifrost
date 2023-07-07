@@ -7,21 +7,18 @@ import co.topl.algebras.NodeRpc
 import co.topl.blockchain.{PrivateTestnet, StakerInitializers}
 import co.topl.brambl.builders.locks.PropositionTemplate
 import co.topl.brambl.builders.locks.PropositionTemplate.PropositionType
-import co.topl.brambl.common.ContainsImmutable.ContainsImmutableTOps
-import co.topl.brambl.common.ContainsImmutable.instances.arrayByteImmutable
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
-import co.topl.brambl.common.ContainsSignable.instances.{immutableSignable, ioTransactionSignable}
+import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
 import co.topl.brambl.constants.NetworkConstants
+import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, SpentTransactionOutput, UnspentTransactionOutput}
-import co.topl.brambl.models._
 import co.topl.brambl.syntax.{ioTransactionAsTransactionSyntaxOps, lockAsLockSyntaxOps, transactionIdAsIdSyntaxOps}
 import co.topl.brambl.wallet.WalletApi
 import co.topl.byzantine.util._
-import co.topl.consensus.models.{StakingAddress, StakingRegistration}
 import co.topl.crypto.generation.Bip32Indexes
 import co.topl.crypto.hash.Blake2b256
-import co.topl.crypto.signing.{Ed25519, Ed25519VRF, ExtendedEd25519, KesProduct}
+import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.interpreters.NodeRpcOps._
 import co.topl.numerics.implicits._
 import co.topl.quivr.api.Prover
@@ -34,7 +31,6 @@ import org.typelevel.log4cats.Logger
 import quivr.models.Proposition.{DigitalSignature, TickRange}
 import quivr.models._
 import scala.concurrent.duration.{Duration, DurationInt}
-import scala.util.Random
 
 class TransactionTest extends IntegrationSuite {
 
@@ -136,17 +132,6 @@ class TransactionTest extends IntegrationSuite {
     GoodAndBadTickRangeLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
   // TickRange END
 
-  // StakingAddress Begin
-  private val (kesSK0, _) = new KesProduct().createKeyPair(Random.nextBytes(32), (9, 9), 0L)
-  private val vk = ByteString.copyFrom(Random.nextBytes(32))
-  private val (vrfSecretBytes, _) = Ed25519VRF.precomputed().generateRandom
-  private val stakingAddress = StakingAddress(vk)
-  private val vkVrf = ByteString.copyFrom(Ed25519VRF.precomputed().getVerificationKey(vrfSecretBytes))
-  private val commitmentMessage = new Blake2b256().hash(vkVrf.concat(stakingAddress.value).toByteArray)
-  private val signatureKesProduct = (new KesProduct).sign(kesSK0, commitmentMessage)
-  private val stakingRegistration = StakingRegistration(stakingAddress, signatureKesProduct)
-  // StakingAddress End
-
   // Same model that co.topl.transactiongenerator.models, creating it again to not depend on that module
   case class Wallet(
     spendableBoxes: Map[TransactionOutputAddress, Box],
@@ -156,9 +141,9 @@ class TransactionTest extends IntegrationSuite {
   /**
    * Submits many transactions to a group of running node and verifies the transactions are confirmed
    * The following step are being evaluated: No success meaning: broadcast the iotx to the node, produce an error.
-   * A. InsufficientInputFunds, if we use a iotx which spent a box from genesis block
-   * B. Success, produces 'transaction_1', using a txio which spent a box from genesis block, this iotx will produces N outputs, described on step B
-   * C. Received duplicate transaction, if we try to do the same sequencially in step B
+   * A. InsufficientInputFunds, if we use a iotx which spent more items than expected from a box, using genesis iotx
+   * B. Success, produces 'transaction_1', uses genesis txio, produces N outputs, described on step B
+   * C. Received duplicate transaction, if we try to do the same that step B
    * D. Verify that submit a transaction contains at least one input
    * E. Verify that this transaction does not spend the same box more than once, No Success is expected
    * F. Verify that this transaction contain too many outputs, ExcessiveOutputsCount, DataLengthValidation, No Success is expected
@@ -169,11 +154,11 @@ class TransactionTest extends IntegrationSuite {
    * K. Verify that each transaction output contains a positive quantity (where applicable). No Success is expected
    * L. Validates that the proofs associated with each proposition matches the expected _type_ for a Predicate Attestation, No Success is expected
    * N. Success, create and broadcast a txio using a wallet which contains a Digest proposition, and consumes input 'transaction_1' (step B)
-   * M. FIX: Success, create and broadcast a txio using a wallet which contains a DigitalSignature proposition, and consumes input 'transaction_1' (step B)
+   * M. Success, create and broadcast a txio using a wallet which contains a DigitalSignature proposition, and consumes input 'transaction_1' (step B)
    * O. Success, create and broadcast a txio using a wallet which contains a TickRange proposition, and consumes input 'transaction_1' (step B)
-   * P. TODO
-   * Q. TODO
-   * R. TODO
+   * P. ...
+   * Q. ...
+   * R. ...
    * Z. Finally, fetch node container logs, and assert expected results.
    *    When the test ends, it prints: Writing container logs to byzantine-it/target/logs/TransactionTest-node1-ed2a0569.log, chech it out
    */
@@ -196,17 +181,14 @@ class TransactionTest extends IntegrationSuite {
 
         _             <- Logger[F].info("Fetching genesis block Genus Grpc Client").toResource
         blockResponse <- genus1Client.blockIdAtHeight(1).toResource
+        genesisIotx = blockResponse.block.fullBody.transactions.head
 
         // a wallet populated with the genesis iotx, safe head, it contains 1 transaction, with 0 input and 2 outputs(10000000 TOPL and 10000000 LVL)
-        wallet = createWallet(
-          Map(HeightRangeLockAddress -> HeightRangeLock),
-          // blockResponse.block.fullBody.transactions(0).outputs(0).value.toProtoString).toResource 10000000 TOPL
-          // blockResponse.block.fullBody.transactions(0).outputs(1).value.toProtoString).toResource 10000000 LVL
-          blockResponse.block.fullBody.transactions.head
-        )
+        inputBoxId = genesisIotx.id.outputAddress(0, 0, 0)
+        box = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 10000000 LVL
 
         // A. No Success is expected, InsufficientInputFunds create tx from genesis block using: (10000000 lvl in total)
-        iotx_A <- createTransaction_1(wallet, 10000000, 1, 1, 1, 1, 1).toResource
+        iotx_A <- createTransaction_fromGenesisIotx(inputBoxId, box, 10000000, 1, 1, 1, 1, 1).toResource
         _      <- node1Client.broadcastTransaction(iotx_A).voidError.toResource
 
         /**
@@ -219,21 +201,21 @@ class TransactionTest extends IntegrationSuite {
          * Output5: BadTickRange, 1 lvl, with threshold 1
          * Output6: GoodAndBadTickRange, 1 lvl, with threshold 2
          */
-        iotx_B <- createTransaction_1(wallet, 9999900, 1, 1, 1, 1, 1).toResource
+        iotx_B <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900, 1, 1, 1, 1, 1).toResource
         _      <- node1Client.broadcastTransaction(iotx_B).toResource
 
-        iotxRes_1 <- OptionT(node1Client.fetchTransaction(iotx_B.id))
+        iotxRes_B <- OptionT(node1Client.fetchTransaction(iotx_B.id))
           .getOrRaise(new FailSuiteException("ERROR! fetchTransaction 1", Location.empty))
           .toResource
-        _ <- assertIO((iotxRes_1.outputs(0).value.getLvl.quantity: BigInt).pure[F], BigInt(9999900)).toResource
-        _ <- assertIO((iotxRes_1.outputs(1).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
-        _ <- assertIO((iotxRes_1.outputs(2).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
-        _ <- assertIO((iotxRes_1.outputs(3).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
-        _ <- assertIO((iotxRes_1.outputs(4).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
-        _ <- assertIO((iotxRes_1.outputs(5).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(0).value.getLvl.quantity: BigInt).pure[F], BigInt(9999900)).toResource
+        _ <- assertIO((iotxRes_B.outputs(1).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(2).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(3).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(4).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(5).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
 
         // C. No Success, Create the same tx from genesis block using , Received duplicate transaction is expected
-        _ <- createTransaction_1(wallet, 9999900, 1, 1, 1, 1, 1).toResource
+        _ <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900, 1, 1, 1, 1, 1).toResource
         _ <- node1Client.broadcastTransaction(iotx_B).toResource
 
         // D. No Success, Verify that this transaction contains at least one input
@@ -241,31 +223,31 @@ class TransactionTest extends IntegrationSuite {
         _      <- node1Client.broadcastTransaction(iotx_D).voidError.toResource
 
         // E. No Success, Verify that this transaction does not spend the same box more than once
-        iotx_E <- createTransaction_2(wallet).toResource
+        iotx_E <- createTransaction_DoubleSpend(inputBoxId, box).toResource
         _      <- node1Client.broadcastTransaction(iotx_E).voidError.toResource
 
         // F. No Success, Verify that this transaction contain too many outputs, ExcessiveOutputsCount, DataLengthValidation
-        iotx_F <- createTransaction_3(wallet).toResource
+        iotx_F <- createTransaction_ManyOutputs(inputBoxId, box).toResource
         _      <- node1Client.broadcastTransaction(iotx_F).voidError.toResource
 
         // G. No Success, Verify that the timestamp of the transaction is positive (greater than or equal to 0). Bad timestamp
-        iotx_G <- createTransaction_4(wallet, min = 0L, max = 0L, timestamp = -1L).toResource
+        iotx_G <- createTransaction_BadSchedule(inputBoxId, box, min = 0L, max = 0L, timestamp = -1L).toResource
         _      <- node1Client.broadcastTransaction(iotx_G).voidError.toResource
 
         // H. No Success, Verify that the schedule of the timestamp contains valid minimum and maximum slot values. Bad min
-        iotx_H <- createTransaction_4(wallet, min = 1L, max = 0L, timestamp = 0L).toResource
+        iotx_H <- createTransaction_BadSchedule(inputBoxId, box, min = 1L, max = 0L, timestamp = 0L).toResource
         _      <- node1Client.broadcastTransaction(iotx_H).voidError.toResource
 
         // I. No Success, Verify that the schedule of the timestamp contains valid minimum and maximum slot values Bad min,max
-        iotx_I <- createTransaction_4(wallet, min = -1L, max = 0L, timestamp = 0L).toResource
+        iotx_I <- createTransaction_BadSchedule(inputBoxId, box, min = -1L, max = 0L, timestamp = 0L).toResource
         _      <- node1Client.broadcastTransaction(iotx_I).voidError.toResource
 
         // J. No Success, Verify that the schedule of the timestamp contains valid minimum and maximum slot values Bad min,max
-        iotx_J <- createTransaction_4(wallet, min = 1L, max = 0L, timestamp = 0L).toResource
+        iotx_J <- createTransaction_BadSchedule(inputBoxId, box, min = 1L, max = 0L, timestamp = 0L).toResource
         _      <- node1Client.broadcastTransaction(iotx_J).voidError.toResource
 
         // K. No Success, Verify that each transaction output contains a positive quantity (where applicable)
-        iotx_K <- createTransaction_1(wallet, -1L, 1L, 1L, 1L, 1L, 1L).toResource
+        iotx_K <- createTransaction_fromGenesisIotx(inputBoxId, box, -1L, 1L, 1L, 1L, 1L, 1L).toResource
         _      <- node1Client.broadcastTransaction(iotx_K).voidError.toResource
 
         // L No Success, Validates that the proofs associated with each proposition matches the expected _type_ for a Predicate Attestation
@@ -286,7 +268,7 @@ class TransactionTest extends IntegrationSuite {
               PropositionTemplate.types.And       -> 11,
               PropositionTemplate.types.Or        -> 12
             )
-              .map { case (prover, i) => createTransaction_5(wallet, prover, i) }
+              .map { case (prover, i) => createTransaction_BadAttestation(inputBoxId, box, prover, i) }
           )
           .toResource
 
@@ -296,65 +278,67 @@ class TransactionTest extends IntegrationSuite {
           .toResource
 
         // N. Success a wallet which contains a Digest proposition, consumes input  transaction_1
-        iotx_N <- createTransaction_1_1_DigestProver(
+        iotx_N <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(DigestLockAddress -> DigestLock), iotx_B),
-          1L
+          1L,
+          PropositionTemplate.types.Digest
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_N).toResource
 
         // M. Success a wallet which contains a DigitalSignature proposition, consumes input  transaction_1
-        iotx_M <- createTransaction_1_2_SignatureProver(
+        iotx_M <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(DigitalSignatureLockAddress -> DigitalSignatureLock), iotx_B),
-          1L
+          1L,
+          PropositionTemplate.types.Signature
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_M).toResource
 
-        // O. Test Bad and Success iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
-        iotx_O <- createTransaction_1_3_TickProver(
+        // O, P, Q. Test Bad and Success iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
+        iotx_O <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(BadTickRangeLockAddress -> BadTickRangeLock), iotx_B),
-          1L
+          1L,
+          PropositionTemplate.types.Tick
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_O).toResource
 
-        iotx_P <- createTransaction_1_3_TickProver(
+        iotx_P <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(GoodAndBadTickRangeLockAddress -> GoodAndBadTickRangeLock), iotx_B),
-          1L
+          1L,
+          PropositionTemplate.types.Tick
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_P).toResource
 
-        iotx_Q <- createTransaction_1_3_TickProver(
+        iotx_Q <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(TickRangeLockAddress -> TickRangeLock), iotx_B),
-          1L
+          1L,
+          PropositionTemplate.types.Tick
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_Q).toResource
 
-        // TODO continue with Step R, which consumes Topl from genesis tx
-        // R. create a transaction which consumes TOPLs, TODO continue later, issues with stakingOperator
+        // R. create a transaction which consumes TOPLs
 
-        //        genesisIotx = blockResponse.block.fullBody.transactions.head
-        //        wallet = Wallet(
-        //          spendableBoxes = Map(
-        //            genesisIotx.id.outputAddress(0, 0, 1) -> Box(HeightRangeLock, genesisIotx.outputs(1).value) // 10000000 LVL
-        //          ),
-        //          propositions = Map(
-        //            HeightRangeLockAddress -> HeightRangeLock
-        //          )
-        //        )
+        walletWithSpendableTopls = Wallet(
+          spendableBoxes = Map(
+            genesisIotx.id.outputAddress(0, 0, 0) -> Box(
+              PrivateTestnet.HeightLockOneLock,
+              genesisIotx.outputs(0).value
+            ) // 10000000 TOPLs
+          ),
+          propositions = Map(
+            PrivateTestnet.HeightLockOneSpendingAddress -> PrivateTestnet.HeightLockOneLock
+          )
+        )
+        stakingOperator = PrivateTestnet.stakerInitializers(
+          node1.config.bigBangTimestamp.toEpochMilli,
+          node1.config.stakerCount
+        )
 
-        //        stakingOperator = PrivateTestnet
-        //          .stakerInitializers(node1.config.bigBangTimestamp.toEpochMilli, stakerCount = 1)
-        //          .head
-        //        walletWithTopl = Wallet(
-        //          spendableBoxes = Map(
-        //            genesisIotx.id.outputAddress(0, 0, 0) -> Box(
-        //              stakingOperator.lock,
-        //              genesisIotx.outputs(0).value
-        //            ) // 10000000 TOPL
-        //          ),
-        //          propositions = Map(stakingOperator.lockAddress -> stakingOperator.lock)
-        //        )
-        //        iotx_R <- createTransaction_TOPL(walletWithTopl, 1, stakingOperator).toResource
-        //        _      <- node1Client.broadcastTransaction(iotx_R).voidError.toResource
+        iotx_R <- createTransaction_TOPL(walletWithSpendableTopls, 1, stakingOperator.head).toResource
+        _      <- node1Client.broadcastTransaction(iotx_R).toResource
+        iotxRes_R <- OptionT(node1Client.fetchTransaction(iotx_R.id))
+          .getOrRaise(new FailSuiteException("ERROR! fetchTransaction R", Location.empty))
+          .toResource
+        _ <- assertIO((iotxRes_R.outputs(0).value.getTopl.quantity: BigInt).pure[F], BigInt(1)).toResource
 
         _ <- Async[F].sleep(15.seconds).toResource
 
@@ -379,6 +363,7 @@ class TransactionTest extends IntegrationSuite {
         _ = assert(logs.contains(s"EvaluationAuthorizationFailed(Proposition(TickRange(TickRange(0,1")) // step O bad tickRange, Fix message
         _ = assert(logs.contains(s"failed authorization validation: AuthorizationFailed(List())")) // step P good and bad tickRange, with threshold 2, Fix message
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q.id.show} from RPC"))
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_R.id.show} from RPC"))
         // format: on
 
       } yield ()
@@ -401,6 +386,12 @@ class TransactionTest extends IntegrationSuite {
     Wallet(spendableBoxes = newBoxes.toMap, propositions)
   }
 
+  /**
+   * @param wallet populated wallet with 1 spendable Box, with TOPLs
+   * @param lvlQuantityOutput1 TOPL quntity to transfer
+   * @param stakingOperator which provide the lock address and registration to create the output
+   * @return
+   */
   private def createTransaction_TOPL(
     wallet:             Wallet,
     lvlQuantityOutput1: BigInt,
@@ -420,14 +411,13 @@ class TransactionTest extends IntegrationSuite {
         )
       )
 
-      // TODO
       outputs = List(
         UnspentTransactionOutput(
           stakingOperator.lockAddress,
           Value.defaultInstance.withTopl(
             Value.TOPL.defaultInstance
               .withQuantity(lvlQuantityOutput1)
-              .withRegistration(stakingRegistration)
+              .withRegistration(stakingOperator.registration)
           )
         )
       )
@@ -442,15 +432,7 @@ class TransactionTest extends IntegrationSuite {
             )
           )
 
-      // FIX me, how to create a witness?
-      fakeMsgBind: SignableBytes = unprovenTransaction.signable // TODO
-      witness = Witness(
-        ByteString.copyFrom(
-          (new Ed25519)
-            .sign(Ed25519.SecretKey(stakingOperator.spendingVK.toByteArray), fakeMsgBind.value.toByteArray)
-        )
-      )
-      proof <- Prover.signatureProver[F].prove(witness, unprovenTransaction.signable)
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
       predicateWithProof = predicate.copy(responses = List(proof))
       iotx = proveTransaction(unprovenTransaction, predicateWithProof)
     } yield iotx
@@ -469,8 +451,9 @@ class TransactionTest extends IntegrationSuite {
    *  - output 4: TickRange
    *  - output n TODO: ExactMatch, LessThan, GreaterThan, EqualTo, Threshold, Not, And, or
    */
-  private def createTransaction_1(
-    wallet:             Wallet,
+  private def createTransaction_fromGenesisIotx(
+    inputBoxId:         TransactionOutputAddress,
+    box:                Box,
     lvlQuantityOutput1: BigInt,
     lvlQuantityOutput2: BigInt,
     lvlQuantityOutput3: BigInt,
@@ -480,7 +463,6 @@ class TransactionTest extends IntegrationSuite {
   ): F[IoTransaction] =
     for {
       timestamp <- Async[F].realTimeInstant
-      (inputBoxId, box) = (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2)
 
       predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
 
@@ -523,26 +505,28 @@ class TransactionTest extends IntegrationSuite {
     } yield iotx
 
   /**
-   * Transaction_1 -> (Transaction_1_1, Transaction_1_2, Transaction_1_3)
+   * Transacion used to test the following validations,
+   * Auth validation, Digest, Signature, TickRange
+   * requires that the wallet contains 1 Proposition related with the prover
+   * @param wallet it requires that the wallet contains 1 specific proposition related to the prove that we want to test
+   * @param lvlQuantityOutput1
+   * @param prover
+   * @return
    */
-  private def createTransaction_1_1_DigestProver(
+  private def createTransaction_afterGenesisIotxSuccess(
     wallet:             Wallet,
-    lvlQuantityOutput1: BigInt
+    lvlQuantityOutput1: BigInt,
+    prover:             PropositionType
   ): F[IoTransaction] =
     for {
+
       timestamp <- Async[F].realTimeInstant
       (inputBoxId, box) = (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2)
       lockAddress = wallet.propositions.head._1
 
       predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
-
-      inputs = List(
-        SpentTransactionOutput(
-          address = inputBoxId,
-          attestation = Attestation(Attestation.Value.Predicate(predicate)),
-          value = box.value
-        )
-      )
+      attestation = Attestation(Attestation.Value.Predicate(predicate))
+      inputs = List(SpentTransactionOutput(inputBoxId, attestation, box.value))
 
       outputs = List(
         UnspentTransactionOutput(lockAddress, Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput1)))
@@ -558,103 +542,26 @@ class TransactionTest extends IntegrationSuite {
             )
           )
 
-      proof <- Prover.digestProver[F].prove(preimage, unprovenTransaction.signable)
-      predicateWithProof = predicate.copy(responses = List(proof))
-      iotx = proveTransaction(unprovenTransaction, predicateWithProof)
-    } yield iotx
+      proof <-
+        prover match {
+          case PropositionTemplate.types.Digest =>
+            Prover.digestProver[F].prove(preimage, unprovenTransaction.signable)
 
-  /**
-   * Transaction_1 -> (Transaction_1_1, Transaction_1_2, Transaction_1_3)
-   */
-  private def createTransaction_1_2_SignatureProver(
-    wallet:             Wallet,
-    lvlQuantityOutput1: BigInt
-  ): F[IoTransaction] =
-    for {
-      timestamp <- Async[F].realTimeInstant
-      (inputBoxId, box) = (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2)
-      lockAddress = wallet.propositions.head._1
-
-      predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
-
-      inputs = List(
-        SpentTransactionOutput(
-          address = inputBoxId,
-          attestation = Attestation(Attestation.Value.Predicate(predicate)),
-          value = box.value
-        )
-      )
-
-      outputs = List(
-        UnspentTransactionOutput(lockAddress, Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput1)))
-      )
-
-      unprovenTransaction =
-        IoTransaction.defaultInstance
-          .withInputs(inputs)
-          .withOutputs(outputs)
-          .withDatum(
-            Datum.IoTransaction(
-              Event.IoTransaction(Schedule(0, Long.MaxValue, timestamp.toEpochMilli), SmallData.defaultInstance)
+          case PropositionTemplate.types.Signature =>
+            val witness = Witness(
+              ByteString.copyFrom(
+                (new ExtendedEd25519)
+                  .sign(
+                    WalletApi.pbKeyPairToCryotoKeyPair(childKeyPair).signingKey,
+                    unprovenTransaction.signable.value.toByteArray
+                  )
+              )
             )
-          )
+            Prover.signatureProver[F].prove(witness, unprovenTransaction.signable)
 
-      witness = Witness(
-        ByteString.copyFrom(
-          (new ExtendedEd25519)
-            .sign(
-              WalletApi.pbKeyPairToCryotoKeyPair(childKeyPair).signingKey,
-              unprovenTransaction.signable.value.toByteArray
-            )
-        )
-      )
-      proof <- Prover.signatureProver[F].prove(witness, unprovenTransaction.signable)
-      predicateWithProof = predicate.copy(responses = List(proof))
-      iotx = proveTransaction(unprovenTransaction, predicateWithProof)
-    } yield iotx
-
-  /**
-   * Transacion used to test the following validations
-   * - Transaction with good TickRange Proposition
-   * - EvaluationAuthorizationFailed(Proposition(TickRange
-   */
-  private def createTransaction_1_3_TickProver(
-    wallet:             Wallet,
-    lvlQuantityOutput1: BigInt
-  ): F[IoTransaction] =
-    for {
-      timestamp <- Async[F].realTimeInstant
-      (inputBoxId, box) = (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2)
-      lockAddress = wallet.propositions.head._1
-
-      predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
-
-      inputs = List(
-        SpentTransactionOutput(
-          address = inputBoxId,
-          attestation = Attestation(Attestation.Value.Predicate(predicate)),
-          value = box.value
-        )
-      )
-
-      outputs = List(
-        UnspentTransactionOutput(
-          lockAddress,
-          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput1))
-        )
-      )
-
-      unprovenTransaction =
-        IoTransaction.defaultInstance
-          .withInputs(inputs)
-          .withOutputs(outputs)
-          .withDatum(
-            Datum.IoTransaction(
-              Event.IoTransaction(Schedule(0, Long.MaxValue, timestamp.toEpochMilli), SmallData.defaultInstance)
-            )
-          )
-
-      proof <- Prover.tickProver[F].prove((), unprovenTransaction.signable)
+          case PropositionTemplate.types.Tick =>
+            Prover.tickProver[F].prove((), unprovenTransaction.signable)
+        }
       predicateWithProof = predicate.copy(responses = List(proof))
       iotx = proveTransaction(unprovenTransaction, predicateWithProof)
     } yield iotx
@@ -665,10 +572,9 @@ class TransactionTest extends IntegrationSuite {
    * @param wallet populated wallet with spendableBoxes
    * @return a transaction
    */
-  private def createTransaction_2(wallet: Wallet): F[IoTransaction] =
+  private def createTransaction_DoubleSpend(inputBoxId: TransactionOutputAddress, box: Box): F[IoTransaction] =
     for {
       timestamp <- Async[F].realTimeInstant
-      (inputBoxId, box) = (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2)
 
       predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
 
@@ -702,14 +608,14 @@ class TransactionTest extends IntegrationSuite {
     } yield iotx
 
   private def createTransaction_withFailures(
-    wallet:  Wallet,
-    outputs: Seq[UnspentTransactionOutput],
-    datum:   Datum.IoTransaction
+    inputBoxId: TransactionOutputAddress,
+    box:        Box,
+    outputs:    Seq[UnspentTransactionOutput],
+    datum:      Datum.IoTransaction
   ): F[IoTransaction] =
     for {
-      (inputBoxId, box) <- (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2).pure[F]
 
-      predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
+      predicate <- Attestation.Predicate(box.lock.getPredicate, Nil).pure[F]
 
       inputs = List(
         SpentTransactionOutput(
@@ -737,11 +643,12 @@ class TransactionTest extends IntegrationSuite {
    * @param wallet populated wallet with spendableBoxes
    * @return a transaction wich is expected to fail
    */
-  private def createTransaction_3(wallet: Wallet): F[IoTransaction] =
+  private def createTransaction_ManyOutputs(inputBoxId: TransactionOutputAddress, box: Box): F[IoTransaction] =
     for {
       timestamp <- Async[F].realTimeInstant
       iotx <- createTransaction_withFailures(
-        wallet,
+        inputBoxId,
+        box,
         // too many outputs
         outputs = (1 to Short.MaxValue).map(_ =>
           UnspentTransactionOutput(
@@ -762,10 +669,17 @@ class TransactionTest extends IntegrationSuite {
    * @param wallet populated wallet with spendableBoxes
    * @return a transaction wich is expected to fail
    */
-  private def createTransaction_4(wallet: Wallet, min: Long, max: Long, timestamp: Long): F[IoTransaction] =
+  private def createTransaction_BadSchedule(
+    inputBoxId: TransactionOutputAddress,
+    box:        Box,
+    min:        Long,
+    max:        Long,
+    timestamp:  Long
+  ): F[IoTransaction] =
     for {
       iotx <- createTransaction_withFailures(
-        wallet,
+        inputBoxId,
+        box,
         outputs = List(
           UnspentTransactionOutput(
             HeightRangeLockAddress,
@@ -783,14 +697,14 @@ class TransactionTest extends IntegrationSuite {
    * @prover one of lockedProved, digestProver, signatureProver ... default to heightProver
    * @return a transaction wich is expected to fail
    */
-  private def createTransaction_5(
-    wallet:             Wallet,
+  private def createTransaction_BadAttestation(
+    inputBoxId:         TransactionOutputAddress,
+    box:                Box,
     prover:             PropositionType,
     lvlQuantityOutput1: BigInt
   ): F[IoTransaction] =
     for {
       timestamp <- Async[F].realTimeInstant
-      (inputBoxId, box) = (wallet.spendableBoxes.head._1, wallet.spendableBoxes.head._2)
 
       predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
 
@@ -829,7 +743,11 @@ class TransactionTest extends IntegrationSuite {
               .signatureProver[F]
               .prove(Witness(ByteString.copyFrom(Array.fill(64)(0.byteValue))), unprovenTransaction.signable)
           case PropositionTemplate.types.Tick => Prover.tickProver[F].prove((), unprovenTransaction.signable)
-          // TODO there is no proposition template for the following Prover
+          /**
+           * TODO there is no proposition template for the following Provers
+           * there is no plans in the immediate future to support these proposition types.
+           * It is not currently used anywhere. (The credentialler can not yet prove these types of propositions).
+           */
 //          case "exactMatchProver"             => Prover.exactMatchProver[F].prove((), unprovenTransaction.signable)
 //          case "lessThanProver"               => Prover.lessThanProver[F].prove((), unprovenTransaction.signable)
 //          case "greaterThanProver"            => Prover.greaterThanProver[F].prove((), unprovenTransaction.signable)
