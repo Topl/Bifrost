@@ -1,11 +1,9 @@
 package co.topl.blockchain
 
 import cats.implicits._
-import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.brambl.syntax.lockAsLockSyntaxOps
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
@@ -18,7 +16,6 @@ import co.topl.models.utility.Lengths
 import co.topl.models.utility.Sized
 import com.google.protobuf.ByteString
 import quivr.models._
-import quivr.models.VerificationKey._
 
 /**
  * Represents the data required to initialize a new staking.  This includes the necessary secret keys, plus their
@@ -31,17 +28,15 @@ object StakerInitializers {
   /**
    * An initializer for an Operator.  An Operator needs the full suite of keys in order to perform its duties.
    * @param operatorSK The operator's registration key
-   * @param walletSK The operator's offline wallet key
-   * @param spendingSK The operator's key with authority to spend its stake and registration
+   * @param lockAddress The operator's lock address to associate with the registration UTxO
    * @param vrfSK The operator's VRF/eligibility/PoS key
    * @param kesSK The operator's forward-secure key
    */
   case class Operator(
-    operatorSK: ByteString,
-    walletSK:   ByteString,
-    spendingSK: ByteString,
-    vrfSK:      ByteString,
-    kesSK:      SecretKeyKesProduct
+    operatorSK:  ByteString,
+    lockAddress: LockAddress,
+    vrfSK:       ByteString,
+    kesSK:       SecretKeyKesProduct
   ) extends StakerInitializer {
 
     val vrfVK: Bytes = ByteString.copyFrom(Ed25519VRF.precomputed().getVerificationKey(vrfSK.toByteArray))
@@ -62,31 +57,6 @@ object StakerInitializers {
 
     val registration: StakingRegistration =
       StakingRegistration(stakingAddress, registrationSignature)
-
-    val spendingVK: ByteString = ByteString.copyFrom(
-      new Ed25519().getVerificationKey(Ed25519.SecretKey(spendingSK.toByteArray)).bytes
-    )
-
-    val lockAddress: LockAddress =
-      Lock(
-        Lock.Value.Predicate(
-          Lock.Predicate(
-            List(
-              Challenge().withRevealed(
-                Proposition(
-                  Proposition.Value.DigitalSignature(
-                    Proposition.DigitalSignature("ed25519", VerificationKey(Vk.Ed25519(Ed25519Vk(spendingVK))))
-                  )
-                )
-              )
-            ),
-            1
-          )
-        )
-      ).lockAddress(
-        NetworkConstants.PRIVATE_NETWORK_ID,
-        NetworkConstants.MAIN_LEDGER_ID
-      )
 
     /**
      * This staker's initial stake in the network
@@ -124,33 +94,23 @@ object StakerInitializers {
         )
         .signingKey
         .bytes
-      val walletSK = new Ed25519()
-        .deriveKeyPairFromSeed(
-          blake2b256.hash(seed.data.toByteArray :+ 2)
-        )
-        .signingKey
-        .bytes
-      val spendingSK = new Ed25519()
-        .deriveKeyPairFromSeed(
-          blake2b256.hash(seed.data.toByteArray :+ 3)
-        )
-        .signingKey
-        .bytes
+
+      val spendingLockAddress = PrivateTestnet.HeightLockOneSpendingAddress
+
       val (vrfSK, _) =
         Ed25519VRF
           .precomputed()
           .deriveKeyPairFromSeed(
-            blake2b256.hash(seed.data.toByteArray :+ 4)
+            blake2b256.hash(seed.data.toByteArray :+ 2)
           )
       val (kesSK, _) = new KesProduct().createKeyPair(
-        seed = blake2b256.hash(seed.data.toByteArray :+ 5),
+        seed = blake2b256.hash(seed.data.toByteArray :+ 3),
         height = kesKeyHeight,
         0
       )
       Operator(
         ByteString.copyFrom(operatorSK),
-        ByteString.copyFrom(walletSK),
-        ByteString.copyFrom(spendingSK),
+        spendingLockAddress,
         ByteString.copyFrom(vrfSK),
         kesSK
       )

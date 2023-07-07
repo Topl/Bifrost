@@ -11,6 +11,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
@@ -94,7 +95,16 @@ object DataStoresInit {
         appConfig.bifrost.cache.epochData,
         Long.box
       )
-
+      registrationAccumulatorStore <- makeCachedDb[
+        F,
+        StakingAddress,
+        StakingAddress,
+        Unit
+      ](dataDir)(
+        "registration-accumulator",
+        appConfig.bifrost.cache.registrationAccumulator,
+        identity
+      )
       dataStores = DataStores(
         dataDir,
         parentChildTree,
@@ -110,7 +120,8 @@ object DataStoresInit {
         inactiveStakeStore,
         registrationsStore,
         blockHeightTreeStore,
-        epochDataStore
+        epochDataStore,
+        registrationAccumulatorStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
@@ -150,7 +161,8 @@ object DataStoresInit {
             CurrentEventIdGetterSetters.Indices.BlockHeightTree,
             CurrentEventIdGetterSetters.Indices.BoxState,
             CurrentEventIdGetterSetters.Indices.Mempool,
-            CurrentEventIdGetterSetters.Indices.EpochData
+            CurrentEventIdGetterSetters.Indices.EpochData,
+            CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
           ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
         )
       _ <- dataStores.slotData.put(

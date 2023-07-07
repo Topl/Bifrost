@@ -86,12 +86,12 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.74"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.75"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
-    "org.ethereum"     % "leveldbjni-all" % "1.18.3",
-    "org.iq80.leveldb" % "leveldb"        % "0.12"
+    "io.github.tronprotocol" % "leveldbjni-all" % "1.18.3",
+    "org.iq80.leveldb"       % "leveldb"        % "0.12"
   )
 
   val scodec = Seq(
@@ -162,7 +162,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.22.4"
+      "com.google.cloud" % "google-cloud-storage" % "2.23.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All

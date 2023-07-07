@@ -13,6 +13,7 @@ import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
@@ -34,7 +35,6 @@ import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
 
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -59,9 +59,8 @@ object Blockchain {
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
-    experimentalP2P:           Boolean = false,
     _epochData:                EpochDataAlgebra[F],
-    pingPongInterval:          FiniteDuration
+    networkProperties:         NetworkProperties
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
@@ -77,23 +76,7 @@ object Blockchain {
           .drain
       )
       synchronizationHandler <-
-        if (experimentalP2P) {
-          ActorPeerHandlerBridgeAlgebra.make(
-            localChain,
-            chainSelectionAlgebra,
-            validators.header,
-            validators.headerToBody,
-            validators.bodySyntax,
-            validators.bodySemantics,
-            validators.bodyAuthorization,
-            dataStores.slotData,
-            dataStores.headers,
-            dataStores.bodies,
-            dataStores.transactions,
-            blockIdTree,
-            pingPongInterval
-          )
-        } else {
+        if (networkProperties.legacyNetwork) {
           Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
             BlockchainPeerHandler.ChainSynchronizer.make[F](
               clock,
@@ -109,6 +92,22 @@ object Blockchain {
               dataStores.transactions,
               blockIdTree
             )
+          )
+        } else {
+          ActorPeerHandlerBridgeAlgebra.make(
+            localChain,
+            chainSelectionAlgebra,
+            validators.header,
+            validators.headerToBody,
+            validators.bodySyntax,
+            validators.bodySemantics,
+            validators.bodyAuthorization,
+            dataStores.slotData,
+            dataStores.headers,
+            dataStores.bodies,
+            dataStores.transactions,
+            blockIdTree,
+            networkProperties
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
@@ -187,7 +186,8 @@ object Blockchain {
                 validators.boxState,
                 rewardCalculator,
                 costCalculator,
-                validators.transactionAuthorization
+                validators.transactionAuthorization,
+                validators.registrationAccumulator
               )
           )
           blockProducer <- Stream.eval(

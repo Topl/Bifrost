@@ -36,7 +36,6 @@ object PeerBlockBodyFetcher {
      * @param blockHeaders bodies block header to download
      */
     case class DownloadBlocks(blockHeaders: NonEmptyChain[BlockHeader]) extends Message
-
   }
 
   case class State[F[_]](
@@ -79,22 +78,25 @@ object PeerBlockBodyFetcher {
 
   private def downloadBlockBody[F[_]: Async: Logger](
     state: State[F]
-  )(blockHeader: BlockHeader): F[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])] = {
+  )(blockHeader: BlockHeader): F[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])] = {
     val blockId = blockHeader.id
 
-    val body: F[BlockBody] =
+    val body: F[UnverifiedBlockBody] =
       for {
-        _    <- Logger[F].info(show"Fetching remote body id=$blockId")
-        body <- downloadBlockBody(state, blockId)
-        _    <- Logger[F].info(show"Fetched remote body id=$blockId")
-        _    <- checkBody(state, Block(blockHeader, body))
-        _    <- downloadingMissingTransactions(state, body)
-      } yield body
+        _                 <- Logger[F].info(show"Fetching remote body id=$blockId")
+        bodyStart         <- System.currentTimeMillis().pure[F]
+        body              <- downloadBlockBody(state, blockId)
+        bodyEnd           <- System.currentTimeMillis().pure[F]
+        _                 <- Logger[F].info(show"Fetched remote body id=$blockId")
+        _                 <- checkBody(state, Block(blockHeader, body))
+        txAndDownloadTime <- downloadingMissingTransactions(state, body)
+        allTxDownloadTime = txAndDownloadTime.collect { case (_, Some(time)) => time }
+      } yield UnverifiedBlockBody(state.hostId, body, bodyEnd - bodyStart, allTxDownloadTime)
 
     body
-      .map(blockBody => Either.right[BlockBodyDownloadError, BlockBody](blockBody))
+      .map(blockBody => Either.right[BlockBodyDownloadError, UnverifiedBlockBody](blockBody))
       .handleError {
-        case e: BlockBodyDownloadError => Either.left[BlockBodyDownloadError, BlockBody](e)
+        case e: BlockBodyDownloadError => Either.left[BlockBodyDownloadError, UnverifiedBlockBody](e)
         case unknownError              => Either.left(UnknownError(unknownError))
       }
       .flatTap {
@@ -121,14 +123,14 @@ object PeerBlockBodyFetcher {
   private def downloadingMissingTransactions[F[_]: Async: Logger](
     state:     State[F],
     blockBody: BlockBody
-  ): F[List[TransactionId]] =
+  ): F[List[(TransactionId, Option[Long])]] =
     Stream
       .iterable[F, TransactionId](blockBody.transactionIds)
       .evalMap(transactionId =>
         state.transactionStore
           .contains(transactionId)
           .flatMap {
-            case true  => transactionId.pure[F]
+            case true  => (transactionId, Option.empty[Long]).pure[F]
             case false => downloadAndCheckTransaction(state, transactionId)
           }
       )
@@ -138,14 +140,16 @@ object PeerBlockBodyFetcher {
   private def downloadAndCheckTransaction[F[_]: Async: Logger](
     state:         State[F],
     transactionId: TransactionId
-  ): F[TransactionId] =
+  ): F[(TransactionId, Option[Long])] =
     for {
       _                     <- Logger[F].debug(show"Fetching remote transaction id=$transactionId")
+      transactionStart      <- System.currentTimeMillis().pure[F]
       downloadedTransaction <- downloadTransaction(state, transactionId)
+      transactionEnd        <- System.currentTimeMillis().pure[F]
       _                     <- checkTransaction(transactionId, downloadedTransaction)
       _                     <- Logger[F].debug(show"Saving transaction id=$transactionId")
       _                     <- state.transactionStore.put(transactionId, downloadedTransaction)
-    } yield transactionId
+    } yield (transactionId, Option(transactionEnd - transactionStart))
 
   private def checkTransaction[F[_]: Async](
     transactionId:         TransactionId,
@@ -168,10 +172,10 @@ object PeerBlockBodyFetcher {
       .map(_.embedId)
 
   private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(s"Start body fetcher actor for ${state.hostId}") >>
+    Logger[F].info(show"Start body fetcher actor for ${state.hostId}") >>
     (state, state).pure[F]
 
   private def stopActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(s"Stop body fetcher actor for ${state.hostId}") >>
+    Logger[F].info(show"Stop body fetcher actor for ${state.hostId}") >>
     (state, state).pure[F]
 }

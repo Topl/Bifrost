@@ -9,7 +9,7 @@ import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.consensus.models.{BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
@@ -216,7 +216,7 @@ object PeerBlockHeaderFetcher {
     client:   BlockchainPeerClient[F],
     hostId:   HostId,
     blockIds: NonEmptyChain[BlockId]
-  ): F[List[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]] =
+  ): F[List[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]] =
     Stream
       .foldable[F, NonEmptyChain, BlockId](blockIds)
       .parEvalMapUnbounded(downloadHeader(client, hostId, _))
@@ -227,20 +227,22 @@ object PeerBlockHeaderFetcher {
     client:  BlockchainPeerClient[F],
     hostId:  HostId,
     blockId: BlockId
-  ): F[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])] = {
+  ): F[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])] = {
     val headerEither =
       for {
-        _      <- Logger[F].info(show"Fetching remote header id=$blockId")
-        header <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer).map(_.embedId)
-        fetchedId = header.id
-        _ <- Logger[F].info(show"Fetched remote header id=$blockId")
-        _ <- MonadThrow[F].raiseWhen(fetchedId =!= blockId)(HeaderHaveIncorrectId(blockId, fetchedId))
-      } yield header
+        _               <- Logger[F].info(show"Fetching remote header id=$blockId")
+        startHeaderTime <- System.currentTimeMillis().pure[F]
+        headerWithNoId  <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer)
+        endHeaderTime   <- System.currentTimeMillis().pure[F]
+        header          <- headerWithNoId.embedId.pure[F]
+        _               <- Logger[F].info(show"Fetched remote header id=$blockId")
+        _               <- MonadThrow[F].raiseWhen(header.id =!= blockId)(HeaderHaveIncorrectId(blockId, header.id))
+      } yield UnverifiedBlockHeader(hostId, header, endHeaderTime - startHeaderTime)
 
     headerEither
-      .map(blockHeader => Either.right[BlockHeaderDownloadError, BlockHeader](blockHeader))
+      .map(blockHeader => Either.right[BlockHeaderDownloadError, UnverifiedBlockHeader](blockHeader))
       .handleError {
-        case e: BlockHeaderDownloadError => Either.left[BlockHeaderDownloadError, BlockHeader](e)
+        case e: BlockHeaderDownloadError => Either.left[BlockHeaderDownloadError, UnverifiedBlockHeader](e)
         case unknownError                => Either.left(UnknownError(unknownError))
       }
       .flatTap {
@@ -254,7 +256,7 @@ object PeerBlockHeaderFetcher {
 
   private def sendHeadersToProxy[F[_]](
     state:         State[F],
-    headersEither: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+    headersEither: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
   ): F[Unit] = {
     val message: RequestsProxy.Message = RequestsProxy.Message.DownloadHeadersResponse(state.hostId, headersEither)
     state.requestsProxy.sendNoWait(message)
@@ -264,12 +266,12 @@ object PeerBlockHeaderFetcher {
     state.fetchingFiber
       .map { fiber =>
         val newState = state.copy(fetchingFiber = None)
-        Logger[F].info(s"Stop block header fetcher fiber for host ${state.hostId}") >>
+        Logger[F].info(show"Stop block header fetcher fiber for host ${state.hostId}") >>
         fiber.cancel >>
         (newState, newState).pure[F]
       }
       .getOrElse {
-        Logger[F].info(s"Ignoring stopping block header fetcher fiber for host ${state.hostId}") >>
+        Logger[F].info(show"Ignoring stopping block header fetcher fiber for host ${state.hostId}") >>
         (state, state).pure[F]
       }
 

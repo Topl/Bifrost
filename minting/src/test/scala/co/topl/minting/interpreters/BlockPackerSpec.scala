@@ -5,11 +5,14 @@ import munit.ScalaCheckEffectSuite
 import cats.implicits._
 import org.scalamock.munit.AsyncMockFactory
 import cats.effect.IO
-import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.algebras.{
+  BoxStateAlgebra,
+  MempoolAlgebra,
+  RegistrationAccumulatorAlgebra,
+  TransactionRewardCalculatorAlgebra
+}
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.models.MempoolGraph
-import co.topl.ledger.algebras.BoxStateAlgebra
-import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.brambl.validation.algebras._
 import co.topl.brambl.syntax._
 import co.topl.models.generators.consensus.ModelGenerators
@@ -45,7 +48,8 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             mock[BoxStateAlgebra[F]],
             mock[TransactionRewardCalculatorAlgebra[F]],
             mock[TransactionCostCalculator[F]],
-            mock[TransactionAuthorizationVerifier[F]]
+            mock[TransactionAuthorizationVerifier[F]],
+            mock[RegistrationAccumulatorAlgebra[F]]
           )
           iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
           _ <- iterative.improve(FullBlockBody.defaultInstance).timeout(1.second).intercept[TimeoutException].toResource
@@ -132,6 +136,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .onCall { case (_: DynamicContext[F, String, Datum], tx: IoTransaction) =>
           tx.asRight.pure[F]
         }
+      val registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
       val testResource =
         for {
           underTest <- BlockPacker.make[F](
@@ -139,7 +144,8 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             boxState,
             rewardCalculator,
             costCalculator,
-            authorizationVerifier
+            authorizationVerifier,
+            registrationAccumulator
           )
           iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
           result <- fs2.Stream
@@ -155,7 +161,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
     }
   }
 
-  private def lvlValue(quantity: BigInt) =
+  private def lvlValue(quantity: BigInt): Value =
     Value().withLvl(Value.LVL(Int128(ByteString.copyFrom(quantity.toByteArray))))
 
   private val emptyLockAddress = LockAddress(id = LockId(ByteString.copyFrom(Array.fill(32)(0.toByte))))
