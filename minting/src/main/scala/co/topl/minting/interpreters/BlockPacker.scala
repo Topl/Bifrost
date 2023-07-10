@@ -284,9 +284,16 @@ object BlockPacker {
                 .spenders(transaction.id)
                 .toList
                 .map(_._2)
-                .foldMapM(spenders =>
-                  spenders.toList.map(_._1).map(graph.transactions).traverse(subgraphScore(graph)).map(_.max)
-                )
+                .foldMapM {
+                  case spenders if spenders.isEmpty =>
+                    BigInt(0).pure[F]
+                  case spenders =>
+                    spenders.toList
+                      .map(_._1)
+                      .map(graph.transactions)
+                      .traverse(subgraphScore(graph))
+                      .map(_.max)
+                }
             ).mapN(_ + _)
 
           /**

@@ -10,6 +10,7 @@ import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
+import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 import quivr.models.SmallData
 
@@ -55,8 +56,9 @@ object BigBang {
     val eta: Eta =
       Sized.strictUnsafe(
         new Blake2b256().hash(
-          (config.etaPrefix +:
-          transactions.map(_.id.value)).map(v => v: Array[Byte]): _*
+          (config.etaPrefix.toByteArray +:
+          Longs.toByteArray(config.timestamp) +:
+          transactions.map(_.id.value.toByteArray)): _*
         )
       )
 
