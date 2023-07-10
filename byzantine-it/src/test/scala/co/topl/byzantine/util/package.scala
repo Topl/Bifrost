@@ -10,7 +10,7 @@ package object util {
     new GenusRpcApi(rpc)
 
   implicit def nodeToDockerApi(node: BifrostDockerNode)(implicit
-                                                        dockerClient: DockerClient
+    dockerClient: DockerClient
   ): NodeDockerApi =
     new NodeDockerApi(node.containerId)
 }

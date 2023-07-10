@@ -3,10 +3,10 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.5"
-  val kamonVersion = "2.6.1"
+  val kamonVersion = "2.6.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.5.0"
+  val catsEffectVersion = "3.5.1"
   val fs2Version = "3.7.0"
   val logback = "1.4.8"
   val orientDbVersion = "3.2.20"
@@ -90,7 +90,7 @@ object Dependencies {
   )
 
   val levelDb: Seq[ModuleID] = Seq(
-    "io.github.tronprotocol" % "leveldbjni-all" % "1.18.3",
+    "io.github.tronprotocol" % "leveldbjni-all" % "1.23.2",
     "org.iq80.leveldb"       % "leveldb"        % "0.12"
   )
 
