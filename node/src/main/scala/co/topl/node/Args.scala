@@ -5,6 +5,7 @@ import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs}
 import mainargs._
 import monocle.macros.GenLens
 import monocle.macros.Lenses
+import monocle.syntax.all._
 
 // $COVERAGE-OFF$
 
@@ -29,10 +30,7 @@ object Args {
       doc = "An optional flag to enable debug mode on this node."
     )
     debug: Flag,
-    @arg(
-      doc = "Run the Bifrost CLI instead of the node."
-    )
-    cli: Flag
+    cli:   Boolean = false
   )
 
   @main @Lenses
@@ -100,6 +98,10 @@ object Args {
     )
     orientDbPassword: Option[String]
   )
+
+  def parse(args: Seq[String]): Args =
+    if (args.headOption.contains("cli")) parserArgs.constructOrThrow(args.tail).focus(_.startup.cli).replace(true)
+    else parserArgs.constructOrThrow(args)
 
   implicit val showArgs: Show[Args] = {
     val base = Show.fromToString[Args]

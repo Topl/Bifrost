@@ -52,14 +52,14 @@ object NodeApp extends AbstractNodeApp
 
 abstract class AbstractNodeApp
     extends IOBaseApp[Args, ApplicationConfig](
-      createArgs = args => Args.parserArgs.constructOrThrow(args),
+      createArgs = Args.parse,
       createConfig = IOBaseApp.createTypesafeConfig,
       parseConfig = (args, conf) => ApplicationConfigOps.unsafe(args, conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
 
   def run: IO[Unit] =
-    if (args.startup.cli.value) new ConfiguredCliApp(args, appConfig).run
+    if (args.startup.cli) new ConfiguredCliApp(args, appConfig).run
     else new ConfiguredNodeApp(args, appConfig).run
 }
 
