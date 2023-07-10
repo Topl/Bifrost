@@ -5,7 +5,7 @@ import cats.data.EitherT
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.blockchain.StakerInitializers
-import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.transaction.{IoTransaction, Schedule}
 import co.topl.brambl.models.{Datum, Event, LockAddress}
 import co.topl.config.ApplicationConfig
 import co.topl.crypto.generation.EntropyToSeed
@@ -34,8 +34,7 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
     StageResultT[F, CliApp.Command](
       (
         c.println("Please enter a command. [ QUIT | register ]") >>
-        c.print("> ") >>
-        c.readLine.map(_.trim.toLowerCase)
+        readLowercaseInput
       ).flatMap {
         case "" | "quit" =>
           CliApp.Command.Quit.some.widen[CliApp.Command].pure[F]
@@ -57,14 +56,15 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
 
   private def handleRegistrationCommand: StageResultT[F, Unit] =
     for {
-      _           <- prompt
-      _           <- requireBramblCli
-      _           <- checkStakingDirConfig
-      lockAddress <- readLockAddress
-      quantity    <- readQuantity
-      operatorKey <- createOperatorKey
-      vrfKey      <- createVrfKey
-      kesKey      <- createKesKey
+      _                 <- intro
+      _                 <- requireBramblCli
+      _                 <- checkStakingDirConfig
+      isExistingNetwork <- askIfExistingNetwork
+      lockAddress       <- readLockAddress
+      quantity          <- readQuantity
+      operatorKey       <- createOperatorKey
+      vrfKey            <- createVrfKey
+      kesKey            <- createKesKey
       stakerInitializer =
         StakerInitializers.Operator(
           ByteString.copyFrom(operatorKey.bytes),
@@ -73,84 +73,90 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
           kesKey._1
         )
       transactionOutputs = stakerInitializer.registrationOutputs(quantity)
-      transaction = IoTransaction(datum = Datum.IoTransaction(Event.IoTransaction.defaultInstance))
+      transaction = IoTransaction(datum =
+        Datum.IoTransaction(
+          Event.IoTransaction.defaultInstance.withSchedule(
+            if (isExistingNetwork) Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+            else Schedule(0L, 0L, System.currentTimeMillis())
+          )
+        )
+      )
         .withOutputs(transactionOutputs)
       _ <- write(transaction.toByteArray)("Registration Transaction", "registration.transaction.pbuf")
+      _ <- finalInstructions(isExistingNetwork)
     } yield StageResult.Menu
 
   /**
    * Initial instruction message
    */
-  private val prompt =
-    StageResultT[F, Unit](
+  private val intro =
+    StageResultT.liftF[F, Unit](
       c.println("This tool will guide you through the process of preparing Secret Keys for staking.")
-        .as(StageResult.Success(()))
     )
 
   /**
    * Ask the user if Brambl CLI is installed, or Exit otherwise
    */
   private val requireBramblCli =
-    StageResultT[F, Unit](
-      c.println(
-        "The registration process requires Brambl CLI." +
-        "  Please ensure it is installed.  See https://github.com/Topl/brambl-cli for details."
-      ) >>
-      c.println("Continue? [ Y | n ]") >>
-      c.print("> ") >>
-      c.readLine
-        .map(_.trim.toLowerCase)
-        .map {
-          case "" | "y" => StageResult.Success(())
-          case _        => StageResult.Exit
-        }
-    )
+    StageResultT
+      .liftF[F, Unit](
+        c.println(
+          "The registration process requires Brambl CLI." +
+          "  Please ensure it is installed.  See https://github.com/Topl/brambl-cli for details."
+        ) >>
+        c.println("Continue? [ Y | n ]")
+      )
+      .flatMapF(_ =>
+        readLowercaseInput
+          .map {
+            case "" | "y" => StageResult.Success(())
+            case _        => StageResult.Menu
+          }
+      )
 
   /**
    * Ask the user if the configured staking directory is correct, or Exit otherwise
    */
   private val checkStakingDirConfig =
-    StageResultT[F, Unit](
-      c.println(
-        show"This process will save keys to ${appConfig.bifrost.staking.directory}." +
-        show" If this is incorrect, please reconfigure the node with the correct directory."
-      ) >>
-      c.println("Continue? [ Y | n ]") >>
-      c.print("> ") >>
-      c.readLine
-        .map(_.trim.toLowerCase)
-        .map {
-          case "" | "y" => StageResult.Success(())
-          case _        => StageResult.Exit
-        }
-    )
+    StageResultT
+      .liftF[F, Unit](
+        c.println(
+          show"This process will save keys to ${appConfig.bifrost.staking.directory}." +
+          show" If this is incorrect, please reconfigure the node with the correct directory."
+        ) >>
+        c.println("Continue? [ Y | n ]")
+      )
+      .flatMapF(_ =>
+        readLowercaseInput
+          .map {
+            case "" | "y" => StageResult.Success(())
+            case _        => StageResult.Menu
+          }
+      )
 
   /**
    * Read a lock address (or retry until a valid value is provided)
    */
   private val readLockAddress =
-    StageResultT[F, LockAddress](
+    StageResultT.liftF[F, LockAddress](
       c.println("Using a wallet (i.e. Brambl CLI), create a new LockAddress.") >>
       (c.println("Please enter your LockAddress.") >>
-      c.print("> ") >>
-      c.readLine.flatMap(lockAddressStr =>
+      readInput.flatMap(lockAddressStr =>
         EitherT
           .fromEither[F](co.topl.brambl.codecs.AddressCodecs.decodeAddress(lockAddressStr))
           .leftSemiflatTap(error => c.println(s"Invalid Lock Address. reason=$error input=$lockAddressStr"))
           .toOption
           .value
       )).untilDefinedM
-        .map(StageResult.Success(_))
     )
 
   /**
    * Read an Int128 quantity (or retry until a valid value is provided)
    */
   private val readQuantity =
-    StageResultT[F, Int128](
+    StageResultT.liftF[F, Int128](
       (c.println("How many TOPLs do you want to use for staking?") >>
-      c.print("> ") >>
-      c.readLine.flatMap(str =>
+      readLowercaseInput.flatMap(str =>
         EitherT(MonadThrow[F].catchNonFatal(BigInt(str)).attempt)
           .leftMap(_ => s"Invalid Quantity. input=$str")
           .ensure(s"Quantity too large. input=$str")(_.bitLength <= 128)
@@ -160,26 +166,23 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
           .value
       )).untilDefinedM
         .map(quantity => Int128(ByteString.copyFrom(quantity.toByteArray)))
-        .map(StageResult.Success(_))
     )
 
   /**
    * Generate a random seed
    */
   private val createSeed =
-    StageResultT[F, Array[Byte]](
+    StageResultT.liftF[F, Array[Byte]](
       Sync[F]
         .delay(EntropyToSeed.instances.pbkdf2Sha512(32).toSeed(Entropy.generate(), password = None))
-        .map(StageResult.Success(_))
     )
 
   /**
    * Generate and save an Ed25519 Operator key.
    */
   private val createOperatorKey =
-    StageResultT[F, Unit](
+    StageResultT.liftF[F, Unit](
       c.println("Generating an Ed25519 Operator SK.  This key determines your StakingAddress.")
-        .as(StageResult.Success(()))
     ) >>
     createSeed
       .map(new Ed25519().deriveSecretKeyFromSeed)
@@ -189,9 +192,8 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
    * Generate and save a VRF key.
    */
   private val createVrfKey =
-    StageResultT[F, Unit](
+    StageResultT.liftF[F, Unit](
       c.println("Generating a VRF Key.  This key establishes your \"randomness\" within the blockchain.")
-        .as(StageResult.Success(()))
     ) >>
     createSeed
       .map(Ed25519VRF.precomputed().deriveKeyPairFromSeed)
@@ -201,9 +203,8 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
    * Generate and save a KES key.
    */
   private val createKesKey =
-    StageResultT[F, Unit](
+    StageResultT.liftF[F, Unit](
       c.println("Generating a KES Key.  This key maintains forward-security when used honestly.")
-        .as(StageResult.Success(()))
     ) >>
     createSeed
       .map(seed =>
@@ -220,6 +221,46 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
         )
       )
 
+  private val askIfExistingNetwork: StageResultT[F, Boolean] =
+    StageResultT.liftF[F, Unit](
+      c.println("Which type of network are you joining? [ EXISTING | new ]")
+    ) >> StageResultT
+      .liftF(readLowercaseInput)
+      .flatMap {
+        case "" | "existing" => StageResultT.liftF(true.pure[F])
+        case "new"           => StageResultT.liftF(false.pure[F])
+        case _ =>
+          StageResultT.liftF(
+            c.println("Invalid network type.  In most cases, you should choose \"existing\" unless otherwise directed.")
+          ) >> askIfExistingNetwork
+      }
+
+  private def finalInstructions(isExistingNetwork: Boolean) =
+    StageResultT.liftF(
+      c.println(
+        if (isExistingNetwork)
+          "Your staking keys have been saved.  The Transaction that was saved should be imported into Brambl for input selection and broadcast." +
+          "  Once broadcasted, save the updated transaction back to disk (overwrite the previous)." +
+          "  Next, you can launch your node, and it will search the chain for your registration Transaction." +
+          "  It may take up to two epochs before your node begins producing new blocks."
+        else
+          "Your staking keys have been saved.  The Transaction that was saved should be submitted to your" +
+          " genesis coordinator contact at Topl for further processing."
+      )
+    )
+
+  /**
+   * Prompt a user for input and trim any excess spaces
+   */
+  private val readInput: F[String] =
+    c.print("> ") >> c.readLine.map(_.trim)
+
+  /**
+   * Prompt a user for input trim any excess spaces, and lowercase the result
+   */
+  private val readLowercaseInput: F[String] =
+    readInput.map(_.toLowerCase)
+
   /**
    * Write the given file to disk, and log the operation.  Files are saved to the configured staking directory.
    * @param contents The data to write
@@ -227,7 +268,7 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
    * @param fileName The name of the file to save (within the staking directory)
    */
   private def write(contents: Array[Byte])(logName: String, fileName: String) =
-    StageResultT[F, Unit] {
+    StageResultT.liftF[F, Unit] {
       val destination = Path(appConfig.bifrost.staking.directory) / fileName
       c.println(show"Writing $logName to $destination") >>
       destination.parent.traverse(Files[F].createDirectories) >>
@@ -236,7 +277,6 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
         .through(Files[F].writeAll(destination))
         .compile
         .drain
-        .as(StageResult.Success(()))
     }
 
 }

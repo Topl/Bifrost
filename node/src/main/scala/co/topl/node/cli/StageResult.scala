@@ -31,8 +31,8 @@ object StageResult {
    */
   case class Success[+A](a: A) extends StageResult[A]
 
-  implicit val catsStdInstancesForStageResult: Traverse[StageResult] with MonadError[StageResult, Unit] =
-    new Traverse[StageResult] with MonadError[StageResult, Unit] {
+  implicit val catsStdInstancesForStageResult: Monad[StageResult] =
+    new Monad[StageResult] {
 
       def flatMap[A, B](fa: StageResult[A])(f: A => StageResult[B]): StageResult[B] =
         fa match {
@@ -50,33 +50,6 @@ object StageResult {
           case StageResult.Success(Right(b)) => StageResult.Success(b)
           case StageResult.Exit              => StageResult.Exit
           case StageResult.Menu              => StageResult.Menu
-        }
-
-      def raiseError[A](e: Unit): StageResult[A] = StageResult.Exit
-
-      def handleErrorWith[A](fa: StageResult[A])(f: Unit => StageResult[A]): StageResult[A] =
-        fa match {
-          case StageResult.Success(a) => StageResult.Success(a)
-          case _                      => f(())
-        }
-
-      def traverse[G[_]: Applicative, A, B](fa: StageResult[A])(f: A => G[B]): G[StageResult[B]] =
-        fa match {
-          case StageResult.Success(a) => f(a).map(StageResult.Success(_))
-          case StageResult.Exit       => Applicative[G].pure(StageResult.Exit)
-          case StageResult.Menu       => Applicative[G].pure(StageResult.Menu)
-        }
-
-      def foldLeft[A, B](fa: StageResult[A], b: B)(f: (B, A) => B): B =
-        fa match {
-          case StageResult.Success(a) => f(b, a)
-          case _                      => b
-        }
-
-      def foldRight[A, B](fa: StageResult[A], lb: Eval[B])(f: (A, Eval[B]) => Eval[B]): Eval[B] =
-        fa match {
-          case StageResult.Success(a) => f(a, lb)
-          case _                      => lb
         }
     }
 }
@@ -109,4 +82,10 @@ final case class StageResultT[F[_], A](value: F[StageResult[A]]) {
 
   def >>=[B](f: A => StageResultT[F, B])(implicit F: Monad[F]): StageResultT[F, B] =
     flatMap(f)
+}
+
+object StageResultT {
+
+  def liftF[F[_], A](fa: F[A])(implicit F: Functor[F]): StageResultT[F, A] =
+    StageResultT(fa.map(StageResult.Success(_)))
 }
