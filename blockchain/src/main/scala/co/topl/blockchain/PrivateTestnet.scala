@@ -59,7 +59,7 @@ object PrivateTestnet {
             )
           )
         )
-        .flatMap { case (staker, stake) => staker.bigBangOutputs(stake) }
+        .flatMap { case (staker, stake) => staker.registrationOutputs(stake) }
         .appended(
           UnspentTransactionOutput(
             HeightLockOneSpendingAddress,

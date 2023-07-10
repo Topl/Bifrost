@@ -28,7 +28,11 @@ object Args {
     @arg(
       doc = "An optional flag to enable debug mode on this node."
     )
-    debug: Flag
+    debug: Flag,
+    @arg(
+      doc = "Run the Bifrost CLI instead of the node."
+    )
+    cli: Flag
   )
 
   @main @Lenses

@@ -34,6 +34,7 @@ import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
+import co.topl.node.cli.ConfiguredCliApp
 
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
 import fs2.{io => _, _}
@@ -56,7 +57,10 @@ abstract class AbstractNodeApp
       parseConfig = (args, conf) => ApplicationConfigOps.unsafe(args, conf),
       preInitFunction = config => if (config.kamon.enable) Kamon.init()
     ) {
-  def run: IO[Unit] = new ConfiguredNodeApp(args, appConfig).run
+
+  def run: IO[Unit] =
+    if (args.startup.cli.value) new ConfiguredCliApp(args, appConfig).run
+    else new ConfiguredNodeApp(args, appConfig).run
 }
 
 class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
@@ -357,7 +361,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
   ) =
     for {
       // Initialize a persistent secure store
-      secureStore <- CatsSecureStore.make[F](stakingDir.toNioPath)
+      kesPath     <- Sync[F].delay(stakingDir / "kes").toResource
+      _           <- Files[F].createDirectories(kesPath).toResource
+      secureStore <- CatsSecureStore.make[F](kesPath.toNioPath)
       // Determine if a key has already been initialized
       _ <- secureStore.list
         .map(_.isEmpty)
