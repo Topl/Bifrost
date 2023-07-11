@@ -27,6 +27,8 @@ object LocalChainBroadcaster {
         val interpreter = new LocalChainAlgebra[F] {
           def isWorseThan(newHead: SlotData): F[Boolean] = localChain.isWorseThan(newHead)
 
+          def couldBeWorse(newHead: SlotData): F[Boolean] = localChain.couldBeWorse(newHead)
+
           /**
            * TODO adoptionsTopic.publish1:
            * This operation does not complete until after the given element has been enqued on all subscribers,

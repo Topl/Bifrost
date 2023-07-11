@@ -11,7 +11,6 @@ import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChai
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
@@ -73,7 +72,6 @@ object PeerActor {
   def makeActor[F[_]: Async: Logger](
     hostId:                 HostId,
     client:                 BlockchainPeerClient[F],
-    blockChecker:           BlockCheckerActor[F],
     requestsProxy:          RequestsProxyActor[F],
     reputationAggregator:   ReputationAggregatorActor[F],
     localChain:             LocalChainAlgebra[F],
@@ -87,7 +85,6 @@ object PeerActor {
       header <- PeerBlockHeaderFetcher.makeActor(
         hostId,
         client,
-        blockChecker,
         requestsProxy,
         localChain,
         slotDataStore,

@@ -11,7 +11,6 @@ import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChai
 import co.topl.consensus.models.{BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActorTest.F
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
@@ -35,7 +34,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Ping shall be started for warm hosts and sent result to reputation aggregator") {
     withMock {
-      val blockChecker = mock[BlockCheckerActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -64,7 +62,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .makeActor(
           hostId,
           client,
-          blockChecker,
           requestsProxy,
           reputationAggregation,
           localChain,

@@ -9,6 +9,20 @@ import co.topl.consensus.models.SlotData
 trait LocalChainAlgebra[F[_]] {
 
   /**
+   * Indicates if the provided "newHead" COULD result in a better chain than the current local chain.
+   * isWorseThan function could return false for the same newHead even if couldBeWorse function returns true.
+   * However, if isWorseThan returns false then couldBeWorse always returns false as well.
+   *
+   * The `newHead` _can_ be invalid.  (For example, the block needs to have the proper syntax,
+   * but it may not necessarily need to be validated for consensus and ledger purposes)
+   *
+   * @param newHead The head of a new tine, either from a network peer or from a local staker
+   * @return True if the provided segment could be better than the local canonical chain,
+   *         false otherwise including case if newHead is a a head of current local chain
+   */
+  def couldBeWorse(newHead: SlotData): F[Boolean]
+
+  /**
    * Indicates if the provided "newHead" results in a better chain than the current local chain.
    *
    * The `newHead` _can_ be invalid.  (For example, the block needs to have the proper syntax,

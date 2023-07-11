@@ -26,6 +26,8 @@ package object fsnetwork {
 
   val requestCacheSize = 100
 
+  val blockSourceCacheSize = 512
+
   implicit class CacheOps[K, V](cache: Cache[K, V]) {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
 
