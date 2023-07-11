@@ -108,7 +108,7 @@ object PeersManager {
   case class State[F[_]](
     networkAlgebra:         NetworkAlgebra[F],
     reputationAggregator:   Option[ReputationAggregatorActor[F]],
-    blocksChecker:          Option[BlockCheckerActor[F]],
+    blocksChecker:          Option[BlockCheckerActor[F]], // TODO remove it
     requestsProxy:          Option[RequestsProxyActor[F]],
     peers:                  Map[HostId, Peer[F]],
     localChain:             LocalChainAlgebra[F],
@@ -172,14 +172,12 @@ object PeersManager {
 
     require(state.blocksChecker.isDefined)
     require(state.reputationAggregator.isDefined)
-    require(state.blocksChecker.isDefined)
 
     val peerActorF: F[PeerActor[F]] =
       thisActor.acquireActor(() =>
         PeerActor.makeActor(
           hostId,
           client,
-          state.blocksChecker.get,
           state.requestsProxy.get,
           state.reputationAggregator.get,
           state.localChain,

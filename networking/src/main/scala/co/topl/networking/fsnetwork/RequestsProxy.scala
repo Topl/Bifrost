@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyDownloadError, BlockHeaderDownloadError}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
@@ -24,6 +24,12 @@ object RequestsProxy {
     case class SetupBlockChecker[F[_]](blockCheckerActor: BlockCheckerActor[F]) extends Message
 
     case object GetCurrentTips extends Message
+
+    case class RemoteSlotData(hostId: HostId, slotData: NonEmptyChain[SlotData]) extends Message
+
+    case class BlocksSource(sources: NonEmptyChain[(HostId, BlockId)]) extends Message
+
+    case class BadKLoopbackSlotData(hostId: HostId) extends Message
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
@@ -58,7 +64,8 @@ object RequestsProxy {
     headerStore:          Store[F, BlockId, BlockHeader],
     bodyStore:            Store[F, BlockId, BlockBody],
     headerRequests:       Cache[BlockId, Option[UnverifiedBlockHeader]],
-    bodyRequests:         Cache[BlockId, Option[UnverifiedBlockBody]]
+    bodyRequests:         Cache[BlockId, Option[UnverifiedBlockBody]],
+    blockSource:          Cache[BlockId, Set[HostId]]
   )
 
   type Response[F[_]] = State[F]
@@ -68,6 +75,9 @@ object RequestsProxy {
     Fsm {
       case (state, message: SetupBlockChecker[F] @unchecked)    => setupBlockChecker(state, message.blockCheckerActor)
       case (state, GetCurrentTips)                              => getCurrentTips(state)
+      case (state, RemoteSlotData(hostId, slotData))            => processRemoteSlotData(state, hostId, slotData)
+      case (state, BadKLoopbackSlotData(hostId))                => resendBadKLoopbackSlotData(state, hostId)
+      case (state, BlocksSource(sources))                       => blocksSourceProcessing(state, sources)
       case (state, DownloadHeadersRequest(hostId, blockIds))    => downloadHeadersRequest(state, hostId, blockIds)
       case (state, DownloadHeadersResponse(source, response))   => downloadHeadersResponse(state, source, response)
       case (state, DownloadBodiesRequest(hostId, blockHeaders)) => downloadBodiesRequest(state, hostId, blockHeaders)
@@ -83,7 +93,9 @@ object RequestsProxy {
     headerRequests: Cache[BlockId, Option[UnverifiedBlockHeader]] =
       Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockHeader]](),
     bodyRequests: Cache[BlockId, Option[UnverifiedBlockBody]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]]()
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]](),
+    blockSource: Cache[BlockId, Set[HostId]] =
+      Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
       State(
@@ -93,7 +105,8 @@ object RequestsProxy {
         headerStore,
         bodyStore,
         headerRequests,
-        bodyRequests
+        bodyRequests,
+        blockSource
       )
     Actor.make(initialState, getFsm[F])
   }
@@ -110,6 +123,46 @@ object RequestsProxy {
   private def getCurrentTips[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
     state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips) >>
     (state, state).pure[F]
+
+  private def processRemoteSlotData[F[_]: Async](
+    state:    State[F],
+    source:   HostId,
+    slotData: NonEmptyChain[SlotData]
+  ): F[(State[F], Response[F])] = {
+    val message = BlockChecker.Message.RemoteSlotData(source, slotData)
+    state.blockCheckerOpt.map(blockChecker => blockChecker.sendNoWait(message)).getOrElse(().pure[F]) >>
+    (state, state).pure[F]
+  }
+
+  private def resendBadKLoopbackSlotData[F[_]: Async: Logger](
+    state:  State[F],
+    source: HostId
+  ): F[(State[F], Response[F])] =
+    Logger[F].warn(show"Received declined remote slot data chain because of low density") >>
+    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BadKLoopbackSlotData(source)) >>
+    (state, state).pure[F]
+
+  private def blocksSourceProcessing[F[_]: Async](
+    state:   State[F],
+    sources: NonEmptyChain[(HostId, BlockId)]
+  ): F[(State[F], Response[F])] = {
+    val toSend: Seq[(HostId, Long)] =
+      sources.toList.flatMap { case (host, blockId) =>
+        val previousSource: Set[HostId] = state.blockSource.get(blockId).getOrElse(Set.empty[HostId])
+        if (previousSource.contains(host)) {
+          Option.empty[(HostId, Long)]
+        } else {
+          val newSource: Set[HostId] = previousSource + host
+          state.blockSource.put(blockId, newSource)
+          Option((host, newSource.size))
+        }
+      }
+
+    val sendMessage: NonEmptyChain[(HostId, Long)] => F[Unit] =
+      d => state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostsNoveltyProviding(d))
+
+    NonEmptyChain.fromSeq(toSend).map(sendMessage).getOrElse(().pure[F]) >> (state, state).pure[F]
+  }
 
   private def downloadHeadersRequest[F[_]: Async: Logger](
     state:    State[F],
@@ -350,7 +403,7 @@ object RequestsProxy {
     }
   }
 
-  private def invalidateBlockId[F[_]: Async: Logger](
+  private def invalidateBlockId[F[_]: Async](
     state:   State[F],
     source:  HostId,
     blockId: BlockId
