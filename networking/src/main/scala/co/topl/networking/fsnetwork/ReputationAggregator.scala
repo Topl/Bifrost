@@ -31,7 +31,7 @@ object ReputationAggregator {
     case class HostProvideIncorrectBlock(hostId: HostId) extends Message
 
     case class HostsNoveltyProviding(data: NonEmptyChain[(HostId, Long)]) extends Message
-    case class BadKLoopbackSlotData(hostId: HostId) extends Message
+    case class BadKLookbackSlotData(hostId: HostId) extends Message
   }
 
   type ReputationAggregatorActor[F[_]] = Actor[F, Message, Response[F]]
@@ -44,7 +44,7 @@ object ReputationAggregator {
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
       case (state, HostsNoveltyProviding(data))               => hostNoveltyProviding(state, data)
-      case (state, BadKLoopbackSlotData(hostId))              => badKLoopbackSlotData(state, hostId)
+      case (state, BadKLookbackSlotData(hostId))              => badKLoopbackSlotData(state, hostId)
     }
 
   def makeActor[F[_]: Async: Logger](
