@@ -61,7 +61,7 @@ object StakerInitializers {
     /**
      * This staker's initial stake in the network
      */
-    def bigBangOutputs(stake: Int128): List[UnspentTransactionOutput] = {
+    def registrationOutputs(stake: Int128): List[UnspentTransactionOutput] = {
       val toplValue =
         Value.defaultInstance.withTopl(
           Value.TOPL(stake, StakingRegistration(stakingAddress, registrationSignature).some)
