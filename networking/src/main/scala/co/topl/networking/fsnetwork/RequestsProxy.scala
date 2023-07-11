@@ -139,7 +139,7 @@ object RequestsProxy {
     source: HostId
   ): F[(State[F], Response[F])] =
     Logger[F].warn(show"Received declined remote slot data chain because of low density") >>
-    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BadKLoopbackSlotData(source)) >>
+    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BadKLookbackSlotData(source)) >>
     (state, state).pure[F]
 
   private def blocksSourceProcessing[F[_]: Async](

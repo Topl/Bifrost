@@ -437,7 +437,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
 
       (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.BadKLoopbackSlotData(hostId))
+        .expects(ReputationAggregator.Message.BadKLookbackSlotData(hostId))
         .returns(().pure[F])
 
       RequestsProxy
