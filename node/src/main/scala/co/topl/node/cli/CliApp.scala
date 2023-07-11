@@ -12,6 +12,7 @@ import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import co.topl.node.Args
+import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
@@ -54,6 +55,13 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
         handleRegistrationCommand
     }
 
+  /**
+   * Generates four files:
+   * - Operator Key (Ed25519) saved at {stakingDir}/operator-key.ed25519.sk
+   * - VRF Key (Ed25519VRF) saved at {stakingDir}/vrf-key.ed25519vrf.sk
+   * - KES Key (KesProduct) saved at {stakingDir}/kes/0
+   * - A protobuf-encoded IoTransaction saved at {stakingDir}/registration.transaction.pbuf
+   */
   private def handleRegistrationCommand: StageResultT[F, Unit] =
     for {
       _                 <- intro
@@ -72,6 +80,9 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
           ByteString.copyFrom(vrfKey._1),
           kesKey._1
         )
+      _ <- StageResultT.liftF[F, Unit](
+        c.println(show"Your staking address is ${stakerInitializer.registration.address}")
+      )
       transactionOutputs = stakerInitializer.registrationOutputs(quantity)
       transaction = IoTransaction(datum =
         Datum.IoTransaction(
@@ -197,7 +208,7 @@ class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
     ) >>
     createSeed
       .map(Ed25519VRF.precomputed().deriveKeyPairFromSeed)
-      .flatTap(key => write(key._1)("VRF SK", "operator-key.ed25519.sk"))
+      .flatTap(key => write(key._1)("VRF SK", "vrf-key.ed25519vrf.sk"))
 
   /**
    * Generate and save a KES key.
