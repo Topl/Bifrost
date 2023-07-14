@@ -29,6 +29,7 @@ import co.topl.minting.interpreters._
 import co.topl.networking.blockchain._
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import co.topl.networking.p2p._
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
@@ -75,7 +76,7 @@ object Blockchain {
       _ <- Async[F].background(
         blockAdoptionsTopic.subscribeUnbounded
           .evalMap(id => dataStores.bodies.getOrRaise(id))
-          .flatMap(b => Stream.iterable(b.transactionIds))
+          .flatMap(b => Stream.iterable(b.allTransactionIds))
           .through(transactionAdoptionsTopic.publish)
           .compile
           .drain

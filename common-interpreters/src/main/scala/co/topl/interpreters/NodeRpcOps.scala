@@ -72,7 +72,8 @@ class NodeRpcApi[F[_]](val client: NodeRpc[F, Stream[F, *]]) extends AnyVal {
       header       <- OptionT(client.fetchBlockHeader(id))
       body         <- OptionT(client.fetchBlockBody(id))
       transactions <- body.transactionIds.map(client.fetchTransaction).map(OptionT(_)).sequence
-    } yield FullBlock(header, FullBlockBody(transactions))
+      rewardTransaction <- body.rewardTransactionId.map(client.fetchTransaction).map(OptionT(_)).sequence
+    } yield FullBlock(header, FullBlockBody(transactions, rewardTransaction))
   ).value
 
   def history(implicit mThrow: MonadThrow[F]): Stream[F, FullBlock] =

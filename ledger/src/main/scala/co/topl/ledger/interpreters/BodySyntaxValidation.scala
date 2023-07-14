@@ -1,11 +1,9 @@
 package co.topl.ledger.interpreters
 
-import cats.data.NonEmptySet
-import cats.data.ValidatedNec
+import cats.data.{EitherT, NonEmptySet, OptionT, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
-import cats.Foldable
-import cats.Order
+import cats.{Foldable, Order, Parallel}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
@@ -13,6 +11,7 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
+import co.topl.numerics.implicits._
 import com.google.protobuf.ByteString
 
 import scala.collection.immutable.SortedSet
@@ -30,9 +29,10 @@ object BodySyntaxValidation {
     )
   }
 
-  def make[F[_]: Sync](
+  def make[F[_]: Sync: Parallel](
     fetchTransaction:               TransactionId => F[IoTransaction],
-    transactionSyntacticValidation: TransactionSyntaxVerifier[F]
+    transactionSyntacticValidation: TransactionSyntaxVerifier[F],
+    rewardCalculator:               TransactionRewardCalculatorAlgebra[F]
   ): F[BodySyntaxValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySyntaxValidationAlgebra[F] {
@@ -41,11 +41,17 @@ object BodySyntaxValidation {
          * Syntactically validates each of the transactions in the given block.
          */
         def validate(body: BlockBody): F[ValidatedNec[BodySyntaxError, BlockBody]] =
-          for {
-            transactions            <- body.transactionIds.toList.traverse(fetchTransaction)
-            validatedDistinctInputs <- validateDistinctInputs(transactions).pure[F]
-            validatedTransactions   <- transactions.foldMapM(validateTransaction)
-          } yield validatedTransactions.combine(validatedDistinctInputs).as(body)
+          body.transactionIds
+            .traverse(fetchTransaction)
+            .flatMap(transactions =>
+              (
+                validateDistinctInputs(transactions),
+                transactions.parFoldMapA(validateTransaction),
+                body.rewardTransactionId.foldMapM(
+                  fetchTransaction(_).flatMap(validateRewardTransaction(transactions, _))
+                ),
+              ).parSequence.map(_.combineAll)
+            )
 
         /**
          * Ensure that no two transaction inputs within the block spend the same output
@@ -78,6 +84,26 @@ object BodySyntaxValidation {
                 .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
                 .toValidatedNec
             )
+
+        private def validateRewardTransaction[G[_]: Foldable](
+          transactions:      G[IoTransaction],
+          rewardTransaction: IoTransaction
+        ): F[ValidatedNec[BodySyntaxError, Unit]] =
+          EitherT
+            .cond[F](
+              rewardTransaction.inputs.length == 1 && rewardTransaction.outputs.length == 1 && rewardTransaction.outputs.head.value.value.isLvl,
+              rewardTransaction.outputs.head.value.value.lvl.get.quantity: BigInt,
+              BodySyntaxErrors.InvalidReward(rewardTransaction)
+            )
+            .flatMapF(definedQuantity =>
+              transactions
+                .parFoldMapA(rewardCalculator.rewardOf)
+                .map(maxReward =>
+                  Either.cond(definedQuantity <= maxReward, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
+                )
+            )
+            .leftWiden[BodySyntaxError]
+            .toValidatedNec
       }
     }
 }

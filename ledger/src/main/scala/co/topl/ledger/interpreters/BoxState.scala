@@ -12,6 +12,7 @@ import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.BoxStateAlgebra
+import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 
@@ -65,7 +66,7 @@ object BoxState {
     fetchTransaction: TransactionId => F[IoTransaction]
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
+      body         <- fetchBlockBody(blockId).map(_.allTransactionIds.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         transaction.inputs.traverse { input =>
@@ -99,7 +100,7 @@ object BoxState {
     fetchTransaction: TransactionId => F[IoTransaction]
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
+      body         <- fetchBlockBody(blockId).map(_.allTransactionIds.reverse.toList)
       transactions <- body.traverse(fetchTransaction)
       _ <- transactions.traverse(transaction =>
         state.remove(transaction.id) >>

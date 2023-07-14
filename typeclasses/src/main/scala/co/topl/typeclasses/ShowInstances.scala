@@ -56,7 +56,7 @@ trait ShowInstances {
       show")"
 
   implicit val showNodeBlockBody: Show[BlockBody] =
-    body => show"${body.transactionIds}"
+    body => show"${body.allTransactionIds}"
 
   implicit val showBoxId: Show[TransactionOutputAddress] =
     boxId => show"${boxId.id}.outputs[${boxId.index}]"

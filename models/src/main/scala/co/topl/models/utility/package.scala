@@ -1,5 +1,8 @@
 package co.topl.models
 
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.node.models.{BlockBody, FullBlockBody}
 import com.google.protobuf.ByteString
 import scodec.bits.ByteVector
 
@@ -16,5 +19,17 @@ package object utility {
   implicit def byteStringToByteArray(byteString: ByteString): Array[Byte] = byteString.toByteArray
 
   implicit def byteArrayToByteString(byteArray: Array[Byte]): ByteString = ByteString.copyFrom(byteArray)
+
+  implicit class BlockBodyOps(val body: BlockBody) extends AnyVal {
+
+    def allTransactionIds: Seq[TransactionId] = body.transactionIds ++ body.rewardTransactionId
+
+  }
+
+  implicit class FullBlockBodyOps(val body: FullBlockBody) extends AnyVal {
+
+    def allTransactions: Seq[IoTransaction] = body.transactions ++ body.rewardTransaction
+
+  }
 
 }

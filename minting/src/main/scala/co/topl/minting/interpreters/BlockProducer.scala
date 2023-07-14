@@ -5,6 +5,9 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.brambl.models.box._
+import co.topl.brambl.models._
+import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.catsutils._
 import co.topl.consensus.models.BlockId
@@ -13,6 +16,7 @@ import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, Staki
 import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.consensus.models.{SlotData, SlotId}
+import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.node.models.FullBlockBody
 import co.topl.node.models.Block
 import co.topl.node.models.BlockBody
@@ -21,6 +25,8 @@ import com.google.protobuf.ByteString
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import fs2._
+import quivr.models.SmallData
+import co.topl.numerics.implicits._
 
 object BlockProducer {
 
@@ -37,19 +43,23 @@ object BlockProducer {
    *                    when demanded.
    */
   def make[F[_]: Async](
-    parentHeaders: Stream[F, SlotData],
-    staker:        StakingAlgebra[F],
-    clock:         ClockAlgebra[F],
-    blockPacker:   BlockPackerAlgebra[F]
+    parentHeaders:    Stream[F, SlotData],
+    staker:           StakingAlgebra[F],
+    clock:            ClockAlgebra[F],
+    blockPacker:      BlockPackerAlgebra[F],
+    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    rewardAddress:    LockAddress
   ): F[BlockProducerAlgebra[F]] =
-    staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker))
+    staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker, rewardCalculator, rewardAddress))
 
   private class Impl[F[_]: Async](
-    stakerAddress: StakingAddress,
-    parentHeaders: Stream[F, SlotData],
-    staker:        StakingAlgebra[F],
-    clock:         ClockAlgebra[F],
-    blockPacker:   BlockPackerAlgebra[F]
+    stakerAddress:    StakingAddress,
+    parentHeaders:    Stream[F, SlotData],
+    staker:           StakingAlgebra[F],
+    clock:            ClockAlgebra[F],
+    blockPacker:      BlockPackerAlgebra[F],
+    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    rewardAddress:    LockAddress
   ) extends BlockProducerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -105,7 +115,7 @@ object BlockProducer {
         maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
         result <- OptionT
           .fromOption[F](maybeHeader)
-          .map(Block(_, BlockBody(fullBody.transactions.map(_.id))))
+          .map(Block(_, BlockBody(fullBody.transactions.map(_.id), fullBody.rewardTransaction.map(_.id))))
           .semiflatTap(block => Logger[F].info(show"Minted header=${block.header} body=${block.body}"))
           // Despite being eligible, there may not be a corresponding linear KES key if the node restarted in the middle
           // of an operational period.  The node must wait until the next operational period
@@ -146,6 +156,41 @@ object BlockProducer {
         .flatMap(Iterative.run(FullBlockBody().pure[F]))
         .productL(clock.delayedUntilSlot(untilSlot))
         .flatMap(_.apply())
+        .flatMap(insertReward(parentId, untilSlot, _))
+
+    /**
+     * Calculate the total block reward quantity, and insert a Reward Transaction into the given FullBlockBody
+     * @param parentBlockId the ID of the parent block.  This ID will be used in a fake IoTransaction reference
+     *                      as input to the reward transaction
+     * @param slot The slot in which the block will be produced.  The resulting transaction is only valid at this slot
+     * @param base The unrewarded block body
+     * @return a new block body
+     */
+    private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
+      base.transactions
+        .foldMapM(rewardCalculator.rewardOf)
+        .map(rewardQuantity =>
+          IoTransaction(datum =
+            Datum.IoTransaction(
+              Event.IoTransaction(schedule = Schedule(min = slot, max = slot), metadata = SmallData.defaultInstance)
+            )
+          )
+            .withInputs(
+              List(
+                SpentTransactionOutput(
+                  address = TransactionOutputAddress(id = TransactionId(parentBlockId.value)),
+                  attestation = Attestation.defaultInstance,
+                  value = Value.defaultInstance
+                )
+              )
+            )
+            .withOutputs(
+              List(
+                UnspentTransactionOutput(rewardAddress, Value(Value.Value.Lvl(Value.LVL(rewardQuantity))))
+              )
+            )
+        )
+        .map(base.withRewardTransaction)
 
     /**
      * After the block body has been constructed, prepare a Block Header for signing

@@ -16,6 +16,7 @@ import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
+import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import co.topl.typeclasses.implicits._
@@ -172,9 +173,9 @@ object DataStoresInit {
       _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        BlockBody(bigBangBlock.fullBody.transactions.map(_.id))
+        BlockBody(bigBangBlock.fullBody.transactions.map(_.id), bigBangBlock.fullBody.rewardTransaction.map(_.id))
       )
-      _ <- bigBangBlock.fullBody.transactions.traverseTap(transaction =>
+      _ <- bigBangBlock.fullBody.allTransactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)
       )
       _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)
