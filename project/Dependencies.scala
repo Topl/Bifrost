@@ -10,7 +10,7 @@ object Dependencies {
   val fs2Version = "3.7.0"
   val logback = "1.4.8"
   val orientDbVersion = "3.2.20"
-  val ioGrpcVersion = "1.56.0"
+  val ioGrpcVersion = "1.56.1"
   val protobufSpecsVersion = "e03a093" // scala-steward:off
   val bramblScVersion = "d5bc746" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
@@ -114,7 +114,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
 
   val bramblScCrypto = "com.github.Topl.BramblSc" %% "crypto"     % bramblScVersion
   val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
