@@ -673,7 +673,9 @@ lazy val byzantineIt = project
     Test / parallelExecution := false,
     libraryDependencies ++= Dependencies.byzantineIt
   )
-  .dependsOn(node)
+  .dependsOn(
+    node
+  )
 
 lazy val integration = (project in file("integration"))
   .aggregate(nodeIt, byzantineIt)
