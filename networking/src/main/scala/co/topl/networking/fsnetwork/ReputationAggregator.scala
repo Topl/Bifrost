@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.data.NonEmptyChain
 import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
@@ -28,18 +29,22 @@ object ReputationAggregator {
     case class DownloadTimeHeader(hostId: HostId, delay: Long) extends Message
     case class DownloadTimeBody(hostId: HostId, bodyDelay: Long, txDelays: Seq[Long]) extends Message
     case class HostProvideIncorrectBlock(hostId: HostId) extends Message
+
+    case class HostsNoveltyProviding(data: NonEmptyChain[(HostId, Long)]) extends Message
+    case class BadKLookbackSlotData(hostId: HostId) extends Message
   }
 
   type ReputationAggregatorActor[F[_]] = Actor[F, Message, Response[F]]
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, RemoveReputationForHost(hostId))   => removeReputationForHost(state, hostId)
-      case (state, HostProvideIncorrectBlock(hostId)) => incorrectBlockReceived(state, hostId)
-
+      case (state, RemoveReputationForHost(hostId))           => removeReputationForHost(state, hostId)
+      case (state, HostProvideIncorrectBlock(hostId))         => incorrectBlockReceived(state, hostId)
       case (state, PingPongMessagePing(hostId, pongResponse)) => pongMessageProcessing(state, hostId, pongResponse)
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
+      case (state, HostsNoveltyProviding(data))               => hostNoveltyProviding(state, data)
+      case (state, BadKLookbackSlotData(hostId))              => badKLoopbackSlotData(state, hostId)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -142,6 +147,15 @@ object ReputationAggregator {
     Logger[F].debug(show"Received block download from host $hostId with max delay $delay") >>
     (newState, newState).pure[F]
   }
+
+  private def hostNoveltyProviding[F[_]: Async](
+    state: State[F],
+    data:  NonEmptyChain[(HostId, Long)]
+  ): F[(State[F], Response[F])] =
+    (state, state).pure[F]
+
+  private def badKLoopbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] =
+    (state, state).pure[F]
 
   def delayToReputation(delayInMs: Long): Double = {
     val zeroReputationDelay = 2000.0

@@ -9,6 +9,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
@@ -44,6 +45,13 @@ object TestHelper extends TransactionGenerator {
     }
 
   val arbitraryHost: Arbitrary[HostId] = Arbitrary(Arbitrary.arbitrary[String])
+
+  val arbitraryHostBlockId: Arbitrary[(HostId, BlockId)] = Arbitrary(
+    for {
+      host    <- arbitraryHost.arbitrary
+      blockId <- arbitraryBlockId.arbitrary
+    } yield (host, blockId)
+  )
 
   def arbitraryLinkedBlockHeaderChain(sizeGen: Gen[Long]): Arbitrary[NonEmptyChain[BlockHeader]] =
     Arbitrary(

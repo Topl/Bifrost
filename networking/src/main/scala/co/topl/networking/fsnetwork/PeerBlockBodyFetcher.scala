@@ -83,11 +83,11 @@ object PeerBlockBodyFetcher {
 
     val body: F[UnverifiedBlockBody] =
       for {
-        _                 <- Logger[F].info(show"Fetching remote body id=$blockId")
+        _                 <- Logger[F].info(show"Fetching remote body id=$blockId from peer ${state.hostId}")
         bodyStart         <- System.currentTimeMillis().pure[F]
         body              <- downloadBlockBody(state, blockId)
         bodyEnd           <- System.currentTimeMillis().pure[F]
-        _                 <- Logger[F].info(show"Fetched remote body id=$blockId")
+        _                 <- Logger[F].info(show"Fetched remote body id=$blockId from peer ${state.hostId}")
         _                 <- checkBody(state, Block(blockHeader, body))
         txAndDownloadTime <- downloadingMissingTransactions(state, body)
         allTxDownloadTime = txAndDownloadTime.collect { case (_, Some(time)) => time }
@@ -142,7 +142,7 @@ object PeerBlockBodyFetcher {
     transactionId: TransactionId
   ): F[(TransactionId, Option[Long])] =
     for {
-      _                     <- Logger[F].debug(show"Fetching remote transaction id=$transactionId")
+      _                     <- Logger[F].debug(show"Fetching transaction id=$transactionId from peer ${state.hostId}")
       transactionStart      <- System.currentTimeMillis().pure[F]
       downloadedTransaction <- downloadTransaction(state, transactionId)
       transactionEnd        <- System.currentTimeMillis().pure[F]
@@ -172,10 +172,10 @@ object PeerBlockBodyFetcher {
       .map(_.embedId)
 
   private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(show"Start body fetcher actor for ${state.hostId}") >>
+    Logger[F].info(show"Start body fetcher actor for peer ${state.hostId}") >>
     (state, state).pure[F]
 
   private def stopActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(show"Stop body fetcher actor for ${state.hostId}") >>
+    Logger[F].info(show"Stop body fetcher actor for peer ${state.hostId}") >>
     (state, state).pure[F]
 }

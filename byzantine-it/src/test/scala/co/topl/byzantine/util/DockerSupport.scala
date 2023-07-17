@@ -38,7 +38,7 @@ object DockerSupport {
   }
 
   def make[F[_]: Async](
-    containerLogsDirectory: Option[Path] = Some(Path("byzantine-tests") / "target" / "logs"),
+    containerLogsDirectory: Option[Path] = Some(Path("byzantine-it") / "target" / "logs"),
     debugLoggingEnabled:    Boolean = loggingEnabledFromEnvironment
   ): Resource[F, (DockerSupport[F], DockerClient)] =
     for {
