@@ -18,7 +18,7 @@ class StakerInitializersSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
     for {
       timestamp      <- System.currentTimeMillis().pure[F]
       operator       <- PrivateTestnet.stakerInitializers(timestamp, 1).pure[F]
-      bigBangOutputs <- Async[F].delay(operator.head.bigBangOutputs(Ratio(DefaultTotalStake, 1: BigInt).round))
+      bigBangOutputs <- Async[F].delay(operator.head.registrationOutputs(Ratio(DefaultTotalStake, 1: BigInt).round))
 
       _ <- assertIO(bigBangOutputs.size.pure[F], 1)
       _ <- assertIOBoolean(bigBangOutputs.forall(_.address == operator.head.lockAddress).pure[F])
@@ -38,7 +38,7 @@ class StakerInitializersSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
     for {
       timestamp      <- (System.currentTimeMillis() + 5000).pure[F]
       operator       <- PrivateTestnet.stakerInitializers(timestamp, 1).pure[F]
-      bigBangOutputs <- Async[F].delay(operator.head.bigBangOutputs(Ratio(DefaultTotalStake, 1: BigInt).round))
+      bigBangOutputs <- Async[F].delay(operator.head.registrationOutputs(Ratio(DefaultTotalStake, 1: BigInt).round))
 
       _ <- assertIO(bigBangOutputs.size.pure[F], 1)
       _ <- assertIOBoolean(bigBangOutputs.forall(_.address == operator.head.lockAddress).pure[F])
@@ -61,7 +61,7 @@ class StakerInitializersSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
       _ <- operator
         .zip(LazyList.from(1))
         .traverse { case (operator, index) =>
-          val bigBangOutputs = operator.bigBangOutputs(Ratio(DefaultTotalStake, index: BigInt).round)
+          val bigBangOutputs = operator.registrationOutputs(Ratio(DefaultTotalStake, index: BigInt).round)
 
           assertIO(bigBangOutputs.size.pure[F], 1) &>
           assertIOBoolean(bigBangOutputs.forall(_.address == operator.lockAddress).pure[F]) &>
