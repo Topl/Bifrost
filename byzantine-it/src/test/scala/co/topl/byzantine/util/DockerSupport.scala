@@ -68,10 +68,10 @@ object DockerSupport {
     } yield (dockerSupport, dockerClient)
 
   private class Impl[F[_]: Async](
-                                   containerLogsDirectory: Option[Path],
-                                   debugLoggingEnabled:    Boolean,
-                                   nodeCache:              Ref[F, Set[BifrostDockerNode]],
-                                   networkCache:           Ref[F, Set[NetworkCreation]]
+    containerLogsDirectory: Option[Path],
+    debugLoggingEnabled:    Boolean,
+    nodeCache:              Ref[F, Set[BifrostDockerNode]],
+    networkCache:           Ref[F, Set[NetworkCreation]]
   )(implicit dockerClient: DockerClient)
       extends DockerSupport[F] {
 
