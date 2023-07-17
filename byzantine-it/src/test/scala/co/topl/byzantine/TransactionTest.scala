@@ -67,7 +67,7 @@ class TransactionTest extends IntegrationSuite {
     DigestLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
   // Digest END
 
-  // Digital Signature BEGIN: TODO this is not working as expected
+  // Digital Signature BEGIN:
   private val indices = Indices(0, 0, 0)
 
   private val keyPair: KeyPair =
@@ -102,6 +102,18 @@ class TransactionTest extends IntegrationSuite {
   private val TickRangeProposition = Proposition(Proposition.Value.TickRange(tickRange))
   private val BadTickRangeProposition = Proposition(Proposition.Value.TickRange(badTickRange))
 
+  private val GoodBadTickRangeAndProposition = Proposition(
+    Proposition.Value.And(Proposition.And(TickRangeProposition, BadTickRangeProposition))
+  )
+
+  private val GoodBadTickRangeNotProposition = Proposition(
+    Proposition.Value.Not(Proposition.Not(TickRangeProposition))
+  )
+
+  private val GoodBadTickRangeOrProposition = Proposition(
+    Proposition.Value.Or(Proposition.Or(TickRangeProposition, BadTickRangeProposition))
+  )
+
   private val TickRangeLock = Lock(
     Lock.Value.Predicate(Lock.Predicate(List(Challenge().withRevealed(TickRangeProposition)), 1))
   )
@@ -122,6 +134,18 @@ class TransactionTest extends IntegrationSuite {
     )
   )
 
+  private val GoodBadTickRangeAndLock = Lock(
+    Lock.Value.Predicate(Lock.Predicate(List(Challenge().withRevealed(GoodBadTickRangeAndProposition)), 1))
+  )
+
+  private val GoodBadTickRangeNotLock = Lock(
+    Lock.Value.Predicate(Lock.Predicate(List(Challenge().withRevealed(GoodBadTickRangeNotProposition)), 1))
+  )
+
+  private val GoodBadTickRangeOrLock = Lock(
+    Lock.Value.Predicate(Lock.Predicate(List(Challenge().withRevealed(GoodBadTickRangeOrProposition)), 1))
+  )
+
   private val TickRangeLockAddress =
     TickRangeLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
 
@@ -130,6 +154,16 @@ class TransactionTest extends IntegrationSuite {
 
   private val GoodAndBadTickRangeLockAddress =
     GoodAndBadTickRangeLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+
+  private val GoodBadTickRangeAndLockAddress =
+    GoodBadTickRangeAndLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+
+  private val GoodBadTickRangeNotLockAddress =
+    GoodBadTickRangeNotLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+
+  private val GoodBadTickRangeOrLockAddress =
+    GoodBadTickRangeOrLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+
   // TickRange END
 
   // Same model that co.topl.transactiongenerator.models, creating it again to not depend on that module
@@ -156,8 +190,11 @@ class TransactionTest extends IntegrationSuite {
    * N. Success, create and broadcast a txio using a wallet which contains a Digest proposition, and consumes input 'transaction_1' (step B)
    * M. Success, create and broadcast a txio using a wallet which contains a DigitalSignature proposition, and consumes input 'transaction_1' (step B)
    * O. Success, create and broadcast a txio using a wallet which contains a TickRange proposition, and consumes input 'transaction_1' (step B)
-   * P. ...
-   * Q. ...
+   * P. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
+   * Q. Success iotx with a wallet which contains a good TickRange proposition, consumes input transaction_1
+   * Q_and. Failure, same than P, but using And proposition, consumes input transaction_1
+   * Q_not. Failure, same than P, but using not proposition, consumes input transaction_1
+   * Q_or. Success, same than P, but using or proposition, consumes input transaction_1
    * R. ...
    * Z. Finally, fetch node container logs, and assert expected results.
    *    When the test ends, it prints: Writing container logs to byzantine-it/target/logs/TransactionTest-node1-ed2a0569.log, chech it out
@@ -188,7 +225,7 @@ class TransactionTest extends IntegrationSuite {
         box = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 10000000 LVL
 
         // A. No Success is expected, InsufficientInputFunds create tx from genesis block using: (10000000 lvl in total)
-        iotx_A <- createTransaction_fromGenesisIotx(inputBoxId, box, 10000000, 1, 1, 1, 1, 1).toResource
+        iotx_A <- createTransaction_fromGenesisIotx(inputBoxId, box, 10000000, 1, 1, 1, 1, 1, 1, 1, 1).toResource
         _      <- node1Client.broadcastTransaction(iotx_A).voidError.toResource
 
         /**
@@ -200,8 +237,9 @@ class TransactionTest extends IntegrationSuite {
          * Output4: TickRange, 1 lvl, with threshold 1
          * Output5: BadTickRange, 1 lvl, with threshold 1
          * Output6: GoodAndBadTickRange, 1 lvl, with threshold 2
+         * Output7: GoodAndBadTickRange, 1 lvl, with threshold 2,
          */
-        iotx_B <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900, 1, 1, 1, 1, 1).toResource
+        iotx_B <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L).toResource
         _      <- node1Client.broadcastTransaction(iotx_B).toResource
 
         iotxRes_B <- OptionT(node1Client.fetchTransaction(iotx_B.id))
@@ -213,9 +251,12 @@ class TransactionTest extends IntegrationSuite {
         _ <- assertIO((iotxRes_B.outputs(3).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
         _ <- assertIO((iotxRes_B.outputs(4).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
         _ <- assertIO((iotxRes_B.outputs(5).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(6).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(7).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_B.outputs(8).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
 
         // C. No Success, Create the same tx from genesis block using , Received duplicate transaction is expected
-        _ <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900, 1, 1, 1, 1, 1).toResource
+        _ <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L).toResource
         _ <- node1Client.broadcastTransaction(iotx_B).toResource
 
         // D. No Success, Verify that this transaction contains at least one input
@@ -247,7 +288,7 @@ class TransactionTest extends IntegrationSuite {
         _      <- node1Client.broadcastTransaction(iotx_J).voidError.toResource
 
         // K. No Success, Verify that each transaction output contains a positive quantity (where applicable)
-        iotx_K <- createTransaction_fromGenesisIotx(inputBoxId, box, -1L, 1L, 1L, 1L, 1L, 1L).toResource
+        iotx_K <- createTransaction_fromGenesisIotx(inputBoxId, box, -1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L).toResource
         _      <- node1Client.broadcastTransaction(iotx_K).voidError.toResource
 
         // L No Success, Validates that the proofs associated with each proposition matches the expected _type_ for a Predicate Attestation
@@ -293,7 +334,7 @@ class TransactionTest extends IntegrationSuite {
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_M).toResource
 
-        // O, P, Q. Test Bad and Success iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
+        // O. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
         iotx_O <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(BadTickRangeLockAddress -> BadTickRangeLock), iotx_B),
           1L,
@@ -301,6 +342,7 @@ class TransactionTest extends IntegrationSuite {
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_O).toResource
 
+        // P. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
         iotx_P <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(GoodAndBadTickRangeLockAddress -> GoodAndBadTickRangeLock), iotx_B),
           1L,
@@ -308,6 +350,7 @@ class TransactionTest extends IntegrationSuite {
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_P).toResource
 
+        // Q. Success iotx with a wallet which contains and good TickRange proposition, consumes input transaction_1
         iotx_Q <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(TickRangeLockAddress -> TickRangeLock), iotx_B),
           1L,
@@ -315,8 +358,32 @@ class TransactionTest extends IntegrationSuite {
         ).toResource
         _ <- node1Client.broadcastTransaction(iotx_Q).toResource
 
-        // R. create a transaction which consumes TOPLs
+        iotx_Q_And <- createTransaction_afterGenesisIotxSuccess(
+          createWallet(Map(GoodBadTickRangeAndLockAddress -> GoodBadTickRangeAndLock), iotx_B),
+          1L,
+          PropositionTemplate.types.And
+        ).toResource
+        _ <- node1Client.broadcastTransaction(iotx_Q_And).toResource
 
+        // here block packer should contain 3 errors
+
+        iotx_Q_Not <- createTransaction_afterGenesisIotxSuccess(
+          createWallet(Map(GoodBadTickRangeNotLockAddress -> GoodBadTickRangeNotLock), iotx_B),
+          1L,
+          PropositionTemplate.types.Not
+        ).toResource
+        _ <- node1Client.broadcastTransaction(iotx_Q_Not).toResource
+
+        // here block packer should contain 4 errors
+
+        iotx_Q_Or <- createTransaction_afterGenesisIotxSuccess(
+          createWallet(Map(GoodBadTickRangeOrLockAddress -> GoodBadTickRangeOrLock), iotx_B),
+          1L,
+          PropositionTemplate.types.Or
+        ).toResource
+        _ <- node1Client.broadcastTransaction(iotx_Q_Or).toResource
+
+        // R. create a transaction which consumes TOPLs
         walletWithSpendableTopls = Wallet(
           spendableBoxes = Map(
             genesisIotx.id.outputAddress(0, 0, 0) -> Box(
@@ -363,6 +430,10 @@ class TransactionTest extends IntegrationSuite {
         _ = assert(logs.contains(s"EvaluationAuthorizationFailed(Proposition(TickRange(TickRange(0,1")) // step O bad tickRange, Fix message
         _ = assert(logs.contains(s"failed authorization validation: AuthorizationFailed(List())")) // step P good and bad tickRange, with threshold 2, Fix message
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q.id.show} from RPC"))
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_And.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
+        _ = assert(logs.contains(s"EvaluationAuthorizationFailed(Proposition(TickRange(TickRange(0,1")) // step Q AND, AND(tickrange good, tickrange bad), fix this message
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_Not.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_Or.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_R.id.show} from RPC"))
         // format: on
 
@@ -449,7 +520,11 @@ class TransactionTest extends IntegrationSuite {
    *  - output 2: DigestLockAddress
    *  - output 3: DigitalSignature
    *  - output 4: TickRange
-   *  - output n TODO: ExactMatch, LessThan, GreaterThan, EqualTo, Threshold, Not, And, or
+   *  - output 5: BadTickRange
+   *  - output 6: GoodAndBadTickRange using threshold
+   *  - output 7: GoodBadTickRange using And
+   *  - output 8: GoodTickRange using Not
+   *  - output n TODO: ExactMatch, LessThan, GreaterThan, EqualTo, Threshold, or
    */
   private def createTransaction_fromGenesisIotx(
     inputBoxId:         TransactionOutputAddress,
@@ -459,7 +534,10 @@ class TransactionTest extends IntegrationSuite {
     lvlQuantityOutput3: BigInt,
     lvlQuantityOutput4: BigInt,
     lvlQuantityOutput5: BigInt,
-    lvlQuantityOutput6: BigInt
+    lvlQuantityOutput6: BigInt,
+    lvlQuantityOutput7: BigInt,
+    lvlQuantityOutput8: BigInt,
+    lvlQuantityOutput9: BigInt
   ): F[IoTransaction] =
     for {
       timestamp <- Async[F].realTimeInstant
@@ -486,6 +564,18 @@ class TransactionTest extends IntegrationSuite {
         UnspentTransactionOutput(
           GoodAndBadTickRangeLockAddress,
           Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput6))
+        ),
+        UnspentTransactionOutput(
+          GoodBadTickRangeAndLockAddress,
+          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput7))
+        ),
+        UnspentTransactionOutput(
+          GoodBadTickRangeNotLockAddress,
+          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput8))
+        ),
+        UnspentTransactionOutput(
+          GoodBadTickRangeOrLockAddress,
+          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput9))
         )
       )
 
@@ -542,6 +632,9 @@ class TransactionTest extends IntegrationSuite {
             )
           )
 
+      // used to test a And, Not proposition template with tick range propositions
+      tickProver <- Prover.tickProver[F].prove((), unprovenTransaction.signable)
+
       proof <-
         prover match {
           case PropositionTemplate.types.Digest =>
@@ -561,7 +654,20 @@ class TransactionTest extends IntegrationSuite {
 
           case PropositionTemplate.types.Tick =>
             Prover.tickProver[F].prove((), unprovenTransaction.signable)
+
+          // only works for And with tick proposition
+          case PropositionTemplate.types.And =>
+            Prover.andProver[F].prove((tickProver, tickProver), unprovenTransaction.signable)
+
+          // only works for Not with tick proposition
+          case PropositionTemplate.types.Not =>
+            Prover.notProver[F].prove(tickProver, unprovenTransaction.signable)
+
+          // only works for Or with tick propositions
+          case PropositionTemplate.types.Or =>
+            Prover.orProver[F].prove((tickProver, tickProver), unprovenTransaction.signable)
         }
+
       predicateWithProof = predicate.copy(responses = List(proof))
       iotx = proveTransaction(unprovenTransaction, predicateWithProof)
     } yield iotx
