@@ -1,21 +1,25 @@
 package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
-import cats.effect.{Async, Resource}
+import cats.effect.kernel.Fiber
+import cats.effect.{Async, Resource, Spawn}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.Message._
+import fs2.Stream
 import org.typelevel.log4cats.Logger
 
-//TODO Reputation mechanism is not fully defined yet
 object ReputationAggregator {
 
   case class State[F[_]](
-    peerManager:              PeersManagerActor[F],
+    peerManager: PeersManagerActor[F],
+    // TODO clear reputation map if we receive no updates for some host long time
     performanceReputation:    Map[HostId, HostReputationValue],
     blockProvidingReputation: Map[HostId, HostReputationValue],
-    newnessReputation:        Map[HostId, HostReputationValue]
+    noveltyReputation:        Map[HostId, Long],
+    networkConfig:            P2PNetworkConfig,
+    reputationUpdateFiber:    Option[Fiber[F, Throwable, Unit]]
   )
 
   type Response[F[_]] = State[F]
@@ -23,43 +27,175 @@ object ReputationAggregator {
   sealed trait Message
 
   object Message {
-    case class RemoveReputationForHost(hostId: HostId) extends Message
 
+    /**
+     * Stop tracking reputation for particular host
+     * @param hostId host to stop tracking
+     */
+    case class StopTrackingReputationForHost(hostId: HostId) extends Message
+
+    /**
+     * PingPong message from remote peer, which allow us to measure performance reputation for remote host
+     * without exchange any application level information
+     * @param hostId remote peer
+     * @param response ping pong message response
+     */
     case class PingPongMessagePing(hostId: HostId, response: Either[NetworkQualityError, Long]) extends Message
+
+    /**
+     * Information about how long it takes to download block header from remote host,
+     * allow us to update performance reputation
+     * @param hostId remote peer
+     * @param delay header download time
+     */
     case class DownloadTimeHeader(hostId: HostId, delay: Long) extends Message
+
+    /**
+     * Information about how long it takes to download block body from remote host,
+     * allow us to update performance reputation
+     *
+     * @param hostId remote peer
+     * @param bodyDelay body download time
+     * @param txDelays transactions download time
+     */
     case class DownloadTimeBody(hostId: HostId, bodyDelay: Long, txDelays: Seq[Long]) extends Message
+
+    /**
+     * Notification about connection to the new remote peer had been established
+     * @param hostId remote peer
+     */
+    case class NewRemoteHost(hostId: HostId) extends Message
+
+    /**
+     * Block providing update for hosts. We could have mentioned the same host multiply time,
+     * then each element just indicate different block sources
+     *
+     * @param blocksSources blocksSources._1 is corresponding host
+     *                      blocksSources._2 how many sources for some particular block is known.
+     *                      For example if we receive previously unknown block from remote peer SomeHost,
+     *                      then we will receive message NonEmptyChain(SomeHost -> 1),
+     *                      where "1" indicates we have only one known source for that block
+     */
+    case class BlockProvidingReputationUpdate(blocksSources: NonEmptyChain[(HostId, Long)]) extends Message
+
+    /**
+     * Remote peer provide us remote slot data with better height than our current local chain,
+     * but whole slot data chain turned out to be worse of local chain because of density rule
+     * @param hostId remote peer
+     */
+    case class BadKLookbackSlotData(hostId: HostId) extends Message
+
+    /**
+     * Remote peer provide to us incorrect, by some resons, block.
+     * For example it could be block with incorrect transaction(s)
+     * @param hostId remote peer
+     */
     case class HostProvideIncorrectBlock(hostId: HostId) extends Message
 
-    case class HostsNoveltyProviding(data: NonEmptyChain[(HostId, Long)]) extends Message
-    case class BadKLookbackSlotData(hostId: HostId) extends Message
+    /**
+     * Start update time based reputation every N milliseconds where N is slot duration, for example
+     * block providing reputation is reducing over time by itself
+     */
+    case object StartReputationUpdate extends Message
+
+    /**
+     * Tick, which do actual update of time based reputation
+     */
+    case object ReputationUpdateTick extends Message
   }
 
   type ReputationAggregatorActor[F[_]] = Actor[F, Message, Response[F]]
 
-  def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
+  def getFsm[F[_]: Async: Logger](actor: ReputationAggregatorActor[F]): Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, RemoveReputationForHost(hostId))           => removeReputationForHost(state, hostId)
-      case (state, HostProvideIncorrectBlock(hostId))         => incorrectBlockReceived(state, hostId)
+      case (state, NewRemoteHost(hostId))                 => newRemoteHost(state, hostId)
+      case (state, StopTrackingReputationForHost(hostId)) => removeReputationForHost(state, hostId)
+
       case (state, PingPongMessagePing(hostId, pongResponse)) => pongMessageProcessing(state, hostId, pongResponse)
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
-      case (state, HostsNoveltyProviding(data))               => hostNoveltyProviding(state, data)
-      case (state, BadKLookbackSlotData(hostId))              => badKLoopbackSlotData(state, hostId)
+      case (state, BlockProvidingReputationUpdate(data))      => blockProvidingReputationUpdate(state, data)
+
+      case (state, BadKLookbackSlotData(hostId))      => badKLoopbackSlotData(state, hostId)
+      case (state, HostProvideIncorrectBlock(hostId)) => incorrectBlockReceived(state, hostId)
+
+      case (state, StartReputationUpdate) => startReputationUpdateFiber(actor, state)
+      case (state, ReputationUpdateTick)  => processReputationUpdateTick(state)
     }
 
   def makeActor[F[_]: Async: Logger](
     peersManager:             PeersManagerActor[F],
+    networkConfig:            P2PNetworkConfig,
     performanceReputation:    Map[HostId, HostReputationValue] = Map.empty[HostId, HostReputationValue],
     blockProvidingReputation: Map[HostId, HostReputationValue] = Map.empty[HostId, HostReputationValue],
-    newnessReputation:        Map[HostId, HostReputationValue] = Map.empty[HostId, HostReputationValue]
+    newnessReputation:        Map[HostId, Long] = Map.empty[HostId, Long]
   ): Resource[F, ReputationAggregatorActor[F]] = {
+    require(networkConfig.slotDuration.toMillis > 0) // TODO shall be checked before?
+
     val initialState = ReputationAggregator.State[F](
       peersManager,
       performanceReputation,
       blockProvidingReputation,
-      newnessReputation
+      newnessReputation,
+      networkConfig,
+      None
     )
-    Actor.make[F, State[F], Message, Response[F]](initialState, getFsm)
+
+    Actor.makeFull[F, State[F], Message, Response[F]](initialState, getFsm, stopReputationUpdateFiber)
+  }
+
+  private def startReputationUpdateFiber[F[_]: Async: Logger](
+    actor: ReputationAggregatorActor[F],
+    state: State[F]
+  ): F[(State[F], Response[F])] = {
+    val reputationUpdatePeriod = state.networkConfig.slotDuration
+    val sendPingStream =
+      Stream.awakeEvery(reputationUpdatePeriod).evalMap(_ => actor.sendNoWait(ReputationUpdateTick))
+
+    if (state.reputationUpdateFiber.isEmpty && reputationUpdatePeriod.toMillis > 0) {
+      for {
+        _     <- Logger[F].info(show"Start reputation update fiber")
+        fiber <- Spawn[F].start(sendPingStream.compile.drain)
+        newState = state.copy(reputationUpdateFiber = Option(fiber))
+      } yield (newState, newState)
+    } else {
+      Logger[F].error(show"Ignoring starting reputation update fiber with interval $reputationUpdatePeriod") >>
+      (state, state).pure[F]
+    }
+  }
+
+  private def stopReputationUpdateFiber[F[_]: Async: Logger](state: State[F]) =
+    state.reputationUpdateFiber
+      .map { fiber =>
+        Logger[F].info(s"Stop reputation update fiber") >>
+        fiber.cancel
+      }
+      .getOrElse {
+        Logger[F].error(s"Ignoring stopping reputation update fiber")
+      }
+
+  private def processReputationUpdateTick[F[_]: Async](state: State[F]): F[(State[F], Response[F])] = {
+    val newNoveltyReputationMap =
+      state.blockProvidingReputation.map { case (host, reputation) =>
+        (host, reputation * state.networkConfig.blockNoveltyDecoy)
+      }
+
+    val newRemotePeerNoveltyReputationMap =
+      state.noveltyReputation.map { case (host, reputation) => (host, Math.max(reputation - 1, 0)) }
+
+    val newState = state.copy(
+      blockProvidingReputation = newNoveltyReputationMap,
+      noveltyReputation = newRemotePeerNoveltyReputationMap
+    )
+
+    state.peerManager.sendNoWait(
+      PeersManager.Message.UpdatedReputation(
+        newState.performanceReputation,
+        newState.blockProvidingReputation,
+        newState.noveltyReputation
+      )
+    ) >>
+    (newState, newState).pure[F]
   }
 
   private def removeReputationForHost[F[_]: Async: Logger](
@@ -69,10 +205,28 @@ object ReputationAggregator {
     val newState = state.copy(
       performanceReputation = state.performanceReputation - hostId,
       blockProvidingReputation = state.blockProvidingReputation - hostId,
-      newnessReputation = state.newnessReputation - hostId
+      noveltyReputation = state.noveltyReputation - hostId
     )
 
     Logger[F].info(show"Remove reputation for host $hostId") >>
+    (newState, newState).pure[F]
+  }
+
+  private def blockProvidingReputationUpdate[F[_]: Async](
+    state: State[F],
+    data:  NonEmptyChain[(HostId, Long)]
+  ): F[(State[F], Response[F])] = {
+    val blockProvidingUpdate: Map[HostId, HostReputationValue] =
+      data.toList
+        .groupMapReduce(_._1)(_._2)(Math.min)
+        .map { case (source, knownSourceCount) =>
+          val newReputation = knownSourcesToReputation(state.networkConfig, knownSourceCount)
+          val oldReputation = state.blockProvidingReputation.getOrElse(source, 0.0)
+          (source, Math.max(newReputation, oldReputation))
+        }
+
+    val newBlockProvidingReputation = state.blockProvidingReputation ++ blockProvidingUpdate
+    val newState = state.copy(blockProvidingReputation = newBlockProvidingReputation)
     (newState, newState).pure[F]
   }
 
@@ -83,7 +237,7 @@ object ReputationAggregator {
   ): F[(State[F], Response[F])] =
     response match {
       case Right(value) =>
-        val newReputation = delayToReputation(value)
+        val newReputation = delayToReputation(state.networkConfig, value)
         val newPerformanceReputation =
           state.performanceReputation + (hostId -> newReputation)
         val newState = state.copy(performanceReputation = newPerformanceReputation)
@@ -109,13 +263,9 @@ object ReputationAggregator {
     hostId: HostId,
     delay:  Long
   ): F[(State[F], Response[F])] = {
-    val newReputation = delayToReputation(delay)
-    val updatedReputation = state.performanceReputation
-      .get(hostId)
-      .map { currentReputation =>
-        (currentReputation * 2 + newReputation) / 3.0
-      }
-      .getOrElse(newReputation)
+    val newReputation = delayToReputation(state.networkConfig, delay)
+    val oldReputation = state.performanceReputation.get(hostId)
+    val updatedReputation = calculatePerformanceReputation(oldReputation, newReputation)
 
     val newPerformanceReputation: Map[HostId, HostReputationValue] =
       state.performanceReputation + (hostId -> updatedReputation)
@@ -132,13 +282,9 @@ object ReputationAggregator {
     tsDelays: Seq[Long]
   ): F[(State[F], Response[F])] = {
     val maxDelay = (tsDelays :+ delay).max
-    val newReputation = delayToReputation(maxDelay)
-    val updatedReputation = state.performanceReputation
-      .get(hostId)
-      .map { currentReputation =>
-        (currentReputation * 2 + newReputation) / 3.0
-      }
-      .getOrElse(newReputation)
+    val newReputation = delayToReputation(state.networkConfig, maxDelay)
+    val oldReputation = state.performanceReputation.get(hostId)
+    val updatedReputation = calculatePerformanceReputation(oldReputation, newReputation)
 
     val newPerformanceReputation: Map[HostId, HostReputationValue] =
       state.performanceReputation + (hostId -> updatedReputation)
@@ -148,19 +294,40 @@ object ReputationAggregator {
     (newState, newState).pure[F]
   }
 
-  private def hostNoveltyProviding[F[_]: Async](
-    state: State[F],
-    data:  NonEmptyChain[(HostId, Long)]
-  ): F[(State[F], Response[F])] =
-    (state, state).pure[F]
+  private def newRemoteHost[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
+    val newRemoteHostNoveltyReputation =
+      state.noveltyReputation + (hostId -> state.networkConfig.remotePeerNoveltyInSlots)
+    val newRemoteHostBlockProvidingReputation =
+      state.blockProvidingReputation + (hostId -> 0.0)
+    val newRemoteHostPerformanceReputation =
+      state.performanceReputation + (hostId -> 0.0)
 
-  private def badKLoopbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] =
-    (state, state).pure[F]
+    val newState = state.copy(
+      noveltyReputation = newRemoteHostNoveltyReputation,
+      blockProvidingReputation = newRemoteHostBlockProvidingReputation,
+      performanceReputation = newRemoteHostPerformanceReputation
+    )
 
-  def delayToReputation(delayInMs: Long): Double = {
-    val zeroReputationDelay = 2000.0
-    val reputationReducing = delayInMs.toDouble / zeroReputationDelay
-
-    1.0 - reputationReducing
+    (newState, newState).pure[F]
   }
+
+  private def badKLoopbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
+    val newBlockProvidingMap = state.blockProvidingReputation + (hostId -> 0.0)
+    val newState = state.copy(blockProvidingReputation = newBlockProvidingMap)
+    (newState, newState).pure[F]
+  }
+
+  def delayToReputation(networkConfig: P2PNetworkConfig, delayInMs: Long): HostReputationValue = {
+    val reputationReducing = delayInMs.toDouble / networkConfig.performanceReputationMaxDelay
+
+    networkConfig.performanceReputationInitialValue - reputationReducing
+  }
+
+  def knownSourcesToReputation(networkConfig: P2PNetworkConfig, knownSources: Long): HostReputationValue = {
+    val reputationReducing: HostReputationValue = (knownSources - 1) * networkConfig.blockNoveltyReputationStep
+    Math.max(networkConfig.blockNoveltyInitialValue - reputationReducing, 0)
+  }
+
+  private def calculatePerformanceReputation(oldValueOpt: Option[Double], newValue: Double): HostReputationValue =
+    oldValueOpt.map(oldValue => (oldValue * 2 + newValue) / 3.0).getOrElse(newValue)
 }

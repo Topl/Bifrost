@@ -107,7 +107,8 @@ object Blockchain {
             dataStores.bodies,
             dataStores.transactions,
             blockIdTree,
-            networkProperties
+            networkProperties,
+            clock
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](

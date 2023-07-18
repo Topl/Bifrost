@@ -18,8 +18,6 @@ import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.duration.FiniteDuration
-
 trait NetworkAlgebra[F[_]] {
 
   def makePeerManger(
@@ -29,10 +27,13 @@ trait NetworkAlgebra[F[_]] {
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    pingPongInterval:       FiniteDuration
+    p2pNetworkConfig:       P2PNetworkConfig
   ): Resource[F, PeersManagerActor[F]]
 
-  def makeReputationAggregation(peersManager: PeersManagerActor[F]): Resource[F, ReputationAggregatorActor[F]]
+  def makeReputationAggregation(
+    peersManager:  PeersManagerActor[F],
+    networkConfig: P2PNetworkConfig
+  ): Resource[F, ReputationAggregatorActor[F]]
 
   def makeBlockChecker(
     reputationAggregator:        ReputationAggregatorActor[F],
@@ -65,7 +66,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    pingPongInterval:       FiniteDuration
+    p2pNetworkConfig:       P2PNetworkConfig
   ): Resource[F, PeersManagerActor[F]] =
     PeersManager.makeActor(
       networkAlgebra,
@@ -74,13 +75,14 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
       transactionStore,
       blockIdTree,
       headerToBodyValidation,
-      pingPongInterval
+      p2pNetworkConfig
     )
 
   override def makeReputationAggregation(
-    peersManager: PeersManagerActor[F]
+    peersManager:  PeersManagerActor[F],
+    networkConfig: P2PNetworkConfig
   ): Resource[F, ReputationAggregatorActor[F]] =
-    ReputationAggregator.makeActor(peersManager)
+    ReputationAggregator.makeActor(peersManager, networkConfig)
 
   override def makeBlockChecker(
     reputationAggregator:        ReputationAggregatorActor[F],

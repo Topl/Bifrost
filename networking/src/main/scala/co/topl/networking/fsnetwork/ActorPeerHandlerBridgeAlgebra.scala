@@ -5,7 +5,7 @@ import cats.effect.Resource
 import cats.effect.kernel.Concurrent
 import cats.effect.implicits._
 import cats.implicits._
-import co.topl.algebras.Store
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
@@ -36,7 +36,8 @@ object ActorPeerHandlerBridgeAlgebra {
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    networkProperties:           NetworkProperties
+    networkProperties:           NetworkProperties,
+    clockAlgebra:                ClockAlgebra[F]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     val networkAlgebra = new NetworkAlgebraImpl[F]()
     val networkManager =
@@ -55,7 +56,8 @@ object ActorPeerHandlerBridgeAlgebra {
         blockIdTree,
         networkAlgebra,
         List.empty,
-        networkProperties
+        networkProperties,
+        clockAlgebra
       )
 
     networkManager.map(makeAlgebra(_))

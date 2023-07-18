@@ -22,8 +22,6 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.duration.FiniteDuration
-
 /**
  * Actor for managing peers
  */
@@ -92,6 +90,12 @@ object PeersManager {
      * Request current tip for particular peer
      */
     case class GetCurrentTip(hostId: HostId) extends Message
+
+    case class UpdatedReputation(
+      performanceReputation:    Map[HostId, HostReputationValue],
+      blockProvidingReputation: Map[HostId, HostReputationValue],
+      noveltyReputation:        Map[HostId, Long]
+    ) extends Message
   }
 
   // actor is option, because in future we shall be able to spawn actor without SetupPeer message,
@@ -116,7 +120,7 @@ object PeersManager {
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    pingPongInterval:       FiniteDuration
+    p2pNetworkConfig:       P2PNetworkConfig
   )
 
   type Response[F[_]] = State[F]
@@ -134,6 +138,7 @@ object PeersManager {
         case (state, BlockBodyRequest(hostId, blockHeaders))       => blockDownloadRequest(state, hostId, blockHeaders)
         case (state, GetCurrentTips)                               => getCurrentTips(state)
         case (state, GetCurrentTip(hostId))                        => getCurrentTip(state, hostId)
+        case (state, UpdatedReputation(perf, block, novelty))      => reputationUpdate(state, perf, block, novelty)
       }
 
   def makeActor[F[_]: Async: Logger](
@@ -143,7 +148,7 @@ object PeersManager {
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    pingPongInterval:       FiniteDuration
+    p2pConfig:              P2PNetworkConfig
   ): Resource[F, PeersManagerActor[F]] = {
     val initialState =
       PeersManager.State[F](
@@ -157,7 +162,7 @@ object PeersManager {
         transactionStore,
         blockIdTree,
         headerToBodyValidation,
-        pingPongInterval
+        p2pConfig
       )
     Actor.makeFull(initialState, getFsm[F], finalizeActor[F])
   }
@@ -185,7 +190,7 @@ object PeersManager {
           state.transactionStore,
           state.blockIdTree,
           state.headerToBodyValidation,
-          state.pingPongInterval
+          state.p2pNetworkConfig.networkProperties.pingPongInterval
         )
       )
 
@@ -249,12 +254,13 @@ object PeersManager {
 
       releaseAction.getOrElse(().pure[F]) >>
       state.reputationAggregator
-        .map(_.sendNoWait(ReputationAggregator.Message.RemoveReputationForHost(hostId)))
+        .map(_.sendNoWait(ReputationAggregator.Message.StopTrackingReputationForHost(hostId)))
         .getOrElse(().pure[F]) >>
       (newState, newState).pure[F]
     }
   }
 
+  // TODO Send NewRemoteHost to reputation aggregator
   private def createNewPeer[F[_]](state: State[F], hostId: HostId): Peer[F] = ???
 
   private def blockDownloadRequest[F[_]: Async](
@@ -303,6 +309,109 @@ object PeersManager {
       .map(_.sendNoWait(PeerActor.Message.GetCurrentTip))
       .getOrElse(().pure[F]) >>
     (state, state).pure[F]
+
+  // Not implemented yet
+  private def reputationUpdate[F[_]: Async: Logger](
+    state:                    State[F],
+    performanceReputation:    Map[HostId, HostReputationValue],
+    blockProvidingReputation: Map[HostId, HostReputationValue],
+    noveltyReputation:        Map[HostId, Long]
+  ): F[(State[F], Response[F])] = {
+    val p2pNetworkConfig = state.p2pNetworkConfig
+    val currentHotPeers =
+      state.peers.filter { case (_: HostId, peer) => peer.state == PeerState.Hot }
+
+    val hotToCold = getHostsToClose(
+      currentHotPeers.keySet,
+      p2pNetworkConfig,
+      performanceReputation,
+      blockProvidingReputation,
+      noveltyReputation
+    )
+    val remainingHotConnections = currentHotPeers -- hotToCold
+
+    val toOpen =
+      Math.max(0, p2pNetworkConfig.networkProperties.minimumHotConnections - remainingHotConnections.size)
+    val warmToHot = getNewHotConnectionHosts(state, performanceReputation, toOpen)
+
+    // TODO warmToCold
+    // TODO coldToWarm
+
+    Logger[F].debug(
+      show"Got update: Performance: " +
+      show"${performanceReputation}; " +
+      show"Block: ${blockProvidingReputation}; " +
+      show"Novelty: ${noveltyReputation}"
+    ) >>
+    doHotToCold(state, hotToCold) >>
+    doWarmToCold(state, warmToHot) >>
+    (state, state).pure[F]
+  }
+
+  private def getHostsToClose[F[_]: Async](
+    currentHotPeers:          Set[HostId],
+    p2pNetworkConfig:         P2PNetworkConfig,
+    performanceReputation:    Map[HostId, HostReputationValue],
+    blockProvidingReputation: Map[HostId, HostReputationValue],
+    noveltyReputation:        Map[HostId, Long]
+  ): Set[HostId] = {
+    val saveByNovelty =
+      noveltyReputation.filter(_._2 > 0).keys.filter(currentHotPeers.contains).toSet
+
+    val saveByBlockProviding =
+      blockProvidingReputation.toSeq
+        .filter { case (host, _) => currentHotPeers.contains(host) }
+        .sortBy(_._2)
+        .takeRight(p2pNetworkConfig.networkProperties.minimumBlockProvidingReputationPeers)
+        .map(_._1)
+        .toSet
+
+    // TODO adjust performance reputation to avoid remote peer with best reputation but without actual application data providing
+    val saveByPerformanceReputation =
+      performanceReputation.toSeq
+        .filter { case (host, _) => currentHotPeers.contains(host) }
+        .sortBy(_._2)
+        .takeRight(p2pNetworkConfig.networkProperties.minimumBlockProvidingReputationPeers)
+        .map(_._1)
+        .toSet
+
+    val saveByOverallReputation =
+      currentHotPeers.filter { host =>
+        val performanceRep = performanceReputation.getOrElse(host, 0.0)
+        val blockProvidingRep = blockProvidingReputation.getOrElse(host, 0.0)
+
+        (performanceRep + blockProvidingRep) / 2 >= p2pNetworkConfig.networkProperties.minimumRequiredReputation
+      }
+
+    val allKeptConnections =
+      saveByNovelty ++ saveByBlockProviding ++ saveByPerformanceReputation ++ saveByOverallReputation
+
+    currentHotPeers -- allKeptConnections
+  }
+
+  private def doHotToCold[F[_]: Async](state: State[F], hostsToClose: Set[HostId]): F[Unit] = ().pure[F]
+
+  private def getNewHotConnectionHosts[F[_]: Async](
+    state:                 State[F],
+    performanceReputation: Map[HostId, HostReputationValue],
+    countToOpen:           Int
+  ): Set[HostId] =
+    if (countToOpen > 0) {
+      val currentWarmPeers =
+        state.peers.filter { case (_: HostId, peer) => peer.state == PeerState.Warm }
+
+      performanceReputation.toSeq
+        .filter { case (host, _) => currentWarmPeers.contains(host) }
+        .sortBy(_._2)
+        .takeRight(countToOpen)
+        .map(_._1)
+        .toSet
+    } else {
+      Set.empty
+    }
+
+  private def doWarmToCold[F[_]: Async](state: State[F], toOpen: Set[HostId]): F[Unit] =
+    ().pure[F]
 
   private def finalizeActor[F[_]: Applicative](currentState: State[F]): F[Unit] = ().pure[F]
 }

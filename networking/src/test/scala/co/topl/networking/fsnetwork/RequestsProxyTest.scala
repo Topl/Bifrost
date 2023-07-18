@@ -480,7 +480,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           }
 
           (reputationAggregator.sendNoWait _)
-            .expects(ReputationAggregator.Message.HostsNoveltyProviding(expectedData))
+            .expects(ReputationAggregator.Message.BlockProvidingReputationUpdate(expectedData))
             .once()
             .returns(().pure[F])
 
