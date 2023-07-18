@@ -159,7 +159,7 @@ object RequestsProxy {
       }
 
     val sendMessage: NonEmptyChain[(HostId, Long)] => F[Unit] =
-      d => state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostsNoveltyProviding(d))
+      d => state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BlockProvidingReputationUpdate(d))
 
     NonEmptyChain.fromSeq(toSend).map(sendMessage).getOrElse(().pure[F]) >> (state, state).pure[F]
   }

@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.kernel.Resource
-import co.topl.algebras.Store
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
@@ -30,10 +30,14 @@ object NetworkManager {
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                List[HostId],
-    networkProperties:           NetworkProperties
+    networkProperties:           NetworkProperties,
+    clock:                       ClockAlgebra[F]
   ): Resource[F, PeersManagerActor[F]] =
     for {
-      _ <- Resource.liftK(Logger[F].info("Start actors network"))
+      _            <- Resource.liftK(Logger[F].info("Start actors network"))
+      slotDuration <- Resource.liftK(clock.slotLength)
+      p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
+
       peerManager <- networkAlgebra.makePeerManger(
         networkAlgebra,
         localChain,
@@ -41,9 +45,11 @@ object NetworkManager {
         transactionStore,
         blockIdTree,
         headerToBodyValidation,
-        networkProperties.pingPongInterval
+        p2pNetworkConfig
       )
-      reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager)
+
+      reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager, p2pNetworkConfig)
+
       requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)
       blocksChecker <- networkAlgebra.makeBlockChecker(
         reputationAggregator,
@@ -63,6 +69,7 @@ object NetworkManager {
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupReputationAggregator(reputationAggregator)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupBlockChecker(blocksChecker)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupRequestsProxy(requestsProxy)))
+      _ <- Resource.liftK(reputationAggregator.sendNoWait(ReputationAggregator.Message.StartReputationUpdate))
       // TODO send initial host list to peer manager
     } yield peerManager
 }

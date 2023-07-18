@@ -6,7 +6,7 @@ import co.topl.numerics.implicits.Ops
 import co.topl.proto.node.NodeConfig
 import monocle.macros.Lenses
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
 // $COVERAGE-OFF$
 @Lenses
@@ -49,7 +49,16 @@ object ApplicationConfig {
       networkProperties: NetworkProperties
     )
 
-    case class NetworkProperties(legacyNetwork: Boolean, pingPongInterval: FiniteDuration)
+    case class NetworkProperties(
+      legacyNetwork:                        Boolean = false,
+      pingPongInterval:                     FiniteDuration = FiniteDuration(90, SECONDS),
+      expectedSlotsPerBlock:                Double = 5.0, // TODO shall be calculated?
+      maxPerformanceDelayInSlots:           Double = 2.0,
+      remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
+      minimumBlockProvidingReputationPeers: Int = 2,
+      minimumRequiredReputation:            Double = 0.66,
+      minimumHotConnections:                Int = 3
+    )
 
     case class KnownPeer(host: String, port: Int)
 
