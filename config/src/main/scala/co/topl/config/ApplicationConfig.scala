@@ -57,7 +57,8 @@ object ApplicationConfig {
       remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
       minimumBlockProvidingReputationPeers: Int = 2,
       minimumRequiredReputation:            Double = 0.66,
-      minimumHotConnections:                Int = 3
+      minimumHotConnections:                Int = 3,
+      warmHostsUpdateEveryNSlots:           Double = 4.0
     )
 
     case class KnownPeer(host: String, port: Int)

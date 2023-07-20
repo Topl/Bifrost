@@ -96,6 +96,10 @@ object PeersManager {
       blockProvidingReputation: Map[HostId, HostReputationValue],
       noveltyReputation:        Map[HostId, Long]
     ) extends Message
+
+    case object GetNetworkQualityForWarmHosts extends Message
+
+    case object UpdateWarmHosts extends Message
   }
 
   // actor is option, because in future we shall be able to spawn actor without SetupPeer message,
@@ -139,6 +143,8 @@ object PeersManager {
         case (state, GetCurrentTips)                               => getCurrentTips(state)
         case (state, GetCurrentTip(hostId))                        => getCurrentTip(state, hostId)
         case (state, UpdatedReputation(perf, block, novelty))      => reputationUpdate(state, perf, block, novelty)
+        case (state, GetNetworkQualityForWarmHosts)                => doNetworkQualityMeasure(state)
+        case (state, UpdateWarmHosts)                              => updateWarmHosts(state)
       }
 
   def makeActor[F[_]: Async: Logger](
@@ -189,8 +195,7 @@ object PeersManager {
           state.slotDataStore,
           state.transactionStore,
           state.blockIdTree,
-          state.headerToBodyValidation,
-          state.p2pNetworkConfig.networkProperties.pingPongInterval
+          state.headerToBodyValidation
         )
       )
 
@@ -310,7 +315,6 @@ object PeersManager {
       .getOrElse(().pure[F]) >>
     (state, state).pure[F]
 
-  // Not implemented yet
   private def reputationUpdate[F[_]: Async: Logger](
     state:                    State[F],
     performanceReputation:    Map[HostId, HostReputationValue],
@@ -318,8 +322,7 @@ object PeersManager {
     noveltyReputation:        Map[HostId, Long]
   ): F[(State[F], Response[F])] = {
     val p2pNetworkConfig = state.p2pNetworkConfig
-    val currentHotPeers =
-      state.peers.filter { case (_: HostId, peer) => peer.state == PeerState.Hot }
+    val currentHotPeers = getHotPeers(state)
 
     val hotToCold = getHostsToClose(
       currentHotPeers.keySet,
@@ -330,9 +333,9 @@ object PeersManager {
     )
     val remainingHotConnections = currentHotPeers -- hotToCold
 
-    val toOpen =
+    val toOpenCount =
       Math.max(0, p2pNetworkConfig.networkProperties.minimumHotConnections - remainingHotConnections.size)
-    val warmToHot = getNewHotConnectionHosts(state, performanceReputation, toOpen)
+    val warmToHot = getNewHotConnectionHosts(state, performanceReputation, toOpenCount)
 
     // TODO warmToCold
     // TODO coldToWarm
@@ -397,8 +400,7 @@ object PeersManager {
     countToOpen:           Int
   ): Set[HostId] =
     if (countToOpen > 0) {
-      val currentWarmPeers =
-        state.peers.filter { case (_: HostId, peer) => peer.state == PeerState.Warm }
+      val currentWarmPeers = getWarmPeers(state)
 
       performanceReputation.toSeq
         .filter { case (host, _) => currentWarmPeers.contains(host) }
@@ -413,5 +415,19 @@ object PeersManager {
   private def doWarmToCold[F[_]: Async](state: State[F], toOpen: Set[HostId]): F[Unit] =
     ().pure[F]
 
+  private def doNetworkQualityMeasure[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+    getWarmPeers(state).values.toList.traverse(_.sendNoWait(PeerActor.Message.GetNetworkQuality)) >>
+    (state, state).pure[F]
+
+  private def updateWarmHosts[F[_]: Async](state: State[F]): F[(State[F], Response[F])] = (state, state).pure[F]
+
   private def finalizeActor[F[_]: Applicative](currentState: State[F]): F[Unit] = ().pure[F]
+
+  private def getHotPeers[F[_]: Async](state: State[F]): Map[HostId, Peer[F]] = getPeers(state, PeerState.Hot)
+
+  private def getWarmPeers[F[_]: Async](state: State[F]): Map[HostId, Peer[F]] = getPeers(state, PeerState.Warm)
+
+  private def getPeers[F[_]: Async](state: State[F], peerState: PeerState): Map[HostId, Peer[F]] =
+    state.peers.filter { case (_: HostId, peer) => peer.state == peerState }
+
 }
