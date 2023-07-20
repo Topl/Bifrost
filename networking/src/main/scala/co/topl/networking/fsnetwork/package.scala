@@ -14,7 +14,7 @@ import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 package object fsnetwork {
 
@@ -201,5 +201,11 @@ package object fsnetwork {
      */
     val remotePeerNoveltyInSlots: Long =
       Math.ceil(networkProperties.expectedSlotsPerBlock * networkProperties.remotePeerNoveltyInExpectedBlocks).toLong
+
+    /**
+     * How often we update our list of warm hosts
+     */
+    val warmHostsUpdateInterval: FiniteDuration =
+      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNSlots * slotDuration.toMillis), MILLISECONDS)
   }
 }

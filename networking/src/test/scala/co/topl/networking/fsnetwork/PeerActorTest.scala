@@ -40,7 +40,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
       val pingDelay = FiniteDuration(10, MILLISECONDS)
 
       val client = mock[BlockchainPeerClient[F]]
@@ -68,11 +67,13 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           slotDataStore,
           transactionStore,
           blockIdTree,
-          headerToBodyValidation,
-          pingPongInterval
+          headerToBodyValidation
         )
         .use { actor =>
-          Async[F].andWait(actor.send(PeerActor.Message.UpdateState(PeerState.Warm)), pingPongInterval + pingDelay * 5)
+          for {
+            _ <- actor.send(PeerActor.Message.UpdateState(PeerState.Warm))
+            _ <- Async[F].andWait(actor.send(PeerActor.Message.GetNetworkQuality), pingDelay * 5)
+          } yield ()
         }
     }
 

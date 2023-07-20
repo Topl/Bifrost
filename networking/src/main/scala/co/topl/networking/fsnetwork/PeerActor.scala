@@ -19,8 +19,6 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.duration.FiniteDuration
-
 object PeerActor {
   sealed trait Message
 
@@ -48,6 +46,11 @@ object PeerActor {
      * Request current tip from remote peer
      */
     case object GetCurrentTip extends Message
+
+    /**
+     * Request network quality measure
+     */
+    case object GetNetworkQuality extends Message
   }
 
   case class State[F[_]](
@@ -67,6 +70,7 @@ object PeerActor {
     case (state, DownloadBlockHeaders(blockIds))    => downloadHeaders(state, blockIds)
     case (state, DownloadBlockBodies(blockHeaders)) => downloadBodies(state, blockHeaders)
     case (state, GetCurrentTip)                     => getCurrentTip(state)
+    case (state, GetNetworkQuality)                 => getNetworkQuality(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -78,8 +82,7 @@ object PeerActor {
     slotDataStore:          Store[F, BlockId, SlotData],
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    pingPongInterval:       FiniteDuration
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerActor[F]] =
     for {
       header <- PeerBlockHeaderFetcher.makeActor(
@@ -91,7 +94,7 @@ object PeerActor {
         blockIdTree
       )
       body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
-      networkQuality <- PeerNetworkQuality.makeActor(hostId, client, reputationAggregator, pingPongInterval)
+      networkQuality <- PeerNetworkQuality.makeActor(hostId, client, reputationAggregator)
       initialState = State(hostId, client, header, body, networkQuality, PeerState.Cold)
       actor <- Actor.make(initialState, getFsm[F])
 
@@ -130,12 +133,10 @@ object PeerActor {
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
 
   private def startNetworkLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Network level is enabled for ${state.hostId}") >>
-    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.StartMeasure)
+    Logger[F].info(show"Network level is enabled for ${state.hostId}")
 
   private def stopNetworkLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Network level is disabled for ${state.hostId}") >>
-    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.StopMeasure)
+    Logger[F].info(show"Network level is disabled for ${state.hostId}")
 
   private def downloadHeaders[F[_]: Concurrent](
     state:    State[F],
@@ -153,5 +154,9 @@ object PeerActor {
 
   private def getCurrentTip[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.GetCurrentTip) >>
+    (state, state).pure[F]
+
+  private def getNetworkQuality[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
+    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.GetNetworkQuality) >>
     (state, state).pure[F]
 }
