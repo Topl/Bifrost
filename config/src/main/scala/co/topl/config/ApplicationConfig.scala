@@ -58,7 +58,7 @@ object ApplicationConfig {
       minimumBlockProvidingReputationPeers: Int = 2,
       minimumRequiredReputation:            Double = 0.66,
       minimumHotConnections:                Int = 3,
-      warmHostsUpdateEveryNSlots:           Double = 4.0
+      warmHostsUpdateEveryNBlock:           Double = 4.0
     )
 
     case class KnownPeer(host: String, port: Int)
