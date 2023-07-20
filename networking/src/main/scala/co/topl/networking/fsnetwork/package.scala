@@ -206,6 +206,6 @@ package object fsnetwork {
      * How often we update our list of warm hosts
      */
     val warmHostsUpdateInterval: FiniteDuration =
-      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNSlots * slotDuration.toMillis), MILLISECONDS)
+      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
   }
 }
