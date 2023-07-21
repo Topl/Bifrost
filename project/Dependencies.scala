@@ -11,7 +11,7 @@ object Dependencies {
   val logback = "1.4.8"
   val orientDbVersion = "3.2.20"
   val ioGrpcVersion = "1.56.1"
-  val protobufSpecsVersion = "e03a093" // scala-steward:off
+  val protobufSpecsVersion = "f0c8055" // scala-steward:off TODO change version to main once https://github.com/Topl/protobuf-specs/pull/77 is merged
   val bramblScVersion = "d5bc746" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
 

@@ -99,7 +99,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                 def use[Res](f: Blake2b256 => F[Res]): F[Res] = f(new Blake2b256)
               },
               vrfCalculator,
-              leaderElectionValidation
+              leaderElectionValidation,
+              ProtocolVersion(0, 0, 1)
             )
 
           testProof <- vrfCalculator.proofForSlot(slot, eta).toResource
@@ -141,7 +142,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               ed25519Resource = null,
               blake2b256Resource = null,
               vrfCalculator = null,
-              leaderElectionValidation = null
+              leaderElectionValidation = null,
+              ProtocolVersion(0, 0, 1)
             )
 
           _ <- staking

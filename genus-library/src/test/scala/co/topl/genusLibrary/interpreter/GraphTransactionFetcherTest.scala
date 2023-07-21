@@ -188,10 +188,11 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
     PropF.forAllF { (transactionId: TransactionId, ioTransaction: IoTransaction, blockHeader: BlockHeader) =>
       withMock {
 
+        val blockHeaderVertex = mock[Vertex]
+        val iotxVertex = mock[Vertex]
+
         val res = for {
           vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
-          iotxVertex = mock[Vertex]
-          blockHeaderVertex = mock[Vertex] // OrientVertex is not possible to mock
 
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -286,6 +287,12 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             .once()
             .returning(blockHeader.timestamp)
 
+          _ = (blockHeaderVertex
+            .getProperty[Array[Byte]] _)
+            .expects(SchemaBlockHeader.Field.Version)
+            .once()
+            .returning(blockHeader.version.toByteArray)
+
           _ = (blockHeaderVertex.getPropertyKeys _)
             .expects()
             .once()
@@ -302,7 +309,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
                 SchemaBlockHeader.Field.EligibilityCertificate,
                 SchemaBlockHeader.Field.OperationalCertificate,
                 SchemaBlockHeader.Field.Metadata,
-                SchemaBlockHeader.Field.Address
+                SchemaBlockHeader.Field.Address,
+                SchemaBlockHeader.Field.Version
               )
             )
 
