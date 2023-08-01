@@ -2,7 +2,6 @@ package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
 import cats.effect.IO
-import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
@@ -17,7 +16,7 @@ import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS, SECONDS}
+import scala.concurrent.duration.{FiniteDuration, SECONDS}
 
 object ReputationAggregatorTest {
   type F[A] = IO[A]
@@ -46,11 +45,11 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.StopTrackingReputationForHost(hostToRemove))
+            newState <- actor.send(ReputationAggregator.Message.PeerIsCold(hostToRemove))
             _ = assert(!newState.performanceReputation.contains(hostToRemove))
             _ = assert(!newState.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState.noveltyReputation.contains(hostToRemove))
-            newState2 <- actor.send(ReputationAggregator.Message.StopTrackingReputationForHost(hostToRemove))
+            newState2 <- actor.send(ReputationAggregator.Message.PeerIsCold(hostToRemove))
             _ = assert(!newState2.performanceReputation.contains(hostToRemove))
             _ = assert(!newState2.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState2.noveltyReputation.contains(hostToRemove))
@@ -94,7 +93,7 @@ class ReputationAggregatorTest
       val initialNewMap = Map(host -> 1L)
 
       (peersManager.sendNoWait _)
-        .expects(PeersManager.Message.UpdatePeerStatus(host, PeerState.Banned))
+        .expects(PeersManager.Message.BanPeer(host))
         .returns(().pure[F])
       ReputationAggregator
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
@@ -119,7 +118,7 @@ class ReputationAggregatorTest
       val initialNewMap = Map(host -> 1L)
 
       (peersManager.sendNoWait _)
-        .expects(PeersManager.Message.UpdatePeerStatus(host, PeerState.Banned))
+        .expects(PeersManager.Message.BanPeer(host))
         .returns(().pure[F])
       ReputationAggregator
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
@@ -144,7 +143,7 @@ class ReputationAggregatorTest
       val initialNewMap = Map(host -> 1L)
 
       (peersManager.sendNoWait _)
-        .expects(PeersManager.Message.UpdatePeerStatus(host, PeerState.Banned))
+        .expects(PeersManager.Message.BanPeer(host))
         .returns(().pure[F])
       ReputationAggregator
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
@@ -214,50 +213,6 @@ class ReputationAggregatorTest
     }
   }
 
-  test("Reputation update fiber shall be started and running after actor starting") {
-    withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val host = arbitraryHost.arbitrary.first
-
-      val initialReputation = 0.5
-      val initialPerfMap = Map(host -> initialReputation, arbitraryHost.arbitrary.first -> 0.1)
-      val initialBlockMap = Map(arbitraryHost.arbitrary.first -> 0.1, host -> 0.7)
-      val initialNewMap = Map(host -> 2L)
-
-      val slotDuration = FiniteDuration(100, MILLISECONDS)
-      val waitDuration = FiniteDuration(slotDuration.toMillis * 3, MILLISECONDS)
-      val config = P2PNetworkConfig(NetworkProperties(), slotDuration)
-
-      val blockProvidingReputation1 = initialBlockMap.view.mapValues(_ * config.blockNoveltyDecoy).toMap
-      val noveltyReputation1 = initialNewMap.view.mapValues(_ - 1).toMap
-      val expectedMessage1 =
-        PeersManager.Message.UpdatedReputation(initialPerfMap, blockProvidingReputation1, noveltyReputation1)
-      (peersManager.sendNoWait _).expects(expectedMessage1).once().returns(().pure[F])
-
-      val blockProvidingReputation2 = blockProvidingReputation1.view.mapValues(_ * config.blockNoveltyDecoy).toMap
-      val noveltyReputation2 = noveltyReputation1.view.mapValues(_ - 1).toMap
-      val expectedMessage2 =
-        PeersManager.Message.UpdatedReputation(initialPerfMap, blockProvidingReputation2, noveltyReputation2)
-      (peersManager.sendNoWait _).expects(expectedMessage2).once().returns(().pure[F])
-
-      val blockProvidingReputation3 = blockProvidingReputation2.view.mapValues(_ * config.blockNoveltyDecoy).toMap
-      val noveltyReputation3 = Map(host -> 0L) // Novelty reputation never is less than 0
-      val expectedMessage3 =
-        PeersManager.Message.UpdatedReputation(initialPerfMap, blockProvidingReputation3, noveltyReputation3)
-      (peersManager.sendNoWait _).expects(expectedMessage3).once().returns(().pure[F])
-
-      ReputationAggregator
-        .makeActor(peersManager, config, initialPerfMap, initialBlockMap, initialNewMap)
-        .use { actor =>
-          for {
-            newState <- Async[F].andWait(actor.send(ReputationAggregator.Message.StartReputationUpdate), waitDuration)
-            _ = assert(newState.reputationUpdateFiber.isDefined)
-
-          } yield ()
-        }
-    }
-  }
-
   test("Reputation shall be updated after added new host") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
@@ -277,7 +232,7 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.NewRemoteHost(host))
+            newState <- actor.send(ReputationAggregator.Message.NewHotPeer(NonEmptyChain.one(host)))
             _ = assert(newState.performanceReputation == (initialPerfMap + (host -> 0.0)))
             _ = assert(newState.blockProvidingReputation == (initialBlockMap + (host -> 0.0)))
             _ = assert(newState.noveltyReputation == (initialNewMap + (host -> reputation)))
@@ -358,7 +313,36 @@ class ReputationAggregatorTest
           for {
             newState <- actor.send(ReputationAggregator.Message.BadKLookbackSlotData(host))
             _ = assert(newState.performanceReputation == initialPerfMap)
-            _ = assert(newState.blockProvidingReputation == (initialBlockMap + (host -> 0.0)))
+            _ = assert(
+              newState.blockProvidingReputation == initialBlockMap + (host -> 1.0)
+            ) /*+ (host -> 0.0))*/ // enable after BN-1129
+            _ = assert(newState.noveltyReputation == initialNewMap)
+          } yield ()
+        }
+    }
+  }
+
+  test("Host reputation shall be sent for warm hosts update by request") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val initialReputation = 0.5
+      val initialPerfMap =
+        Map(arbitraryHost.arbitrary.first -> initialReputation, arbitraryHost.arbitrary.first -> 0.1)
+      val initialBlockMap =
+        Map(arbitraryHost.arbitrary.first -> 0.1, arbitraryHost.arbitrary.first -> 0.7)
+      val initialNewMap =
+        Map(arbitraryHost.arbitrary.first -> 1L)
+
+      (peersManager.sendNoWait _).expects(PeersManager.Message.UpdateWarmHosts(initialPerfMap)).returns(().pure[F])
+
+      ReputationAggregator
+        .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
+        .use { actor =>
+          for {
+            newState <- actor.send(ReputationAggregator.Message.UpdateWarmHosts)
+            _ = assert(newState.performanceReputation == initialPerfMap)
+            _ = assert(newState.blockProvidingReputation == initialBlockMap)
             _ = assert(newState.noveltyReputation == initialNewMap)
           } yield ()
         }

@@ -48,6 +48,7 @@ object Notifier {
   }
 
   private def startSendingNotifications[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    Logger[F].info(s"Start notifier with config ${state.networkConfig}") >>
     startSlotNotification[F](state)
       .flatMap(startNetworkQualityFiber[F])
       .flatMap(startWarmHostsUpdateFiber[F])
@@ -98,7 +99,7 @@ object Notifier {
 
     val warmHostsUpdateStream =
       Stream.awakeEvery(warmPeersUpdate).evalMap { _ =>
-        state.peersManager.sendNoWait(PeersManager.Message.UpdateWarmHosts)
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.UpdateWarmHosts)
       }
 
     if (state.warmHostsUpdateFiber.isEmpty && warmPeersUpdate.toMillis > 0) {

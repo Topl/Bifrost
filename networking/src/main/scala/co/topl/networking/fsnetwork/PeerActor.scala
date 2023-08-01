@@ -26,9 +26,10 @@ object PeerActor {
 
     /**
      * Update peer state
-     * @param newState new state
+     * @param networkLevel do we run network level data exchange like measuring metwork quality
+     * @param applicationLevel do we run application level data exchange
      */
-    case class UpdateState(newState: PeerState) extends Message
+    case class UpdateState(networkLevel: Boolean, applicationLevel: Boolean) extends Message
 
     /**
      * Request to download block headers from peer, downloaded headers will be sent to block checker directly
@@ -51,6 +52,11 @@ object PeerActor {
      * Request network quality measure
      */
     case object GetNetworkQuality extends Message
+
+    /**
+     * Request to get remote host's hot connections
+     */
+    case object GetHotPeersFromPeer extends Message
   }
 
   case class State[F[_]](
@@ -59,18 +65,20 @@ object PeerActor {
     blockHeaderActor:    PeerBlockHeaderFetcherActor[F],
     blockBodyActor:      PeerBlockBodyFetcherActor[F],
     networkQualityActor: PeerNetworkQualityActor[F],
-    currentPeerState:    PeerState
+    networkLevel:        Boolean,
+    applicationLevel:    Boolean
   )
 
   type Response[F[_]] = State[F]
   type PeerActor[F[_]] = Actor[F, Message, Response[F]]
 
   def getFsm[F[_]: Concurrent: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
-    case (state, UpdateState(newState))             => updateState(state, newState)
-    case (state, DownloadBlockHeaders(blockIds))    => downloadHeaders(state, blockIds)
-    case (state, DownloadBlockBodies(blockHeaders)) => downloadBodies(state, blockHeaders)
-    case (state, GetCurrentTip)                     => getCurrentTip(state)
-    case (state, GetNetworkQuality)                 => getNetworkQuality(state)
+    case (state, UpdateState(networkLevel, applicationLevel)) => updateState(state, networkLevel, applicationLevel)
+    case (state, DownloadBlockHeaders(blockIds))              => downloadHeaders(state, blockIds)
+    case (state, DownloadBlockBodies(blockHeaders))           => downloadBodies(state, blockHeaders)
+    case (state, GetCurrentTip)                               => getCurrentTip(state)
+    case (state, GetNetworkQuality)                           => getNetworkQuality(state)
+    case (state, GetHotPeersFromPeer)                         => getHotPeers(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -95,30 +103,35 @@ object PeerActor {
       )
       body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
       networkQuality <- PeerNetworkQuality.makeActor(hostId, client, reputationAggregator)
-      initialState = State(hostId, client, header, body, networkQuality, PeerState.Cold)
-      actor <- Actor.make(initialState, getFsm[F])
-
+      initialState = State(hostId, client, header, body, networkQuality, networkLevel = false, applicationLevel = false)
+      actor <- Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
     } yield actor
 
+  private def finalizer[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
+    Logger[F].info(show"Finishing actor for peer ${state.hostId}") >>
+    stopApplicationLevel(state) >>
+    stopNetworkLevel(state)
+
   private def updateState[F[_]: Concurrent: Logger](
-    state:        State[F],
-    newPeerState: PeerState
+    state:               State[F],
+    newNetworkLevel:     Boolean,
+    newApplicationLevel: Boolean
   ): F[(State[F], Response[F])] = {
     val networkLevel: F[Unit] =
-      (state.currentPeerState.networkLevel != newPeerState.networkLevel, newPeerState.networkLevel) match {
+      (state.networkLevel != newNetworkLevel, newNetworkLevel) match {
         case (true, true)  => startNetworkLevel(state)
         case (true, false) => stopNetworkLevel(state)
         case (false, _)    => ().pure[F]
       }
 
     val applicationLevel: F[Unit] =
-      (state.currentPeerState.applicationLevel != newPeerState.applicationLevel, newPeerState.applicationLevel) match {
+      (state.applicationLevel != newApplicationLevel, newApplicationLevel) match {
         case (true, true)  => startApplicationLevel(state)
         case (true, false) => stopApplicationLevel(state)
         case (false, _)    => ().pure[F]
       }
 
-    val newState: State[F] = state.copy(currentPeerState = newPeerState)
+    val newState: State[F] = state.copy(applicationLevel = newApplicationLevel, networkLevel = newNetworkLevel)
     applicationLevel >> networkLevel >> (newState, newState).pure[F]
   }
 
@@ -133,10 +146,12 @@ object PeerActor {
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
 
   private def startNetworkLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Network level is enabled for ${state.hostId}")
+    Logger[F].info(show"Network level is started for ${state.hostId}") >>
+    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.StartActor)
 
   private def stopNetworkLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Network level is disabled for ${state.hostId}")
+    Logger[F].info(show"Network level is stop for ${state.hostId}") >>
+    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.StopActor)
 
   private def downloadHeaders[F[_]: Concurrent](
     state:    State[F],
@@ -158,5 +173,8 @@ object PeerActor {
 
   private def getNetworkQuality[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
     state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.GetNetworkQuality) >>
+    (state, state).pure[F]
+
+  private def getHotPeers[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
     (state, state).pure[F]
 }

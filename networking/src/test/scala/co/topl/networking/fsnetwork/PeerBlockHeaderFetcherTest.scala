@@ -17,6 +17,7 @@ import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError.
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.{BlockHeaderDownloadErrorByName, F}
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -37,7 +38,7 @@ object PeerBlockHeaderFetcherTest {
 class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
   val maxChainSize = 99
 
   private def compareWithoutDownloadTimeMatcher(
@@ -55,6 +56,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
                 (header, res.map(b => b.copy(downloadTimeMs = 0)))
               }
             expectedMessage == actualMessage.copy(response = newResp)
+          case (_, _) => throw new IllegalStateException()
         }
     new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
   }
@@ -113,7 +115,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (client
         .getHeaderOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(header.id, *, *)
-        .once
+        .once()
         .returns(Async[F].delayBy(header.pure[F], FiniteDuration(pingDelay, MILLISECONDS)))
 
       val requestsProxy = mock[RequestsProxyActor[F]]
@@ -350,7 +352,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = mock[LocalChainAlgebra[F]]
       (localChain.couldBeWorse _).expects(bestSlotData).once().returning(false.pure[F])
-      (localChain.head _).expects().once().returning(knownSlotData.pure[F])
+      (() => localChain.head).expects().once().returning(knownSlotData.pure[F])
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
@@ -406,7 +408,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = mock[LocalChainAlgebra[F]]
       (localChain.couldBeWorse _).expects(bestSlotData).once().returning(false.pure[F])
-      (localChain.head _).expects().once().returning(knownSlotData.pure[F])
+      (() => localChain.head).expects().once().returning(knownSlotData.pure[F])
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
@@ -533,7 +535,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = mock[LocalChainAlgebra[F]]
       (localChain.couldBeWorse _).expects(bestTip).once().returning(false.pure[F])
-      (localChain.head _).expects().once().returning(knownSlotData.pure[F])
+      (() => localChain.head).expects().once().returning(knownSlotData.pure[F])
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
       slotDataStoreMap.put(knownId, knownSlotData)

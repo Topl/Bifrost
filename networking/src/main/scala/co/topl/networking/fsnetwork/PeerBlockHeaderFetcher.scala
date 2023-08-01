@@ -118,7 +118,7 @@ object PeerBlockHeaderFetcher {
       betterSlotData         <- compareSlotDataWithLocal(savedSlotData, state)
     } yield betterSlotData
 
-  private def buildBlockSource[F[_]: Async: Logger](
+  private def buildBlockSource[F[_]: Async](
     state:          State[F],
     blockId:        BlockId,
     newSlotDataOpt: Option[NonEmptyChain[SlotData]]

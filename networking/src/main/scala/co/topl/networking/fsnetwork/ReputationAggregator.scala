@@ -2,12 +2,11 @@ package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
 import cats.effect.kernel.Fiber
-import cats.effect.{Async, Resource, Spawn}
+import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.Message._
-import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object ReputationAggregator {
@@ -32,7 +31,7 @@ object ReputationAggregator {
      * Stop tracking reputation for particular host
      * @param hostId host to stop tracking
      */
-    case class StopTrackingReputationForHost(hostId: HostId) extends Message
+    case class PeerIsCold(hostId: HostId) extends Message
 
     /**
      * PingPong message from remote peer, which allow us to measure performance reputation for remote host
@@ -62,9 +61,9 @@ object ReputationAggregator {
 
     /**
      * Notification about connection to the new remote peer had been established
-     * @param hostId remote peer
+     * @param hostIds remote peer
      */
-    case class NewRemoteHost(hostId: HostId) extends Message
+    case class NewHotPeer(hostIds: NonEmptyChain[HostId]) extends Message
 
     /**
      * Block providing update for hosts. We could have mentioned the same host multiply time,
@@ -93,23 +92,22 @@ object ReputationAggregator {
     case class HostProvideIncorrectBlock(hostId: HostId) extends Message
 
     /**
-     * Start update time based reputation every N milliseconds where N is slot duration, for example
-     * block providing reputation is reducing over time by itself
-     */
-    case object StartReputationUpdate extends Message
-
-    /**
      * Tick, which do actual update of time based reputation
      */
     case object ReputationUpdateTick extends Message
+
+    /**
+     * Send warm hosts reputation to PeerManager
+     */
+    case object UpdateWarmHosts extends Message
   }
 
   type ReputationAggregatorActor[F[_]] = Actor[F, Message, Response[F]]
 
-  def getFsm[F[_]: Async: Logger](actor: ReputationAggregatorActor[F]): Fsm[F, State[F], Message, Response[F]] =
+  def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, NewRemoteHost(hostId))                 => newRemoteHost(state, hostId)
-      case (state, StopTrackingReputationForHost(hostId)) => removeReputationForHost(state, hostId)
+      case (state, NewHotPeer(hostIds)) => newHotPeer(state, hostIds)
+      case (state, PeerIsCold(hostId))  => removeReputationForHost(state, hostId)
 
       case (state, PingPongMessagePing(hostId, pongResponse)) => pongMessageProcessing(state, hostId, pongResponse)
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
@@ -119,8 +117,8 @@ object ReputationAggregator {
       case (state, BadKLookbackSlotData(hostId))      => badKLoopbackSlotData(state, hostId)
       case (state, HostProvideIncorrectBlock(hostId)) => incorrectBlockReceived(state, hostId)
 
-      case (state, StartReputationUpdate) => startReputationUpdateFiber(actor, state)
-      case (state, ReputationUpdateTick)  => processReputationUpdateTick(state)
+      case (state, ReputationUpdateTick) => processReputationUpdateTick(state)
+      case (state, UpdateWarmHosts)      => processUpdateWarmHosts(state)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -141,38 +139,8 @@ object ReputationAggregator {
       None
     )
 
-    Actor.makeFull[F, State[F], Message, Response[F]](initialState, getFsm, stopReputationUpdateFiber)
+    Actor.make[F, State[F], Message, Response[F]](initialState, getFsm[F])
   }
-
-  private def startReputationUpdateFiber[F[_]: Async: Logger](
-    actor: ReputationAggregatorActor[F],
-    state: State[F]
-  ): F[(State[F], Response[F])] = {
-    val reputationUpdatePeriod = state.networkConfig.slotDuration
-    val sendPingStream =
-      Stream.awakeEvery(reputationUpdatePeriod).evalMap(_ => actor.sendNoWait(ReputationUpdateTick))
-
-    if (state.reputationUpdateFiber.isEmpty && reputationUpdatePeriod.toMillis > 0) {
-      for {
-        _     <- Logger[F].info(show"Start reputation update fiber")
-        fiber <- Spawn[F].start(sendPingStream.compile.drain)
-        newState = state.copy(reputationUpdateFiber = Option(fiber))
-      } yield (newState, newState)
-    } else {
-      Logger[F].error(show"Ignoring starting reputation update fiber with interval $reputationUpdatePeriod") >>
-      (state, state).pure[F]
-    }
-  }
-
-  private def stopReputationUpdateFiber[F[_]: Async: Logger](state: State[F]) =
-    state.reputationUpdateFiber
-      .map { fiber =>
-        Logger[F].info(s"Stop reputation update fiber") >>
-        fiber.cancel
-      }
-      .getOrElse {
-        Logger[F].error(s"Ignoring stopping reputation update fiber")
-      }
 
   private def processReputationUpdateTick[F[_]: Async](state: State[F]): F[(State[F], Response[F])] = {
     val newNoveltyReputationMap =
@@ -197,6 +165,10 @@ object ReputationAggregator {
     ) >>
     (newState, newState).pure[F]
   }
+
+  private def processUpdateWarmHosts[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+    state.peerManager.sendNoWait(PeersManager.Message.UpdateWarmHosts(state.performanceReputation)) >>
+    (state, state).pure[F]
 
   private def removeReputationForHost[F[_]: Async: Logger](
     state:  State[F],
@@ -246,7 +218,7 @@ object ReputationAggregator {
 
       case Left(error) =>
         Logger[F].error(show"Bad pong message: $error from host $hostId") >>
-        state.peerManager.sendNoWait(PeersManager.Message.UpdatePeerStatus(hostId, PeerState.Banned)) >>
+        state.peerManager.sendNoWait(PeersManager.Message.BanPeer(hostId)) >>
         (state, state).pure[F]
     }
 
@@ -255,7 +227,7 @@ object ReputationAggregator {
     hostId: HostId
   ): F[(State[F], Response[F])] =
     Logger[F].error(show"Received incorrect block from host $hostId") >>
-    state.peerManager.sendNoWait(PeersManager.Message.UpdatePeerStatus(hostId, PeerState.Banned)) >>
+    state.peerManager.sendNoWait(PeersManager.Message.BanPeer(hostId)) >>
     (state, state).pure[F]
 
   private def headerDownloadTime[F[_]: Async: Logger](
@@ -271,7 +243,7 @@ object ReputationAggregator {
       state.performanceReputation + (hostId -> updatedReputation)
     val newState = state.copy(performanceReputation = newPerformanceReputation)
 
-    Logger[F].debug(show"Received header download from host $hostId with delay $delay") >>
+    Logger[F].info(show"Received header download from host $hostId with delay $delay") >>
     (newState, newState).pure[F]
   }
 
@@ -294,25 +266,32 @@ object ReputationAggregator {
     (newState, newState).pure[F]
   }
 
-  private def newRemoteHost[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
-    val newRemoteHostNoveltyReputation =
-      state.noveltyReputation + (hostId -> state.networkConfig.remotePeerNoveltyInSlots)
-    val newRemoteHostBlockProvidingReputation =
-      state.blockProvidingReputation + (hostId -> 0.0)
-    val newRemoteHostPerformanceReputation =
-      state.performanceReputation + (hostId -> 0.0)
+  private def newHotPeer[F[_]: Async: Logger](
+    state:   State[F],
+    hostIds: NonEmptyChain[HostId]
+  ): F[(State[F], Response[F])] = {
+    val noveltyInSlots = state.networkConfig.remotePeerNoveltyInSlots
+
+    val newNoveltyReputation =
+      state.noveltyReputation ++ hostIds.map(hostId => hostId -> noveltyInSlots).toList.toMap
+    val newBlockProvidingReputation =
+      state.blockProvidingReputation ++ hostIds.map(hostId => hostId -> 0.0).toList.toMap
+    val newPerformanceReputation =
+      state.performanceReputation ++ hostIds.map(hostId => hostId -> 0.0).toList.toMap
 
     val newState = state.copy(
-      noveltyReputation = newRemoteHostNoveltyReputation,
-      blockProvidingReputation = newRemoteHostBlockProvidingReputation,
-      performanceReputation = newRemoteHostPerformanceReputation
+      noveltyReputation = newNoveltyReputation,
+      blockProvidingReputation = newBlockProvidingReputation,
+      performanceReputation = newPerformanceReputation
     )
 
+    Logger[F].info(s"Start tracking reputation for hosts $hostIds") >>
     (newState, newState).pure[F]
   }
 
   private def badKLoopbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
-    val newBlockProvidingMap = state.blockProvidingReputation + (hostId -> 0.0)
+    // shall be enable after fix BN-1129
+    val newBlockProvidingMap = state.blockProvidingReputation // + (hostId -> 0.0)
     val newState = state.copy(blockProvidingReputation = newBlockProvidingMap)
     (newState, newState).pure[F]
   }
