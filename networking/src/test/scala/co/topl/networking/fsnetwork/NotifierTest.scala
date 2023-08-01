@@ -32,11 +32,14 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
         .atLeastOnce()
         .returns(().pure[F])
-      (peersManager.sendNoWait _).expects(PeersManager.Message.UpdateWarmHosts).atLeastOnce().returns(().pure[F])
 
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
       (reputationAggregator.sendNoWait _)
         .expects(ReputationAggregator.Message.ReputationUpdateTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (reputationAggregator.sendNoWait _)
+        .expects(ReputationAggregator.Message.UpdateWarmHosts)
         .atLeastOnce()
         .returns(().pure[F])
 
@@ -67,11 +70,14 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
         .anyNumberOfTimes()
         .returns(().pure[F])
-      (peersManager.sendNoWait _).expects(PeersManager.Message.UpdateWarmHosts).anyNumberOfTimes().returns(().pure[F])
 
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
       (reputationAggregator.sendNoWait _)
         .expects(ReputationAggregator.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
+        .returns(().pure[F])
+      (reputationAggregator.sendNoWait _)
+        .expects(ReputationAggregator.Message.UpdateWarmHosts)
         .anyNumberOfTimes()
         .returns(().pure[F])
 

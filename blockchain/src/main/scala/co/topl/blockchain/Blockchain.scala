@@ -5,7 +5,7 @@ import cats.Parallel
 import cats.data.OptionT
 import cats.data.Validated
 import cats.effect._
-import cats.effect.std.Random
+import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain.algebras.EpochDataAlgebra
@@ -13,7 +13,7 @@ import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
+import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
@@ -54,7 +54,7 @@ object Blockchain {
     _mempool:                  MempoolAlgebra[F],
     ed25519VrfResource:        UnsafeResource[F, Ed25519VRF],
     localPeer:                 LocalPeer,
-    remotePeers:               Stream[F, DisconnectedPeer],
+    knownPeers:                List[KnownPeer],
     rpcHost:                   String,
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
@@ -64,7 +64,11 @@ object Blockchain {
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
-      (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
+      remotePeers <- Resource.liftK(Queue.unbounded[F, DisconnectedPeer])
+      _           <- Resource.liftK(Logger[F].info(s"Received known peers from config: $knownPeers"))
+      initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
+      remotePeersStream                 <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
+      (localChain, blockAdoptionsTopic) <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
       // Whenever a block is adopted locally, broadcast all of its corresponding _transactions_ to eagerly notify peers
       _ <- Async[F].background(
@@ -108,7 +112,9 @@ object Blockchain {
             dataStores.transactions,
             blockIdTree,
             networkProperties,
-            clock
+            clock,
+            initialPeers,
+            remotePeers.offer
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
@@ -147,11 +153,10 @@ object Blockchain {
           localPeer.localAddress.host,
           localPeer.localAddress.port,
           localPeer,
-          remotePeers,
+          remotePeersStream,
           clientHandler,
           peerServerF
         )
-
       droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
       rpcInterpreter <- Resource.eval(
         ToplRpcServer.make(

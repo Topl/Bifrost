@@ -1,6 +1,8 @@
 package co.topl.networking.fsnetwork
 
+import cats.data.NonEmptyChain
 import cats.effect.kernel.Resource
+import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -31,10 +33,11 @@ object NetworkManager {
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                List[HostId],
     networkProperties:           NetworkProperties,
-    clock:                       ClockAlgebra[F]
+    clock:                       ClockAlgebra[F],
+    addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F]
   ): Resource[F, PeersManagerActor[F]] =
     for {
-      _            <- Resource.liftK(Logger[F].info("Start actors network"))
+      _            <- Resource.liftK(Logger[F].info(s"Start actors network with list of known peers: $initialHosts"))
       slotDuration <- Resource.liftK(clock.slotLength)
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
@@ -45,6 +48,7 @@ object NetworkManager {
         transactionStore,
         blockIdTree,
         headerToBodyValidation,
+        addRemotePeerAlgebra,
         p2pNetworkConfig
       )
 
@@ -69,7 +73,17 @@ object NetworkManager {
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupReputationAggregator(reputationAggregator)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupBlockChecker(blocksChecker)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupRequestsProxy(requestsProxy)))
-      _ <- Resource.liftK(reputationAggregator.sendNoWait(ReputationAggregator.Message.StartReputationUpdate))
-      // TODO send initial host list to peer manager
+
+      _ <- Resource.liftK(
+        NonEmptyChain
+          .fromSeq(initialHosts)
+          .map { initialPeers =>
+            peerManager.sendNoWait(PeersManager.Message.AddKnownPeers(initialPeers))
+          }
+          .getOrElse(Logger[F].error(show"No know hosts are set during node startup"))
+      )
+
+      notifier <- networkAlgebra.makeNotifier(peerManager, reputationAggregator, p2pNetworkConfig)
+      _        <- Resource.liftK(notifier.sendNoWait(Notifier.Message.StartNotifications))
     } yield peerManager
 }

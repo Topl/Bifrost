@@ -28,6 +28,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.networking.fsnetwork.TestHelper.arbitraryHostBlockId
+import co.topl.networking.p2p.RemoteAddress
 
 import scala.jdk.CollectionConverters._
 import scala.collection.immutable.ListMap
@@ -67,7 +68,7 @@ object RequestsProxyTest {
 class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with ModelGenerators {
   implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
   val maxChainSize = 99
 
   test("Block header download request: downloaded prefix sent back, request for new block header shall be sent") {
@@ -466,7 +467,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
               .map(d => d._2)
               .zipWithIndex
               .map { case (block, index) =>
-                val sourcesForBlock = (1 to index).map(i => i.toString).toSet
+                val sourcesForBlock = (1 to index).map(i => RemoteAddress(i.toString, 0)).toSet
                 (block, sourcesForBlock)
               }
               .toMap
