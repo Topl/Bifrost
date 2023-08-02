@@ -290,8 +290,7 @@ object ReputationAggregator {
   }
 
   private def badKLoopbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
-    // shall be enable after fix BN-1129
-    val newBlockProvidingMap = state.blockProvidingReputation // + (hostId -> 0.0)
+    val newBlockProvidingMap = state.blockProvidingReputation + (hostId -> 0.0)
     val newState = state.copy(blockProvidingReputation = newBlockProvidingMap)
     (newState, newState).pure[F]
   }

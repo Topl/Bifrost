@@ -313,9 +313,7 @@ class ReputationAggregatorTest
           for {
             newState <- actor.send(ReputationAggregator.Message.BadKLookbackSlotData(host))
             _ = assert(newState.performanceReputation == initialPerfMap)
-            _ = assert(
-              newState.blockProvidingReputation == initialBlockMap + (host -> 1.0)
-            ) /*+ (host -> 0.0))*/ // enable after BN-1129
+            _ = assert(newState.blockProvidingReputation == initialBlockMap + (host -> 0.0))
             _ = assert(newState.noveltyReputation == initialNewMap)
           } yield ()
         }

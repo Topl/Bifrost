@@ -501,6 +501,138 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
     }
   }
 
+  test("Bad KLookback shall be send because tip could be better after full check") {
+    withMock {
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (knownId, knownSlotData) = idAndSlotData.head
+      val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
+
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val bestTip = idAndSlotData.last._2
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client.remoteCurrentTip _)
+        .expects()
+        .returns(Option(bestTip.slotId.blockId).pure[F])
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.fromOption[F](Option.empty[BlockId]).pure[F]
+      }
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val expectedSourceMessage: RequestsProxy.Message =
+        RequestsProxy.Message.BadKLoopbackSlotData(hostId)
+      (requestsProxy.sendNoWait _).expects(expectedSourceMessage).once().returning(().pure[F])
+
+      val localChain = mock[LocalChainAlgebra[F]]
+      (localChain.couldBeWorse _).expects(bestTip).once().returns(true.pure[F])
+      (localChain.isWorseThan _).expects(bestTip).once().returning(false.pure[F])
+      (localChain.couldBeWorse _).expects(bestTip).once().returns(true.pure[F])
+      (() => localChain.head).expects().once().returning(arbitrarySlotData.arbitrary.first.pure[F])
+
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
+      slotDataStoreMap.put(knownId, knownSlotData)
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: BlockId, slotData: SlotData) =>
+        slotDataStoreMap.put(id, slotData).pure[F].void
+      }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            state <- actor.send(PeerBlockHeaderFetcher.Message.GetCurrentTip)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
+  test("Bad KLookback shall not be send because tip could not be better after full check") {
+    withMock {
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (knownId, knownSlotData) = idAndSlotData.head
+      val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
+
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val bestTip = idAndSlotData.last._2
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client.remoteCurrentTip _)
+        .expects()
+        .returns(Option(bestTip.slotId.blockId).pure[F])
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.fromOption[F](Option.empty[BlockId]).pure[F]
+      }
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val expectedSourceMessage: RequestsProxy.Message =
+        RequestsProxy.Message.BadKLoopbackSlotData(hostId)
+      (requestsProxy.sendNoWait _).expects(expectedSourceMessage).never().returning(().pure[F])
+
+      val localChain = mock[LocalChainAlgebra[F]]
+      (localChain.couldBeWorse _).expects(bestTip).once().returns(true.pure[F])
+      (localChain.isWorseThan _).expects(bestTip).once().returning(false.pure[F])
+      (localChain.couldBeWorse _).expects(bestTip).once().returns(false.pure[F])
+      (() => localChain.head).expects().once().returning(arbitrarySlotData.arbitrary.first.pure[F])
+
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
+      slotDataStoreMap.put(knownId, knownSlotData)
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: BlockId, slotData: SlotData) =>
+        slotDataStoreMap.put(id, slotData).pure[F].void
+      }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      PeerBlockHeaderFetcher
+        .makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree)
+        .use { actor =>
+          for {
+            _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            state <- actor.send(PeerBlockHeaderFetcher.Message.GetCurrentTip)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
   test("Requested tip shall not be sent if local chain is better") {
     withMock {
       val slotData: NonEmptyChain[SlotData] =
