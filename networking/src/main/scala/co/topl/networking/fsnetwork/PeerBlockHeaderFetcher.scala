@@ -248,7 +248,7 @@ object PeerBlockHeaderFetcher {
               .couldBeWorse(slotData.last)
               .ifM(
                 ifTrue = Logger[F].info(show"Ignoring tip $bestBlockId because of density rule") >>
-                  state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLoopbackSlotData(state.hostId)),
+                  state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId)),
                 ifFalse =
                   Logger[F].info(show"Ignoring tip $bestBlockId because other better or equal block had been adopted")
               ) >>

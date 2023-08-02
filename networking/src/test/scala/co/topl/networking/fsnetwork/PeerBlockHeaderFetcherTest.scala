@@ -530,7 +530,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val requestsProxy = mock[RequestsProxyActor[F]]
       val expectedSourceMessage: RequestsProxy.Message =
-        RequestsProxy.Message.BadKLoopbackSlotData(hostId)
+        RequestsProxy.Message.BadKLookbackSlotData(hostId)
       (requestsProxy.sendNoWait _).expects(expectedSourceMessage).once().returning(().pure[F])
 
       val localChain = mock[LocalChainAlgebra[F]]
@@ -596,7 +596,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val requestsProxy = mock[RequestsProxyActor[F]]
       val expectedSourceMessage: RequestsProxy.Message =
-        RequestsProxy.Message.BadKLoopbackSlotData(hostId)
+        RequestsProxy.Message.BadKLookbackSlotData(hostId)
       (requestsProxy.sendNoWait _).expects(expectedSourceMessage).never().returning(().pure[F])
 
       val localChain = mock[LocalChainAlgebra[F]]

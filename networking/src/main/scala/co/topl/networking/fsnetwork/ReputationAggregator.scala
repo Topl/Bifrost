@@ -114,7 +114,7 @@ object ReputationAggregator {
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
       case (state, BlockProvidingReputationUpdate(data))      => blockProvidingReputationUpdate(state, data)
 
-      case (state, BadKLookbackSlotData(hostId))      => badKLoopbackSlotData(state, hostId)
+      case (state, BadKLookbackSlotData(hostId))      => badKLookbackSlotData(state, hostId)
       case (state, HostProvideIncorrectBlock(hostId)) => incorrectBlockReceived(state, hostId)
 
       case (state, ReputationUpdateTick) => processReputationUpdateTick(state)
@@ -289,7 +289,7 @@ object ReputationAggregator {
     (newState, newState).pure[F]
   }
 
-  private def badKLoopbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
+  private def badKLookbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
     val newBlockProvidingMap = state.blockProvidingReputation + (hostId -> 0.0)
     val newState = state.copy(blockProvidingReputation = newBlockProvidingMap)
     (newState, newState).pure[F]
