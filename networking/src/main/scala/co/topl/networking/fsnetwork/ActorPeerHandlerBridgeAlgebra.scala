@@ -71,7 +71,6 @@ object ActorPeerHandlerBridgeAlgebra {
       for {
         hostId <- client.remotePeer.map(_.remoteAddress).toResource
         _      <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(hostId, client)).toResource
-        _      <- Resource.onFinalize(peersManager.sendNoWait(PeersManager.Message.ClosePeer(hostId)))
       } yield ()
   }
 }
