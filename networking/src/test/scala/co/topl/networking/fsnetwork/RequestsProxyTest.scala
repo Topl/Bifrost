@@ -430,7 +430,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
-  test("BadKLoopbackSlotData shall be resent to reputation aggregator") {
+  test("BadKLookbackSlotData shall be resent to reputation aggregator") {
     withMock {
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val peersManager = mock[PeersManagerActor[F]]
@@ -445,7 +445,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
         .use { actor =>
           for {
-            _ <- actor.send(RequestsProxy.Message.BadKLoopbackSlotData(hostId))
+            _ <- actor.send(RequestsProxy.Message.BadKLookbackSlotData(hostId))
           } yield ()
         }
 
