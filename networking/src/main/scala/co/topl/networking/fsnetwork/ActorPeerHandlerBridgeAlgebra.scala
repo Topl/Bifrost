@@ -1,25 +1,22 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.Async
-import cats.effect.Resource
-import cats.effect.kernel.Concurrent
+import cats.effect.{Async, Resource}
 import cats.effect.implicits._
+import cats.effect.kernel.Concurrent
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.blockchain.BlockchainPeerHandlerAlgebra
+import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.DisconnectedPeer
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer}
 import co.topl.node.models.BlockBody
+import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object ActorPeerHandlerBridgeAlgebra {
@@ -40,6 +37,7 @@ object ActorPeerHandlerBridgeAlgebra {
     networkProperties:           NetworkProperties,
     clockAlgebra:                ClockAlgebra[F],
     remotePeers:                 List[DisconnectedPeer],
+    closedPeers:                 Stream[F, ConnectedPeer],
     addRemotePeer:               DisconnectedPeer => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     val networkAlgebra = new NetworkAlgebraImpl[F]()
@@ -61,7 +59,8 @@ object ActorPeerHandlerBridgeAlgebra {
         remotePeers.map(_.remoteAddress),
         networkProperties,
         clockAlgebra,
-        PeerCreationRequestAlgebra(addRemotePeer)
+        PeerCreationRequestAlgebra(addRemotePeer),
+        closedPeers
       )
 
     networkManager.map(makeAlgebra(_))
