@@ -158,6 +158,7 @@ object Blockchain {
           dataStores.headers,
           dataStores.bodies,
           dataStores.transactions,
+          dataStores.groups,
           mempool,
           validators.transactionSyntax,
           localChain,

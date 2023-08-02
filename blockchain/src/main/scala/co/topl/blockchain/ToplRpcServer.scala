@@ -7,7 +7,8 @@ import cats.implicits._
 import cats.effect.Async
 import co.topl.algebras._
 import co.topl.blockchain.algebras.EpochDataAlgebra
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.{GroupId, TransactionId}
+import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.brambl.validation.TransactionSyntaxError
@@ -39,7 +40,8 @@ object ToplRpcServer {
     case TransactionSyntaxError.InvalidProofType(_, _)       => "InvalidProofType"
     case TransactionSyntaxError.InvalidSchedule(s) =>
       show"InvalidSchedule(creation=${s.timestamp},maximumSlot=${s.max},minimumSlot=${s.min})"
-    case TransactionSyntaxError.InvalidDataLength => "InvalidDataLength"
+    case TransactionSyntaxError.InvalidDataLength              => "InvalidDataLength"
+    case TransactionSyntaxError.DuplicateGroupsOutput(groupId) => show"DuplicateGroupsOutput(groupId=$groupId)"
   }
 
   /**
@@ -49,6 +51,7 @@ object ToplRpcServer {
     headerStore:               Store[F, BlockId, BlockHeader],
     bodyStore:                 Store[F, BlockId, BlockBody],
     transactionStore:          Store[F, TransactionId, IoTransaction],
+    groupStore:                Store[F, GroupId, Value.Group],
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxVerifier[F],
     localChain:                LocalChainAlgebra[F],
@@ -69,14 +72,25 @@ object ToplRpcServer {
             .delay(transaction.embedId)
             .flatMap { transaction =>
               val id = transaction.id
-              transactionStore
-                .contains(id)
+              val groups = transaction.outputs.filter(_.value.value.isGroup).map(_.value.getGroup)
+              val groupIds = groups.map(_.id)
+              val resGroupsIds =
+                groupIds.foldLeftM(false)((res, g) => groupStore.contains(g).map(gExist => res || gExist))
+
+              (transactionStore.contains(id), resGroupsIds)
+                .flatMapN { case (transactionExists, duplicateGroups) =>
+                  val log =
+                    if (transactionExists) Logger[F].info(show"Received duplicate transaction id=$id")
+                    else if (duplicateGroups) Logger[F].info(show"Received duplicate groupIds $groupIds")
+                    else Async[F].unit
+                  log >> (transactionExists || duplicateGroups).pure[F]
+                }
                 .ifM(
-                  Logger[F].info(show"Received duplicate transaction id=$id"),
+                  Async[F].unit,
                   Logger[F].debug(show"Received RPC Transaction id=$id") >>
                   syntacticValidateOrRaise(transaction)
                     .flatTap(_ => Logger[F].debug(show"Transaction id=$id is syntactically valid"))
-                    .flatTap(processValidTransaction[F](transactionStore, mempool))
+                    .flatTap(iotx => processValidTransaction[F](transactionStore, mempool, groupStore)(iotx, groups))
                     .void
                 )
             }
@@ -158,12 +172,15 @@ object ToplRpcServer {
 
   private def processValidTransaction[F[_]: Monad: Logger](
     transactionStore: Store[F, TransactionId, IoTransaction],
-    mempool:          MempoolAlgebra[F]
-  )(transaction: IoTransaction) =
+    mempool:          MempoolAlgebra[F],
+    groupStore:       Store[F, GroupId, Value.Group]
+  )(transaction: IoTransaction, groups: Seq[Value.Group]) =
     for {
       id <- transaction.id.pure[F]
       _  <- Logger[F].debug(show"Inserting Transaction id=$id into transaction store")
       _  <- transactionStore.put(id, transaction)
+      _  <- Logger[F].debug(show"Inserting Groups ids=${groups.map(_.id).mkString(";")} into group store")
+      _  <- groups.traverse(g => groupStore.put(g.id, g)).void
       _  <- Logger[F].debug(show"Inserting Transaction id=$id into mempool")
       _  <- mempool.add(id)
       _  <- Logger[F].info(show"Processed Transaction id=$id from RPC")

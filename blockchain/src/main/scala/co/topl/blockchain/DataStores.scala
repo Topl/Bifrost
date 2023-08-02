@@ -4,7 +4,8 @@ import cats.MonadThrow
 import cats.data.NonEmptySet
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.{GroupId, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
 import co.topl.models.Epoch
@@ -28,7 +29,8 @@ case class DataStores[F[_]](
   registrations:           Store[F, StakingAddress, ActiveStaker],
   blockHeightTree:         Store[F, Long, BlockId],
   epochData:               Store[F, Epoch, EpochData],
-  registrationAccumulator: Store[F, StakingAddress, Unit]
+  registrationAccumulator: Store[F, StakingAddress, Unit],
+  groups:                  Store[F, GroupId, Value.Group]
 )
 
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {

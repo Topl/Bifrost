@@ -6,7 +6,8 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.{GroupId, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
@@ -105,6 +106,11 @@ object DataStoresInit {
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
+      groupStore <- makeCachedDb[F, GroupId, ByteString, Value.Group](dataDir)(
+        "group",
+        appConfig.bifrost.cache.group,
+        _.value
+      )
       dataStores = DataStores(
         dataDir,
         parentChildTree,
@@ -121,7 +127,8 @@ object DataStoresInit {
         registrationsStore,
         blockHeightTreeStore,
         epochDataStore,
-        registrationAccumulatorStore
+        registrationAccumulatorStore,
+        groupStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores

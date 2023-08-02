@@ -129,7 +129,8 @@ object ApplicationConfig {
       blockHeightTree:         Cache.CacheConfig,
       eligibilities:           Cache.CacheConfig,
       epochData:               Cache.CacheConfig,
-      registrationAccumulator: Cache.CacheConfig
+      registrationAccumulator: Cache.CacheConfig,
+      group:                   Cache.CacheConfig
     )
 
     object Cache {

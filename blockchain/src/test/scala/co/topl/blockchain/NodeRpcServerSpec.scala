@@ -4,7 +4,8 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, ProtocolConfigurationAlgebra, Store}
 import co.topl.blockchain.algebras.EpochDataAlgebra
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.{GroupId, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.LocalChainAlgebra
@@ -61,6 +62,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[Store[F, BlockId, BlockHeader]],
             mock[Store[F, BlockId, BlockBody]],
             mock[Store[F, TransactionId, IoTransaction]],
+            mock[Store[F, GroupId, Value.Group]],
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxVerifier[F]],
             localChain,
@@ -86,6 +88,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[Store[F, BlockId, BlockHeader]],
             mock[Store[F, BlockId, BlockBody]],
             mock[Store[F, TransactionId, IoTransaction]],
+            mock[Store[F, GroupId, Value.Group]],
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxVerifier[F]],
             localChain,
@@ -108,6 +111,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             mock[Store[F, BlockId, BlockHeader]],
             mock[Store[F, BlockId, BlockBody]],
             mock[Store[F, TransactionId, IoTransaction]],
+            mock[Store[F, GroupId, Value.Group]],
             mock[MempoolAlgebra[F]],
             mock[TransactionSyntaxVerifier[F]],
             localChain,
@@ -260,6 +264,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     headerStore:         Store[F, BlockId, BlockHeader] = mock[Store[F, BlockId, BlockHeader]],
     bodyStore:           Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
     transactionStore:    Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
+    groupsStore:         Store[F, GroupId, Value.Group] = mock[Store[F, GroupId, Value.Group]],
     mempool:             MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
     syntacticValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
     localChain:          LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
@@ -277,6 +282,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         headerStore,
         bodyStore,
         transactionStore,
+        groupsStore,
         mempool,
         syntacticValidation,
         localChain,

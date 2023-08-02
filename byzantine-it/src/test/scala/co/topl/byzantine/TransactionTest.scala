@@ -26,6 +26,8 @@ import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import com.spotify.docker.client.DockerClient
 import fs2.Stream
+import java.math.BigInteger
+import java.security.MessageDigest
 import munit.{FailSuiteException, Location}
 import org.typelevel.log4cats.Logger
 import quivr.models.Proposition.{DigitalSignature, TickRange}
@@ -49,6 +51,9 @@ class TransactionTest extends IntegrationSuite {
 
   private val HeightRangeLockAddress =
     HeightRangeLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+
+  private val HeightRangeLockAddressTwo =
+    HeightRangeLock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID + 1, NetworkConstants.MAIN_LEDGER_ID + 1)
   // HeightRange END
 
   // Digest BEGIN
@@ -407,7 +412,30 @@ class TransactionTest extends IntegrationSuite {
           .toResource
         _ <- assertIO((iotxRes_R.outputs(0).value.getTopl.quantity: BigInt).pure[F], BigInt(1)).toResource
 
-        _ <- Async[F].sleep(15.seconds).toResource
+        boxFromGenesisB = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 9999900 LVL
+        iotx_O <- createTransactionTamV2_fromGenesisIotx(inputBoxId, boxFromGenesisB, genesisIotx).toResource
+        _      <- node1Client.broadcastTransaction(iotx_O).toResource
+
+
+        // It should fail because the group exists, Second Asset Tam V2 group Received RPC Transaction
+        boxFromGenesisB_2 = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 9999900 LVL
+        iotx_O_2 <- createTransactionTamV2_fromGenesisIotx(inputBoxId, boxFromGenesisB_2, genesisIotx).toResource
+//        _ <- Logger[F].info(s"invalid transaction iotx_O_2 id=${iotx_O_2.id.show}").toResource
+        _        <- node1Client.broadcastTransaction(iotx_O_2).toResource
+
+        // It should fail because the the output contains the same groups twice
+        boxFromGenesisB_3 = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 9999900 LVL
+        iotx_O_3 <- createTransactionTamV2DuplicateOutput_fromGenesisIotx(
+          inputBoxId,
+          boxFromGenesisB_3,
+          genesisIotx
+        ).toResource
+        _ <- Logger[F].info(s"invalid transaction iotx_O_3 id=${iotx_O_3.id.show}").toResource
+        _ <- node1Client.broadcastTransaction(iotx_O_3).voidError.toResource
+
+
+
+        _ <- Async[F].sleep(10.seconds).toResource
 
         // Begin log assertions, improve this with stats https://topl.atlassian.net/browse/BN-777
         logs <- node1.containerLogs[F].through(fs2.text.utf8.decode).through(fs2.text.lines).compile.string.toResource
@@ -435,6 +463,9 @@ class TransactionTest extends IntegrationSuite {
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_Not.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_Or.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_R.id.show} from RPC"))
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_O.id.show} from RPC"))
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Received duplicate transaction id=${iotx_O_2.id.show}")) // Fix, duplicate transaction level message should be WARN?
+        _ = assert(logs.contains(s"WARN  Bifrost.RPC.Server - Received syntactically invalid transaction id=${iotx_O_3.id.show} reasons=NonEmptyChain(DuplicateGroupsOutput(groupId="))
         // format: on
 
       } yield ()
@@ -578,6 +609,144 @@ class TransactionTest extends IntegrationSuite {
           Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput9))
         )
       )
+
+      unprovenTransaction =
+        IoTransaction.defaultInstance
+          .withInputs(inputs)
+          .withOutputs(outputs)
+          .withDatum(
+            Datum.IoTransaction(
+              Event.IoTransaction(Schedule(0, Long.MaxValue, timestamp.toEpochMilli), SmallData.defaultInstance)
+            )
+          )
+
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      predicateWithProof = predicate.copy(responses = List(proof))
+      iotx = proveTransaction(unprovenTransaction, predicateWithProof)
+    } yield iotx
+
+  /**
+   * Transacion used to test the following validations
+   * - Processed Transaction with a Group Transaction Token
+   *
+   * @param wallet populated wallet with spendableBoxes
+   * @return a transaction with n outputs
+   *  - output 1: HeightRangeLockAddress
+   */
+  private def createTransactionTamV2_fromGenesisIotx(
+    inputBoxId:  TransactionOutputAddress,
+    box:         Box,
+    genesisIotx: IoTransaction
+  ): F[IoTransaction] =
+    for {
+      timestamp <- Async[F].realTimeInstant
+
+      label = "Crypto Frogs"
+      fixedSeries = Option.empty[FixedSeries]
+      seriesTokenSupply = SeriesTokenSupply.defaultInstance
+        .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED))
+      digestMessage = label
+        .concat("") // implement show fixedSeries
+        .concat("unlimited") // implement show seriesTokenSupply
+        .concat(genesisIotx.id.show.drop(2)) // it removes _t
+        .concat("#1".show) // adds pound + utxo index id
+      sha <- Async[F].blocking(MessageDigest.getInstance("SHA-256").digest(digestMessage.getBytes("UTF-8")))
+      hash = String.format("%032x", new BigInteger(1, sha))
+
+      predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
+
+      inputs = List(
+        SpentTransactionOutput(
+          address = inputBoxId,
+          attestation = Attestation(Attestation.Value.Predicate(predicate)),
+          value = box.value
+        )
+      )
+
+      outputs = List(
+        UnspentTransactionOutput(
+          HeightRangeLockAddress,
+          Value.defaultInstance.withGroup(
+            Value.Group(
+              label,
+              fixedSeries,
+              seriesTokenSupply,
+              txId = genesisIotx.id,
+              index =
+                1, // 1 comes from the index of the utxo, which are levels because genesisIotx.outputs(1).value) // 10000000 LVL
+              id = GroupId(ByteString.copyFrom(sha))
+            )
+          )
+        )
+      )
+
+      unprovenTransaction =
+        IoTransaction.defaultInstance
+          .withInputs(inputs)
+          .withOutputs(outputs)
+          .withDatum(
+            Datum.IoTransaction(
+              Event.IoTransaction(Schedule(0, Long.MaxValue, timestamp.toEpochMilli), SmallData.defaultInstance)
+            )
+          )
+
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      predicateWithProof = predicate.copy(responses = List(proof))
+      iotx = proveTransaction(unprovenTransaction, predicateWithProof)
+    } yield iotx
+
+  /**
+   * Transacion used to test the following validations
+   * - Processed Transaction with a Group Transaction Token, with duplicate Groups ids outputs
+   *
+   * @param wallet populated wallet with spendableBoxes
+   * @return a transaction with n outputs
+   *  - output 1: HeightRangeLockAddress
+   */
+  private def createTransactionTamV2DuplicateOutput_fromGenesisIotx(
+    inputBoxId:  TransactionOutputAddress,
+    box:         Box,
+    genesisIotx: IoTransaction
+  ): F[IoTransaction] =
+    for {
+      timestamp <- Async[F].realTimeInstant
+
+      label = "Crypto Frogs twice in the same iotx"
+      fixedSeries = Option.empty[FixedSeries]
+      seriesTokenSupply = SeriesTokenSupply.defaultInstance
+        .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED))
+      digestMessage = label
+        .concat("") // implement show fixedSeries
+        .concat("unlimited") // implement show seriesTokenSupply
+        .concat(genesisIotx.id.show.drop(2)) // it removes _t
+        .concat("#1".show) // adds pound + utxo index id
+      sha <- Async[F].blocking(MessageDigest.getInstance("SHA-256").digest(digestMessage.getBytes("UTF-8")))
+      hash = String.format("%032x", new BigInteger(1, sha))
+
+      predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
+
+      inputs = List(
+        SpentTransactionOutput(
+          address = inputBoxId,
+          attestation = Attestation(Attestation.Value.Predicate(predicate)),
+          value = box.value
+        )
+      )
+      output = UnspentTransactionOutput(
+        HeightRangeLockAddressTwo,
+        Value.defaultInstance.withGroup(
+          Value.Group(
+            label,
+            fixedSeries,
+            seriesTokenSupply,
+            txId = genesisIotx.id,
+            index =
+              1, // 1 comes from the index of the utxo, which are levels because genesisIotx.outputs(1).value) // 10000000 LVL
+            id = GroupId(ByteString.copyFrom(sha))
+          )
+        )
+      )
+      outputs = List(output, output)
 
       unprovenTransaction =
         IoTransaction.defaultInstance
