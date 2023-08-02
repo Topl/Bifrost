@@ -1,7 +1,9 @@
 package co.topl.networking.fsnetwork
 
 import cats.data.NonEmptyChain
-import cats.effect.kernel.Resource
+import cats.effect.Async
+import cats.effect.implicits.genSpawnOps
+import cats.effect.kernel.{Outcome, Resource}
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
@@ -12,12 +14,14 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
+import co.topl.networking.p2p.ConnectedPeer
 import co.topl.node.models.BlockBody
+import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object NetworkManager {
 
-  def startNetwork[F[_]: Logger](
+  def startNetwork[F[_]: Async: Logger](
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -34,7 +38,8 @@ object NetworkManager {
     initialHosts:                List[HostId],
     networkProperties:           NetworkProperties,
     clock:                       ClockAlgebra[F],
-    addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F]
+    addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F],
+    closedPeers:                 Stream[F, ConnectedPeer]
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _            <- Resource.liftK(Logger[F].info(s"Start actors network with list of known peers: $initialHosts"))
@@ -85,5 +90,26 @@ object NetworkManager {
 
       notifier <- networkAlgebra.makeNotifier(peerManager, reputationAggregator, p2pNetworkConfig)
       _        <- Resource.liftK(notifier.sendNoWait(Notifier.Message.StartNotifications))
+
+      _ <- startDisconnectedPeersNotifier(peerManager, closedPeers)
+
     } yield peerManager
+
+  private def startDisconnectedPeersNotifier[F[_]: Async: Logger](
+    peersManager: PeersManagerActor[F],
+    closedPeers:  Stream[F, ConnectedPeer]
+  ): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+    closedPeers
+      .map(disconnected =>
+        Stream.resource(
+          for {
+            _ <- Resource.liftK(Logger[F].info(s"Remote peer ${disconnected.remoteAddress} closing had been detected"))
+            _ <- Resource.liftK(peersManager.sendNoWait(PeersManager.Message.ClosePeer(disconnected.remoteAddress)))
+          } yield ()
+        )
+      )
+      .parJoinUnbounded
+      .compile
+      .drain
+      .background
 }

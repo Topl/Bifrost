@@ -65,6 +65,7 @@ object Blockchain {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
       remotePeers <- Resource.liftK(Queue.unbounded[F, DisconnectedPeer])
+      closedPeers <- Resource.liftK(Queue.unbounded[F, ConnectedPeer])
       _           <- Resource.liftK(Logger[F].info(s"Received known peers from config: $knownPeers"))
       initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
       remotePeersStream                 <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
@@ -114,6 +115,7 @@ object Blockchain {
             networkProperties,
             clock,
             initialPeers,
+            Stream.fromQueueUnterminated[F, ConnectedPeer](closedPeers),
             remotePeers.offer
           )
         }
@@ -155,7 +157,8 @@ object Blockchain {
           localPeer,
           remotePeersStream,
           clientHandler,
-          peerServerF
+          peerServerF,
+          closedPeers
         )
       droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
       rpcInterpreter <- Resource.eval(
