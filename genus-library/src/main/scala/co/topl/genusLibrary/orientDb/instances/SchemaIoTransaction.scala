@@ -20,6 +20,7 @@ object SchemaIoTransaction {
     val Transaction = "transaction"
     val Size = "size"
     val TransactionIndex = "transactionIdIndex"
+    val IsReward = "isReward"
   }
 
   private[genusLibrary] def size(ioTransaction: IoTransaction): Long =

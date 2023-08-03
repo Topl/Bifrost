@@ -69,9 +69,9 @@ class NodeRpcApi[F[_]](val client: NodeRpc[F, Stream[F, *]]) extends AnyVal {
 
   def fetchBlock(id: BlockId)(implicit mThrow: MonadThrow[F]): F[Option[FullBlock]] = (
     for {
-      header       <- OptionT(client.fetchBlockHeader(id))
-      body         <- OptionT(client.fetchBlockBody(id))
-      transactions <- body.transactionIds.map(client.fetchTransaction).map(OptionT(_)).sequence
+      header            <- OptionT(client.fetchBlockHeader(id))
+      body              <- OptionT(client.fetchBlockBody(id))
+      transactions      <- body.transactionIds.map(client.fetchTransaction).map(OptionT(_)).sequence
       rewardTransaction <- body.rewardTransactionId.map(client.fetchTransaction).map(OptionT(_)).sequence
     } yield FullBlock(header, FullBlockBody(transactions, rewardTransaction))
   ).value

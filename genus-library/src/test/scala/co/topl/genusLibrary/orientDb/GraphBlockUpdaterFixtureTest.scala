@@ -3,7 +3,6 @@ package co.topl.genusLibrary.orientDb
 import cats.implicits.toTraverseOps
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.DbFixtureUtil
@@ -13,13 +12,15 @@ import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
-import co.topl.node.models.BlockBody
+import co.topl.node.models.FullBlockBody
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import fs2.Stream
+
 import java.util.concurrent.TimeUnit
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
@@ -31,7 +32,7 @@ class GraphBlockUpdaterFixtureTest
     with DbFixtureUtil {
 
   orientDbFixture.test("Insert and remove genesis block") { case (odb, oThread) =>
-    PropF.forAllF { (blockHeader: BlockHeader, blockBody: BlockBody, ioTransaction: IoTransaction) =>
+    PropF.forAllF { (blockHeader: BlockHeader, blockBody: FullBlockBody, _: IoTransaction) =>
       withMock {
         val nodeBlockFetcher = mock[NodeBlockFetcherAlgebra[F, Stream[F, *]]]
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
@@ -55,15 +56,21 @@ class GraphBlockUpdaterFixtureTest
             .void
             .toResource
 
-          _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge, addressTxoEdge)
+          _ <- Seq(
+            blockHeaderEdge,
+            blockHeaderBodyEdge,
+            blockHeaderTxIOEdge,
+            blockHeaderRewardEdge,
+            addressTxIOEdge,
+            addressTxoEdge
+          )
             .traverse(e => OrientDBMetadataFactory.createEdge[F](databaseDocumentTx, e))
             .void
             .toResource
 
           blockData = BlockData(
             blockHeader.copy(height = 1),
-            blockBody,
-            transactions = Seq(ioTransaction.embedId)
+            blockBody
           )
 
           dbTx <- oThread.delay(odbFactory.getTx).toResource

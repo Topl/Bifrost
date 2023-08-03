@@ -64,12 +64,14 @@ object Mempool {
       applyBlock = (state: State[F], blockId: BlockId) =>
         for {
           body <- fetchBody(blockId)
-          _    <- body.transactionIds.traverse(fetchTransaction(_).flatMap(removeWithExpiration))
+          // Note: Do not include reward tranaction
+          _ <- body.transactionIds.traverse(fetchTransaction(_).flatMap(removeWithExpiration))
         } yield state
       unapplyBlock = (state: State[F], blockId: BlockId) =>
         for {
           body <- fetchBody(blockId)
-          _    <- body.transactionIds.traverse(fetchTransaction(_).flatMap(addWithExpiration))
+          // Note: Do not include reward transaction
+          _ <- body.transactionIds.traverse(fetchTransaction(_).flatMap(addWithExpiration))
         } yield state
       eventSourcedState <- EventSourcedState.OfTree
         .make[F, State[F], BlockId](

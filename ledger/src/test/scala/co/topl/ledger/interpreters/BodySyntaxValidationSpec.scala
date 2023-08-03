@@ -8,6 +8,7 @@ import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.brambl.syntax._
+import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.node.models.BlockBody
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -31,7 +32,8 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             .returning(
               (TransactionSyntaxError.EmptyInputs: TransactionSyntaxError).invalidNec[IoTransaction].toEither.pure[F]
             )
-          underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation)
+          rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+          underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation, rewardCalculator)
           result    <- underTest.validate(body)
           _         <- IO(result.isInvalid).assert
         } yield ()

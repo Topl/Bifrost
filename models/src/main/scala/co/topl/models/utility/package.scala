@@ -22,12 +22,19 @@ package object utility {
 
   implicit class BlockBodyOps(val body: BlockBody) extends AnyVal {
 
+    /**
+     * Return all Transaction IDs in this block, including the reward transaction ID if provided
+     */
     def allTransactionIds: Seq[TransactionId] = body.transactionIds ++ body.rewardTransactionId
 
   }
 
   implicit class FullBlockBodyOps(val body: FullBlockBody) extends AnyVal {
 
+    /**
+     * Return all Transactions in this block, including the reward transaction if provided
+     * @return
+     */
     def allTransactions: Seq[IoTransaction] = body.transactions ++ body.rewardTransaction
 
   }

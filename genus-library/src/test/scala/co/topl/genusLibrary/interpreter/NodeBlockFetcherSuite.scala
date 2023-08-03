@@ -12,7 +12,7 @@ import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.model.GEs._
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, FullBlockBody}
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalacheck.effect.PropF
@@ -128,7 +128,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
       ) =>
         withMock {
 
-          val blockBody = BlockBody.of(Seq(transactionId))
+          val blockBody = BlockBody(Seq(transactionId))
 
           (toplRpc.blockIdAtHeight _)
             .expects(height)
@@ -180,7 +180,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
       ) =>
         withMock {
 
-          val blockBody = BlockBody.of(
+          val blockBody = BlockBody(
             Seq(
               transactionId_01,
               transactionId_02,
@@ -252,7 +252,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
       ) =>
         withMock {
 
-          val blockBody = BlockBody.of(
+          val blockBody = BlockBody(
             Seq(
               transactionId_01,
               transactionId_02,
@@ -336,6 +336,14 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
             )
           )
 
+          val fullBlockBody = FullBlockBody(
+            Seq(
+              transaction_01,
+              transaction_02,
+              transaction_03
+            )
+          )
+
           (toplRpc.blockIdAtHeight _)
             .expects(height)
             .returning(blockId.some.pure[F])
@@ -372,8 +380,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
               fetcher.fetch(height),
               BlockData(
                 header = blockHeader,
-                body = blockBody,
-                transactions = Seq(transaction_01, transaction_02, transaction_03)
+                body = fullBlockBody
               ).some.asRight
             ).toResource
 

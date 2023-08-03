@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{EitherT, NonEmptySet, OptionT, Validated, ValidatedNec}
+import cats.data.{EitherT, NonEmptySet, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
 import cats.{Foldable, Order, Parallel}
@@ -44,13 +44,15 @@ object BodySyntaxValidation {
           body.transactionIds
             .traverse(fetchTransaction)
             .flatMap(transactions =>
-              (
-                validateDistinctInputs(transactions),
+              List(
+                Sync[F].delay(validateDistinctInputs(transactions)),
                 transactions.parFoldMapA(validateTransaction),
                 body.rewardTransactionId.foldMapM(
                   fetchTransaction(_).flatMap(validateRewardTransaction(transactions, _))
-                ),
-              ).parSequence.map(_.combineAll)
+                )
+              ).parSequence
+                .map(_.combineAll)
+                .map(_.as(body))
             )
 
         /**
@@ -77,13 +79,11 @@ object BodySyntaxValidation {
          * Performs syntactic validation on the given transaction.
          */
         private def validateTransaction(transaction: IoTransaction): F[ValidatedNec[BodySyntaxError, Unit]] =
-          transactionSyntacticValidation
-            .validate(transaction)
-            .map(
-              _.void
-                .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
-                .toValidatedNec
-            )
+          EitherT(transactionSyntacticValidation.validate(transaction))
+            .leftMap(BodySyntaxErrors.TransactionSyntaxErrors(transaction, _))
+            .leftWiden[BodySyntaxError]
+            .void
+            .toValidatedNec
 
         private def validateRewardTransaction[G[_]: Foldable](
           transactions:      G[IoTransaction],
@@ -91,7 +91,9 @@ object BodySyntaxValidation {
         ): F[ValidatedNec[BodySyntaxError, Unit]] =
           EitherT
             .cond[F](
-              rewardTransaction.inputs.length == 1 && rewardTransaction.outputs.length == 1 && rewardTransaction.outputs.head.value.value.isLvl,
+              rewardTransaction.inputs.length == 1 &&
+              rewardTransaction.outputs.length == 1 &&
+              rewardTransaction.outputs.head.value.value.isLvl,
               rewardTransaction.outputs.head.value.value.lvl.get.quantity: BigInt,
               BodySyntaxErrors.InvalidReward(rewardTransaction)
             )
