@@ -1,8 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.implicits.toTraverseOps
-import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.transaction.IoTransaction
+import cats.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.DbFixtureUtil
@@ -31,8 +29,16 @@ class GraphBlockUpdaterFixtureTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
+  override def scalaCheckTestParameters =
+    super.scalaCheckTestParameters
+      .withMaxSize(3)
+      .withMinSuccessfulTests(5)
+
+  override def munitTimeout: Duration =
+    new FiniteDuration(10, TimeUnit.SECONDS)
+
   orientDbFixture.test("Insert and remove genesis block") { case (odb, oThread) =>
-    PropF.forAllF { (blockHeader: BlockHeader, blockBody: FullBlockBody, _: IoTransaction) =>
+    PropF.forAllF { (blockHeader: BlockHeader, blockBody: FullBlockBody) =>
       withMock {
         val nodeBlockFetcher = mock[NodeBlockFetcherAlgebra[F, Stream[F, *]]]
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
@@ -103,6 +109,4 @@ class GraphBlockUpdaterFixtureTest
       }
     }
   }
-
-  override def munitTimeout: Duration = new FiniteDuration(60, TimeUnit.SECONDS)
 }

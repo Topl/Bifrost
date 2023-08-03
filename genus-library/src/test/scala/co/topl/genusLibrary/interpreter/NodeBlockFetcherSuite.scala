@@ -166,7 +166,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
 
   test(
     "On a block with three transactions and missing two of them, " +
-    "a Left of NonExistentTransactions with the missing txIds should be returned"
+    "a Left of NonExistentTransactions with the first missing txId should be returned"
   ) {
     PropF.forAllF {
       (
@@ -213,19 +213,13 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
             .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
-          (toplRpc.fetchTransaction _)
-            .expects(transactionId_03)
-            .returning(Option.empty[IoTransaction].pure[F])
-            .once()
-
           val res = for {
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher.fetch(height),
               TransactionsNotFound(
                 ListSet(
-                  transactionId_02,
-                  transactionId_03
+                  transactionId_02
                 )
               ).asLeft
             ).toResource
@@ -239,7 +233,7 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
 
   test(
     "On a block with three transactions and missing all of them, " +
-    "a Left of NonExistentTransactions with the missing txIds should be returned"
+    "a Left of NonExistentTransactions with the first missing txId should be returned"
   ) {
     PropF.forAllF {
       (
@@ -280,25 +274,13 @@ class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite w
             .returning(Option.empty[IoTransaction].pure[F])
             .once()
 
-          (toplRpc.fetchTransaction _)
-            .expects(transactionId_02)
-            .returning(Option.empty[IoTransaction].pure[F])
-            .once()
-
-          (toplRpc.fetchTransaction _)
-            .expects(transactionId_03)
-            .returning(Option.empty[IoTransaction].pure[F])
-            .once()
-
           val res = for {
             fetcher <- nodeBlockFetcher
             _ <- assertIO(
               fetcher.fetch(height),
               TransactionsNotFound(
                 ListSet(
-                  transactionId_01,
-                  transactionId_02,
-                  transactionId_03
+                  transactionId_01
                 )
               ).asLeft
             ).toResource
