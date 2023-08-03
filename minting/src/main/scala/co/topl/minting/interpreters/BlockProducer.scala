@@ -43,10 +43,9 @@ object BlockProducer {
     staker:           StakingAlgebra[F],
     clock:            ClockAlgebra[F],
     blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
-    rewardAddress:    LockAddress
+    rewardCalculator: TransactionRewardCalculatorAlgebra[F]
   ): F[BlockProducerAlgebra[F]] =
-    staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker, rewardCalculator, rewardAddress))
+    staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker, rewardCalculator))
 
   private class Impl[F[_]: Async](
     stakerAddress:    StakingAddress,
@@ -54,8 +53,7 @@ object BlockProducer {
     staker:           StakingAlgebra[F],
     clock:            ClockAlgebra[F],
     blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
-    rewardAddress:    LockAddress
+    rewardCalculator: TransactionRewardCalculatorAlgebra[F]
   ) extends BlockProducerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -169,32 +167,35 @@ object BlockProducer {
     private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
       base.transactions
         .foldMapM(rewardCalculator.rewardOf)
-        .map(rewardQuantity =>
-          if (rewardQuantity > 0)
-            base.withRewardTransaction(
-              IoTransaction(datum =
-                Datum.IoTransaction(
-                  Event.IoTransaction(schedule = Schedule(min = slot, max = slot), metadata = SmallData.defaultInstance)
+        .flatMap(rewardQuantity =>
+          if (rewardQuantity > 0) {
+            staker.rewardAddress.map(rewardAddress =>
+              base.withRewardTransaction(
+                IoTransaction(datum =
+                  Datum.IoTransaction(
+                    Event
+                      .IoTransaction(schedule = Schedule(min = slot, max = slot), metadata = SmallData.defaultInstance)
+                  )
                 )
-              )
-                .withInputs(
-                  List(
-                    SpentTransactionOutput(
-                      address = TransactionOutputAddress(id = TransactionId(parentBlockId.value)),
-                      attestation = Attestation.defaultInstance,
-                      value = Value.defaultInstance
+                  .withInputs(
+                    List(
+                      SpentTransactionOutput(
+                        address = TransactionOutputAddress(id = TransactionId(parentBlockId.value)),
+                        attestation = Attestation.defaultInstance,
+                        value = Value.defaultInstance
+                      )
                     )
                   )
-                )
-                .withOutputs(
-                  List(
-                    UnspentTransactionOutput(rewardAddress, Value(Value.Value.Lvl(Value.LVL(rewardQuantity))))
+                  .withOutputs(
+                    List(
+                      UnspentTransactionOutput(rewardAddress, Value(Value.Value.Lvl(Value.LVL(rewardQuantity))))
+                    )
                   )
-                )
+              )
             )
-          else {
+          } else {
             // To avoid dust accumulation for 0-reward blocks, don't include a reward transaction
-            base.clearRewardTransaction
+            base.clearRewardTransaction.pure[F]
           }
         )
 

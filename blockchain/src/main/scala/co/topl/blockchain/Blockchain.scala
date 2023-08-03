@@ -216,8 +216,7 @@ object Blockchain {
                 staker,
                 clock,
                 blockPacker,
-                validators.rewardCalculator,
-                PrivateTestnet.HeightLockOneSpendingAddress // TODO
+                validators.rewardCalculator
               )
           )
           block <- Stream.force(blockProducer.blocks)
