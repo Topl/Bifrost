@@ -12,7 +12,6 @@ import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.BoxStateAlgebra
-import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 

@@ -14,7 +14,7 @@ import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.instances.{SchemaLockAddress, SchemaTxo}
+import co.topl.genusLibrary.orientDb.instances.{SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import co.topl.node.models.BlockBody
 import co.topl.models.utility._
@@ -60,17 +60,18 @@ object GraphBlockUpdater {
               bodyVertex.setProperty(blockBodySchema.links.head.propertyName, headerVertex.getId)
               graph.addEdge(s"class:${blockHeaderBodyEdge.name}", headerVertex, bodyVertex, blockHeaderBodyEdge.label)
 
-              def insertTx(ioTx: IoTransaction, isReward: Boolean) = {
+              def insertTx(ioTx: IoTransaction, isReward: Boolean): Unit = {
                 val ioTxVertex = graph.addIoTx(ioTx)
                 ioTxVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
-                if (isReward)
+                ioTxVertex.setProperty(SchemaIoTransaction.Field.IsReward, isReward)
+                if (isReward) {
                   graph.addEdge(
                     s"class:${blockHeaderRewardEdge.name}",
                     headerVertex,
                     ioTxVertex,
                     blockHeaderRewardEdge.label
                   )
-                else
+                } else {
                   graph.addEdge(
                     s"class:${blockHeaderTxIOEdge.name}",
                     headerVertex,
@@ -78,12 +79,13 @@ object GraphBlockUpdater {
                     blockHeaderTxIOEdge.label
                   )
 
-                // Lookup previous unspent TXOs, and update the state
-                ioTx.inputs.foreach { spentTransactionOutput =>
-                  graph
-                    .getTxo(spentTransactionOutput.address)
-                    .map(_.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value))
-                    .getOrElse(())
+                  // Lookup previous unspent TXOs, and update the state
+                  ioTx.inputs.foreach { spentTransactionOutput =>
+                    graph
+                      .getTxo(spentTransactionOutput.address)
+                      .map(_.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value))
+                      .getOrElse(())
+                  }
                 }
 
                 // Relationships between TxIOs <-> LockAddress

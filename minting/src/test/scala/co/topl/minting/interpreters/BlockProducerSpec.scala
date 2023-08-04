@@ -77,8 +77,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               staker,
               clock,
               blockPacker,
-              rewardCalculator,
-              rewardAddress
+              rewardCalculator
             )
             resultFiber <- Async[F].start(Stream.force(underTest.blocks).enqueueNoneTerminated(results).compile.drain)
             clockDeferment <- IO.deferred[Unit]

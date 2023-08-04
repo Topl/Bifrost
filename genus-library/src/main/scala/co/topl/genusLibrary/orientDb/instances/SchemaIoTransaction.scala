@@ -46,6 +46,13 @@ object SchemaIoTransaction {
           readOnly = true,
           notNull = true
         )
+        .withProperty(
+          Field.IsReward,
+          _ => java.lang.Boolean.valueOf(false),
+          mandatory = false,
+          readOnly = false,
+          notNull = true
+        )
         .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)
         .withLink(SchemaBlockHeader.Field.BlockId, OType.LINK, SchemaBlockHeader.Field.SchemaName),
       v => IoTransaction.parseFrom(v(Field.Transaction): Array[Byte])
