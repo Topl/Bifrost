@@ -34,11 +34,16 @@ case class ProtocolVersioner(appVersion: Version, protocolVersions: SortedSet[Pr
 object ProtocolVersioner {
 
   def apply(protocols: Map[Slot, Bifrost.Protocol]): ProtocolVersioner = {
-    val setProtocols = protocols.map { case (slot, protocol) =>
-      ProtocolSettings(Version(protocol.minAppVersion), slot, protocol)
+    implicit val protocolSettingsOrder: Ordering[ProtocolSettings] = ProtocolSettings.orderProtocolSettings.toOrdering
+    val setProtocols = protocols.flatMap { case (slot, protocol) =>
+      Version
+        .parse(protocol.minAppVersion)
+        .map(version => ProtocolSettings(version, slot, protocol))
     }.toSeq
-    val protocolVersions = SortedSet.from(setProtocols)(ProtocolSettings.orderProtocolSettings.toOrdering)
-    ProtocolVersioner(Version.DefaultVersion, protocolVersions)
+    val protocolVersions = SortedSet.from(setProtocols)
+    // Is required that at least there is 1 protocol setting defined on configs, in this case "2.0.0",
+    // it will be the initial protocol version
+    ProtocolVersioner(protocolVersions.min.minAppVersion, protocolVersions)
   }
 }
 
@@ -46,9 +51,6 @@ case class Version(firstDigit: Int, secondDigit: Int, thirdDigit: Int)
 
 object Version {
 
-  val DefaultVersion = Version(2, 0, 0)
-
-  // eq and order Version could not live on type-classes because Bifrost.Protocol are not in models.
   implicit val eqVersion: Eq[Version] =
     (a, b) =>
       a.firstDigit === b.firstDigit &&
@@ -66,10 +68,10 @@ object Version {
       }
     }
 
-  def apply(value: String): Version =
+  def parse(value: String): Option[Version] =
     Try(value.split("\\."))
       .flatMap(split => Try(Version(split(0).toInt, split(1).toInt, split(2).toInt)))
-      .getOrElse(DefaultVersion)
+      .toOption
 
   implicit class VersionOps(v: Version) {
     def asProtocolVersion: ProtocolVersion = ProtocolVersion(v.firstDigit, v.secondDigit, v.thirdDigit)
