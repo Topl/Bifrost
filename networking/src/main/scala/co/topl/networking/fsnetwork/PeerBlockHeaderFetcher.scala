@@ -101,13 +101,13 @@ object PeerBlockHeaderFetcher {
   private def getRemoteSlotDataByBlockId[F[_]: Async: Logger](state: State[F], blockId: BlockId): F[Unit] =
     for {
       _                 <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
-      newSlotDataOpt    <- getNewSlotDataChain(state, blockId).value
+      newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockId).value
       _                 <- Logger[F].info(show"Build slot data chain from tip $blockId is ${newSlotDataOpt.isDefined}")
       newBlockSourceOpt <- buildBlockSource(state, blockId, newSlotDataOpt)
       _                 <- sendMessagesToProxy(state, newSlotDataOpt, newBlockSourceOpt)
     } yield ()
 
-  private def getNewSlotDataChain[F[_]: Async: Logger](
+  private def getRemoteBetterSlotDataChain[F[_]: Async: Logger](
     state:   State[F],
     blockId: BlockId
   ): OptionT[F, NonEmptyChain[SlotData]] =
@@ -118,7 +118,7 @@ object PeerBlockHeaderFetcher {
       betterSlotData         <- compareSlotDataWithLocal(savedSlotData, state)
     } yield betterSlotData
 
-  private def buildBlockSource[F[_]: Async: Logger](
+  private def buildBlockSource[F[_]: Async](
     state:          State[F],
     blockId:        BlockId,
     newSlotDataOpt: Option[NonEmptyChain[SlotData]]
@@ -244,8 +244,14 @@ object PeerBlockHeaderFetcher {
             Logger[F].debug(show"Received tip $bestBlockId is better than current block") >>
             Option(slotData).pure[F]
           case false =>
-            Logger[F].info(show"Ignoring tip because of density rule which id=$bestBlockId") >>
-            state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLoopbackSlotData(state.hostId)) >>
+            state.localChain
+              .couldBeWorse(slotData.last)
+              .ifM(
+                ifTrue = Logger[F].info(show"Ignoring tip $bestBlockId because of density rule") >>
+                  state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId)),
+                ifFalse =
+                  Logger[F].info(show"Ignoring tip $bestBlockId because other better or equal block had been adopted")
+              ) >>
             Option.empty[NonEmptyChain[SlotData]].pure[F]
         }
     )
@@ -256,7 +262,7 @@ object PeerBlockHeaderFetcher {
       _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from peer ${state.hostId}"))
       tip <- OptionT(state.client.remoteCurrentTip())
       _   <- OptionT.liftF(getRemoteSlotDataByBlockId(state, tip))
-      _   <- OptionT.liftF(Logger[F].info(show"Received current tip $tip from peer ${state.hostId}"))
+      _   <- OptionT.liftF(Logger[F].info(show"Processed current tip $tip from peer ${state.hostId}"))
     } yield (state, state)
   }.getOrElse((state, state))
     .handleErrorWith(Logger[F].error(_)("Get tip from remote host return error") >> (state, state).pure[F])
