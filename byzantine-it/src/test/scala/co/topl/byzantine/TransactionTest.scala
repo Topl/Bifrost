@@ -416,12 +416,11 @@ class TransactionTest extends IntegrationSuite {
         iotx_O <- createTransactionTamV2_fromGenesisIotx(inputBoxId, boxFromGenesisB, genesisIotx).toResource
         _      <- node1Client.broadcastTransaction(iotx_O).toResource
 
-
         // It should fail because the group exists, Second Asset Tam V2 group Received RPC Transaction
         boxFromGenesisB_2 = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 9999900 LVL
         iotx_O_2 <- createTransactionTamV2_fromGenesisIotx(inputBoxId, boxFromGenesisB_2, genesisIotx).toResource
 //        _ <- Logger[F].info(s"invalid transaction iotx_O_2 id=${iotx_O_2.id.show}").toResource
-        _        <- node1Client.broadcastTransaction(iotx_O_2).toResource
+        _ <- node1Client.broadcastTransaction(iotx_O_2).toResource
 
         // It should fail because the the output contains the same groups twice
         boxFromGenesisB_3 = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 9999900 LVL
@@ -432,8 +431,6 @@ class TransactionTest extends IntegrationSuite {
         ).toResource
         _ <- Logger[F].info(s"invalid transaction iotx_O_3 id=${iotx_O_3.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_O_3).voidError.toResource
-
-
 
         _ <- Async[F].sleep(10.seconds).toResource
 
@@ -641,18 +638,6 @@ class TransactionTest extends IntegrationSuite {
     for {
       timestamp <- Async[F].realTimeInstant
 
-      label = "Crypto Frogs"
-      fixedSeries = Option.empty[FixedSeries]
-      seriesTokenSupply = SeriesTokenSupply.defaultInstance
-        .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED))
-      digestMessage = label
-        .concat("") // implement show fixedSeries
-        .concat("unlimited") // implement show seriesTokenSupply
-        .concat(genesisIotx.id.show.drop(2)) // it removes _t
-        .concat("#1".show) // adds pound + utxo index id
-      sha <- Async[F].blocking(MessageDigest.getInstance("SHA-256").digest(digestMessage.getBytes("UTF-8")))
-      hash = String.format("%032x", new BigInteger(1, sha))
-
       predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
 
       inputs = List(
@@ -668,13 +653,13 @@ class TransactionTest extends IntegrationSuite {
           HeightRangeLockAddress,
           Value.defaultInstance.withGroup(
             Value.Group(
-              label,
-              fixedSeries,
-              seriesTokenSupply,
+              label = "Crypto Frogs",
+              fixedSeries = Option.empty[FixedSeries],
+              seriesTokenSupply = SeriesTokenSupply.defaultInstance
+                .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED)),
               txId = genesisIotx.id,
-              index =
-                1, // 1 comes from the index of the utxo, which are levels because genesisIotx.outputs(1).value) // 10000000 LVL
-              id = GroupId(ByteString.copyFrom(sha))
+              index = 1, // because genesisIotx.outputs(1).value) // 10000000 LVL
+              groupId = Option.empty[GroupId]
             )
           )
         )
@@ -711,18 +696,6 @@ class TransactionTest extends IntegrationSuite {
     for {
       timestamp <- Async[F].realTimeInstant
 
-      label = "Crypto Frogs twice in the same iotx"
-      fixedSeries = Option.empty[FixedSeries]
-      seriesTokenSupply = SeriesTokenSupply.defaultInstance
-        .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED))
-      digestMessage = label
-        .concat("") // implement show fixedSeries
-        .concat("unlimited") // implement show seriesTokenSupply
-        .concat(genesisIotx.id.show.drop(2)) // it removes _t
-        .concat("#1".show) // adds pound + utxo index id
-      sha <- Async[F].blocking(MessageDigest.getInstance("SHA-256").digest(digestMessage.getBytes("UTF-8")))
-      hash = String.format("%032x", new BigInteger(1, sha))
-
       predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
 
       inputs = List(
@@ -736,13 +709,13 @@ class TransactionTest extends IntegrationSuite {
         HeightRangeLockAddressTwo,
         Value.defaultInstance.withGroup(
           Value.Group(
-            label,
-            fixedSeries,
-            seriesTokenSupply,
+            label = "Crypto Frogs twice in the same iotx",
+            fixedSeries = Option.empty[FixedSeries],
+            seriesTokenSupply = SeriesTokenSupply.defaultInstance
+              .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED)),
             txId = genesisIotx.id,
-            index =
-              1, // 1 comes from the index of the utxo, which are levels because genesisIotx.outputs(1).value) // 10000000 LVL
-            id = GroupId(ByteString.copyFrom(sha))
+            index = 1, // because genesisIotx.outputs(1).value)  10000000 LVL
+            groupId = Option.empty[GroupId]
           )
         )
       )

@@ -11,8 +11,8 @@ object Dependencies {
   val logback = "1.4.8"
   val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.56.1"
-  val protobufSpecsVersion = "1811d2b508c596605ac3c898e06c3272b35b8d63" // scala-steward:off // TODO replace with main version
-  val bramblScVersion = "5230e50ca39b1e2a0226fec2f3246c1931da54fd" // scala-steward:off // TODO replace with main version
+  val protobufSpecsVersion = "3fd6e44a334b0b1b3e49365a1c29e8ed5f9ef85a" // scala-steward:off // TODO replace with main version
+  val bramblScVersion = "758d4e2ec3c255a9df120d4480f719e1c6c02507" // scala-steward:off // TODO replace with main version
   val quivr4sVersion = "1e48130" // scala-steward:off
 
   val catsSlf4j =

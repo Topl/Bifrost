@@ -179,7 +179,7 @@ object ToplRpcServer {
       id <- transaction.id.pure[F]
       _  <- Logger[F].debug(show"Inserting Transaction id=$id into transaction store")
       _  <- transactionStore.put(id, transaction)
-      _  <- Logger[F].debug(show"Inserting Groups ids=${groups.map(_.id).mkString(";")} into group store")
+      _  <- Logger[F].debug(show"Inserting Groups ids=${groups.map(_.id)} into group store")
       _  <- groups.traverse(g => groupStore.put(g.id, g)).void
       _  <- Logger[F].debug(show"Inserting Transaction id=$id into mempool")
       _  <- mempool.add(id)
