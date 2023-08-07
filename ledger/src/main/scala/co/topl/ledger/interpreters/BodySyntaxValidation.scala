@@ -85,6 +85,11 @@ object BodySyntaxValidation {
             .void
             .toValidatedNec
 
+        /**
+         * Ensure that the claimed reward transaction is valid and contains the proper reward quantity
+         * @param transactions The normal transactions of the block
+         * @param rewardTransaction The claimed reward
+         */
         private def validateRewardTransaction[G[_]: Foldable](
           transactions:      G[IoTransaction],
           rewardTransaction: IoTransaction
