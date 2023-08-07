@@ -9,7 +9,7 @@ object Dependencies {
   val catsEffectVersion = "3.5.1"
   val fs2Version = "3.7.0"
   val logback = "1.4.8"
-  val orientDbVersion = "3.2.20"
+  val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.56.1"
   val protobufSpecsVersion = "2.0.0-alpha2+5-7af64172-SNAPSHOT" // scala-steward:off
   val bramblScVersion = "d5bc746" // scala-steward:off
@@ -160,7 +160,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.24.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.25.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All

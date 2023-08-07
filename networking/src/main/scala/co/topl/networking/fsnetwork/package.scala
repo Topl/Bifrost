@@ -3,22 +3,25 @@ package co.topl.networking
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.implicits._
-import cats.{Monad, MonadThrow, Show}
+import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
+import org.typelevel.log4cats.Logger
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.util.Random
 
 package object fsnetwork {
 
-  type HostId = String // IP address? IP address could be changed and bad for identify good peer
+  type HostId = RemoteAddress // IP address? IP address could be changed and bad for identify good peer
 
   type HostReputationValue =
     Double // will be more complex, to get high reputation host shall fulfill different criteria
@@ -201,5 +204,27 @@ package object fsnetwork {
      */
     val remotePeerNoveltyInSlots: Long =
       Math.ceil(networkProperties.expectedSlotsPerBlock * networkProperties.remotePeerNoveltyInExpectedBlocks).toLong
+
+    /**
+     * How often we update our list of warm hosts
+     */
+    val warmHostsUpdateInterval: FiniteDuration =
+      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
+  }
+
+  trait ColdToWarmSelector {
+    def select(coldHosts: Set[HostId], countToReceive: Int): Set[HostId]
+  }
+
+  val RandomColdToWarmSelector: ColdToWarmSelector =
+    (coldHosts: Set[HostId], countToReceive: Int) => Random.shuffle(coldHosts).take(countToReceive)
+
+  implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
+
+    def infoIf(predicate: => Boolean, message: => String): F[Unit] =
+      if (predicate)
+        logger.info(message)
+      else
+        Applicative[F].unit
   }
 }

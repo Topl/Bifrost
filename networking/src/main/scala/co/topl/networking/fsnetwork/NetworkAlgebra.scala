@@ -11,7 +11,10 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotData
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
+import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
+import co.topl.networking.fsnetwork.Notifier.NotifierActor
+import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
@@ -27,6 +30,7 @@ trait NetworkAlgebra[F[_]] {
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
+    newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:       P2PNetworkConfig
   ): Resource[F, PeersManagerActor[F]]
 
@@ -55,6 +59,24 @@ trait NetworkAlgebra[F[_]] {
     headerStore:          Store[F, BlockId, BlockHeader],
     bodyStore:            Store[F, BlockId, BlockBody]
   ): Resource[F, RequestsProxyActor[F]]
+
+  def makeNotifier(
+    peersManager:         PeersManagerActor[F],
+    reputationAggregator: ReputationAggregatorActor[F],
+    p2pNetworkConfig:     P2PNetworkConfig
+  ): Resource[F, NotifierActor[F]]
+
+  def makePeer(
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    requestsProxy:          RequestsProxyActor[F],
+    reputationAggregator:   ReputationAggregatorActor[F],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+  ): Resource[F, PeerActor[F]]
 }
 
 class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
@@ -66,6 +88,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
+    newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:       P2PNetworkConfig
   ): Resource[F, PeersManagerActor[F]] =
     PeersManager.makeActor(
@@ -75,6 +98,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
       transactionStore,
       blockIdTree,
       headerToBodyValidation,
+      newPeerCreationAlgebra,
       p2pNetworkConfig
     )
 
@@ -118,4 +142,34 @@ class NetworkAlgebraImpl[F[_]: Async: Logger] extends NetworkAlgebra[F] {
     bodyStore:            Store[F, BlockId, BlockBody]
   ): Resource[F, RequestsProxyActor[F]] =
     RequestsProxy.makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+
+  def makeNotifier(
+    peersManager:         PeersManagerActor[F],
+    reputationAggregator: ReputationAggregatorActor[F],
+    p2pNetworkConfig:     P2PNetworkConfig
+  ): Resource[F, NotifierActor[F]] =
+    Notifier.makeActor(peersManager, reputationAggregator, p2pNetworkConfig)
+
+  def makePeer(
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    requestsProxy:          RequestsProxyActor[F],
+    reputationAggregator:   ReputationAggregatorActor[F],
+    localChain:             LocalChainAlgebra[F],
+    slotDataStore:          Store[F, BlockId, SlotData],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
+    blockIdTree:            ParentChildTree[F, BlockId],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+  ): Resource[F, PeerActor[F]] =
+    PeerActor.makeActor(
+      hostId,
+      client,
+      requestsProxy,
+      reputationAggregator,
+      localChain,
+      slotDataStore,
+      transactionStore,
+      blockIdTree,
+      headerToBodyValidation
+    )
 }

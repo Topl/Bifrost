@@ -29,14 +29,14 @@ import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
-import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
+import co.topl.networking.p2p.{LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
-import fs2.{io => _, _}
+import fs2.{io => _}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -334,10 +334,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           mempool,
           cryptoResources.ed25519VRF,
           localPeer,
-          Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
-          Stream.iterable[F, DisconnectedPeer](
-            appConfig.bifrost.p2p.knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
-          ) ++ Stream.never[F],
+          appConfig.bifrost.p2p.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
