@@ -121,6 +121,9 @@ trait TetraScodecCodecs {
   implicit val stakingAddressCodec: Codec[StakingAddress] =
     (byteStringCodecSized(32) :: unknownFieldSetCodec).as[StakingAddress]
 
+  implicit val versionCodec: Codec[ProtocolVersion] =
+    (intCodec :: intCodec :: intCodec :: unknownFieldSetCodec).as[ProtocolVersion]
+
   implicit val consensusBlockHeaderCodec: Codec[BlockHeader] = (
     emptyCodec[Option[BlockId]](None) :: // headerId
       blockIdCodec :: // parentHeaderId
@@ -134,6 +137,7 @@ trait TetraScodecCodecs {
       operationalCertificateCodec ::
       byteStringCodec :: // metadata
       stakingAddressCodec :: // address
+      versionCodec ::
       unknownFieldSetCodec
   ).as[BlockHeader]
 

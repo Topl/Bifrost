@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.Resource
 import cats.effect.implicits._
+import cats.effect.std.Queue
 import cats.implicits._
 import com.comcast.ip4s._
 import fs2.Stream
@@ -19,12 +20,13 @@ object FS2P2PServer {
     port:        Int,
     localPeer:   LocalPeer,
     remotePeers: Stream[F, DisconnectedPeer],
-    peerHandler: (ConnectedPeer, Socket[F]) => Resource[F, Unit]
+    peerHandler: (ConnectedPeer, Socket[F]) => Resource[F, Unit],
+    closedPeers: Queue[F, ConnectedPeer]
   ): Resource[F, P2PServer[F]] =
     for {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P").toResource
       topic                        <- Resource.make(Topic[F, PeerConnectionChange])(_.close.void)
-      _                            <- eventLogger(topic)
+      _                            <- eventProcessor(topic, closedPeers)
       sockets                      <- socketsStream[F](host, port)
       _                            <- server(sockets)(topic, peerHandler)
       _                            <- client(remotePeers, localPeer)(topic, peerHandler)
@@ -103,10 +105,14 @@ object FS2P2PServer {
               .fromOption[F](Port.fromInt(disconnected.remoteAddress.port))
               .getOrRaise(new IllegalArgumentException("Invalid destinationPort"))
               .toResource
-            socket <- Network.forAsync[F].client(SocketAddress(host, port))
+            socketEither <- Network.forAsync[F].client(SocketAddress(host, port)).attempt
             connected = ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate)
-            _      <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(connected)).toResource
-            result <- peerHandler(connected, socket).attempt
+            result <- socketEither match {
+              case Left(error) => Resource.pure[F, Either[Throwable, Unit]](Either.left[Throwable, Unit](error))
+              case Right(socket) =>
+                peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(connected)).toResource >>
+                peerHandler(connected, socket).attempt
+            }
             _ <- peerChangesTopic
               .publish1(PeerConnectionChanges.ConnectionClosed(connected, result.swap.toOption))
               .toResource
@@ -118,16 +124,21 @@ object FS2P2PServer {
       .drain
       .background
 
-  private def eventLogger[F[_]: Async: Logger](peerChangesTopic: Topic[F, PeerConnectionChange]) =
+  private def eventProcessor[F[_]: Async: Logger](
+    peerChangesTopic: Topic[F, PeerConnectionChange],
+    closedPeers:      Queue[F, ConnectedPeer]
+  ) =
     peerChangesTopic.subscribeUnbounded
       .evalTap {
         case PeerConnectionChanges.ConnectionEstablished(peer) =>
           Logger[F].info(s"Connection established with peer=$peer")
         case PeerConnectionChanges.ConnectionClosed(peer, reason) =>
-          reason match {
-            case Some(reason) => Logger[F].warn(reason)(s"Connection closed with peer=$peer")
-            case _            => Logger[F].info(s"Connection closed with peer=$peer")
-          }
+          {
+            reason match {
+              case Some(error) => Logger[F].warn(error)(s"Connection closed with peer=$peer")
+              case _           => Logger[F].info(s"Connection closed with peer=$peer")
+            }
+          } >> closedPeers.offer(peer)
         case PeerConnectionChanges.InboundConnectionInitializing(peer) =>
           Logger[F].info(s"Inbound connection initializing with peer=$peer")
         case PeerConnectionChanges.OutboundConnectionInitializing(peer) =>

@@ -15,9 +15,8 @@ import co.topl.config.ApplicationConfig
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
-import co.topl.consensus.models.VrfConfig
+import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
 import co.topl.consensus.interpreters._
-import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
@@ -30,14 +29,14 @@ import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
-import co.topl.networking.p2p.{DisconnectedPeer, LocalPeer, RemoteAddress}
+import co.topl.networking.p2p.{LocalPeer, RemoteAddress}
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
-import fs2.{io => _, _}
+import fs2.{io => _}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -83,6 +82,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
+      protocolVersion = ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion
       stakerInitializers <- Sync[F]
         .delay(
           PrivateTestnet.stakerInitializers(
@@ -96,7 +96,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           PrivateTestnet.config(
             privateBigBang.timestamp,
             stakerInitializers,
-            privateBigBang.stakes
+            privateBigBang.stakes,
+            protocolVersion
           )
         )
         .toResource
@@ -235,7 +236,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             cryptoResources.ed25519VRF,
             cryptoResources.kesProduct,
             bigBangProtocol,
-            vrfConfig
+            vrfConfig,
+            protocolVersion
           ).map(_.some)
         )
 
@@ -332,10 +334,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           mempool,
           cryptoResources.ed25519VRF,
           localPeer,
-          Stream.eval(clock.delayedUntilSlot(canonicalHeadSlotData.slotId.slot)) >>
-          Stream.iterable[F, DisconnectedPeer](
-            appConfig.bifrost.p2p.knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
-          ) ++ Stream.never[F],
+          appConfig.bifrost.p2p.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
@@ -357,7 +356,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
     protocol:                 ApplicationConfig.Bifrost.Protocol,
-    vrfConfig:                VrfConfig
+    vrfConfig:                VrfConfig,
+    protocolVersion:          ProtocolVersion
   ) =
     for {
       // Initialize a persistent secure store
@@ -402,7 +402,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         ed25519Resource,
         blake2b256Resource,
         vrfCalculator,
-        leaderElectionThreshold
+        leaderElectionThreshold,
+        protocolVersion
       )
     } yield staking
 

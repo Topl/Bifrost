@@ -15,6 +15,7 @@ import co.topl.networking.fsnetwork.PeerActorTest.F
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.{PingMessage, PongMessage}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -30,7 +31,7 @@ object PeerActorTest {
 class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
 
   test("Ping shall be started for warm hosts and sent result to reputation aggregator") {
     withMock {
@@ -71,7 +72,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeerActor.Message.UpdateState(PeerState.Warm))
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
             _ <- Async[F].andWait(actor.send(PeerActor.Message.GetNetworkQuality), pingDelay * 5)
           } yield ()
         }

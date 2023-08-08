@@ -13,6 +13,7 @@ object SchemaBlockHeader {
 
   /**
    * BlockHeader model fields:
+   *
    * @see https://github.com/Topl/protobuf-specs/blob/main/proto/consensus/models/block_header.proto
    */
   object Field {
@@ -31,6 +32,7 @@ object SchemaBlockHeader {
     val Metadata = "metadata"
     val Address = "address"
     val Size = "size"
+    val Version = "version"
     val BlockHeaderIndex = "blockHeaderIndex"
   }
 
@@ -54,6 +56,7 @@ object SchemaBlockHeader {
       .withProperty(Field.Metadata,_.metadata.toByteArray,mandatory = true, readOnly = true, notNull = false)
       .withProperty(Field.Address,_.address.toByteArray,mandatory = true, readOnly = true, notNull = true)
       .withProperty(Field.Size, blockHeader => java.lang.Long.valueOf(size(blockHeader)) ,mandatory = true, readOnly = true, notNull = true)
+      .withProperty(Field.Version, blockHeader => blockHeader.version.toByteArray ,mandatory = true, readOnly = true, notNull = true)
       .withIndex[BlockHeader](Field.BlockHeaderIndex, Field.BlockId),
       // @formatter:on
     v =>
@@ -69,7 +72,8 @@ object SchemaBlockHeader {
         eligibilityCertificate = EligibilityCertificate.parseFrom(v(Field.EligibilityCertificate): Array[Byte]),
         operationalCertificate = OperationalCertificate.parseFrom(v(Field.OperationalCertificate): Array[Byte]),
         ByteString.copyFrom(v(Field.Metadata): Array[Byte]),
-        address = StakingAddress.parseFrom(v(Field.Address): Array[Byte])
+        address = StakingAddress.parseFrom(v(Field.Address): Array[Byte]),
+        version = ProtocolVersion.parseFrom(v(Field.Version): Array[Byte])
       )
   )
 

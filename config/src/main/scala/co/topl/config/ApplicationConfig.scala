@@ -56,8 +56,10 @@ object ApplicationConfig {
       maxPerformanceDelayInSlots:           Double = 2.0,
       remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
       minimumBlockProvidingReputationPeers: Int = 2,
+      minimumPerformanceReputationPeers:    Int = 1,
       minimumRequiredReputation:            Double = 0.66,
       minimumHotConnections:                Int = 3,
+      minimumWarmConnections:               Int = 3,
       warmHostsUpdateEveryNBlock:           Double = 4.0
     )
 
@@ -83,6 +85,7 @@ object ApplicationConfig {
 
     @Lenses
     case class Protocol(
+      minAppVersion:              String,
       fEffective:                 Ratio,
       vrfLddCutoff:               Int,
       vrfPrecision:               Int,

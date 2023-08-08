@@ -655,8 +655,6 @@ class TransactionTest extends IntegrationSuite {
             Value.Group(
               label = "Crypto Frogs",
               fixedSeries = Option.empty[FixedSeries],
-              seriesTokenSupply = SeriesTokenSupply.defaultInstance
-                .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED)),
               txId = genesisIotx.id,
               index = 1, // because genesisIotx.outputs(1).value) // 10000000 LVL
               groupId = Option.empty[GroupId]
@@ -711,8 +709,6 @@ class TransactionTest extends IntegrationSuite {
           Value.Group(
             label = "Crypto Frogs twice in the same iotx",
             fixedSeries = Option.empty[FixedSeries],
-            seriesTokenSupply = SeriesTokenSupply.defaultInstance
-              .withValue(SeriesTokenSupply.Value.Enum(SeriesTokenSupplyEnum.UNLIMITED)),
             txId = genesisIotx.id,
             index = 1, // because genesisIotx.outputs(1).value)  10000000 LVL
             groupId = Option.empty[GroupId]

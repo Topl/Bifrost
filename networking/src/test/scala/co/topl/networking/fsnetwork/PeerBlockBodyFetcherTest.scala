@@ -21,6 +21,7 @@ import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops}
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -43,7 +44,7 @@ class PeerBlockBodyFetcherTest
     with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
   val maxChainSize = 99
 
   private def compareWithoutDownloadTimeMatcher(
@@ -61,6 +62,7 @@ class PeerBlockBodyFetcherTest
                 (header, res.map(b => b.copy(downloadTimeMs = 0, downloadTimeTxMs = Seq.empty)))
               }
             expectedMessage == actualMessage.copy(response = newResp)
+          case (_, _) => throw new IllegalStateException("Unexpected case")
         }
     new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
   }
@@ -506,12 +508,12 @@ class PeerBlockBodyFetcherTest
 
       (client.getRemoteBody _)
         .expects(header.id)
-        .once
+        .once()
         .returns(
           Async[F].delayBy(Option(body).pure[F], FiniteDuration(bodyDelay, MILLISECONDS))
         )
 
-      (transactionStore.contains _).expects(*).once.returns(true.pure[F])
+      (transactionStore.contains _).expects(*).once().returns(true.pure[F])
       (transactionStore.contains _).expects(*).rep(txIdsAndTxs.size - 1).returns(false.pure[F])
 
       (client.getRemoteTransaction _).expects(*).rep(txIdsAndTxs.size - 1).onCall { id: TransactionId =>
@@ -545,6 +547,7 @@ class PeerBlockBodyFetcherTest
               ().pure[F]
             else
               throw new IllegalStateException()
+          case _ => throw new IllegalStateException()
         }
       }
 

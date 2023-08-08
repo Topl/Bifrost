@@ -579,6 +579,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
       eta <- co.topl.models.ModelGenerators.etaGen // TODO replace model when validEligibilityCertificate is replaced
       relativeStake       <- co.topl.models.ModelGenerators.relativeStakeGen
       (vrfSecretBytes, _) <- Gen.const(Ed25519VRF.precomputed().generateRandom)
+      protocolVersion     <- Gen.const(ProtocolVersion(0, 0, 1))
     } yield {
       val (kesSK0, _) = new KesProduct().createKeyPair(Random.nextBytes(32), (9, 9), 0L)
       val poolVK = ByteString.copyFrom(Random.nextBytes(32))
@@ -639,7 +640,8 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
           eligibilityCertificate = unsigned.eligibilityCertificate,
           operationalCertificate = operationalCertificate,
           metadata = unsigned.metadata,
-          address = unsigned.address
+          address = unsigned.address,
+          version = protocolVersion
         )
 
       (parent, child, registration, eta, relativeStake)

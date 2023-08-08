@@ -10,6 +10,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
@@ -44,7 +45,12 @@ object TestHelper extends TransactionGenerator {
         addHeaderToChain(headers.append(gen.sample.get.copy(parentHeaderId = parentId)), gen, count - 1)
     }
 
-  val arbitraryHost: Arbitrary[HostId] = Arbitrary(Arbitrary.arbitrary[String])
+  val arbitraryHost: Arbitrary[HostId] = Arbitrary(
+    for {
+      host <- Arbitrary.arbitrary[String]
+      port <- Arbitrary.arbitrary[Byte]
+    } yield RemoteAddress(host, port)
+  )
 
   val arbitraryHostBlockId: Arbitrary[(HostId, BlockId)] = Arbitrary(
     for {

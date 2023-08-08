@@ -29,7 +29,7 @@ object RequestsProxy {
 
     case class BlocksSource(sources: NonEmptyChain[(HostId, BlockId)]) extends Message
 
-    case class BadKLoopbackSlotData(hostId: HostId) extends Message
+    case class BadKLookbackSlotData(hostId: HostId) extends Message
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
@@ -76,7 +76,7 @@ object RequestsProxy {
       case (state, message: SetupBlockChecker[F] @unchecked)    => setupBlockChecker(state, message.blockCheckerActor)
       case (state, GetCurrentTips)                              => getCurrentTips(state)
       case (state, RemoteSlotData(hostId, slotData))            => processRemoteSlotData(state, hostId, slotData)
-      case (state, BadKLoopbackSlotData(hostId))                => resendBadKLoopbackSlotData(state, hostId)
+      case (state, BadKLookbackSlotData(hostId))                => resendBadKLookbackSlotData(state, hostId)
       case (state, BlocksSource(sources))                       => blocksSourceProcessing(state, sources)
       case (state, DownloadHeadersRequest(hostId, blockIds))    => downloadHeadersRequest(state, hostId, blockIds)
       case (state, DownloadHeadersResponse(source, response))   => downloadHeadersResponse(state, source, response)
@@ -134,7 +134,7 @@ object RequestsProxy {
     (state, state).pure[F]
   }
 
-  private def resendBadKLoopbackSlotData[F[_]: Async: Logger](
+  private def resendBadKLookbackSlotData[F[_]: Async: Logger](
     state:  State[F],
     source: HostId
   ): F[(State[F], Response[F])] =

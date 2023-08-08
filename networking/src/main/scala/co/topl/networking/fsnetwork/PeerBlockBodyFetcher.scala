@@ -26,9 +26,8 @@ object PeerBlockBodyFetcher {
   sealed trait Message
 
   object Message {
-    case object StopActor extends Message
-
     case object StartActor extends Message
+    case object StopActor extends Message
 
     /**
      * Request to download block bodies from peer, downloaded bodies will be sent to block checker directly
@@ -63,7 +62,7 @@ object PeerBlockBodyFetcher {
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
     val initialState = State(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
-    Actor.make(initialState, getFsm[F])
+    Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
   }
 
   private def downloadBodies[F[_]: Async: Logger](
@@ -178,4 +177,6 @@ object PeerBlockBodyFetcher {
   private def stopActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(show"Stop body fetcher actor for peer ${state.hostId}") >>
     (state, state).pure[F]
+
+  private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] = stopActor(state).void
 }
