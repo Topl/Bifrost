@@ -11,7 +11,7 @@ object Dependencies {
   val logback = "1.4.8"
   val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.56.1"
-  val protobufSpecsVersion = "2.0.0-alpha2+5-7af64172-SNAPSHOT" // scala-steward:off
+  val protobufSpecsVersion = "7af6417" // scala-steward:off
   val bramblScVersion = "d5bc746" // scala-steward:off
   val quivr4sVersion = "1e48130" // scala-steward:off
 
@@ -120,7 +120,9 @@ object Dependencies {
   val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
   val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
 
-  val protobufSpecs: Seq[ModuleID] = Seq("co.topl" %% "protobuf-fs2" % protobufSpecsVersion)
+  val protobufSpecs: Seq[ModuleID] = Seq(
+    "com.github.Topl.protobuf-specs" %% "protobuf-fs2" % protobufSpecsVersion
+  )
 
   // For NTP-UDP
   val commonsNet = "commons-net" % "commons-net" % "3.9.0"
