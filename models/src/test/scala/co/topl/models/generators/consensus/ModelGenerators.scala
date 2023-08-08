@@ -139,20 +139,22 @@ trait ModelGenerators {
     eligibilityCertificateGen: Gen[EligibilityCertificate] = arbitraryEligibilityCertificate.arbitrary,
     operationalCertificateGen: Gen[OperationalCertificate] = arbitraryOperationalCertificate.arbitrary,
     metadataGen:               Gen[ByteString] = genSizedStrictByteString[Lengths.`32`.type]().map(_.data),
-    addressGen:                Gen[StakingAddress] = arbitraryStakingAddress.arbitrary
+    addressGen:                Gen[StakingAddress] = arbitraryStakingAddress.arbitrary,
+    protocolVersionGen:        Gen[ProtocolVersion] = Gen.const(ProtocolVersion(0, 0, 1))
   ): Gen[BlockHeader] =
     for {
-      parentHeaderID <- parentHeaderIdGen
-      parentSlot     <- parentSlotGen
-      txRoot         <- txRootGen
-      bloomFilter    <- bloomFilterGen
-      timestamp      <- timestampGen
-      height         <- heightGen
-      slot           <- slotGen
-      vrfCertificate <- eligibilityCertificateGen
-      kesCertificate <- operationalCertificateGen
-      metadata       <- metadataGen
-      address        <- addressGen
+      parentHeaderID  <- parentHeaderIdGen
+      parentSlot      <- parentSlotGen
+      txRoot          <- txRootGen
+      bloomFilter     <- bloomFilterGen
+      timestamp       <- timestampGen
+      height          <- heightGen
+      slot            <- slotGen
+      vrfCertificate  <- eligibilityCertificateGen
+      kesCertificate  <- operationalCertificateGen
+      metadata        <- metadataGen
+      address         <- addressGen
+      protocolVersion <- protocolVersionGen
     } yield BlockHeader(
       headerId = None,
       parentHeaderID,
@@ -165,7 +167,8 @@ trait ModelGenerators {
       vrfCertificate,
       kesCertificate,
       metadata,
-      address
+      address,
+      protocolVersion
     )
 
   implicit val arbitraryHeader: Arbitrary[BlockHeader] = Arbitrary(headerGen())

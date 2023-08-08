@@ -289,7 +289,8 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
       eligibilityCertificate = eligibilityCertificate,
       operationalCertificate = operationalCertificate,
       metadata = ByteString.EMPTY,
-      address = StakingAddress(zeroBytes(32))
+      address = StakingAddress(zeroBytes(32)),
+      version = ProtocolVersion(0, 0, 1)
     ).embedId
     FullBlock(header, FullBlockBody(transactions))
   }
@@ -306,7 +307,8 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
       eligibilityCertificate = eligibilityCertificate,
       operationalCertificate = operationalCertificate,
       metadata = ByteString.EMPTY,
-      address = StakingAddress(zeroBytes(32))
+      address = StakingAddress(zeroBytes(32)),
+      version = ProtocolVersion(0, 0, 1)
     ).embedId
     FullBlock(header, FullBlockBody(transactions))
   }

@@ -29,9 +29,10 @@ object BigBang {
    * @param etaPrefix a sequence of bytes to be prepended to the value that gets hashed to produce the Big Bang Eta.
    */
   case class Config(
-    timestamp: Timestamp,
-    outputs:   List[UnspentTransactionOutput],
-    etaPrefix: Bytes = Config.DefaultEtaPrefix
+    timestamp:       Timestamp,
+    outputs:         List[UnspentTransactionOutput],
+    etaPrefix:       Bytes = Config.DefaultEtaPrefix,
+    protocolVersion: ProtocolVersion
   )
 
   object Config {
@@ -74,7 +75,8 @@ object BigBang {
         eligibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
         metadata = ByteString.EMPTY,
-        address = StakingAddress(zeroBytes(Lengths.`32`).data)
+        address = StakingAddress(zeroBytes(Lengths.`32`).data),
+        version = config.protocolVersion
       )
     FullBlock(header, FullBlockBody(transactions))
   }

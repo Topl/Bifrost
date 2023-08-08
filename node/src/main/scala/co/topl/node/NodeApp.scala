@@ -15,9 +15,8 @@ import co.topl.config.ApplicationConfig
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
-import co.topl.consensus.models.VrfConfig
+import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
 import co.topl.consensus.interpreters._
-import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing._
@@ -83,6 +82,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       )
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
+      protocolVersion = ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion
       stakerInitializers <- Sync[F]
         .delay(
           PrivateTestnet.stakerInitializers(
@@ -96,7 +96,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           PrivateTestnet.config(
             privateBigBang.timestamp,
             stakerInitializers,
-            privateBigBang.stakes
+            privateBigBang.stakes,
+            protocolVersion
           )
         )
         .toResource
@@ -235,7 +236,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             cryptoResources.ed25519VRF,
             cryptoResources.kesProduct,
             bigBangProtocol,
-            vrfConfig
+            vrfConfig,
+            protocolVersion
           ).map(_.some)
         )
 
@@ -354,7 +356,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
     kesProductResource:       UnsafeResource[F, KesProduct],
     protocol:                 ApplicationConfig.Bifrost.Protocol,
-    vrfConfig:                VrfConfig
+    vrfConfig:                VrfConfig,
+    protocolVersion:          ProtocolVersion
   ) =
     for {
       // Initialize a persistent secure store
@@ -399,7 +402,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         ed25519Resource,
         blake2b256Resource,
         vrfCalculator,
-        leaderElectionThreshold
+        leaderElectionThreshold,
+        protocolVersion
       )
     } yield staking
 
