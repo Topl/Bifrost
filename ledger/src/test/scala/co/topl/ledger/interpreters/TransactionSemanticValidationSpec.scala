@@ -251,8 +251,8 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
                   Value.Group(
                     label = "Crypto Frogs",
                     fixedSeries = Option.empty[FixedSeries],
-                    txId = transactionA.id,
-                    index = 0, // it is a TOPL values instead of LVL
+                    // index 0, is a TOPL values instead of LVL
+                    transactionOutputAddress = TransactionOutputAddress(0, 0, 0, transactionA.id),
                     groupId = Option.empty[GroupId]
                   )
                 )

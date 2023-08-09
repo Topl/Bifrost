@@ -11,8 +11,8 @@ object Dependencies {
   val logback = "1.4.8"
   val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.56.1"
-  val protobufSpecsVersion = "2.0.0-alpha2+13-18a14bc1-SNAPSHOT"
-  val bramblScVersion = "2.0.0-alpha3+15-a1c02609-SNAPSHOT"
+  val protobufSpecsVersion = "2.0.0-alpha2+16-129e9e37-SNAPSHOT" //TODO replace commit, branch:BN-GroupAssetToken
+  val bramblScVersion = "2.0.0-alpha3+17-cdb10446-SNAPSHOT" //TODO replace commit, branch:BN-GroupAssetToken
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"

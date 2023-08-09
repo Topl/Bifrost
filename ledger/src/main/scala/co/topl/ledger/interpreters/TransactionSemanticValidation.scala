@@ -121,7 +121,9 @@ object TransactionSemanticValidation {
       .filter(_.value.value.isGroup)
       .map(_.value.getGroup)
       .forallM[F] { group =>
-        fetchTransaction(group.txId).map(_.outputs(group.index)).map(_.value.value.isLvl)
+        fetchTransaction(group.transactionOutputAddress.id)
+          .map(_.outputs(group.transactionOutputAddress.index))
+          .map(_.value.value.isLvl)
       }
       .ifM(
         ().validNec[TransactionSemanticError].pure[F],
