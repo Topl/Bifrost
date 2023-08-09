@@ -10,7 +10,7 @@ object Dependencies {
   val fs2Version = "3.7.0"
   val logback = "1.4.8"
   val orientDbVersion = "3.2.21"
-  val ioGrpcVersion = "1.56.1"
+  val ioGrpcVersion = "1.57.0"
   val protobufSpecsVersion = "2.0.0-alpha2+5-7af64172-SNAPSHOT"
   val bramblScVersion = "2.0.0-alpha3+2-6cdca5c2-SNAPSHOT"
 
