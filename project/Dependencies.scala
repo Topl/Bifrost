@@ -10,7 +10,7 @@ object Dependencies {
   val fs2Version = "3.7.0"
   val logback = "1.4.8"
   val orientDbVersion = "3.2.21"
-  val ioGrpcVersion = "1.56.1"
+  val ioGrpcVersion = "1.57.0"
   val protobufSpecsVersion = "2.0.0-alpha2+16-129e9e37-SNAPSHOT" //TODO replace commit, branch:BN-GroupAssetToken
   val bramblScVersion = "2.0.0-alpha3+17-cdb10446-SNAPSHOT" //TODO replace commit, branch:BN-GroupAssetToken
 
