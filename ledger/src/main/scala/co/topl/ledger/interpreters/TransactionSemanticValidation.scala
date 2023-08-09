@@ -9,9 +9,7 @@ import co.topl.brambl.common.ContainsEvidence.blake2bEvidenceFromImmutable
 import co.topl.brambl.common.ContainsImmutable.instances._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.box.Lock
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.transaction.{IoTransaction, Schedule, SpentTransactionOutput, UnspentTransactionOutput}
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
@@ -30,6 +28,7 @@ object TransactionSemanticValidation {
          * Validate the semantics of a transaction by verifying
          *  - for each input, the claimed value/proposition matches the data defined in the spent output
          *  - for each input, the referenced output is still spendable
+         *  - for each output, in case of a group constructor token, the utxo referenced should contain LVLs
          */
         def validate(
           context: TransactionValidationContext
@@ -46,7 +45,8 @@ object TransactionSemanticValidation {
                     (
                       EitherT(scheduleValidation[F](context.slot)(transaction.datum.event.schedule).map(_.toEither)) >>
                       EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>
-                      EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
+                      EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither)) >>
+                      EitherT(groupConstructorTokenLvlValidation(fetchTransaction)(transaction.outputs).map(_.toEither))
                     ).toNestedValidatedNec.value
                       .map(_.leftMap(_.flatten).as(transaction))
                   case (invalid, _) => invalid.pure[F]
@@ -110,5 +110,22 @@ object TransactionSemanticValidation {
         TransactionSemanticErrors.UnsatisfiedSchedule(slot, schedule): TransactionSemanticError
       )
       .pure[F]
+
+  /**
+   * is this transaction a group constructor token, and the UTXO referenced contains LVLs, that are paid for minting it?
+   */
+  private def groupConstructorTokenLvlValidation[F[_]: Monad](
+    fetchTransaction: TransactionId => F[IoTransaction]
+  )(outputs: Seq[UnspentTransactionOutput]): F[ValidatedNec[TransactionSemanticError, Unit]] =
+    outputs
+      .filter(_.value.value.isGroup)
+      .map(_.value.getGroup)
+      .forallM[F] { group =>
+        fetchTransaction(group.txId).map(_.outputs(group.index)).map(_.value.value.isLvl)
+      }
+      .ifM(
+        ().validNec[TransactionSemanticError].pure[F],
+        (TransactionSemanticErrors.UnsatisfiedGroupMismatch(outputs): TransactionSemanticError).invalidNec[Unit].pure[F]
+      )
 
 }

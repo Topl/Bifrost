@@ -1,8 +1,7 @@
 package co.topl.ledger.models
 
 import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.models.transaction.Schedule
-import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.transaction.{Schedule, SpentTransactionOutput, UnspentTransactionOutput}
 import co.topl.models.Slot
 
 sealed abstract class TransactionSemanticError
@@ -27,4 +26,9 @@ object TransactionSemanticErrors {
    * @param schedule the transaction's schedule
    */
   case class UnsatisfiedSchedule(slot: Slot, schedule: Schedule) extends TransactionSemanticError
+
+  /**
+   * The declared Transaction Outputs does not match the data stored on the chain, for group constructor tokens
+   */
+  case class UnsatisfiedGroupMismatch(outputs: Seq[UnspentTransactionOutput]) extends TransactionSemanticError
 }
