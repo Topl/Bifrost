@@ -11,9 +11,8 @@ object Dependencies {
   val logback = "1.4.8"
   val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.57.0"
-  val protobufSpecsVersion = "e03a093" // scala-steward:off
-  val bramblScVersion = "d5bc746" // scala-steward:off
-  val quivr4sVersion = "1e48130" // scala-steward:off
+  val protobufSpecsVersion = "2.0.0-alpha2+5-7af64172-SNAPSHOT"
+  val bramblScVersion = "2.0.0-alpha3+2-6cdca5c2-SNAPSHOT"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -116,12 +115,12 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
 
-  val bramblScCrypto = "com.github.Topl.BramblSc" %% "crypto"     % bramblScVersion
-  val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
-  val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
+  val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
+  val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
+  val quivr4s = "co.topl"        %% "quivr4s"    % bramblScVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
-    "com.github.Topl.protobuf-specs" %% "protobuf-fs2" % protobufSpecsVersion
+    "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
   )
 
   // For NTP-UDP

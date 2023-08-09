@@ -32,7 +32,8 @@ object Staking {
     ed25519Resource:          UnsafeResource[F, Ed25519],
     blake2b256Resource:       UnsafeResource[F, Blake2b256],
     vrfCalculator:            VrfCalculatorAlgebra[F],
-    leaderElectionValidation: LeaderElectionValidationAlgebra[F]
+    leaderElectionValidation: LeaderElectionValidationAlgebra[F],
+    protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     Resource.pure {
       new StakingAlgebra[F] {
@@ -113,7 +114,8 @@ object Staking {
                 unsignedBlock.eligibilityCertificate,
                 operationalCertificate,
                 unsignedBlock.metadata,
-                unsignedBlock.address
+                unsignedBlock.address,
+                protocolVersion
               )
             } yield header
           }.value

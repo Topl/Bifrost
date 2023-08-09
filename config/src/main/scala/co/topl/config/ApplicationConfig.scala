@@ -85,6 +85,7 @@ object ApplicationConfig {
 
     @Lenses
     case class Protocol(
+      minAppVersion:              String,
       fEffective:                 Ratio,
       vrfLddCutoff:               Int,
       vrfPrecision:               Int,
