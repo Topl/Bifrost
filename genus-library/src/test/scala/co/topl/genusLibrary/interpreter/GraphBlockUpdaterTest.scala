@@ -27,9 +27,7 @@ class GraphBlockUpdaterTest extends CatsEffectSuite with ScalaCheckEffectSuite w
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   test("Insert genesis block, should fail, if we can not add the vertex") {
-    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
-      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = throw new IllegalStateException("boom!")
-    }
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {}
 
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
@@ -79,9 +77,7 @@ class GraphBlockUpdaterTest extends CatsEffectSuite with ScalaCheckEffectSuite w
   }
 
   test("Insert no genesis block, should fail, if we can not add the vertex") {
-    val orientGraph: OrientGraph = new OrientGraph("memory:test") {
-      override def addVertex(id: Object, prop: AnyRef*): OrientVertex = throw new IllegalStateException("boom!")
-    }
+    val orientGraph: OrientGraph = new OrientGraph("memory:test") {}
     PropF.forAllF { blockHeader: BlockHeader =>
       withMock {
         val nodeBlockFetcher = mock[NodeBlockFetcherAlgebra[F, Stream[F, *]]]

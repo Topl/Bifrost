@@ -24,7 +24,7 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
 
   type F[A] = IO[A]
 
-  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+  Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   test("On fetchTransaction with throwable response, a FailureMessageWithCause should be returned") {
 

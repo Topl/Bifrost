@@ -82,7 +82,7 @@ object RequestsProxy {
       case (state, DownloadHeadersResponse(source, response))   => downloadHeadersResponse(state, source, response)
       case (state, DownloadBodiesRequest(hostId, blockHeaders)) => downloadBodiesRequest(state, hostId, blockHeaders)
       case (state, DownloadBodiesResponse(source, response))    => downloadBodiesResponse(state, source, response)
-      case (state, InvalidateBlockId(source, blockId))          => invalidateBlockId(state, source, blockId)
+      case (state, InvalidateBlockId(source, _))                => invalidateBlockId(state, source)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -404,9 +404,8 @@ object RequestsProxy {
   }
 
   private def invalidateBlockId[F[_]: Async](
-    state:   State[F],
-    source:  HostId,
-    blockId: BlockId
+    state:  State[F],
+    source: HostId
   ): F[(State[F], Response[F])] =
     // TODO add cache for invalid block thus no longer accept blocks with that particular id
     state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectBlock(source)) >>

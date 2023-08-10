@@ -24,8 +24,7 @@ import fs2.Stream
 
 class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
-  implicit private val logger: Logger[F] =
-    Slf4jLogger.getLoggerFromClass[F](this.getClass)
+  Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   type F[A] = IO[A]
 

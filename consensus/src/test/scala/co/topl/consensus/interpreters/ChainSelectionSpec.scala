@@ -36,7 +36,7 @@ class ChainSelectionSpec
 
   type F[A] = IO[A]
 
-  implicit private val logger: Logger[F] = Slf4jLogger.getLogger[F]
+  Slf4jLogger.getLogger[F]
 
   implicit private val blake2b512: Blake2b512 = new Blake2b512
 

@@ -52,8 +52,6 @@ object PrivateTestnet {
     stakers:         List[StakerInitializers.Operator],
     stakes:          Option[List[BigInt]],
     protocolVersion: ProtocolVersion
-  )(implicit
-    networkPrefix: NetworkPrefix
   ): BigBang.Config = {
     require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
     BigBang.Config(
@@ -70,7 +68,7 @@ object PrivateTestnet {
         .appended(
           UnspentTransactionOutput(
             HeightLockOneSpendingAddress,
-            Value().withLvl(Value.LVL(10_000_000L))
+            Value.defaultInstance.withLvl(Value.LVL(10_000_000L))
           )
         ),
       Config.DefaultEtaPrefix,

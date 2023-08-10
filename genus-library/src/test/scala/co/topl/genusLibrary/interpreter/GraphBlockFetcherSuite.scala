@@ -19,7 +19,7 @@ class GraphBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   type F[A] = IO[A]
 
-  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
+  Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   test("On fetchCanonicalHead with throwable response, a FailureMessageWithCause should be returned") {
 

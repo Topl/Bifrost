@@ -28,7 +28,7 @@ object Orchestrator
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => Args.parserArgs.constructOrThrow(args),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (args, conf) => ApplicationConfig.unsafe(args, conf)
+      parseConfig = (_, conf) => ApplicationConfig.unsafe(conf)
     ) {
 
   private type NodeName = String

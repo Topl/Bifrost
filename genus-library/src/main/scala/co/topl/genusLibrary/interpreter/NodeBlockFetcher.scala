@@ -74,21 +74,26 @@ object NodeBlockFetcher {
           body:    BlockBody,
           toplRpc: NodeRpc[F, Stream[F, *]]
         ): F[Either[GE, Chain[IoTransaction]]] =
-          body.transactionIds.toList.traverse(ioTx32 =>
-            toplRpc
-              .fetchTransaction(ioTx32)
-              .map(maybeTransaction => (ioTx32, maybeTransaction))
-          ) map { e =>
-            e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[TransactionId]]) {
-              case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
-              case (Right(_), (ioTx32, None))                        => ListSet(ioTx32).asLeft
-              case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
-              case (Left(nonExistentTransactions), (ioTx32, None)) =>
-                Left(nonExistentTransactions + ioTx32)
+          body.transactionIds.toList
+            .traverse(ioTx32 =>
+              toplRpc
+                .fetchTransaction(ioTx32)
+                .map(maybeTransaction => (ioTx32, maybeTransaction))
+            )
+            .map { e =>
+              e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[TransactionId]]) {
+                case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
+                case (Right(_), (ioTx32, None))                        => ListSet(ioTx32).asLeft
+                case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
+                case (Left(nonExistentTransactions), (ioTx32, None)) =>
+                  Left(nonExistentTransactions + ioTx32)
+              }
             }
-          } map [Either[GE, Chain[IoTransaction]]] (_.left.map(
-            GEs.TransactionsNotFound
-          ))
+            .map[Either[GE, Chain[IoTransaction]]](
+              _.left.map(
+                GEs.TransactionsNotFound
+              )
+            )
 
         def fetchHeight(): F[Option[Long]] =
           (for {
