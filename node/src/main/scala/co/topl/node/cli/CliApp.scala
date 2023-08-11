@@ -11,6 +11,7 @@ import co.topl.config.ApplicationConfig
 import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
+import co.topl.node.StakingInit
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
@@ -92,7 +93,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
         )
       )
         .withOutputs(transactionOutputs)
-      _ <- write(transaction.toByteArray)("Registration Transaction", "registration.transaction.pbuf")
+      _ <- write(transaction.toByteArray)("Registration Transaction", StakingInit.RegistrationTxName)
       _ <- finalInstructions(isExistingNetwork)
     } yield StageResult.Menu
 
@@ -196,7 +197,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
     ) >>
     createSeed
       .map(new Ed25519().deriveSecretKeyFromSeed)
-      .flatTap(key => write(key.bytes)("Operator SK", "operator-key.ed25519.sk"))
+      .flatTap(key => write(key.bytes)("Operator SK", StakingInit.OperatorKeyName))
 
   /**
    * Generate and save a VRF key.
@@ -207,7 +208,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
     ) >>
     createSeed
       .map(Ed25519VRF.precomputed().deriveKeyPairFromSeed)
-      .flatTap(key => write(key._1)("VRF SK", "vrf-key.ed25519vrf.sk"))
+      .flatTap(key => write(key._1)("VRF SK", StakingInit.VrfKeyName))
 
   /**
    * Generate and save a KES key.
@@ -227,7 +228,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
       .flatTap(key =>
         write(co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey.persistedBytes(key._1).toByteArray)(
           "KES SK",
-          "kes/0"
+          s"${StakingInit.KesDirectoryName}/0"
         )
       )
 
