@@ -16,6 +16,7 @@ import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
+import scala.annotation.nowarn
 
 object RequestsProxy {
   sealed trait Message
@@ -82,7 +83,7 @@ object RequestsProxy {
       case (state, DownloadHeadersResponse(source, response))   => downloadHeadersResponse(state, source, response)
       case (state, DownloadBodiesRequest(hostId, blockHeaders)) => downloadBodiesRequest(state, hostId, blockHeaders)
       case (state, DownloadBodiesResponse(source, response))    => downloadBodiesResponse(state, source, response)
-      case (state, InvalidateBlockId(source, _))                => invalidateBlockId(state, source)
+      case (state, InvalidateBlockId(source, blockId))          => invalidateBlockId(state, source, blockId)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -404,8 +405,9 @@ object RequestsProxy {
   }
 
   private def invalidateBlockId[F[_]: Async](
-    state:  State[F],
-    source: HostId
+    state:           State[F],
+    source:          HostId,
+    @nowarn blockId: BlockId
   ): F[(State[F], Response[F])] =
     // TODO add cache for invalid block thus no longer accept blocks with that particular id
     state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectBlock(source)) >>
