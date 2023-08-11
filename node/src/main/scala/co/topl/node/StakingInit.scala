@@ -33,6 +33,9 @@ object StakingInit {
   final val VrfKeyName = "vrf-key.ed25519vrf.sk"
   final val RegistrationTxName = "registration.transaction.pbuf"
 
+  /**
+   * Initializes a Staking object from a private genesis configuration.
+   */
   def makeStakingFromGenesis[F[_]: Async: Logger](
     stakingDir:               Path,
     initializer:              StakerInitializers.Operator,
@@ -73,6 +76,10 @@ object StakingInit {
       )
     } yield staking
 
+  /**
+   * Initializes a Staking object from existing files on disk.  The files are expected to be in the format created
+   * by the "Registration" CLI process.
+   */
   def makeStakingFromDisk[F[_]: Async: Logger](
     stakingDir:               Path,
     clock:                    ClockAlgebra[F],
@@ -119,6 +126,9 @@ object StakingInit {
       )
     } yield staking
 
+  /**
+   * Initializes a Staking object from the given raw VRF and staking address information
+   */
   def makeStaking[F[_]: Async: Logger](
     stakingDir:               Path,
     vrfSK:                    ByteString,

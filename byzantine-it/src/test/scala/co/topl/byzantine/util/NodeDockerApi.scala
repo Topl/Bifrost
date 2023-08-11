@@ -75,16 +75,19 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
             .through(Files[F].writeAll(tmpLogFile))
             .compile
             .drain
-          _ <- Sync[F].blocking(
-            dockerClient.copyToContainer(
-              tmpConfigDir.toNioPath,
-              containerId,
-              "/opt/docker/config"
-            )
-          )
+          _ <- copyDirectoryIntoContainer(tmpConfigDir, Path("/opt/docker/config"))
         } yield ()
       )
     } yield ()
+
+  def copyDirectoryIntoContainer[F[_]: Sync](localPath: Path, containerPath: Path): F[Unit] =
+    Sync[F].blocking(
+      dockerClient.copyToContainer(
+        localPath.toNioPath,
+        containerId,
+        containerPath.toString
+      )
+    )
 
   def containerLogs[F[_]: Async]: Stream[F, Byte] =
     Stream
