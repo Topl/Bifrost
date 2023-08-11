@@ -1,5 +1,6 @@
 package co.topl.config
 
+import co.topl.brambl.models.LockAddress
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.numerics.implicits.Ops
@@ -37,7 +38,7 @@ object ApplicationConfig {
     case class Data(directory: String)
 
     @Lenses
-    case class Staking(directory: String)
+    case class Staking(directory: String, rewardAddress: LockAddress)
 
     @Lenses
     case class P2P(

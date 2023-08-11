@@ -54,7 +54,8 @@ object ConsensusDataEventSourcedState {
 
     def apply(state: ConsensusData[F], blockId: BlockId): F[ConsensusData[F]] =
       for {
-        body         <- fetchBlockBody(blockId)
+        body <- fetchBlockBody(blockId)
+        // NOTE: No need to consider body.rewardTransaction since stake is not rewarded
         transactions <- body.transactionIds.traverse(fetchTransaction)
         spentActiveStake = activeQuantityOf(transactions.flatMap(_.inputs).map(_.value))
         createdActiveStake = activeQuantityOf(transactions.flatMap(_.outputs).map(_.value))
@@ -91,7 +92,8 @@ object ConsensusDataEventSourcedState {
 
     def apply(state: ConsensusData[F], blockId: BlockId): F[ConsensusData[F]] =
       for {
-        body         <- fetchBlockBody(blockId)
+        body <- fetchBlockBody(blockId)
+        // NOTE: No need to consider body.rewardTransaction since stake is not rewarded
         transactions <- body.transactionIds.reverse.traverse(fetchTransaction)
         spentActiveStake = activeQuantityOf(transactions.flatMap(_.inputs.reverse).map(_.value))
         createdActiveStake = activeQuantityOf(transactions.flatMap(_.outputs.reverse).map(_.value))

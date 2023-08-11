@@ -99,12 +99,27 @@ object GraphVertexFetcher {
               orientGraph
                 .getVertices(
                   ioTransactionSchema.name,
-                  Array(SchemaBlockHeader.Field.BlockId),
-                  Array(headerVertex.getId)
+                  Array(SchemaBlockHeader.Field.BlockId, SchemaIoTransaction.Field.IsReward),
+                  Array(headerVertex.getId, false)
                 )
                 .asScala
             ).toEither
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", tx))
+          )
+
+        def fetchRewardTransaction(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  ioTransactionSchema.name,
+                  Array(SchemaBlockHeader.Field.BlockId, SchemaIoTransaction.Field.IsReward),
+                  Array(headerVertex.getId, true)
+                )
+                .asScala
+                .headOption
+            ).toEither
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchRewardTransaction", tx))
           )
 
         def fetchTransaction(ioTransaction32: TransactionId): F[Either[GE, Option[Vertex]]] =

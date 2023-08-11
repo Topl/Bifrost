@@ -60,6 +60,7 @@ object RegistrationAccumulator {
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
       body <- fetchBlockBody(blockId)
+      // Note: Reward transaction can't include registrations
       _ <- body.transactionIds
         .traverse(
           fetchTransaction(_)
@@ -91,6 +92,7 @@ object RegistrationAccumulator {
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
       body <- fetchBlockBody(blockId)
+      // Note: Reward transaction can't include registrations
       _ <- body.transactionIds.reverse
         .traverse(
           fetchTransaction(_)

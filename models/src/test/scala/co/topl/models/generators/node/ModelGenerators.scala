@@ -10,8 +10,17 @@ trait ModelGenerators {
   implicit val arbitraryNodeBody: Arbitrary[BlockBody] =
     Arbitrary(
       for {
-        ioTx32 <- Gen.listOf(arbitraryTransactionId.arbitrary)
-      } yield BlockBody.of(ioTx32)
+        transactions <- Gen.listOf(arbitraryTransactionId.arbitrary)
+        reward       <- Gen.option(arbitraryTransactionId.arbitrary)
+      } yield BlockBody(transactions, reward)
+    )
+
+  implicit val arbitraryNodeFullBody: Arbitrary[FullBlockBody] =
+    Arbitrary(
+      for {
+        transactions <- Gen.listOf(arbitraryIoTransaction.arbitrary)
+        reward       <- Gen.option(arbitraryIoTransaction.arbitrary)
+      } yield FullBlockBody(transactions, reward)
     )
 
   implicit val arbitraryBlock: Arbitrary[Block] =
@@ -19,7 +28,15 @@ trait ModelGenerators {
       for {
         header <- arbitraryHeader.arbitrary
         body   <- arbitraryNodeBody.arbitrary
-      } yield Block.of(header, body)
+      } yield Block(header, body)
+    )
+
+  implicit val arbitraryFullBlock: Arbitrary[FullBlock] =
+    Arbitrary(
+      for {
+        header <- arbitraryHeader.arbitrary
+        body   <- arbitraryNodeFullBody.arbitrary
+      } yield FullBlock(header, body)
     )
 }
 object ModelGenerators extends ModelGenerators

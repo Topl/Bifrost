@@ -23,6 +23,7 @@ import co.topl.ledger.algebras.{
   BodySyntaxValidationAlgebra,
   BoxStateAlgebra,
   RegistrationAccumulatorAlgebra,
+  TransactionRewardCalculatorAlgebra,
   TransactionSemanticValidationAlgebra
 }
 import co.topl.ledger.interpreters._
@@ -40,7 +41,8 @@ case class Validators[F[_]](
   bodySemantics:            BodySemanticValidationAlgebra[F],
   bodyAuthorization:        BodyAuthorizationValidationAlgebra[F],
   boxState:                 BoxStateAlgebra[F],
-  registrationAccumulator:  RegistrationAccumulatorAlgebra[F]
+  registrationAccumulator:  RegistrationAccumulatorAlgebra[F],
+  rewardCalculator:         TransactionRewardCalculatorAlgebra[F]
 )
 
 object Validators {
@@ -90,8 +92,9 @@ object Validators {
         .make[F](dataStores.transactions.getOrRaise, boxState)
         .toResource
       transactionAuthorizationValidation = TransactionAuthorizationInterpreter.make[F]()
+      rewardCalculator <- TransactionRewardCalculator.make[F]
       bodySyntaxValidation <- BodySyntaxValidation
-        .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation)
+        .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation, rewardCalculator)
         .toResource
       registrationAccumulator <- RegistrationAccumulator.make[F](
         currentEventIdGetterSetters.registrationAccumulator.get(),
@@ -124,6 +127,7 @@ object Validators {
       bodySemanticValidation,
       bodyAuthorizationValidation,
       boxState,
-      registrationAccumulator
+      registrationAccumulator,
+      rewardCalculator
     )
 }

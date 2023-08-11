@@ -7,6 +7,7 @@ import cats.implicits._
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.BlockId
+import co.topl.models.utility._
 import co.topl.transactiongenerator.algebras.WalletInitializer
 import co.topl.transactiongenerator.models.Wallet
 import fs2._
@@ -51,7 +52,7 @@ object ToplRpcWalletInitializer {
         .parEvalMap(fetchBodyParallelism)(blockId =>
           OptionT(toplRpc.fetchBlockBody(blockId))
             .getOrRaise(new IllegalStateException("Block body not found"))
-            .map(_.transactionIds)
+            .map(_.allTransactionIds)
         )
         .flatMap(Stream.iterable)
         .parEvalMap(fetchTransactionParallelism)(transactionId =>
