@@ -228,11 +228,11 @@ def job_to_config(job: dict) -> dict:
             def _edge_stats_to_throttle(edge_stats: dict) -> dict:
                 throttle = dict()
                 if "download" in edge_stats and edge_stats["download"] != -1:
-                    egress_dict["throttle"]["downloadBytesPerSecond"] = edge_stats["download"] // 2
+                    throttle["downloadBytesPerSecond"] = edge_stats["download"] // 2
                 if "upload" in edge_stats and edge_stats["upload"] != -1:
-                    egress_dict["throttle"]["uploadBytesPerSecond"] = edge_stats["upload"] // 2
+                    throttle["uploadBytesPerSecond"] = edge_stats["upload"] // 2
                 if "latency" in edge_stats and edge_stats["latency"] != -1:
-                    egress_dict["throttle"]["latency"] = str(edge_stats["latency"] // 2) + " milli"
+                    throttle["latency"] = str(edge_stats["latency"] // 2) + " milli"
                 return throttle
 
             # every egress edge is a list of dicts, with each dict containing "peer" and (optionally) "throttle"
