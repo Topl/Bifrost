@@ -99,9 +99,11 @@ object BodySyntaxValidation {
               rewardTransaction.inputs.length == 1 &&
               rewardTransaction.outputs.length == 1 &&
               rewardTransaction.outputs.head.value.value.isLvl,
-              rewardTransaction.outputs.head.value.value.lvl.get.quantity: BigInt,
+              rewardTransaction.outputs.head.value.value.lvl,
               BodySyntaxErrors.InvalidReward(rewardTransaction)
             )
+            .subflatMap(_.toRight(BodySyntaxErrors.InvalidReward(rewardTransaction)))
+            .map(_.quantity: BigInt)
             .flatMapF(definedQuantity =>
               transactions
                 .parFoldMapA(rewardCalculator.rewardOf)
