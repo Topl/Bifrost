@@ -17,7 +17,7 @@ import yaml
                 type=click.Path(exists=True, readable=True, path_type=pathlib.Path),
                 required=True)
 @click.argument('output_dir',
-                type=click.Path(exists=True, writable=True, file_okay=False, path_type=pathlib.Path),
+                type=click.Path(exists=False, writable=True, file_okay=False, path_type=pathlib.Path),
                 required=False)
 def main(experiment_file: pathlib.Path, output_dir: pathlib.Path = None) -> None:
     # ensure that the output directory exists

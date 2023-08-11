@@ -23,6 +23,7 @@
 
 # override specific settings at these dict-key-paths
 "scenario/transactionsPerSecond": [ 2.5 ]
+"shared-config/bifrost/big-bang/staker-count": [ 2 ]
 "shared-config/bifrost/protocols/0/slot-duration": { "min": 250, "max": 250, "step": 1, "suffix": " milli" }
 "scenario/scenarioTimeout": [ 600 ]
 "scenario/targetHeight": [ 30 ]

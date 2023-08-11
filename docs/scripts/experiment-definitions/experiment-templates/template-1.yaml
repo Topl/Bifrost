@@ -1,7 +1,21 @@
+# These settings configure the images that will be used to run the experiment
+image:
+  name: localhost:5000/topl/bifrost-node
+  tag: latest
+
+delayerImage:
+  name: localhost:5000/topl/network-delayer
+  tag: latest
+
+orchestratorImage:
+  name: localhost:5000/topl/testnet-simulation-orchestrator
+  tag: latest
+
+
 # These settings control where the results are published
 results:
   # The Storage Bucket on Google Cloud
-  bucket: bifrost-topl-testnet-scenario-results
+  bucket: bifrost-topl-labs-testnet-scenario-results
   # The prefix to apply to each uploaded file.  The scenario name is automatically applied as a suffix to this prefix.
   prefix: /simulation/results/
 
@@ -21,7 +35,7 @@ shared-config:
   # Define custom application.conf overrides
   bifrost:
     big-bang:
-      staker-count: 500
+      staker-count: 2
     protocols:
       0:
         slot-duration: 1 milli
