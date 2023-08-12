@@ -7,7 +7,7 @@ object Dependencies {
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.5.1"
-  val fs2Version = "3.7.0"
+  val fs2Version = "3.8.0"
   val logback = "1.4.11"
   val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.57.0"
