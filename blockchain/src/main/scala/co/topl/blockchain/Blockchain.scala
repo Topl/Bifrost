@@ -10,6 +10,7 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
+import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
 import co.topl.codecs.bytes.tetra.instances._
@@ -23,12 +24,12 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.grpc.NodeGrpc
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
-import co.topl.ledger.interpreters.TransactionRewardCalculator
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters._
 import co.topl.networking.blockchain._
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import co.topl.networking.p2p._
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
@@ -71,7 +72,7 @@ object Blockchain {
       remotePeersStream                 <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
       (localChain, blockAdoptionsTopic) <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
-      // Whenever a block is adopted locally, broadcast all of its corresponding _transactions_ to eagerly notify peers
+      // Whenever a block is adopted locally, broadcast all of its corresponding (non-reward) _transactions_ to eagerly notify peers
       _ <- Async[F].background(
         blockAdoptionsTopic.subscribeUnbounded
           .evalMap(id => dataStores.bodies.getOrRaise(id))
@@ -185,15 +186,14 @@ object Blockchain {
         )
       mintedBlockStream =
         for {
-          staker           <- Stream.fromOption[F](stakerOpt)
-          rewardCalculator <- Stream.resource(TransactionRewardCalculator.make[F])
+          staker <- Stream.fromOption[F](stakerOpt)
           costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
           blockPacker <- Stream.resource(
             BlockPacker
               .make[F](
                 mempool,
                 validators.boxState,
-                rewardCalculator,
+                validators.rewardCalculator,
                 costCalculator,
                 validators.transactionAuthorization,
                 validators.registrationAccumulator
@@ -215,7 +215,8 @@ object Blockchain {
                   ),
                 staker,
                 clock,
-                blockPacker
+                blockPacker,
+                validators.rewardCalculator
               )
           )
           block <- Stream.force(blockProducer.blocks)
@@ -226,7 +227,9 @@ object Blockchain {
             val id = block.header.id
             blockIdTree.associate(id, block.header.parentHeaderId) &>
             dataStores.headers.put(id, block.header) &>
-            dataStores.bodies.put(id, block.body) &>
+            dataStores.bodies
+              .put(id, BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))) &>
+            block.fullBody.rewardTransaction.traverse(tx => dataStores.transactions.put(tx.id, tx)) &>
             ed25519VrfResource
               .use(implicit e => Sync[F].delay(block.header.slotData))
               .flatTap(dataStores.slotData.put(id, _))

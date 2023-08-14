@@ -54,7 +54,14 @@ object OrientDBMetadataFactory {
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge, addressTxoEdge)
+            _ <- Seq(
+              blockHeaderEdge,
+              blockHeaderBodyEdge,
+              blockHeaderTxIOEdge,
+              blockHeaderRewardEdge,
+              addressTxIOEdge,
+              addressTxoEdge
+            )
               .traverse(e => createEdge(db, e))
               .void
           } yield ()

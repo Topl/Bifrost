@@ -5,6 +5,7 @@ import cats.implicits._
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.models.utility._
 import co.topl.numerics.implicits._
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.models.AdoptionDatum
@@ -115,7 +116,7 @@ object GcpCsvDataPublisher {
       datum.header.eligibilityCertificate.toByteString.show,
       datum.header.operationalCertificate.toByteString.show,
       datum.header.metadata.toString,
-      datum.body.transactionIds.map(_.show).mkString(";")
+      datum.body.allTransactionIds.map(_.show).mkString(";")
     )
 
   private def transactionDatumToRow(datum: TransactionDatum) =

@@ -1,19 +1,18 @@
 package co.topl.genusLibrary.interpreter
 
-import cats.data.{Chain, EitherT, OptionT}
+import cats.data.{EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.algebras.NodeRpc
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.NodeBlockFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.FullBlockBody
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+
 import scala.collection.immutable.ListSet
 
 object NodeBlockFetcher {
@@ -60,10 +59,18 @@ object NodeBlockFetcher {
         // TODO: TSDK-186 | Do calls concurrently.
         override def fetch(blockId: BlockId): F[Either[GE, BlockData]] = (
           for {
-            header       <- OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE)
-            body         <- OptionT(toplRpc.fetchBlockBody(blockId)).toRight(GEs.BodyNotFound(blockId): GE)
-            transactions <- EitherT(fetchTransactions(body, toplRpc))
-          } yield BlockData(header, body, transactions.toList)
+            header <- OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE)
+            body   <- OptionT(toplRpc.fetchBlockBody(blockId)).toRight(GEs.BodyNotFound(blockId): GE)
+            transactions <- body.transactionIds.traverse(id =>
+              OptionT(toplRpc.fetchTransaction(id))
+                .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
+            )
+            reward <- body.rewardTransactionId.traverse(id =>
+              OptionT(toplRpc.fetchTransaction(id))
+                .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
+            )
+            fullBody = FullBlockBody(transactions, reward)
+          } yield BlockData(header, fullBody)
         ).value
 
         /*

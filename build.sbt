@@ -541,7 +541,7 @@ lazy val ledger = project
     typeclasses,
     eventTree,
     munitScalamock % "test->test",
-    numerics % "test->compile"
+    numerics
   )
 
 lazy val blockchain = project

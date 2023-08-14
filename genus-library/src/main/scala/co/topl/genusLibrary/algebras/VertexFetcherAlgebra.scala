@@ -53,10 +53,20 @@ trait VertexFetcherAlgebra[F[_]] {
   /**
    * Fetch Transactions Vertices, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
    *
+   * Does not include the reward transaction
+   *
    * @param headerVertex filter by field
    * @return transactions vertices
    */
   def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]]
+
+  /**
+   * Fetch the optional "Reward" Transaction Vertex associated with the given BlockHeader
+   *
+   * @param headerVertex filter by field
+   * @return optional transactions vertex
+   */
+  def fetchRewardTransaction(headerVertex: Vertex): F[Either[GE, Option[Vertex]]]
 
   /**
    * Fetch Transaction Vertex, using TransactionIndex

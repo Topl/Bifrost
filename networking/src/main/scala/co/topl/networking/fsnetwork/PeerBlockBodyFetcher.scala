@@ -18,6 +18,7 @@ import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.{Block, BlockBody}
+import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -124,7 +125,7 @@ object PeerBlockBodyFetcher {
     blockBody: BlockBody
   ): F[List[(TransactionId, Option[Long])]] =
     Stream
-      .iterable[F, TransactionId](blockBody.transactionIds)
+      .iterable[F, TransactionId](blockBody.allTransactionIds)
       .evalMap(transactionId =>
         state.transactionStore
           .contains(transactionId)

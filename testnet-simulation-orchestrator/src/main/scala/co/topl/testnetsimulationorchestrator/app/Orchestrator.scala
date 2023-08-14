@@ -11,6 +11,7 @@ import co.topl.brambl.syntax._
 import co.topl.common.application.IOBaseApp
 import co.topl.interpreters.MultiNodeRpc
 import co.topl.consensus.models.BlockHeader
+import co.topl.models.utility._
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
@@ -206,7 +207,7 @@ object Orchestrator
         blockDatumTopic
           .subscribe(128)
           .fold(Map.empty[TransactionId, NodeName]) { case (assignments, (node, datum)) =>
-            assignments ++ datum.body.transactionIds.tupleRight(node)
+            assignments ++ datum.body.allTransactionIds.tupleRight(node)
           }
       // Publish the block data results
       _ <- Logger[F].info("Fetching block bodies, publishing blocks, and assigning transactions (in parallel)")

@@ -25,6 +25,7 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models._
+import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.networking.blockchain._
 import co.topl.typeclasses.implicits._
@@ -262,7 +263,7 @@ object BlockchainPeerHandler {
                 _    <- Logger[F].info(show"Fetching remote body id=$blockId")
                 body <- OptionT(client.getRemoteBody(blockId)).getOrNoSuchElement(blockId.show)
                 _ <- Stream
-                  .iterable[F, co.topl.brambl.models.TransactionId](body.transactionIds)
+                  .iterable[F, co.topl.brambl.models.TransactionId](body.allTransactionIds)
                   .parEvalMapUnordered(16)(transactionId =>
                     transactionStore
                       .contains(transactionId)

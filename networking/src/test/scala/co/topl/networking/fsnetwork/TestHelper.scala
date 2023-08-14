@@ -74,7 +74,8 @@ object TestHelper extends TransactionGenerator {
     Arbitrary(
       for {
         txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary.map(_.embedId))
-      } yield (txs, BlockBody.of(txs.map(tx => tx.id)))
+        // TODO: Reward
+      } yield (txs, BlockBody(txs.map(tx => tx.id)))
     )
 
   def headerToSlotData(header: BlockHeader): SlotData = {

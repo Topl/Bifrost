@@ -2,6 +2,8 @@ package co.topl.node
 
 import cats.Show
 import cats.implicits._
+import co.topl.brambl.codecs.AddressCodecs.decodeAddress
+import co.topl.brambl.models.LockAddress
 import co.topl.config.ApplicationConfig
 import co.topl.config.ApplicationConfig.Bifrost
 import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
@@ -100,6 +102,11 @@ object ApplicationConfigOps {
       Try(
         parseKnownPeers(str)
       ).toEither.leftMap(e => error.CannotConvert(str, "InetAddressList", e.getMessage))
+    )
+
+  implicit val lockAddressReader: ConfigReader[LockAddress] =
+    ConfigReader[String].emap(str =>
+      decodeAddress(str).leftMap(e => error.CannotConvert(str, "LockAddress", e.toString))
     )
 
   implicit def slotMapReader[T: ConfigReader]: ConfigReader[Map[Slot, T]] =
