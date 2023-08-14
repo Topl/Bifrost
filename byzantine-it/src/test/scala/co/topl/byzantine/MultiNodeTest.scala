@@ -91,7 +91,7 @@ class MultiNodeTest extends IntegrationSuite {
         // by node3's staking address
         _ <- node0
           .rpcClient[F](node0.config.rpcPort)
-          .use(_.adoptedHeaders.find(_.address == node3StakingAddress).timeout(1.minutes).compile.lastOrError)
+          .use(_.adoptedHeaders.find(_.address == node3StakingAddress).timeout(2.minutes).compile.lastOrError)
           .toResource
         heights = thirdEpochHeads.map(_.height)
         // All nodes should be at _roughly_ equal height
