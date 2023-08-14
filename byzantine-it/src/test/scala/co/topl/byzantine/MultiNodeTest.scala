@@ -16,6 +16,7 @@ import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.byzantine.util._
 import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
 import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.consensus.models.StakingAddress
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
@@ -25,7 +26,7 @@ import co.topl.interpreters.NodeRpcOps._
 import co.topl.node.StakingInit
 import com.google.protobuf.ByteString
 import fs2.Chunk
-import fs2.io.file.{Files, Path}
+import fs2.io.file.{Files, Path, PosixPermission, PosixPermissions}
 import co.topl.numerics.implicits._
 import co.topl.quivr.api.Prover
 
@@ -112,10 +113,33 @@ class MultiNodeTest extends IntegrationSuite {
 
   }
 
+  /**
+   * The KES key needs to be modifiable by the node's container user
+   */
+  private val posixOtherWritePermissions =
+    PosixPermissions(
+      PosixPermission.OwnerRead,
+      PosixPermission.OwnerWrite,
+      PosixPermission.GroupRead,
+      PosixPermission.GroupWrite,
+      PosixPermission.OthersRead,
+      PosixPermission.OthersWrite
+    )
+
+  /**
+   * Generates a new staker by taking half of the stake from the given input transaction.  The keys are generated locally
+   * on the host machine before being copied into the target container.  The resulting registration transaction is also
+   * broadcasted using the given RPC client.
+   * @param inputTransaction A transaction containing funds to split
+   * @param inputIndex The UTxO index at which the funds currently exist
+   * @param rpcClient the RPC client to receive the broadcasted transaction
+   * @param stakingNode the docker container/node to which the keys will be copied
+   * @return the new staker's StakingAddress
+   */
   private def registerStaker(inputTransaction: IoTransaction, inputIndex: Int)(
     rpcClient:   NodeRpc[F, fs2.Stream[F, *]],
     stakingNode: BifrostDockerNode
-  )(implicit dockerClient: DockerClient) =
+  )(implicit dockerClient: DockerClient): F[StakingAddress] =
     Files
       .forAsync[F]
       .tempDirectory
@@ -130,6 +154,7 @@ class MultiNodeTest extends IntegrationSuite {
             fs2.Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(localTmpDir / name)).compile.drain
           _ <- Logger[F].info("Saving new staker keys to temp directory")
           _ <- Files[F].createDirectories(localTmpDir / StakingInit.KesDirectoryName)
+          _ <- Files[F].createFile(localTmpDir / StakingInit.KesDirectoryName / "0", Some(posixOtherWritePermissions))
           _ <- writeFile(
             StakingInit.KesDirectoryName + "/0",
             Persistable[SecretKeyKesProduct].persistedBytes(kesKey._1).toByteArray
