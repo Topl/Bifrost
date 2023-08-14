@@ -22,7 +22,6 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class ChainSelectionSpec
     extends AnyFlatSpec
@@ -34,8 +33,6 @@ class ChainSelectionSpec
   behavior of "ChainSelection"
 
   type F[A] = IO[A]
-
-  Slf4jLogger.getLogger[F]
 
   implicit private val blake2b512: Blake2b512 = new Blake2b512
 

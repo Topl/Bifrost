@@ -17,13 +17,10 @@ import com.tinkerpop.blueprints.{Direction, Vertex}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
-
-  Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   test("On fetchTransaction with throwable response, a FailureMessageWithCause should be returned") {
 
