@@ -123,7 +123,9 @@ object DockerSupport {
       environment: Map[String, String],
       config:      TestNodeConfig
     ): ContainerConfig = {
-      val configDirectory = "/opt/docker/config"
+      val configDirectory = "/bifrost-config"
+      val stakingDirectory = "/bifrost-staking"
+      val dataDirectory = "/bifrost-data"
       val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
       val exposedPorts: Seq[String] = List(config.rpcPort, config.p2pPort, config.jmxRemotePort).map(_.toString)
       val env =
@@ -137,9 +139,9 @@ object DockerSupport {
           "-Dcom.sun.management.jmxremote.local.only=false",
           "-Dcom.sun.management.jmxremote.authenticate=false",
           "--config",
-          "/opt/docker/config/node.yaml",
+          "/bifrost-config/node.yaml",
           "--logbackFile",
-          "/opt/docker/config/logback.xml",
+          "/bifrost-config/logback.xml",
           "--debug"
         )
 
@@ -150,7 +152,7 @@ object DockerSupport {
         .builder()
         .image(bifrostImage)
         .env(env: _*)
-        .volumes(configDirectory)
+        .volumes(configDirectory, stakingDirectory, dataDirectory)
         .cmd(cmd: _*)
         .hostname(name)
         .hostConfig(hostConfig)
@@ -178,6 +180,10 @@ case class TestNodeConfig(
     )
     s"""
        |bifrost:
+       |  data:
+       |    directory: /bifrost-data
+       |  staking:
+       |    directory: /bifrost-staking
        |  rpc:
        |    bind-host: 0.0.0.0
        |    port: "$rpcPort"

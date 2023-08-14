@@ -19,7 +19,6 @@ import co.topl.interpreters.CacheStore
 import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
-import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
@@ -29,7 +28,7 @@ object DataStoresInit {
   def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
     for {
       dataDir <- Resource.pure[F, Path](
-        Path(appConfig.bifrost.data.directory) / bigBangBlock.header.id.show
+        Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.data.directory))
       )
       _ <- Resource.eval(Files.forAsync[F].createDirectories(dataDir))
       _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))

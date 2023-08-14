@@ -47,10 +47,10 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
   def ipAddress[F[_]: Sync]: F[String] =
     Sync[F].blocking(dockerClient.inspectContainer(containerId).networkSettings().ipAddress())
 
-  def rpcClient[F[_]: Async](port: Int, tls: Boolean): Resource[F, NodeRpc[F, Stream[F, *]]] =
+  def rpcClient[F[_]: Async](port: Int, tls: Boolean = false): Resource[F, NodeRpc[F, Stream[F, *]]] =
     ipAddress.toResource.flatMap(NodeGrpc.Client.make[F](_, port, tls))
 
-  def rpcGenusClient[F[_]: Async](port: Int, tls: Boolean): Resource[F, ToplGenusRpc[F]] =
+  def rpcGenusClient[F[_]: Async](port: Int, tls: Boolean = false): Resource[F, ToplGenusRpc[F]] =
     ipAddress.toResource.flatMap(GenusGrpc.Client.make[F](_, port, tls))
 
   def configure[F[_]: Async](configYaml: String): F[Unit] =
@@ -75,7 +75,7 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
             .through(Files[F].writeAll(tmpLogFile))
             .compile
             .drain
-          _ <- copyDirectoryIntoContainer(tmpConfigDir, Path("/opt/docker/config"))
+          _ <- copyDirectoryIntoContainer(tmpConfigDir, Path("/bifrost-config"))
         } yield ()
       )
     } yield ()

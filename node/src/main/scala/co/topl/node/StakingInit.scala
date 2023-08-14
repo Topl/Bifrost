@@ -7,6 +7,7 @@ import cats.effect.implicits._
 import cats.effect._
 import co.topl.algebras.ClockAlgebra
 import co.topl.blockchain.{CryptoResources, StakerInitializers}
+import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
 import co.topl.codecs.bytes.typeclasses.Persistable
@@ -39,6 +40,7 @@ object StakingInit {
   def makeStakingFromGenesis[F[_]: Async: Logger](
     stakingDir:               Path,
     initializer:              StakerInitializers.Operator,
+    rewardAddress:            LockAddress,
     clock:                    ClockAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
@@ -65,6 +67,7 @@ object StakingInit {
         initializer.vrfSK,
         initializer.vrfVK,
         initializer.stakingAddress,
+        rewardAddress,
         clock,
         etaCalculation,
         consensusValidationState,
@@ -82,6 +85,7 @@ object StakingInit {
    */
   def makeStakingFromDisk[F[_]: Async: Logger](
     stakingDir:               Path,
+    rewardAddress:            LockAddress,
     clock:                    ClockAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
@@ -115,6 +119,7 @@ object StakingInit {
         ByteString.copyFrom(vrfSK),
         ByteString.copyFrom(vrfVK),
         registration.address,
+        rewardAddress,
         clock,
         etaCalculation,
         consensusValidationState,
@@ -134,6 +139,7 @@ object StakingInit {
     vrfSK:                    ByteString,
     vrfVK:                    ByteString,
     stakingAddress:           StakingAddress,
+    rewardAddress:            LockAddress,
     clock:                    ClockAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
@@ -170,6 +176,7 @@ object StakingInit {
 
       staking <- Staking.make(
         stakingAddress,
+        rewardAddress,
         vrfVK,
         operationalKeys,
         consensusValidationState,

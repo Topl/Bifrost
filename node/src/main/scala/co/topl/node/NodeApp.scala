@@ -1,5 +1,6 @@
 package co.topl.node
 
+import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.std.Random
 import cats.effect.std.SecureRandom
@@ -8,7 +9,6 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
-import co.topl.brambl.models.LockAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
@@ -33,7 +33,6 @@ import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 
 // Hide `io` from fs2 because it conflicts with `io.grpc` down below
-import fs2.{io => _}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -42,7 +41,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import io.grpc.ServerServiceDefinition
 
 import java.time.Instant
-import java.util.UUID
 
 object NodeApp extends AbstractNodeApp
 
@@ -102,7 +100,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       bigBangBlockId = bigBangBlock.header.id
       _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=$bigBangBlockId"))
 
-      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlockId.show
+      stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
       _ <- Resource.eval(Files[F].createDirectories(stakingDir))
       _ <- Resource.eval(Logger[F].info(show"Using stakingDir=$stakingDir"))
 
@@ -218,9 +216,25 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      staking <- privateBigBang.localStakerIndex
-        .flatMap(testnetStakerInitializers.get(_))
-        .fold(
+      staking <- OptionT
+        .fromOption[Resource[F, *]](privateBigBang.localStakerIndex.flatMap(testnetStakerInitializers.get(_)))
+        .semiflatMap(
+          StakingInit
+            .makeStakingFromGenesis(
+              stakingDir,
+              _,
+              appConfig.bifrost.staking.rewardAddress,
+              clock,
+              etaCalculation,
+              consensusValidationState,
+              leaderElectionThreshold,
+              cryptoResources,
+              bigBangProtocol,
+              vrfConfig,
+              protocolVersion
+            )
+        )
+        .orElseF(
           Files[F]
             .list(stakingDir)
             .compile
@@ -231,6 +245,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                 StakingInit
                   .makeStakingFromDisk(
                     stakingDir,
+                    appConfig.bifrost.staking.rewardAddress,
                     clock,
                     etaCalculation,
                     consensusValidationState,
@@ -244,22 +259,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               else
                 Resource.pure[F, Option[StakingAlgebra[F]]](none)
             )
-        )(initializer =>
-          StakingInit
-            .makeStakingFromGenesis(
-              stakingDir,
-              initializer,
-              clock,
-              etaCalculation,
-              consensusValidationState,
-              leaderElectionThreshold,
-              cryptoResources,
-              bigBangProtocol,
-              vrfConfig,
-              protocolVersion
-            )
-            .map(_.some)
         )
+        .value
 
       eligibilityCache <-
         EligibilityCache
