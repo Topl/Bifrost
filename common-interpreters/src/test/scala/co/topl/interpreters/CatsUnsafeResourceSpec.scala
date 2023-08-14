@@ -26,7 +26,7 @@ class CatsUnsafeResourceSpec extends CatsEffectSuite {
 }
 
 private class MutableResource(length: Int) {
-  private var array = new Array[Byte](length)
+  private val array = new Array[Byte](length)
   def set(index: Int, byte: Byte): Unit = array(index) = byte
 
   def setBytesSlowly(newBytes: Array[Byte]): Unit =

@@ -59,7 +59,7 @@ abstract class AbstractNodeApp
     ) {
 
   def run: IO[Unit] =
-    if (args.startup.cli) new ConfiguredCliApp(args, appConfig).run
+    if (args.startup.cli) new ConfiguredCliApp(appConfig).run
     else new ConfiguredNodeApp(args, appConfig).run
 }
 

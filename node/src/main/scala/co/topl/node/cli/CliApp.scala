@@ -11,14 +11,13 @@ import co.topl.config.ApplicationConfig
 import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
-import co.topl.node.Args
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
 import quivr.models.Int128
 
-class ConfiguredCliApp(args: Args, appConfig: ApplicationConfig) {
+class ConfiguredCliApp(appConfig: ApplicationConfig) {
   import cats.effect.std.Console
 
   type F[+A] = IO[A]
