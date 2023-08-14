@@ -51,7 +51,7 @@ object StakingInit {
     protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     for {
-      // Initialize a persistent secure store
+      _       <- Logger[F].info("Generating a private testnet genesis staker").toResource
       kesPath <- Sync[F].delay(stakingDir / "kes").toResource
       _       <- Files.forAsync[F].createDirectories(kesPath).toResource
       _ <- fs2.Stream
@@ -111,6 +111,7 @@ object StakingInit {
     protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     for {
+      _       <- Logger[F].info("Loading registered staker from disk").toResource
       kesPath <- Sync[F].delay(stakingDir / KesDirectoryName).toResource
       _ <- Files
         .forAsync[F]
