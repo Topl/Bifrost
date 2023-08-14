@@ -53,12 +53,12 @@ object StakingInit {
     for {
       // Initialize a persistent secure store
       kesPath <- Sync[F].delay(stakingDir / "kes").toResource
-      _       <- Files[F].createDirectories(kesPath).toResource
+      _       <- Files.forAsync[F].createDirectories(kesPath).toResource
       _ <- fs2.Stream
         .chunk(
           Chunk.byteBuffer(Persistable[SecretKeyKesProduct].persistedBytes(initializer.kesSK).asReadOnlyByteBuffer())
         )
-        .through(Files[F].writeAll(kesPath / "0"))
+        .through(Files.forAsync[F].writeAll(kesPath / "0"))
         .compile
         .drain
         .toResource
@@ -80,6 +80,21 @@ object StakingInit {
     } yield staking
 
   /**
+   * Inspects the given stakingDir for the expected keys/files.  If the expected files exist, `true` is returned.
+   */
+  def stakingIsInitialized[F[_]: Async](stakingDir: Path): F[Boolean] =
+    Files
+      .forAsync[F]
+      .list(stakingDir)
+      .compile
+      .toList
+      .map(files =>
+        files.exists(_.endsWith(KesDirectoryName)) &&
+        files.exists(_.endsWith(VrfKeyName)) &&
+        files.exists(_.endsWith(RegistrationTxName))
+      )
+
+  /**
    * Initializes a Staking object from existing files on disk.  The files are expected to be in the format created
    * by the "Registration" CLI process.
    */
@@ -96,8 +111,9 @@ object StakingInit {
     protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     for {
-      kesPath <- Sync[F].delay(stakingDir / "kes").toResource
-      _ <- Files[F]
+      kesPath <- Sync[F].delay(stakingDir / KesDirectoryName).toResource
+      _ <- Files
+        .forAsync[F]
         .list(kesPath)
         .compile
         .toList
@@ -106,7 +122,7 @@ object StakingInit {
             .raiseWhen(files.length != 1)(new IllegalArgumentException("Expected exactly one KES key in secure store."))
         )
         .toResource
-      readFile = (p: Path) => Files[F].readAll(p).compile.to(Chunk)
+      readFile = (p: Path) => Files.forAsync[F].readAll(p).compile.to(Chunk)
       vrfSK       <- readFile(stakingDir / VrfKeyName).map(_.toArray).toResource
       vrfVK       <- cryptoResources.ed25519VRF.useSync(_.getVerificationKey(vrfSK)).toResource
       transaction <- readFile(stakingDir / RegistrationTxName).map(_.toArray).map(IoTransaction.parseFrom).toResource
@@ -150,7 +166,7 @@ object StakingInit {
     protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     for {
-      kesPath     <- Sync[F].delay(stakingDir / "kes").toResource
+      kesPath     <- Sync[F].delay(stakingDir / KesDirectoryName).toResource
       secureStore <- CatsSecureStore.make[F](kesPath.toNioPath)
       vrfCalculator <- VrfCalculator.make[F](
         vrfSK,

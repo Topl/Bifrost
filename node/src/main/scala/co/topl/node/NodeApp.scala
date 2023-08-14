@@ -22,7 +22,6 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
-import co.topl.minting.algebras.StakingAlgebra
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
@@ -234,14 +233,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               protocolVersion
             )
         )
-        .orElseF(
-          Files[F]
-            .list(stakingDir)
-            .compile
-            .toList
-            .toResource
-            .flatMap(files =>
-              if (files.nonEmpty)
+        .orElse(
+          OptionT
+            .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
+            .flatMap(
+              OptionT.whenF(_)(
                 StakingInit
                   .makeStakingFromDisk(
                     stakingDir,
@@ -255,9 +251,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                     vrfConfig,
                     protocolVersion
                   )
-                  .map(_.some)
-              else
-                Resource.pure[F, Option[StakingAlgebra[F]]](none)
+              )
             )
         )
         .value
