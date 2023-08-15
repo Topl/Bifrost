@@ -146,7 +146,7 @@ object DockerSupport {
         )
 
       val hostConfig =
-        HostConfig.builder().build()
+        HostConfig.builder().privileged(true).build()
 
       ContainerConfig
         .builder()
