@@ -7,10 +7,10 @@ object Dependencies {
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.9.0"
   val catsEffectVersion = "3.5.1"
-  val fs2Version = "3.7.0"
-  val logback = "1.4.8"
+  val fs2Version = "3.8.0"
+  val logback = "1.4.11"
   val orientDbVersion = "3.2.21"
-  val ioGrpcVersion = "1.57.0"
+  val ioGrpcVersion = "1.57.1"
   val protobufSpecsVersion = "2.0.0-alpha2+10-39b5e004-SNAPSHOT" // scala-steward:off
   val bramblScVersion = "2.0.0-alpha3+5-62aa0062-SNAPSHOT" // scala-steward:off
 
@@ -85,7 +85,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.75"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.76"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -100,7 +100,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.5.0"
+    "com.lihaoyi" %% "mainargs" % "0.5.1"
   )
 
   val monocle: Seq[ModuleID] = Seq(
@@ -161,7 +161,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.25.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.26.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
