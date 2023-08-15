@@ -166,7 +166,8 @@ object ReputationAggregator {
     (newState, newState).pure[F]
   }
 
-  private def processUpdateWarmHosts[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+  private def processUpdateWarmHosts[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    Logger[F].trace("Update warm host tick") >>
     state.peerManager.sendNoWait(PeersManager.Message.UpdateWarmHosts(state.performanceReputation)) >>
     (state, state).pure[F]
 

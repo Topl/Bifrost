@@ -31,6 +31,7 @@ import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import co.topl.networking.p2p._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import com.comcast.ip4s.Dns
 import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -43,7 +44,7 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def make[F[_]: Parallel: Async: Random](
+  def make[F[_]: Parallel: Async: Random: Dns](
     clock:                     ClockAlgebra[F],
     stakerOpt:                 Option[StakingAlgebra[F]],
     dataStores:                DataStores[F],
@@ -65,9 +66,10 @@ object Blockchain {
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
-      remotePeers <- Resource.liftK(Queue.unbounded[F, DisconnectedPeer])
-      closedPeers <- Resource.liftK(Queue.unbounded[F, ConnectedPeer])
-      _           <- Resource.liftK(Logger[F].info(s"Received known peers from config: $knownPeers"))
+      remotePeers  <- Resource.liftK(Queue.unbounded[F, DisconnectedPeer])
+      closedPeers  <- Resource.liftK(Queue.unbounded[F, ConnectedPeer])
+      _            <- Resource.liftK(Logger[F].info(s"Received known peers from config: $knownPeers"))
+      currentPeers <- Resource.pure(new CurrentPeersHolder())
       initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
       remotePeersStream                 <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
       (localChain, blockAdoptionsTopic) <- LocalChainBroadcaster.make(_localChain)
@@ -101,6 +103,7 @@ object Blockchain {
           )
         } else {
           ActorPeerHandlerBridgeAlgebra.make(
+            localPeer.localAddress.host,
             localChain,
             chainSelectionAlgebra,
             validators.header,
@@ -117,7 +120,8 @@ object Blockchain {
             clock,
             initialPeers,
             Stream.fromQueueUnterminated[F, ConnectedPeer](closedPeers),
-            remotePeers.offer
+            remotePeers.offer,
+            h => currentPeers.hotPeersUpdate(h).pure[F]
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
@@ -146,6 +150,8 @@ object Blockchain {
         dataStores.bodies.get,
         dataStores.transactions.get,
         blockHeights,
+        () => Option(localPeer.localAddress.port),
+        currentPeers.hotPeers,
         localChain,
         mempool,
         blockAdoptionsTopic,

@@ -1,8 +1,8 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.{Async, Resource}
 import cats.effect.implicits._
 import cats.effect.kernel.Concurrent
+import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
@@ -14,14 +14,16 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer}
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
 import co.topl.node.models.BlockBody
+import com.comcast.ip4s.Dns
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async: Logger: Dns](
+    thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -38,11 +40,15 @@ object ActorPeerHandlerBridgeAlgebra {
     clockAlgebra:                ClockAlgebra[F],
     remotePeers:                 List[DisconnectedPeer],
     closedPeers:                 Stream[F, ConnectedPeer],
-    addRemotePeer:               DisconnectedPeer => F[Unit]
+    addRemotePeer:               DisconnectedPeer => F[Unit],
+    hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
+    implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
+
     val networkAlgebra = new NetworkAlgebraImpl[F]()
     val networkManager =
       NetworkManager.startNetwork[F](
+        thisHostId,
         localChain,
         chainSelectionAlgebra,
         headerValidation,
@@ -60,7 +66,8 @@ object ActorPeerHandlerBridgeAlgebra {
         networkProperties,
         clockAlgebra,
         PeerCreationRequestAlgebra(addRemotePeer),
-        closedPeers
+        closedPeers,
+        hotPeersUpdate
       )
 
     networkManager.map(makeAlgebra(_))

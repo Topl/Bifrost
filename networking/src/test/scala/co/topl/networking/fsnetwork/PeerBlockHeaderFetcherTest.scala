@@ -17,7 +17,6 @@ import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError.
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.{BlockHeaderDownloadErrorByName, F}
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -38,7 +37,7 @@ object PeerBlockHeaderFetcherTest {
 class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
+  val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
 
   private def compareWithoutDownloadTimeMatcher(

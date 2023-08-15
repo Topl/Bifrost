@@ -7,7 +7,7 @@ import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
-import co.topl.models.generators.consensus.ModelGenerators.{arbitraryBlockId, arbitraryHeader, nonEmptyChainArbOf}
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError.BodyNotFoundInPeer
@@ -18,6 +18,7 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxyTest.RequestStatus.{InProgress, NewRequest, ReceivedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.ResponseStatus.{DownloadError, DownloadedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.{F, RequestStatus, ResponseStatus}
+import co.topl.networking.fsnetwork.TestHelper.arbitraryHostBlockId
 import co.topl.node.models.{Block, BlockBody}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -26,12 +27,9 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.networking.fsnetwork.TestHelper.arbitraryHostBlockId
-import co.topl.networking.p2p.RemoteAddress
 
-import scala.jdk.CollectionConverters._
 import scala.collection.immutable.ListMap
+import scala.jdk.CollectionConverters._
 
 object RequestsProxyTest {
   type F[A] = IO[A]
@@ -68,7 +66,7 @@ object RequestsProxyTest {
 class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with ModelGenerators {
   implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
+  val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
 
   test("Block header download request: downloaded prefix sent back, request for new block header shall be sent") {
@@ -467,7 +465,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
               .map(d => d._2)
               .zipWithIndex
               .map { case (block, index) =>
-                val sourcesForBlock = (1 to index).map(i => RemoteAddress(i.toString, 0)).toSet
+                val sourcesForBlock = (1 to index).map(i => i.toString).toSet
                 (block, sourcesForBlock)
               }
               .toMap

@@ -14,14 +14,15 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.ConnectedPeer
+import co.topl.networking.p2p.{ConnectedPeer, RemoteAddress}
 import co.topl.node.models.BlockBody
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object NetworkManager {
 
-  def startNetwork[F[_]: Async: Logger](
+  def startNetwork[F[_]: Async: Logger: DnsResolver](
+    thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -35,11 +36,12 @@ object NetworkManager {
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
-    initialHosts:                List[HostId],
+    initialHosts:                List[RemoteAddress],
     networkProperties:           NetworkProperties,
     clock:                       ClockAlgebra[F],
     addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F],
-    closedPeers:                 Stream[F, ConnectedPeer]
+    closedPeers:                 Stream[F, ConnectedPeer],
+    hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _            <- Resource.liftK(Logger[F].info(s"Start actors network with list of known peers: $initialHosts"))
@@ -47,6 +49,7 @@ object NetworkManager {
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
       peerManager <- networkAlgebra.makePeerManger(
+        thisHostId,
         networkAlgebra,
         localChain,
         slotDataStore,
@@ -54,7 +57,8 @@ object NetworkManager {
         blockIdTree,
         headerToBodyValidation,
         addRemotePeerAlgebra,
-        p2pNetworkConfig
+        p2pNetworkConfig,
+        hotPeersUpdate
       )
 
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager, p2pNetworkConfig)
@@ -100,11 +104,11 @@ object NetworkManager {
     closedPeers:  Stream[F, ConnectedPeer]
   ): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     closedPeers
-      .map(disconnected =>
+      .map(closed =>
         Stream.resource(
           for {
-            _ <- Resource.liftK(Logger[F].info(s"Remote peer ${disconnected.remoteAddress} closing had been detected"))
-            _ <- Resource.liftK(peersManager.sendNoWait(PeersManager.Message.ClosePeer(disconnected.remoteAddress)))
+            _ <- Resource.liftK(Logger[F].info(s"Remote peer ${closed.remoteAddress} closing had been detected"))
+            _ <- Resource.liftK(peersManager.sendNoWait(PeersManager.Message.ClosePeer(closed.remoteAddress.host)))
           } yield ()
         )
       )

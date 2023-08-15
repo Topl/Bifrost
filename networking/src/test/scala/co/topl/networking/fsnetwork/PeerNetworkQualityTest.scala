@@ -9,7 +9,6 @@ import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, N
 import co.topl.networking.fsnetwork.PeerNetworkQualityTest.{pingDelay, F}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.{PingMessage, PongMessage}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -30,7 +29,7 @@ class PeerNetworkQualityTest
     with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
+  val hostId: HostId = "127.0.0.1"
 
   test("Ping shall be sent to reputation aggregator") {
     withMock {

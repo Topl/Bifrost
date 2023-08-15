@@ -60,7 +60,8 @@ object ApplicationConfig {
       minimumPerformanceReputationPeers:    Int = 1,
       minimumRequiredReputation:            Double = 0.66,
       minimumHotConnections:                Int = 3,
-      minimumWarmConnections:               Int = 3,
+      minimumWarmConnections:               Int = 6,
+      maximumWarmConnections:               Int = 12,
       warmHostsUpdateEveryNBlock:           Double = 4.0
     )
 

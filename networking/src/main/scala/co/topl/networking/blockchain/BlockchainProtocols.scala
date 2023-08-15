@@ -2,12 +2,9 @@ package co.topl.networking.blockchain
 
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.SlotData
-import co.topl.networking.typedprotocols.NotificationProtocol
-import co.topl.networking.typedprotocols.RequestResponseProtocol
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.networking.typedprotocols.{NotificationProtocol, RequestResponseProtocol}
+import co.topl.node.models._
 
 /**
  * Defines the various Typed Protocols which are used for the purposes of exchanging blockchain data between
@@ -86,4 +83,9 @@ object BlockchainProtocols {
    * Request pong message from remote peer
    */
   object PingPong extends RequestResponseProtocol[PingMessage, PongMessage]
+
+  /**
+   * Request address for incoming connections from remote peer
+   */
+  object RemotePeerServerPort extends RequestResponseProtocol[Unit, Int]
 }

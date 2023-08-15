@@ -4,15 +4,13 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.crypto.hash.Blake2b256
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
 import co.topl.networking.p2p.ConnectedPeer
+import co.topl.node.models._
 import com.google.protobuf.ByteString
 import fs2._
-import munit.CatsEffectSuite
-import munit.ScalaCheckEffectSuite
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
 import org.typelevel.log4cats.Logger
@@ -31,6 +29,8 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
       PropF.forAllF(Gen.chooseNum[Long](1, headHeight)) { ancestorHeight =>
         val client = new BlockchainPeerClient[F] {
           def remotePeer: F[ConnectedPeer] = ???
+
+          def remotePeerServerPort: F[Option[Int]] = ???
 
           def remotePeerAdoptions: F[Stream[F, BlockId]] = ???
 

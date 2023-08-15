@@ -12,10 +12,10 @@ import co.topl.consensus.models.{BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.PeerActorTest.F
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.{PingMessage, PongMessage}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -31,10 +31,11 @@ object PeerActorTest {
 class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
+  val hostId: HostId = "127.0.0.1"
 
   test("Ping shall be started for warm hosts and sent result to reputation aggregator") {
     withMock {
+      val peersManager = mock[PeersManagerActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -64,6 +65,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           client,
           requestsProxy,
           reputationAggregation,
+          peersManager,
           localChain,
           slotDataStore,
           transactionStore,
