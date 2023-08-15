@@ -1,7 +1,7 @@
 package co.topl.byzantine
 
 import cats.data.OptionT
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -44,7 +44,6 @@ class MultiNodeTest extends IntegrationSuite {
     val config0 = TestNodeConfig(bigBang, 3, 0, Nil)
     val config1 = TestNodeConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
     val config2 = TestNodeConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
-    val config3 = TestNodeConfig(bigBang, 3, -1, List("MultiNodeTest-node2"))
     val resource =
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
@@ -52,10 +51,7 @@ class MultiNodeTest extends IntegrationSuite {
         node0 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0)
         node1 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1)
         node2 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
-        // Node 3 is a delayed staker.  It will register in epoch 0, but the container won't launch until epoch 2.
-        node3 <- dockerSupport.createNode("MultiNodeTest-node3", "MultiNodeTest", config3)
         initialNodes = List(node0, node1, node2)
-        allNodes = List(node0, node1, node2, node3)
         _ <- initialNodes.parTraverse(_.startContainer[F]).toResource
         _ <- initialNodes
           .parTraverse(node => node.rpcClient[F](node.config.rpcPort).use(_.waitForRpcStartUp))
@@ -70,12 +66,23 @@ class MultiNodeTest extends IntegrationSuite {
               .getOrRaise(new IllegalStateException)
           )
           .toResource
+        // Node 3 is a delayed staker.  It will register in epoch 0, but the container won't launch until epoch 2.
+        tempHostStakingDirectory <- Files.forAsync[F].tempDirectory
+        _ <- Files.forAsync[F].setPosixPermissions(tempHostStakingDirectory, posixOtherWritePermissions).toResource
+        config3 = TestNodeConfig(
+          bigBang,
+          3,
+          -1,
+          List("MultiNodeTest-node2"),
+          stakingBindSourceDir = tempHostStakingDirectory.toString.some
+        )
+        node3 <- dockerSupport.createNode("MultiNodeTest-node3", "MultiNodeTest", config3)
+        allNodes = List(node0, node1, node2, node3)
         _ <- Logger[F].info("Registering node3").toResource
         node3StakingAddress <- node2
           .rpcClient[F](node2.config.rpcPort)
           // Take stake from node0 and transfer it to node3
-          .use(registerStaker(genesisTransaction, 0)(_, node3))
-          .toResource
+          .evalMap(registerStaker(genesisTransaction, 0)(_, tempHostStakingDirectory))
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- initialNodes
           .parTraverse(node =>
@@ -120,10 +127,13 @@ class MultiNodeTest extends IntegrationSuite {
     PosixPermissions(
       PosixPermission.OwnerRead,
       PosixPermission.OwnerWrite,
+      PosixPermission.OwnerExecute,
       PosixPermission.GroupRead,
       PosixPermission.GroupWrite,
+      PosixPermission.GroupExecute,
       PosixPermission.OthersRead,
-      PosixPermission.OthersWrite
+      PosixPermission.OthersWrite,
+      PosixPermission.OthersExecute
     )
 
   /**
@@ -133,82 +143,78 @@ class MultiNodeTest extends IntegrationSuite {
    * @param inputTransaction A transaction containing funds to split
    * @param inputIndex The UTxO index at which the funds currently exist
    * @param rpcClient the RPC client to receive the broadcasted transaction
-   * @param stakingNode the docker container/node to which the keys will be copied
    * @return the new staker's StakingAddress
    */
   private def registerStaker(inputTransaction: IoTransaction, inputIndex: Int)(
     rpcClient:   NodeRpc[F, fs2.Stream[F, *]],
-    stakingNode: BifrostDockerNode
-  )(implicit dockerClient: DockerClient): F[StakingAddress] =
-    Files
-      .forAsync[F]
-      .tempDirectory
-      .use(localTmpDir =>
-        for {
-          _ <- Logger[F].info("Generating new staker keys")
-          kesKey <- Sync[F]
-            .delay(new KesProduct().createKeyPair(SecureRandom.getInstanceStrong.generateSeed(32), (9, 9), 0))
-          operatorKey <- Sync[F].delay(new Ed25519().deriveKeyPairFromEntropy(Entropy.generate(), None))
-          vrfKey      <- Sync[F].delay(Ed25519VRF.precomputed().generateRandom)
-          writeFile = (name: String, data: Array[Byte]) =>
-            fs2.Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(localTmpDir / name)).compile.drain
-          _ <- Logger[F].info("Saving new staker keys to temp directory")
-          _ <- Files[F].createDirectories(localTmpDir / StakingInit.KesDirectoryName)
-          _ <- Files[F].createFile(localTmpDir / StakingInit.KesDirectoryName / "0", Some(posixOtherWritePermissions))
-          _ <- writeFile(
-            StakingInit.KesDirectoryName + "/0",
-            Persistable[SecretKeyKesProduct].persistedBytes(kesKey._1).toByteArray
-          )
-          _ <- writeFile(StakingInit.OperatorKeyName, operatorKey.signingKey.bytes)
-          _ <- writeFile(StakingInit.VrfKeyName, vrfKey._1)
-          stakerInitializer =
-            StakerInitializers.Operator(
-              ByteString.copyFrom(operatorKey.signingKey.bytes),
-              PrivateTestnet.HeightLockOneSpendingAddress,
-              ByteString.copyFrom(vrfKey._1),
-              kesKey._1
-            )
-          spendableOutput = inputTransaction.outputs(inputIndex)
-          unprovenPredicateAttestation = Attestation.Predicate(PrivateTestnet.HeightLockOneLock.getPredicate, Nil)
-          unprovenInput = SpentTransactionOutput(
-            TransactionOutputAddress(0, 0, inputIndex, inputTransaction.id),
-            Attestation.defaultInstance.withPredicate(unprovenPredicateAttestation),
-            spendableOutput.value
-          )
-          spendableTopl = spendableOutput.value.value.topl.get
-          spendableQuantity = spendableTopl.quantity: BigInt
-          registrationOutputs = stakerInitializer.registrationOutputs(spendableQuantity / 2)
-          changeOutput = UnspentTransactionOutput(
-            PrivateTestnet.HeightLockOneSpendingAddress,
-            Value.defaultInstance.withTopl(
-              Value.TOPL(
-                spendableQuantity - (spendableQuantity / 2),
-                spendableTopl.registration
-              )
-            )
-          )
-          unprovenTransaction = IoTransaction(datum =
-            Datum.IoTransaction(
-              Event.IoTransaction.defaultInstance.withSchedule(
-                Schedule(0L, Long.MaxValue, System.currentTimeMillis())
-              )
-            )
-          )
-            .withInputs(List(unprovenInput))
-            .withOutputs(registrationOutputs :+ changeOutput)
-
-          proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
-          provenPredicateAttestation = unprovenPredicateAttestation.copy(responses = List(proof))
-          transaction = unprovenTransaction.copy(
-            inputs = unprovenTransaction.inputs.map(
-              _.copy(attestation = Attestation(Attestation.Value.Predicate(provenPredicateAttestation)))
-            )
-          )
-          _ <- Logger[F].info("Broadcasting registration transaction")
-          _ <- rpcClient.broadcastTransaction(transaction)
-          _ <- writeFile(StakingInit.RegistrationTxName, transaction.toByteArray)
-          _ <- Logger[F].info("Copying temporary registration files into staking node container")
-          _ <- stakingNode.copyDirectoryIntoContainer[F](localTmpDir, Path("/bifrost-staking"))
-        } yield stakerInitializer.stakingAddress
+    localTmpDir: Path
+  ): F[StakingAddress] =
+    for {
+      _ <- Logger[F].info("Generating new staker keys")
+      kesKey <- Sync[F]
+        .delay(new KesProduct().createKeyPair(SecureRandom.getInstanceStrong.generateSeed(32), (9, 9), 0))
+      operatorKey <- Sync[F].delay(new Ed25519().deriveKeyPairFromEntropy(Entropy.generate(), None))
+      vrfKey      <- Sync[F].delay(Ed25519VRF.precomputed().generateRandom)
+      writeFile = (name: String, data: Array[Byte]) =>
+        fs2.Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(localTmpDir / name)).compile.drain
+      _ <- Logger[F].info("Saving new staker keys to temp directory")
+      _ <- Files[F].createDirectory(localTmpDir / StakingInit.KesDirectoryName)
+      _ <- Files.forAsync[F].setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName, posixOtherWritePermissions)
+      _ <- Files[F].createFile(localTmpDir / StakingInit.KesDirectoryName / "0", Some(posixOtherWritePermissions))
+      _ <- Files
+        .forAsync[F]
+        .setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName / "0", posixOtherWritePermissions)
+      _ <- writeFile(
+        StakingInit.KesDirectoryName + "/0",
+        Persistable[SecretKeyKesProduct].persistedBytes(kesKey._1).toByteArray
       )
+      _ <- writeFile(StakingInit.OperatorKeyName, operatorKey.signingKey.bytes)
+      _ <- writeFile(StakingInit.VrfKeyName, vrfKey._1)
+      stakerInitializer =
+        StakerInitializers.Operator(
+          ByteString.copyFrom(operatorKey.signingKey.bytes),
+          PrivateTestnet.HeightLockOneSpendingAddress,
+          ByteString.copyFrom(vrfKey._1),
+          kesKey._1
+        )
+      spendableOutput = inputTransaction.outputs(inputIndex)
+      unprovenPredicateAttestation = Attestation.Predicate(PrivateTestnet.HeightLockOneLock.getPredicate, Nil)
+      unprovenInput = SpentTransactionOutput(
+        TransactionOutputAddress(0, 0, inputIndex, inputTransaction.id),
+        Attestation.defaultInstance.withPredicate(unprovenPredicateAttestation),
+        spendableOutput.value
+      )
+      spendableTopl = spendableOutput.value.value.topl.get
+      spendableQuantity = spendableTopl.quantity: BigInt
+      registrationOutputs = stakerInitializer.registrationOutputs(spendableQuantity / 2)
+      changeOutput = UnspentTransactionOutput(
+        PrivateTestnet.HeightLockOneSpendingAddress,
+        Value.defaultInstance.withTopl(
+          Value.TOPL(
+            spendableQuantity - (spendableQuantity / 2),
+            spendableTopl.registration
+          )
+        )
+      )
+      unprovenTransaction = IoTransaction(datum =
+        Datum.IoTransaction(
+          Event.IoTransaction.defaultInstance.withSchedule(
+            Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+          )
+        )
+      )
+        .withInputs(List(unprovenInput))
+        .withOutputs(registrationOutputs :+ changeOutput)
+
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      provenPredicateAttestation = unprovenPredicateAttestation.copy(responses = List(proof))
+      transaction = unprovenTransaction.copy(
+        inputs = unprovenTransaction.inputs.map(
+          _.copy(attestation = Attestation(Attestation.Value.Predicate(provenPredicateAttestation)))
+        )
+      )
+      _ <- Logger[F].info("Broadcasting registration transaction")
+      _ <- rpcClient.broadcastTransaction(transaction)
+      _ <- writeFile(StakingInit.RegistrationTxName, transaction.toByteArray)
+    } yield stakerInitializer.stakingAddress
 }

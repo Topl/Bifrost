@@ -35,6 +35,21 @@ object StakingInit {
   final val RegistrationTxName = "registration.transaction.pbuf"
 
   /**
+   * Inspects the given stakingDir for the expected keys/files.  If the expected files exist, `true` is returned.
+   */
+  def stakingIsInitialized[F[_]: Async](stakingDir: Path): F[Boolean] =
+    Files
+      .forAsync[F]
+      .list(stakingDir)
+      .compile
+      .toList
+      .map(files =>
+        files.exists(_.endsWith(KesDirectoryName)) &&
+        files.exists(_.endsWith(VrfKeyName)) &&
+        files.exists(_.endsWith(RegistrationTxName))
+      )
+
+  /**
    * Initializes a Staking object from a private genesis configuration.
    */
   def makeStakingFromGenesis[F[_]: Async: Logger](
@@ -78,21 +93,6 @@ object StakingInit {
         protocolVersion
       )
     } yield staking
-
-  /**
-   * Inspects the given stakingDir for the expected keys/files.  If the expected files exist, `true` is returned.
-   */
-  def stakingIsInitialized[F[_]: Async](stakingDir: Path): F[Boolean] =
-    Files
-      .forAsync[F]
-      .list(stakingDir)
-      .compile
-      .toList
-      .map(files =>
-        files.exists(_.endsWith(KesDirectoryName)) &&
-        files.exists(_.endsWith(VrfKeyName)) &&
-        files.exists(_.endsWith(RegistrationTxName))
-      )
 
   /**
    * Initializes a Staking object from existing files on disk.  The files are expected to be in the format created

@@ -63,7 +63,7 @@ object DockerSupport {
             .void
         )
       )
-      _ <- containerLogsDirectory.fold(Resource.unit[F])(Files[F].createDirectories(_).toResource)
+      _ <- containerLogsDirectory.fold(Resource.unit[F])(Files.forAsync[F].createDirectories(_).toResource)
       dockerSupport = new Impl[F](containerLogsDirectory, debugLoggingEnabled, nodeCache, networkCache)
     } yield (dockerSupport, dockerClient)
 
@@ -146,13 +146,27 @@ object DockerSupport {
         )
 
       val hostConfig =
-        HostConfig.builder().privileged(true).build()
+        config.stakingBindSourceDir
+          .foldLeft(HostConfig.builder().privileged(true))((b, sourceDir) =>
+            b.appendBinds(
+              HostConfig.Bind
+                .builder()
+                .from(sourceDir)
+                .to(stakingDirectory)
+                .selinuxLabeling(true)
+                .build()
+            )
+          )
+          .build()
+
+      val volumes =
+        List(configDirectory, dataDirectory) ++ Option.when(config.stakingBindSourceDir.isEmpty)(stakingDirectory)
 
       ContainerConfig
         .builder()
         .image(bifrostImage)
         .env(env: _*)
-        .volumes(configDirectory, stakingDirectory, dataDirectory)
+        .volumes(volumes: _*)
         .cmd(cmd: _*)
         .hostname(name)
         .hostConfig(hostConfig)
@@ -163,15 +177,16 @@ object DockerSupport {
 }
 
 case class TestNodeConfig(
-  bigBangTimestamp: Instant = Instant.now().plusSeconds(5),
-  stakerCount:      Int = 1,
-  localStakerIndex: Int = 0,
-  knownPeers:       List[String] = Nil,
-  stakes:           Option[List[BigInt]] = None,
-  rpcPort:          Int = 9084,
-  p2pPort:          Int = 9085,
-  jmxRemotePort:    Int = 9083,
-  genusEnabled:     Boolean = false
+  bigBangTimestamp:     Instant = Instant.now().plusSeconds(5),
+  stakerCount:          Int = 1,
+  localStakerIndex:     Int = 0,
+  knownPeers:           List[String] = Nil,
+  stakes:               Option[List[BigInt]] = None,
+  rpcPort:              Int = 9084,
+  p2pPort:              Int = 9085,
+  jmxRemotePort:        Int = 9083,
+  genusEnabled:         Boolean = false,
+  stakingBindSourceDir: Option[String] = None
 ) {
 
   def yaml: String = {
