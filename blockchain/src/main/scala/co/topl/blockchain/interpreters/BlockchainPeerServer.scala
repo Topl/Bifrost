@@ -28,7 +28,7 @@ object BlockchainPeerServer {
     fetchTransaction:        TransactionId => F[Option[IoTransaction]],
     blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     peerServerPort:          () => Option[Int],
-    currentHotPeers:         () => Set[RemoteAddress],
+    currentHotPeers:         () => F[Set[RemoteAddress]],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MempoolAlgebra[F],
     newBlockIds:             Topic[F, BlockId],
@@ -95,10 +95,11 @@ object BlockchainPeerServer {
           override def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
             localChain.head.flatMap(s => getLocalBlockAtHeight(s.height - depth))
 
-          override def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] = {
-            val knownHostsStub = currentHotPeers().toSeq.take(req.maxCount).map(ra => KnownHost(ra.host, ra.port))
-            Option(CurrentKnownHostsRes(knownHostsStub, Seq.empty, Seq.empty)).pure[F]
-          }
+          override def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
+            for {
+              remotePeersRemoteAddresses <- currentHotPeers().map(_.toSeq.take(req.maxCount))
+              knownHosts = remotePeersRemoteAddresses.map(ra => KnownHost(ra.host, ra.port))
+            } yield Option(CurrentKnownHostsRes(knownHosts, Seq.empty, Seq.empty))
 
           override def getPong(req: PingMessage): F[Option[PongMessage]] =
             Option(PongMessage(req.ping.reverse)).pure[F]
