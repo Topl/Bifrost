@@ -69,7 +69,7 @@ object Blockchain {
       remotePeers  <- Resource.liftK(Queue.unbounded[F, DisconnectedPeer])
       closedPeers  <- Resource.liftK(Queue.unbounded[F, ConnectedPeer])
       _            <- Resource.liftK(Logger[F].info(s"Received known peers from config: $knownPeers"))
-      currentPeers <- Resource.pure(new CurrentPeersHolder())
+      currentPeers <- Resource.liftK(Ref.of[F, Set[RemoteAddress]](Set.empty[RemoteAddress]))
       initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
       remotePeersStream                 <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
       (localChain, blockAdoptionsTopic) <- LocalChainBroadcaster.make(_localChain)
@@ -121,7 +121,7 @@ object Blockchain {
             initialPeers,
             Stream.fromQueueUnterminated[F, ConnectedPeer](closedPeers),
             remotePeers.offer,
-            h => currentPeers.hotPeersUpdate(h).pure[F]
+            currentPeers.set
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
@@ -151,7 +151,7 @@ object Blockchain {
         dataStores.transactions.get,
         blockHeights,
         () => Option(localPeer.localAddress.port),
-        currentPeers.hotPeers,
+        () => currentPeers.get,
         localChain,
         mempool,
         blockAdoptionsTopic,
