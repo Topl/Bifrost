@@ -6,11 +6,10 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.utility.Ratio
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
 import co.topl.networking.p2p.ConnectedPeer
+import co.topl.node.models._
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -25,6 +24,11 @@ trait BlockchainPeerClient[F[_]] {
    * The ConnectedPeer for this current connection
    */
   def remotePeer: F[ConnectedPeer]
+
+  /**
+   * Port of remote peer for inbound connections
+   */
+  def remotePeerServerPort: F[Option[Int]]
 
   /**
    * A Source of block IDs that were adopted by the remote node

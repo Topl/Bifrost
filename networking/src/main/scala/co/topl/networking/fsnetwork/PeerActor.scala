@@ -1,6 +1,6 @@
 package co.topl.networking.fsnetwork
 
-import cats.data.NonEmptyChain
+import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Concurrent, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
@@ -10,13 +10,16 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
+import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.PeerNetworkQuality.PeerNetworkQualityActor
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
+import co.topl.node.models.CurrentKnownHostsReq
 import org.typelevel.log4cats.Logger
 
 object PeerActor {
@@ -56,7 +59,12 @@ object PeerActor {
     /**
      * Request to get remote host's hot connections
      */
-    case object GetHotPeersFromPeer extends Message
+    case class GetHotPeersFromPeer(maxHosts: Int) extends Message
+
+    /**
+     * Get peer server address
+     */
+    case object GetPeerServerAddress extends Message
   }
 
   case class State[F[_]](
@@ -65,6 +73,7 @@ object PeerActor {
     blockHeaderActor:    PeerBlockHeaderFetcherActor[F],
     blockBodyActor:      PeerBlockBodyFetcherActor[F],
     networkQualityActor: PeerNetworkQualityActor[F],
+    peersManager:        PeersManagerActor[F],
     networkLevel:        Boolean,
     applicationLevel:    Boolean
   )
@@ -78,7 +87,8 @@ object PeerActor {
     case (state, DownloadBlockBodies(blockHeaders))           => downloadBodies(state, blockHeaders)
     case (state, GetCurrentTip)                               => getCurrentTip(state)
     case (state, GetNetworkQuality)                           => getNetworkQuality(state)
-    case (state, GetHotPeersFromPeer)                         => getHotPeers(state)
+    case (state, GetHotPeersFromPeer(maxHosts))               => getHotPeersOfCurrentPeer(state, maxHosts)
+    case (state, GetPeerServerAddress)                        => getPeerServerAddress(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -86,12 +96,16 @@ object PeerActor {
     client:                 BlockchainPeerClient[F],
     requestsProxy:          RequestsProxyActor[F],
     reputationAggregator:   ReputationAggregatorActor[F],
+    peersManager:           PeersManagerActor[F],
     localChain:             LocalChainAlgebra[F],
     slotDataStore:          Store[F, BlockId, SlotData],
     transactionStore:       Store[F, TransactionId, IoTransaction],
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
-  ): Resource[F, PeerActor[F]] =
+  ): Resource[F, PeerActor[F]] = {
+    val initNetworkLevel = false
+    val initAppLevel = false
+
     for {
       header <- PeerBlockHeaderFetcher.makeActor(
         hostId,
@@ -103,9 +117,10 @@ object PeerActor {
       )
       body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
       networkQuality <- PeerNetworkQuality.makeActor(hostId, client, reputationAggregator)
-      initialState = State(hostId, client, header, body, networkQuality, networkLevel = false, applicationLevel = false)
+      initialState = State(hostId, client, header, body, networkQuality, peersManager, initNetworkLevel, initAppLevel)
       actor <- Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
     } yield actor
+  }
 
   private def finalizer[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Finishing actor for peer ${state.hostId}") >>
@@ -175,6 +190,28 @@ object PeerActor {
     state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.GetNetworkQuality) >>
     (state, state).pure[F]
 
-  private def getHotPeers[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
-    (state, state).pure[F]
+  private def getHotPeersOfCurrentPeer[F[_]: Concurrent: Logger](
+    state:    State[F],
+    maxHosts: Int
+  ): F[(State[F], Response[F])] = {
+    for {
+      _        <- OptionT.liftF(Logger[F].info(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
+      response <- OptionT(state.client.getRemoteKnownHosts(CurrentKnownHostsReq(maxHosts)))
+      hotPeers <- OptionT
+        .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
+        .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
+      _ <- OptionT.liftF(Logger[F].info(s"Got hot peers $hotPeers from ${state.hostId}"))
+      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddPreWarmPeers(hotPeers)))
+    } yield (state, state)
+  }.getOrElse((state, state))
+
+  private def getPeerServerAddress[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] = {
+    val peer = state.hostId
+    for {
+      _              <- OptionT.liftF(Logger[F].info(s"Request server address from $peer"))
+      peerServerPort <- OptionT(state.client.remotePeerServerPort)
+      message = PeersManager.Message.RemotePeerServerPort(peer, peerServerPort)
+      _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
+    } yield (state, state)
+  }.getOrElse(state, state)
 }

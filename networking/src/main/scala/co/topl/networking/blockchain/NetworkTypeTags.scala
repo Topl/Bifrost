@@ -2,12 +2,10 @@ package co.topl.networking.blockchain
 
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.networking.NetworkTypeTag
 import co.topl.networking.typedprotocols.TypedProtocol
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
+import co.topl.node.models._
 
 object NetworkTypeTags {
 
@@ -84,4 +82,10 @@ object NetworkTypeTags {
 
   implicit val commonMessagesPingRes: NetworkTypeTag[TypedProtocol.CommonMessages.Response[PongMessage]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.PingRes")
+
+  implicit val commonMessagesPeerServerPortReq: NetworkTypeTag[TypedProtocol.CommonMessages.Get[Unit]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.PeerServerPortReq")
+
+  implicit val commonMessagesPeerServerPortRes: NetworkTypeTag[TypedProtocol.CommonMessages.Response[Int]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.PeerServerPortRes")
 }

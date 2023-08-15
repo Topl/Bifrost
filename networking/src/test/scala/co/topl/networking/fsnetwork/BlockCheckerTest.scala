@@ -3,8 +3,7 @@ package co.topl.networking.fsnetwork
 import cats.data._
 import cats.effect.IO
 import cats.implicits._
-import cats.MonadThrow
-import cats.Show
+import cats.{MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.transaction.IoTransaction
@@ -24,12 +23,10 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.quivr.runtime.DynamicContext
 import co.topl.typeclasses.implicits._
-import munit.CatsEffectSuite
-import munit.ScalaCheckEffectSuite
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -44,7 +41,7 @@ object BlockCheckerTest {
 
 class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
-  val hostId: HostId = RemoteAddress("127.0.0.1", 0)
+  val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
 
   test("RemoteSlotData: Request no headers if new slot data is worse") {

@@ -13,6 +13,7 @@ import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessage
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 
@@ -21,7 +22,7 @@ import scala.util.Random
 
 package object fsnetwork {
 
-  type HostId = RemoteAddress // IP address? IP address could be changed and bad for identify good peer
+  type HostId = String // IP address? IP address could be changed and bad for identify good peer
 
   type HostReputationValue =
     Double // will be more complex, to get high reputation host shall fulfill different criteria
@@ -213,11 +214,11 @@ package object fsnetwork {
   }
 
   trait ColdToWarmSelector {
-    def select(coldHosts: Set[HostId], countToReceive: Int): Set[HostId]
+    def select(coldHosts: Set[RemoteAddress], countToReceive: Int): Set[RemoteAddress]
   }
 
   val RandomColdToWarmSelector: ColdToWarmSelector =
-    (coldHosts: Set[HostId], countToReceive: Int) => Random.shuffle(coldHosts).take(countToReceive)
+    (coldHosts: Set[RemoteAddress], countToReceive: Int) => Random.shuffle(coldHosts).take(countToReceive)
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
 
@@ -226,5 +227,27 @@ package object fsnetwork {
         logger.info(message)
       else
         Applicative[F].unit
+  }
+
+  trait DnsResolver[F[_]] {
+    def resolving(host: String): F[Option[String]]
+  }
+
+  implicit class DnsResolverOps[F[_]: DnsResolver](host: String) {
+    def resolveHost: F[Option[String]] = implicitly[DnsResolver[F]].resolving(host)
+  }
+
+  object DnsResolverInstances {
+
+    def defaultResolver[F[_]: Dns: Monad]: DnsResolver[F] = unresolvedHost => {
+      val resolver: Dns[F] = implicitly[Dns[F]]
+
+      val res =
+        for {
+          host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
+          resolved <- OptionT.liftF(resolver.resolve(host))
+        } yield resolved.toUriString
+      res.value
+    }
   }
 }

@@ -2,16 +2,15 @@ package co.topl.networking.blockchain
 
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SlotData
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.node.models._
 import fs2._
 
 /**
  * Serves local blockchain data to a remote peer
  */
 trait BlockchainPeerServerAlgebra[F[_]] {
+  def serverPort: F[Option[Int]]
   def localBlockAdoptions: F[Stream[F, BlockId]]
   def localTransactionNotifications: F[Stream[F, TransactionId]]
   def getLocalSlotData(id:          BlockId): F[Option[SlotData]]
