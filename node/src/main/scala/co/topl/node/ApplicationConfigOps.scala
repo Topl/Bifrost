@@ -30,24 +30,27 @@ object ApplicationConfigOps {
    */
   def unsafe(cmdArgs: Args, config: Config): ApplicationConfig = {
     val base = ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
-    val genLens = GenLens[ApplicationConfig]
+
     def createF[B](lens: Lens[ApplicationConfig, B])(value: B): ApplicationConfig => ApplicationConfig =
       (appConf: ApplicationConfig) => lens.replace(value)(appConf)
+
     val simpleArgApplications =
       List[Option[ApplicationConfig => ApplicationConfig]](
-        cmdArgs.runtime.dataDir.map(createF(genLens(_.bifrost.data.directory))),
-        cmdArgs.runtime.stakingDir.map(createF(genLens(_.bifrost.staking.directory))),
-        cmdArgs.runtime.rpcBindHost.map(createF(genLens(_.bifrost.rpc.bindHost))),
-        cmdArgs.runtime.rpcBindPort.map(createF(genLens(_.bifrost.rpc.bindPort))),
-        cmdArgs.runtime.p2pBindHost.map(createF(genLens(_.bifrost.p2p.bindHost))),
-        cmdArgs.runtime.p2pBindPort.map(createF(genLens(_.bifrost.p2p.bindPort))),
-        cmdArgs.runtime.knownPeers.map(parseKnownPeers).map(createF(genLens(_.bifrost.p2p.knownPeers))),
-        cmdArgs.runtime.genusArgs.orientDbDir.map(createF(genLens(_.genus.orientDbDirectory))),
-        cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(genLens(_.genus.orientDbPassword)))
+        cmdArgs.runtime.dataDir.map(createF(GenLens[ApplicationConfig](_.bifrost.data.directory))),
+        cmdArgs.runtime.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
+        cmdArgs.runtime.rpcBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindHost))),
+        cmdArgs.runtime.rpcBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindPort))),
+        cmdArgs.runtime.p2pBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindHost))),
+        cmdArgs.runtime.p2pBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindPort))),
+        cmdArgs.runtime.knownPeers
+          .map(parseKnownPeers)
+          .map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.knownPeers))),
+        cmdArgs.runtime.genusArgs.orientDbDir.map(createF(GenLens[ApplicationConfig](_.genus.orientDbDirectory))),
+        cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(GenLens[ApplicationConfig](_.genus.orientDbPassword)))
       ).flatten
         .foldLeft(
           if (cmdArgs.runtime.genusArgs.disableGenus.value)
-            createF(genLens(_.genus.enable))(false)(base)
+            createF(GenLens[ApplicationConfig](_.genus.enable))(false)(base)
           else
             base
         ) { case (appConf, f) => f(appConf) }
@@ -65,7 +68,7 @@ object ApplicationConfigOps {
               localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
             )
         }
-      genLens(_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
+      GenLens[ApplicationConfig](_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
     } else {
       simpleArgApplications
     }
@@ -117,8 +120,7 @@ object ApplicationConfigOps {
 
   implicit val showApplicationConfig: Show[ApplicationConfig] = {
     val base = Show.fromToString[ApplicationConfig]
-    val genLens = GenLens[ApplicationConfig]
-    val sanitizer = genLens(_.genus.orientDbPassword).replace("SANITIZED")
+    val sanitizer = GenLens[ApplicationConfig](_.genus.orientDbPassword).replace("SANITIZED")
     conf => base.show(sanitizer(conf))
   }
 }

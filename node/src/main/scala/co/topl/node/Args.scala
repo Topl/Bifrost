@@ -105,8 +105,7 @@ object Args {
 
   implicit val showArgs: Show[Args] = {
     val base = Show.fromToString[Args]
-    val genLens = GenLens[Args]
-    val sanitizer = genLens(_.runtime.genusArgs.orientDbPassword).replace(Some("SANITIZED"))
+    val sanitizer = GenLens[Args](_.runtime.genusArgs.orientDbPassword).replace(Some("SANITIZED"))
     args => base.show(sanitizer(args))
   }
 

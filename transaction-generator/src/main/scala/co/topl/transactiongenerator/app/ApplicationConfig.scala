@@ -42,7 +42,7 @@ object ApplicationConfig {
     case class Parallelism(fetchBody: Int, fetchTransaction: Int, generateTx: Int)
   }
 
-  def unsafe(args: Args, config: Config): ApplicationConfig =
+  def unsafe(config: Config): ApplicationConfig =
     ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
 
   implicit val showApplicationConfig: Show[ApplicationConfig] =
