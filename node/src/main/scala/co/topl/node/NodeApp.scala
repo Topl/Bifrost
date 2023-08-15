@@ -1,6 +1,6 @@
 package co.topl.node
 
-import cats.Applicative
+import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.std.Random
 import cats.effect.std.SecureRandom
@@ -9,24 +9,19 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
-import co.topl.brambl.models.LockAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.algebras._
 import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
-import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
+import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
-import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
-import co.topl.crypto.signing._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
-import co.topl.minting.algebras.StakingAlgebra
-import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
@@ -36,8 +31,6 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 
-// Hide `io` from fs2 because it conflicts with `io.grpc` down below
-import fs2.{io => _}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -46,7 +39,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import io.grpc.ServerServiceDefinition
 
 import java.time.Instant
-import java.util.UUID
 
 object NodeApp extends AbstractNodeApp
 
@@ -84,7 +76,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
       privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
       protocolVersion = ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion
-      stakerInitializers <- Sync[F]
+      testnetStakerInitializers <- Sync[F]
         .delay(
           PrivateTestnet.stakerInitializers(
             privateBigBang.timestamp,
@@ -96,7 +88,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .delay(
           PrivateTestnet.config(
             privateBigBang.timestamp,
-            stakerInitializers,
+            testnetStakerInitializers,
             privateBigBang.stakes,
             protocolVersion
           )
@@ -106,7 +98,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       bigBangBlockId = bigBangBlock.header.id
       _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=$bigBangBlockId"))
 
-      stakingDir = Path(appConfig.bifrost.staking.directory) / bigBangBlockId.show
+      stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
       _ <- Resource.eval(Files[F].createDirectories(stakingDir))
       _ <- Resource.eval(Logger[F].info(show"Using stakingDir=$stakingDir"))
 
@@ -222,26 +214,46 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      staking <- privateBigBang.localStakerIndex
-        .flatMap(stakerInitializers.get(_))
-        .fold(Resource.pure[F, Option[StakingAlgebra[F]]](none))(initializer =>
-          makeStaking(
-            stakingDir,
-            initializer,
-            clock,
-            etaCalculation,
-            consensusValidationState,
-            leaderElectionThreshold,
-            cryptoResources.ed25519,
-            cryptoResources.blake2b256,
-            cryptoResources.ed25519VRF,
-            cryptoResources.kesProduct,
-            bigBangProtocol,
-            vrfConfig,
-            protocolVersion,
-            appConfig.bifrost.staking.rewardAddress
-          ).map(_.some)
+      staking <- OptionT
+        .fromOption[Resource[F, *]](privateBigBang.localStakerIndex.flatMap(testnetStakerInitializers.get(_)))
+        .semiflatMap(
+          StakingInit
+            .makeStakingFromGenesis(
+              stakingDir,
+              _,
+              appConfig.bifrost.staking.rewardAddress,
+              clock,
+              etaCalculation,
+              consensusValidationState,
+              leaderElectionThreshold,
+              cryptoResources,
+              bigBangProtocol,
+              vrfConfig,
+              protocolVersion
+            )
         )
+        .orElse(
+          OptionT
+            .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
+            .flatMap(
+              OptionT.whenF(_)(
+                StakingInit
+                  .makeStakingFromDisk(
+                    stakingDir,
+                    appConfig.bifrost.staking.rewardAddress,
+                    clock,
+                    etaCalculation,
+                    consensusValidationState,
+                    leaderElectionThreshold,
+                    cryptoResources,
+                    bigBangProtocol,
+                    vrfConfig,
+                    protocolVersion
+                  )
+              )
+            )
+        )
+        .value
 
       eligibilityCache <-
         EligibilityCache
@@ -345,71 +357,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.p2p.networkProperties
         )
     } yield ()
-
-  private def makeStaking(
-    stakingDir:               Path,
-    initializer:              StakerInitializers.Operator,
-    clock:                    ClockAlgebra[F],
-    etaCalculation:           EtaCalculationAlgebra[F],
-    consensusValidationState: ConsensusValidationStateAlgebra[F],
-    leaderElectionThreshold:  LeaderElectionValidationAlgebra[F],
-    ed25519Resource:          UnsafeResource[F, Ed25519],
-    blake2b256Resource:       UnsafeResource[F, Blake2b256],
-    ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    kesProductResource:       UnsafeResource[F, KesProduct],
-    protocol:                 ApplicationConfig.Bifrost.Protocol,
-    vrfConfig:                VrfConfig,
-    protocolVersion:          ProtocolVersion,
-    rewardAddress:            LockAddress
-  ) =
-    for {
-      // Initialize a persistent secure store
-      kesPath     <- Sync[F].delay(stakingDir / "kes").toResource
-      _           <- Files[F].createDirectories(kesPath).toResource
-      secureStore <- CatsSecureStore.make[F](kesPath.toNioPath)
-      // Determine if a key has already been initialized
-      _ <- secureStore.list
-        .map(_.isEmpty)
-        // If uninitialized, generate a new key.  Otherwise, move on.
-        .ifM(secureStore.write(UUID.randomUUID().toString, initializer.kesSK), Applicative[F].unit)
-        .toResource
-
-      vrfCalculator <- VrfCalculator.make[F](
-        initializer.vrfSK,
-        ed25519VRFResource,
-        protocol.vrfCacheSize
-      )
-
-      operationalKeys <- OperationalKeyMaker
-        .make[F](
-          operationalPeriodLength = protocol.operationalPeriodLength,
-          activationOperationalPeriod = 0L, // TODO: Accept registration block as `make` parameter?
-          initializer.stakingAddress,
-          vrfConfig,
-          secureStore = secureStore,
-          clock = clock,
-          vrfCalculator = vrfCalculator,
-          leaderElectionThreshold,
-          etaCalculation,
-          consensusValidationState,
-          kesProductResource,
-          ed25519Resource
-        )
-
-      staking <- Staking.make(
-        initializer.stakingAddress,
-        rewardAddress,
-        initializer.vrfVK,
-        operationalKeys,
-        consensusValidationState,
-        etaCalculation,
-        ed25519Resource,
-        blake2b256Resource,
-        vrfCalculator,
-        leaderElectionThreshold,
-        protocolVersion
-      )
-    } yield staking
 
   private def makeEpochBoundariesState(
     clock:                       ClockAlgebra[F],

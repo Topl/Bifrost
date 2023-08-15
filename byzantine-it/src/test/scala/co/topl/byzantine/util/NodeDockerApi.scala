@@ -1,21 +1,20 @@
 package co.topl.byzantine.util
 
 import cats.effect._
-import cats.implicits._
 import cats.effect.implicits._
+import cats.implicits._
 import co.topl.algebras.{NodeRpc, ToplGenusRpc}
 import co.topl.genus.GenusGrpc
 import co.topl.grpc.NodeGrpc
 import com.spotify.docker.client.DockerClient
-import org.typelevel.log4cats.Logger
+import com.spotify.docker.client.messages.HostConfig
 import fs2._
-import fs2.io.file.Files
-import fs2.io.file.Flags
-import fs2.io.file.Path
+import fs2.io.file.{Files, Flags, Path}
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import scala.jdk.CollectionConverters._
 import java.nio.charset.StandardCharsets
+import scala.jdk.CollectionConverters._
 
 class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
 
@@ -47,10 +46,10 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
   def ipAddress[F[_]: Sync]: F[String] =
     Sync[F].blocking(dockerClient.inspectContainer(containerId).networkSettings().ipAddress())
 
-  def rpcClient[F[_]: Async](port: Int, tls: Boolean): Resource[F, NodeRpc[F, Stream[F, *]]] =
+  def rpcClient[F[_]: Async](port: Int, tls: Boolean = false): Resource[F, NodeRpc[F, Stream[F, *]]] =
     ipAddress.toResource.flatMap(NodeGrpc.Client.make[F](_, port, tls))
 
-  def rpcGenusClient[F[_]: Async](port: Int, tls: Boolean): Resource[F, ToplGenusRpc[F]] =
+  def rpcGenusClient[F[_]: Async](port: Int, tls: Boolean = false): Resource[F, ToplGenusRpc[F]] =
     ipAddress.toResource.flatMap(GenusGrpc.Client.make[F](_, port, tls))
 
   def configure[F[_]: Async](configYaml: String): F[Unit] =
@@ -61,30 +60,56 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
         if (isRunning)
           Sync[F].raiseError(new IllegalStateException("Attempted to set configuration on running node"))
         else Sync[F].unit
-      _ <- Files[F].tempDirectory.use(tmpConfigDir =>
-        for {
-          tmpConfigFile <- (tmpConfigDir / "node.yaml").pure[F]
-          tmpLogFile    <- (tmpConfigDir / "logback.xml").pure[F]
-          _ <- Stream
-            .chunk(Chunk.array(configYaml.getBytes(StandardCharsets.UTF_8)))
-            .through(Files[F].writeAll(tmpConfigFile))
-            .compile
-            .drain
-          _ <- fs2.io
-            .readClassLoaderResource("logback-container.xml")
-            .through(Files[F].writeAll(tmpLogFile))
-            .compile
-            .drain
-          _ <- Sync[F].blocking(
-            dockerClient.copyToContainer(
-              tmpConfigDir.toNioPath,
-              containerId,
-              "/opt/docker/config"
-            )
-          )
-        } yield ()
-      )
+      _ <- Files
+        .forAsync[F]
+        .tempDirectory
+        .use(tmpConfigDir =>
+          for {
+            tmpConfigFile <- (tmpConfigDir / "node.yaml").pure[F]
+            tmpLogFile    <- (tmpConfigDir / "logback.xml").pure[F]
+            _ <- Stream
+              .chunk(Chunk.array(configYaml.getBytes(StandardCharsets.UTF_8)))
+              .through(Files.forAsync[F].writeAll(tmpConfigFile))
+              .compile
+              .drain
+            _ <- fs2.io
+              .readClassLoaderResource("logback-container.xml")
+              .through(Files.forAsync[F].writeAll(tmpLogFile))
+              .compile
+              .drain
+            _ <- copyDirectoryIntoContainer(tmpConfigDir, Path("/bifrost-config"))
+          } yield ()
+        )
     } yield ()
+
+  def copyDirectoryIntoContainer[F[_]: Sync](localPath: Path, containerPath: Path): F[Unit] =
+    Sync[F].blocking(
+      dockerClient.copyToContainer(
+        localPath.toNioPath,
+        containerId,
+        containerPath.toString
+      )
+    )
+
+  def bindDirectoryIntoContainer[F[_]: Sync](localPath: Path, containerPath: Path): F[Unit] =
+    Sync[F].blocking(
+      dockerClient.updateContainer(
+        containerId,
+        dockerClient
+          .inspectContainer(containerId)
+          .hostConfig()
+          .toBuilder
+          .appendBinds(
+            HostConfig.Bind
+              .builder()
+              .from(localPath.toString)
+              .to(containerPath.toString)
+              .selinuxLabeling(true)
+              .build()
+          )
+          .build()
+      )
+    )
 
   def containerLogs[F[_]: Async]: Stream[F, Byte] =
     Stream
@@ -103,7 +128,7 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
     Sync[F].defer(
       Logger[F].info(s"Writing container logs to $file") >>
       containerLogs[F]
-        .through(Files[F].writeAll(file, Flags.Write))
+        .through(Files.forAsync[F].writeAll(file, Flags.Write))
         .compile
         .drain
     )

@@ -70,7 +70,7 @@ lazy val dockerSettings = Seq(
 lazy val nodeDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
+    dockerExposedVolumes ++= Seq("/bifrost-data", "/bifrost-staking", "/bifrost-config"),
     Docker / packageName := "bifrost-node"
   )
 
