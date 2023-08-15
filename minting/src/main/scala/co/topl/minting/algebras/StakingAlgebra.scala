@@ -1,5 +1,6 @@
 package co.topl.minting.algebras
 
+import co.topl.brambl.models.LockAddress
 import co.topl.consensus.models.BlockHeader
 import co.topl.minting.models.VrfHit
 import co.topl.models._
@@ -16,6 +17,11 @@ trait StakingAlgebra[F[_]] {
    * The staker's staking (account) address, usually a verification key
    */
   def address: F[StakingAddress]
+
+  /**
+   * A Lock Address, owned by the Staker, to which rewarded funds should be sent
+   */
+  def rewardAddress: F[LockAddress]
 
   /**
    * Attempt to form a VrfHit for the given parent+slot combination

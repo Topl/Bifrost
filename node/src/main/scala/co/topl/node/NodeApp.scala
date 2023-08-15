@@ -9,6 +9,7 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
+import co.topl.brambl.models.LockAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
@@ -58,7 +59,7 @@ abstract class AbstractNodeApp
     ) {
 
   def run: IO[Unit] =
-    if (args.startup.cli) new ConfiguredCliApp(args, appConfig).run
+    if (args.startup.cli) new ConfiguredCliApp(appConfig).run
     else new ConfiguredNodeApp(args, appConfig).run
 }
 
@@ -237,7 +238,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             cryptoResources.kesProduct,
             bigBangProtocol,
             vrfConfig,
-            protocolVersion
+            protocolVersion,
+            appConfig.bifrost.staking.rewardAddress
           ).map(_.some)
         )
 
@@ -357,7 +359,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     kesProductResource:       UnsafeResource[F, KesProduct],
     protocol:                 ApplicationConfig.Bifrost.Protocol,
     vrfConfig:                VrfConfig,
-    protocolVersion:          ProtocolVersion
+    protocolVersion:          ProtocolVersion,
+    rewardAddress:            LockAddress
   ) =
     for {
       // Initialize a persistent secure store
@@ -395,6 +398,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       staking <- Staking.make(
         initializer.stakingAddress,
+        rewardAddress,
         initializer.vrfVK,
         operationalKeys,
         consensusValidationState,

@@ -11,6 +11,7 @@ import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.brambl.models._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
+import co.topl.models.utility._
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.transactiongenerator.interpreters.Fs2TransactionGenerator
@@ -185,7 +186,7 @@ class NodeAppTest extends CatsEffectSuite {
     def filterTransactions(targetBlock: BlockId)(ids: Set[TransactionId]): F[Set[TransactionId]] =
       client
         .fetchBlockBody(targetBlock)
-        .map(ids -- _.get.transactionIds)
+        .map(ids -- _.get.allTransactionIds)
         .flatMap(ids =>
           if (ids.isEmpty) ids.pure[F]
           else
@@ -217,7 +218,7 @@ class NodeAppTest extends CatsEffectSuite {
 
   private def verifyNotConfirmed(client: RpcClient)(ids: Set[TransactionId]) =
     client.history
-      .flatMap(block => Stream.emits(block.fullBody.transactions))
+      .flatMap(block => Stream.emits(block.fullBody.allTransactions))
       .map(_.id)
       .forall(!ids.contains(_))
       .compile

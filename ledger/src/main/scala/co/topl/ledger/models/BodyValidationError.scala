@@ -39,4 +39,6 @@ object BodySyntaxErrors {
   ) extends BodySyntaxError
 
   case class DoubleSpend(boxIds: NonEmptySet[TransactionOutputAddress]) extends BodySyntaxError
+
+  case class InvalidReward(rewardTransaction: IoTransaction) extends BodySyntaxError
 }

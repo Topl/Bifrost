@@ -21,8 +21,7 @@ import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import org.typelevel.log4cats.Logger
-
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 
 /**
  * Actor for managing peers
@@ -231,7 +230,7 @@ object PeersManager {
       peer.state == PeerState.Hot || peer.state == PeerState.Warm || peer.state == PeerState.PreWarm
     }
 
-  private def finalizeActor[F[_]: Applicative](currentState: State[F]): F[Unit] = Applicative[F].unit
+  private def finalizeActor[F[_]: Applicative](@nowarn unusedCurrentState: State[F]): F[Unit] = Applicative[F].unit
 
   private def setupBlockChecker[F[_]: Async: Logger](
     state:         State[F],
@@ -480,7 +479,7 @@ object PeersManager {
     warmPeersToHot(state, warmToHot)
   }
 
-  private def getNewHotConnectionHosts[F[_]: Async](
+  private def getNewHotConnectionHosts[F[_]](
     state:                 State[F],
     performanceReputation: Map[HostId, HostReputationValue],
     countToOpen:           Int

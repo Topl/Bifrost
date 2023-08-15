@@ -25,6 +25,7 @@ import munit.ScalaCheckEffectSuite
 import org.scalamock.munit.AsyncMockFactory
 import quivr.models.Int128
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.proto.node.EpochData
 import scala.collection.immutable.NumericRange
 
@@ -89,8 +90,11 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           _ <- List(genesisBlock, block2, block3, block4, block5)
             .traverse(block =>
               headerStore.put(block.header.id, block.header) *>
-              bodyStore.put(block.header.id, BlockBody(block.fullBody.transactions.map(_.id))) *>
-              block.fullBody.transactions.traverse(tx => transactionStore.put(tx.id, tx))
+              bodyStore.put(
+                block.header.id,
+                BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))
+              ) *>
+              block.fullBody.allTransactions.traverse(tx => transactionStore.put(tx.id, tx))
             )
             .toResource
           rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
@@ -344,7 +348,7 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     )
 
   private def blockSize(block: FullBlock) =
-    TetraScodecCodecs.consensusBlockHeaderCodec.encode(block.header).require.length + block.fullBody.transactions
+    TetraScodecCodecs.consensusBlockHeaderCodec.encode(block.header).require.length + block.fullBody.allTransactions
       .map(ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(_).value.size())
       .sum
 

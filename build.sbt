@@ -121,8 +121,9 @@ lazy val commonScalacOptions = Seq(
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Ywarn-unused:-implicits,-privates,_",
-  "-Yrangepos"
+  "-Ywarn-unused:_",
+  "-Yrangepos",
+  "-Ywarn-macros:after"
 )
 
 javaOptions ++= Seq(
@@ -540,7 +541,7 @@ lazy val ledger = project
     typeclasses,
     eventTree,
     munitScalamock % "test->test",
-    numerics % "test->compile"
+    numerics
   )
 
 lazy val blockchain = project

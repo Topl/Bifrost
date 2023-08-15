@@ -1,6 +1,6 @@
 package co.topl.minting.algebras
 
-import co.topl.node.models.Block
+import co.topl.node.models.FullBlock
 import fs2.Stream
 
 /**
@@ -8,5 +8,5 @@ import fs2.Stream
  * @tparam F[_] Base type constructor
  */
 trait BlockProducerAlgebra[F[_]] {
-  def blocks: F[Stream[F, Block]]
+  def blocks: F[Stream[F, FullBlock]]
 }

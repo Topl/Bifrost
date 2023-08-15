@@ -216,11 +216,14 @@ class ECVRF25519 extends EC {
     out
   }
 
-  private def isNeutralPoint(p: PointAccum): Boolean = {
-    val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
-    encodePoint(p, pBytes, 0)
-    pBytes sameElements neutralPointBytes
-  }
+  /**
+   * // commented implementation, it is not used
+   * private def isNeutralPoint(p: PointAccum): Boolean = {
+   * val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
+   * encodePoint(p, pBytes, 0)
+   * pBytes sameElements neutralPointBytes
+   * }
+   */
 
   private def isNeutralPoint(p: PointExt): Boolean = {
     val pBytes: Array[Byte] = Array.fill(POINT_BYTES)(0x00.toByte)
@@ -261,7 +264,8 @@ class ECVRF25519 extends EC {
   3. If cofactor*Y is the EC point at infinty, output "INVALID" and
   stop
   4. Output Y
-   */
+
+  // commented implementation, it is not used
   private def verifyPublicKey(pk: Array[Byte]): Boolean =
     if (pk.length == PUBLIC_KEY_SIZE) {
       val Y = new PointExt
@@ -278,6 +282,7 @@ class ECVRF25519 extends EC {
     } else {
       false
     }
+   */
 
   /*
   NOTE: This method leads to side channel attack (timing attack) if alpha is a secret

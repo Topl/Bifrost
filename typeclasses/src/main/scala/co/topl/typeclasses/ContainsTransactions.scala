@@ -47,7 +47,7 @@ object ContainsTransactionIds {
 
   trait Instances {
 
-    implicit val blockNodeBody: ContainsTransactionIds[co.topl.node.models.BlockBody] = _.transactionIds
+    implicit val blockNodeBody: ContainsTransactionIds[co.topl.node.models.BlockBody] = _.allTransactionIds
 
     implicit def containsTxToContainTxsId[G: ContainsTransactions]: ContainsTransactionIds[G] = txs =>
       implicitly[ContainsTransactions[G]].transactionsOf(txs).map(_.id)
@@ -71,7 +71,7 @@ object ContainsTransactions {
 
   trait Instances {
 
-    implicit val fullBlockBodyContainsTransactions: ContainsTransactions[FullBlockBody] = _.transactions
+    implicit val fullBlockBodyContainsTransactions: ContainsTransactions[FullBlockBody] = _.allTransactions
 
     implicit val transactionsContainsTransactions: ContainsTransactions[Seq[IoTransaction]] = identity
 

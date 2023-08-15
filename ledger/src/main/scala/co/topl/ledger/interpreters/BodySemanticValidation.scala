@@ -24,6 +24,7 @@ object BodySemanticValidation {
          * the outputs of previous transactions in the block, but no two transactions may spend the same input.
          */
         def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
+          // Note: Do not run validation on the reward transaction
           body.transactionIds
             .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>

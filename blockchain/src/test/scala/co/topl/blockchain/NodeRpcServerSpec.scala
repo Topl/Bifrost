@@ -19,14 +19,9 @@ import co.topl.proto.node.{EpochData, NodeConfig}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import fs2.Stream
 
 class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-
-  implicit private val logger: Logger[F] =
-    Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   type F[A] = IO[A]
 

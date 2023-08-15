@@ -5,7 +5,7 @@ import cats.implicits._
 import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models._
-import co.topl.brambl.models.box.{FixedSeries, Value}
+import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
@@ -250,7 +250,7 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
                 Value.defaultInstance.withGroup(
                   Value.Group(
                     label = "Crypto Frogs",
-                    fixedSeries = Option.empty[FixedSeries],
+                    fixedSeries = Option.empty[SeriesId],
                     // index 0, is a TOPL values instead of LVL
                     transactionOutputAddress = TransactionOutputAddress(0, 0, 0, transactionA.id),
                     groupId = Option.empty[GroupId]

@@ -6,11 +6,16 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.Txo
 import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
-import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{blockHeaderBodyEdge, blockHeaderTxIOEdge}
+import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.{
+  blockHeaderBodyEdge,
+  blockHeaderRewardEdge,
+  blockHeaderTxIOEdge
+}
 import co.topl.genusLibrary.orientDb.schema.VertexSchema
 import co.topl.node.models.BlockBody
 import com.tinkerpop.blueprints.{Direction, Vertex}
 import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
+
 import scala.jdk.CollectionConverters._
 
 /**
@@ -60,7 +65,8 @@ object VertexSchemaInstances {
         blockHeaderVertex.getVertices(Direction.OUT, blockHeaderBodyEdge.label).asScala.headOption
 
       def getIoTxs(blockHeaderVertex: Vertex): Seq[Vertex] =
-        blockHeaderVertex.getVertices(Direction.OUT, blockHeaderTxIOEdge.label).asScala.toSeq
+        blockHeaderVertex.getVertices(Direction.OUT, blockHeaderTxIOEdge.label).asScala.toSeq ++
+        blockHeaderVertex.getVertices(Direction.OUT, blockHeaderRewardEdge.label).asScala.toSeq
 
       def getTxo(address: TransactionOutputAddress): Option[Vertex] =
         graph

@@ -16,6 +16,7 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.TxRoot
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
+import co.topl.models.utility._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
@@ -264,7 +265,7 @@ class PeerBlockBodyFetcherTest
       val idAndBody = idBodyTxIdTx.map(d => (d._1, d._2))
 
       def transactionIsMissed(id:  TransactionId): Boolean = id.hashCode() % 7 == 0
-      def blockIsMissed(blockBody: BlockBody): Boolean = blockBody.transactionIds.exists(transactionIsMissed)
+      def blockIsMissed(blockBody: BlockBody): Boolean = blockBody.allTransactionIds.exists(transactionIsMissed)
 
       val presentBlockIdAndBodies = idAndBody.toList
 
@@ -298,7 +299,7 @@ class PeerBlockBodyFetcherTest
           if (!blockIsMissed(body)) {
             (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
           } else {
-            val missedId = body.transactionIds.find(transactionIsMissed).get
+            val missedId = body.allTransactionIds.find(transactionIsMissed).get
             (
               header,
               Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
@@ -350,7 +351,7 @@ class PeerBlockBodyFetcherTest
 
       def transactionHaveIncorrectId(id: TransactionId): Boolean = id.hashCode() % 7 == 0
 
-      def blockIsMissed(blockBody: BlockBody): Boolean = blockBody.transactionIds.exists(transactionHaveIncorrectId)
+      def blockIsMissed(blockBody: BlockBody): Boolean = blockBody.allTransactionIds.exists(transactionHaveIncorrectId)
 
       val incorrectTransaction = arbitraryIoTransaction.arbitrary.first
       val incorrectTransactionId = incorrectTransaction.id
@@ -389,7 +390,7 @@ class PeerBlockBodyFetcherTest
           if (!blockIsMissed(body)) {
             (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
           } else {
-            val expectedId = body.transactionIds.find(transactionHaveIncorrectId).get
+            val expectedId = body.allTransactionIds.find(transactionHaveIncorrectId).get
             (
               header,
               Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
