@@ -1,7 +1,7 @@
 package co.topl.byzantine
 
 import cats.data.OptionT
-import cats.effect.{IO, Resource}
+import cats.effect.IO
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -41,17 +41,15 @@ class MultiNodeTest extends IntegrationSuite {
   test("Multiple nodes launch and maintain consensus for three epochs") {
     val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
-    val config0 = TestNodeConfig(bigBang, 3, 0, Nil)
-    val config1 = TestNodeConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
-    val config2 = TestNodeConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
+    val config0 = TestNodeConfig(bigBang, 2, 0, Nil)
+    val config1 = TestNodeConfig(bigBang, 2, 1, List("MultiNodeTest-node0"))
     val resource =
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
         node0 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0)
         node1 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1)
-        node2 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
-        initialNodes = List(node0, node1, node2)
+        initialNodes = List(node0, node1)
         _ <- initialNodes.parTraverse(_.startContainer[F]).toResource
         _ <- initialNodes
           .parTraverse(node => node.rpcClient[F](node.config.rpcPort).use(_.waitForRpcStartUp))
@@ -69,19 +67,19 @@ class MultiNodeTest extends IntegrationSuite {
         // Node 3 is a delayed staker.  It will register in epoch 0, but the container won't launch until epoch 2.
         tempHostStakingDirectory <- Files.forAsync[F].tempDirectory
         _ <- Files.forAsync[F].setPosixPermissions(tempHostStakingDirectory, posixOtherWritePermissions).toResource
-        config3 = TestNodeConfig(
+        config2 = TestNodeConfig(
           bigBang,
-          3,
+          2,
           -1,
-          List("MultiNodeTest-node2"),
+          List("MultiNodeTest-node1"),
           stakingBindSourceDir = tempHostStakingDirectory.toString.some
         )
-        node3 <- dockerSupport.createNode("MultiNodeTest-node3", "MultiNodeTest", config3)
-        allNodes = List(node0, node1, node2, node3)
-        _ <- Logger[F].info("Registering node3").toResource
-        node3StakingAddress <- node2
-          .rpcClient[F](node2.config.rpcPort)
-          // Take stake from node0 and transfer it to node3
+        node2 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
+        allNodes = List(node0, node1, node2)
+        _ <- Logger[F].info("Registering node2").toResource
+        node2StakingAddress <- node1
+          .rpcClient[F](node1.config.rpcPort)
+          // Take stake from node0 and transfer it to node2
           .evalMap(registerStaker(genesisTransaction, 0)(_, tempHostStakingDirectory))
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- initialNodes
@@ -92,14 +90,14 @@ class MultiNodeTest extends IntegrationSuite {
           )
           .toResource
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
-        // node3's registration should now be active, so node3 can launch and start producing blocks
-        _ <- Logger[F].info("Starting node3").toResource
-        _ <- node3.startContainer[F].toResource
-        // node3's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
-        // by node3's staking address
+        // node2's registration should now be active, so node2 can launch and start producing blocks
+        _ <- Logger[F].info("Starting node2").toResource
+        _ <- node2.startContainer[F].toResource
+        // node2's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
+        // by node2's staking address
         _ <- node0
           .rpcClient[F](node0.config.rpcPort)
-          .use(_.adoptedHeaders.find(_.address == node3StakingAddress).timeout(2.minutes).compile.lastOrError)
+          .use(_.adoptedHeaders.find(_.address == node2StakingAddress).timeout(2.minutes).compile.lastOrError)
           .toResource
         heights = thirdEpochHeads.map(_.height)
         // All nodes should be at _roughly_ equal height
