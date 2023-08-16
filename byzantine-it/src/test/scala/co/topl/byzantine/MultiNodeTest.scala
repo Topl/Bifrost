@@ -1,7 +1,7 @@
 package co.topl.byzantine
 
 import cats.data.OptionT
-import cats.effect.{IO, Resource}
+import cats.effect.IO
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
@@ -35,23 +35,38 @@ import java.time.Instant
 import scala.concurrent.duration._
 
 class MultiNodeTest extends IntegrationSuite {
+  import MultiNodeTest._
 
   override def munitTimeout: Duration = 15.minutes
+  // This many nodes will be launched for this test.  All but one of the nodes will be launched immediately as
+  // genesis stakers.  The final node will be launched later in the test.
+  // When running on GitHub Actions, only 3 nodes can run on one machine.
+  private val totalNodeCount = 3
+  require(totalNodeCount >= 3)
 
   test("Multiple nodes launch and maintain consensus for three epochs") {
     val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
-    val config0 = TestNodeConfig(bigBang, 3, 0, Nil)
-    val config1 = TestNodeConfig(bigBang, 3, 1, List("MultiNodeTest-node0"))
-    val config2 = TestNodeConfig(bigBang, 3, 2, List("MultiNodeTest-node1"))
     val resource =
       for {
         (dockerSupport, _dockerClient) <- DockerSupport.make[F]()
         implicit0(dockerClient: DockerClient) = _dockerClient
-        node0 <- dockerSupport.createNode("MultiNodeTest-node0", "MultiNodeTest", config0)
-        node1 <- dockerSupport.createNode("MultiNodeTest-node1", "MultiNodeTest", config1)
-        node2 <- dockerSupport.createNode("MultiNodeTest-node2", "MultiNodeTest", config2)
-        initialNodes = List(node0, node1, node2)
+        initialNodes <- List
+          .tabulate(totalNodeCount - 1)(index =>
+            dockerSupport.createNode(
+              s"MultiNodeTest-node$index",
+              "MultiNodeTest",
+              TestNodeConfig(
+                bigBang,
+                totalNodeCount - 1,
+                index,
+                if (index == 0) Nil else List(s"MultiNodeTest-node${index - 1}")
+              )
+            )
+          )
+          .sequence
+        node0 = initialNodes(0)
+        node1 = initialNodes(1)
         _ <- initialNodes.parTraverse(_.startContainer[F]).toResource
         _ <- initialNodes
           .parTraverse(node => node.rpcClient[F](node.config.rpcPort).use(_.waitForRpcStartUp))
@@ -67,22 +82,27 @@ class MultiNodeTest extends IntegrationSuite {
           )
           .toResource
         // Node 3 is a delayed staker.  It will register in epoch 0, but the container won't launch until epoch 2.
-        tempHostStakingDirectory <- Files.forAsync[F].tempDirectory
-        _ <- Files.forAsync[F].setPosixPermissions(tempHostStakingDirectory, posixOtherWritePermissions).toResource
-        config3 = TestNodeConfig(
+        tmpHostStakingDirectory <- Files.forAsync[F].tempDirectory
+        _ <- Files.forAsync[F].setPosixPermissions(tmpHostStakingDirectory, PosixOtherWritePermissions).toResource
+        delayedNodeConfig = TestNodeConfig(
           bigBang,
-          3,
+          totalNodeCount - 1,
           -1,
-          List("MultiNodeTest-node2"),
-          stakingBindSourceDir = tempHostStakingDirectory.toString.some
+          List("MultiNodeTest-node1"),
+          stakingBindSourceDir = tmpHostStakingDirectory.toString.some
         )
-        node3 <- dockerSupport.createNode("MultiNodeTest-node3", "MultiNodeTest", config3)
-        allNodes = List(node0, node1, node2, node3)
-        _ <- Logger[F].info("Registering node3").toResource
-        node3StakingAddress <- node2
-          .rpcClient[F](node2.config.rpcPort)
-          // Take stake from node0 and transfer it to node3
-          .evalMap(registerStaker(genesisTransaction, 0)(_, tempHostStakingDirectory))
+        delayedNodeName = s"MultiNodeTest-node${totalNodeCount - 1}"
+        delayedNode <- dockerSupport.createNode(
+          delayedNodeName,
+          "MultiNodeTest",
+          delayedNodeConfig
+        )
+        allNodes = initialNodes :+ delayedNode
+        _ <- Logger[F].info(s"Registering $delayedNodeName").toResource
+        delayedNodeStakingAddress <- node1
+          .rpcClient[F](node1.config.rpcPort)
+          // Take stake from node0 and transfer it to the delayed node
+          .evalMap(registerStaker(genesisTransaction, 0)(_, tmpHostStakingDirectory))
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- initialNodes
           .parTraverse(node =>
@@ -92,14 +112,14 @@ class MultiNodeTest extends IntegrationSuite {
           )
           .toResource
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
-        // node3's registration should now be active, so node3 can launch and start producing blocks
-        _ <- Logger[F].info("Starting node3").toResource
-        _ <- node3.startContainer[F].toResource
-        // node3's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
-        // by node3's staking address
+        // The delayed node's registration should now be active, so the delayed node can launch and start producing blocks
+        _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
+        _ <- delayedNode.startContainer[F].toResource
+        // The delayed node's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
+        // by the delayed node's staking address
         _ <- node0
           .rpcClient[F](node0.config.rpcPort)
-          .use(_.adoptedHeaders.find(_.address == node3StakingAddress).timeout(2.minutes).compile.lastOrError)
+          .use(_.adoptedHeaders.find(_.address == delayedNodeStakingAddress).timeout(2.minutes).compile.lastOrError)
           .toResource
         heights = thirdEpochHeads.map(_.height)
         // All nodes should be at _roughly_ equal height
@@ -119,22 +139,6 @@ class MultiNodeTest extends IntegrationSuite {
     resource.use_
 
   }
-
-  /**
-   * The KES key needs to be modifiable by the node's container user
-   */
-  private val posixOtherWritePermissions =
-    PosixPermissions(
-      PosixPermission.OwnerRead,
-      PosixPermission.OwnerWrite,
-      PosixPermission.OwnerExecute,
-      PosixPermission.GroupRead,
-      PosixPermission.GroupWrite,
-      PosixPermission.GroupExecute,
-      PosixPermission.OthersRead,
-      PosixPermission.OthersWrite,
-      PosixPermission.OthersExecute
-    )
 
   /**
    * Generates a new staker by taking half of the stake from the given input transaction.  The keys are generated locally
@@ -159,11 +163,11 @@ class MultiNodeTest extends IntegrationSuite {
         fs2.Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(localTmpDir / name)).compile.drain
       _ <- Logger[F].info("Saving new staker keys to temp directory")
       _ <- Files[F].createDirectory(localTmpDir / StakingInit.KesDirectoryName)
-      _ <- Files.forAsync[F].setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName, posixOtherWritePermissions)
-      _ <- Files[F].createFile(localTmpDir / StakingInit.KesDirectoryName / "0", Some(posixOtherWritePermissions))
+      _ <- Files.forAsync[F].setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName, PosixOtherWritePermissions)
+      _ <- Files[F].createFile(localTmpDir / StakingInit.KesDirectoryName / "0", Some(PosixOtherWritePermissions))
       _ <- Files
         .forAsync[F]
-        .setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName / "0", posixOtherWritePermissions)
+        .setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName / "0", PosixOtherWritePermissions)
       _ <- writeFile(
         StakingInit.KesDirectoryName + "/0",
         Persistable[SecretKeyKesProduct].persistedBytes(kesKey._1).toByteArray
@@ -217,4 +221,23 @@ class MultiNodeTest extends IntegrationSuite {
       _ <- rpcClient.broadcastTransaction(transaction)
       _ <- writeFile(StakingInit.RegistrationTxName, transaction.toByteArray)
     } yield stakerInitializer.stakingAddress
+}
+
+object MultiNodeTest {
+
+  /**
+   * The KES key needs to be modifiable by the node's container user
+   */
+  val PosixOtherWritePermissions: PosixPermissions =
+    PosixPermissions(
+      PosixPermission.OwnerRead,
+      PosixPermission.OwnerWrite,
+      PosixPermission.OwnerExecute,
+      PosixPermission.GroupRead,
+      PosixPermission.GroupWrite,
+      PosixPermission.GroupExecute,
+      PosixPermission.OthersRead,
+      PosixPermission.OthersWrite,
+      PosixPermission.OthersExecute
+    )
 }
