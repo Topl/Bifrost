@@ -15,7 +15,7 @@ import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, KnownHost}
 import com.comcast.ip4s.Dns
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -35,6 +35,7 @@ object ActorPeerHandlerBridgeAlgebra {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
+    knownHostsStore:             Store[F, Unit, Seq[KnownHost]],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkProperties:           NetworkProperties,
     clockAlgebra:                ClockAlgebra[F],
@@ -60,6 +61,7 @@ object ActorPeerHandlerBridgeAlgebra {
         headerStore,
         bodyStore,
         transactionStore,
+        knownHostsStore,
         blockIdTree,
         networkAlgebra,
         remotePeers.map(_.remoteAddress),

@@ -44,7 +44,8 @@ class PeersManagerTest
   val coldToWarmSelector: ColdToWarmSelector = (coldHosts: Set[RemoteAddress], countToReceive: Int) =>
     coldHosts.toSeq.sortBy(_.port).take(countToReceive).toSet
 
-  val defaultHotPeerUpdater: Set[RemoteAddress] => F[Unit] = _ => ().pure[F]
+  val defaultHotPeerUpdater: Set[RemoteAddress] => F[Unit] = _ => Applicative[F].unit
+  val defaultPeersSaver: Set[RemoteAddress] => F[Unit] = _ => Applicative[F].unit
 
   implicit val dummyDns: DnsResolver[F] = (host: HostId) => Option(host).pure[F]
 
@@ -86,6 +87,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           defaultHotPeerUpdater,
+          defaultPeersSaver,
           initialPeers = initialPeersMap
         )
         .use { actor =>
@@ -136,6 +138,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           defaultHotPeerUpdater,
+          defaultPeersSaver,
           initialPeers = initialPeersMap
         )
         .use { actor =>
@@ -180,6 +183,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           defaultHotPeerUpdater,
+          defaultPeersSaver,
           coldToWarmSelector = coldToWarmSelector
         )
         .use { actor =>
@@ -285,6 +289,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           hotUpdater,
+          defaultPeersSaver,
           coldToWarmSelector = coldToWarmSelector,
           initialPeers = initialPeersMap
         )
@@ -370,6 +375,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           hotUpdater,
+          defaultPeersSaver,
           coldToWarmSelector = coldToWarmSelector,
           initialPeers = initialPeersMap
         )
@@ -443,6 +449,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           defaultHotPeerUpdater,
+          defaultPeersSaver,
           initialPeers = initialPeersMap
         )
         .use { actor =>
@@ -495,6 +502,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           defaultHotPeerUpdater,
+          defaultPeersSaver,
           initialPeers = initialPeersMap
         )
         .use { actor =>
@@ -568,6 +576,7 @@ class PeersManagerTest
           newPeerCreationAlgebra,
           p2pConfig,
           hotUpdater,
+          defaultPeersSaver,
           initialPeers = initialPeersMap
         )
         .use { actor =>
@@ -579,6 +588,81 @@ class PeersManagerTest
             _ = assert(newState1.peers(host1.host).serverPort == Option(host1serverAddress.port))
             newState2 <- actor.send(PeersManager.Message.RemotePeerServerPort(host2.host, hostServer2.port))
             _ = assert(newState1.peers == newState2.peers)
+          } yield ()
+        }
+    }
+  }
+
+  test("Finalized actor shall write non-banned hosts") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val p2pConfig: P2PNetworkConfig = P2PNetworkConfig(NetworkProperties(), FiniteDuration(1, SECONDS))
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+
+      val host1 = "1"
+      val hostServer1Port = 1
+
+      val host2 = "2"
+      val hostServer2Port = 2
+
+      val host3 = "3"
+      val hostServer3Port = 3
+
+      val host4 = "4"
+      val hostServer4Port = 4
+
+      val host5 = "5"
+      val hostServer5Port = 5
+
+      val host6 = "6"
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(
+          host1 -> Peer(PeerState.Banned, None, Option(hostServer1Port), None),
+          host2 -> Peer(PeerState.Cold, None, Option(hostServer2Port), None),
+          host3 -> Peer(PeerState.PreWarm, None, Option(hostServer3Port), None),
+          host4 -> Peer(PeerState.Warm, None, Option(hostServer4Port), None),
+          host5 -> Peer(PeerState.Hot, None, Option(hostServer5Port), None),
+          host6 -> Peer(PeerState.Hot, None, None, None)
+        )
+
+      val writingHosts = mock[Set[RemoteAddress] => F[Unit]]
+      val expectedHosts = Set(
+        RemoteAddress(host2, hostServer2Port),
+        RemoteAddress(host3, hostServer3Port),
+        RemoteAddress(host4, hostServer4Port),
+        RemoteAddress(host5, hostServer5Port)
+      )
+      (writingHosts.apply _).expects(expectedHosts).once().returns(().pure[F])
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          headerToBodyValidation,
+          newPeerCreationAlgebra,
+          p2pConfig,
+          defaultHotPeerUpdater,
+          writingHosts,
+          initialPeers = initialPeersMap
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
+            _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
           } yield ()
         }
     }

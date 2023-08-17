@@ -9,6 +9,7 @@ import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.config.ApplicationConfig
@@ -23,7 +24,7 @@ import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 
-object DataStoresInit {
+object DataStoresInit extends TetraScodecCodecs {
 
   def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
     for {
@@ -105,6 +106,9 @@ object DataStoresInit {
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
+
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownHost]](dataDir)("known-remote-peers")
+
       dataStores = DataStores(
         dataDir,
         parentChildTree,
@@ -121,7 +125,8 @@ object DataStoresInit {
         registrationsStore,
         blockHeightTreeStore,
         epochDataStore,
-        registrationAccumulatorStore
+        registrationAccumulatorStore,
+        knownRemotePeersStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
