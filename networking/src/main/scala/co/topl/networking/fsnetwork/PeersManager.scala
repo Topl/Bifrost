@@ -20,7 +20,7 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.p2p.RemoteAddress
 import org.typelevel.log4cats.Logger
-import scala.annotation.{nowarn, tailrec}
+import scala.annotation.tailrec
 
 /**
  * Actor for managing peers
@@ -207,6 +207,7 @@ object PeersManager {
     newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pConfig:              P2PNetworkConfig,
     hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
+    savePeersFunction:      Set[RemoteAddress] => F[Unit],
     coldToWarmSelector:     ColdToWarmSelector = RandomColdToWarmSelector,
     initialPeers:           Map[HostId, Peer[F]] = Map.empty[HostId, Peer[F]]
   ): Resource[F, PeersManagerActor[F]] =
@@ -231,7 +232,7 @@ object PeersManager {
           hotPeersUpdate
         )
       _     <- Resource.liftK(Logger[F].info(s"Start PeerManager for host ${initialState.thisHostId}"))
-      actor <- Actor.makeFull(initialState, getFsm[F], finalizeActor[F])
+      actor <- Actor.makeFull(initialState, getFsm[F], finalizeActor[F](savePeersFunction))
     } yield actor
 
   private def getHotPeers[F[_]](state: State[F]): Map[HostId, Peer[F]] = getPeers(state, PeerState.Hot)
@@ -241,12 +242,24 @@ object PeersManager {
   private def getPeers[F[_]](state: State[F], peerState: PeerState): Map[HostId, Peer[F]] =
     state.peers.filter { case (_: String, peer) => peer.state == peerState }
 
+  private def getNonBannedPeers[F[_]](state: State[F]): Map[HostId, Peer[F]] =
+    state.peers.filterNot(_._2.state == PeerState.Banned)
+
   private def getActivePeers[F[_]](state: State[F]): Map[String, Peer[F]] =
     state.peers.filter { case (_: String, peer) =>
       peer.state == PeerState.Hot || peer.state == PeerState.Warm || peer.state == PeerState.PreWarm
     }
 
-  private def finalizeActor[F[_]: Applicative](@nowarn unusedCurrentState: State[F]): F[Unit] = Applicative[F].unit
+  private def finalizeActor[F[_]: Applicative](
+    savePeersFunction: Set[RemoteAddress] => F[Unit]
+  )(state: State[F]): F[Unit] = {
+    val allKnownHosts =
+      getNonBannedPeers(state).collect { case (hostId, Peer(_, _, Some(serverPort), _)) =>
+        RemoteAddress(hostId, serverPort)
+      }.toSet
+
+    savePeersFunction(allKnownHosts)
+  }
 
   private def setupBlockChecker[F[_]: Async: Logger](
     state:         State[F],

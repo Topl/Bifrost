@@ -7,8 +7,8 @@ import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.models.SecretKeyKesProduct
 import com.google.protobuf.ByteString
-import scalapb.GeneratedMessage
-import scalapb.GeneratedMessageCompanion
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+import scodec.Codec
 
 import scala.collection.immutable.SortedSet
 import scala.util.Try
@@ -24,6 +24,9 @@ trait TetraPersistableCodecs {
         Try(implicitly[GeneratedMessageCompanion[T]].parseFrom(bytes.newCodedInput())).toEither
           .leftMap(_.getMessage)
     }
+
+  implicit def persistableSeq[T: Codec]: Persistable[Seq[T]] =
+    Persistable.instanceFromCodec(seqCodec[T])
 
   implicit val persistableTransactionOutputIndices: Persistable[NonEmptySet[Short]] =
     Persistable.instanceFromCodec(
