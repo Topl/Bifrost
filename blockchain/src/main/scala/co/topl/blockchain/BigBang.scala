@@ -1,8 +1,15 @@
 package co.topl.blockchain
 
+import cats.Parallel
+import cats.data.EitherT
+import cats.effect.Sync
+import cats.implicits._
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.Transmittable
+import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.models._
@@ -114,4 +121,53 @@ object BigBang {
 
   def zeroBytes[L <: Length](implicit l: L): Sized.Strict[Bytes, L] =
     Sized.strictUnsafe[Bytes, L](ByteString.copyFrom(Array.fill(l.value)(0: Byte)))
+
+  /**
+   * Loads the given FullBlock by its ID using the supplied file reader function.
+   * The header will be retrieved first, using the file name ${block ID}.header.pbuf.
+   * Next, the body will be retrieved using the file name ${block ID}.body.pbuf.
+   * Next, all transactions will be retrieved using the file names ${transaction ID}.transaction.pbuf.
+   * @param blockId The block ID to retrieve
+   * @param readFile A function which retrieves a file by name
+   * @return a FullBlock associated with the given block ID
+   */
+  def loadFromRemote[F[_]: Sync: Parallel](
+    txRootValidation: BlockHeaderToBodyValidationAlgebra[F]
+  )(blockId: BlockId)(readFile: String => F[Array[Byte]]): F[FullBlock] =
+    for {
+      genesisBlockIdStr <- Sync[F].delay(blockId.show)
+      header <-
+        EitherT(
+          readFile(s"$genesisBlockIdStr.header.pbuf")
+            .map(ByteString.copyFrom)
+            .map(Transmittable[BlockHeader].fromTransmittableBytes)
+        )
+          .map(_.embedId)
+          .ensure("Computed header ID is not the same as requested header ID")(_.id == blockId)
+          .leftMap(new IllegalArgumentException(_))
+          .rethrowT
+      body <-
+        EitherT(
+          readFile(s"$genesisBlockIdStr.body.pbuf")
+            .map(ByteString.copyFrom)
+            .map(Transmittable[BlockBody].fromTransmittableBytes)
+        ).leftMap(new IllegalArgumentException(_)).rethrowT
+      _ <- EitherT(txRootValidation.validate(Block(header, body)))
+        .leftMap(e => new IllegalArgumentException(e.toString))
+        .rethrowT
+      fetchTransaction = (id: TransactionId) =>
+        EitherT(
+          readFile(s"${id.show}.transaction.pbuf")
+            .map(ByteString.copyFrom)
+            .map(Transmittable[IoTransaction].fromTransmittableBytes)
+        )
+          .map(_.embedId)
+          .ensure("Computed transaction ID is not the same as requested transaction ID")(_.id == id)
+          .leftMap(new IllegalArgumentException(_))
+          .rethrowT
+      transactions      <- body.transactionIds.parTraverse(fetchTransaction)
+      rewardTransaction <- body.rewardTransactionId.parTraverse(fetchTransaction)
+      fullBlockBody = FullBlockBody(transactions, rewardTransaction)
+      fullBlock = FullBlock(header, fullBlockBody)
+    } yield fullBlock
 }
