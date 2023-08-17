@@ -9,7 +9,6 @@ import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.TetraScodecCodecs
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.config.ApplicationConfig
@@ -23,8 +22,9 @@ import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 
-object DataStoresInit extends TetraScodecCodecs {
+object DataStoresInit {
 
   def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
     for {
