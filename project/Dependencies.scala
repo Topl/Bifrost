@@ -10,7 +10,7 @@ object Dependencies {
   val fs2Version = "3.8.0"
   val logback = "1.4.11"
   val orientDbVersion = "3.2.22"
-  val ioGrpcVersion = "1.57.1"
+  val ioGrpcVersion = "1.57.2"
   val protobufSpecsVersion = "2.0.0-alpha3" // scala-steward:off
   val bramblScVersion = "2.0.0-alpha4" // scala-steward:off
 
