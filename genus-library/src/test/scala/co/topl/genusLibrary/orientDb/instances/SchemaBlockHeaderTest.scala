@@ -151,6 +151,14 @@ class SchemaBlockHeaderTest
         assertIO(sizeProperty.getType.pure[F], OType.LONG)
       ).toResource
 
+      versionProperty <- oClass.getProperty(Field.Version).pure[F].toResource
+      _ <- (
+        assertIO(versionProperty.getName.pure[F], Field.Version) &>
+        assertIO(versionProperty.isMandatory.pure[F], true) &>
+        assertIO(versionProperty.isReadonly.pure[F], true) &>
+        assertIO(versionProperty.isNotNull.pure[F], true) &>
+        assertIO(versionProperty.getType.pure[F], OType.BINARY)
+      ).toResource
     } yield ()
 
     res.use_
@@ -250,6 +258,11 @@ class SchemaBlockHeaderTest
       _ <- assertIO(
         vertex.getProperty[Long](schema.properties.filter(_.name == Field.Size).head.name).pure[F],
         SchemaBlockHeader.size(blockHeader)
+      ).toResource
+
+      _ <- assertIO(
+        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.Version).head.name).toSeq.pure[F],
+        blockHeader.version.toByteArray.toSeq
       ).toResource
 
     } yield ()

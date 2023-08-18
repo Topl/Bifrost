@@ -1,30 +1,29 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.Async
-import cats.effect.Resource
-import cats.effect.kernel.Concurrent
 import cats.effect.implicits._
+import cats.effect.kernel.Concurrent
+import cats.effect.{Async, Resource}
 import cats.implicits._
-import co.topl.algebras.Store
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.BlockHeader
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.blockchain.BlockchainPeerHandlerAlgebra
+import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.node.models.BlockBody
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.node.models.{BlockBody, KnownHost}
+import com.comcast.ip4s.Dns
+import fs2.Stream
 import org.typelevel.log4cats.Logger
-
-import scala.concurrent.duration.FiniteDuration
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async: Logger: Dns](
+    thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
@@ -36,12 +35,21 @@ object ActorPeerHandlerBridgeAlgebra {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
+    knownHostsStore:             Store[F, Unit, Seq[KnownHost]],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    pingPongInterval:            FiniteDuration
+    networkProperties:           NetworkProperties,
+    clockAlgebra:                ClockAlgebra[F],
+    remotePeers:                 List[DisconnectedPeer],
+    closedPeers:                 Stream[F, ConnectedPeer],
+    addRemotePeer:               DisconnectedPeer => F[Unit],
+    hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
+    implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
+
     val networkAlgebra = new NetworkAlgebraImpl[F]()
     val networkManager =
       NetworkManager.startNetwork[F](
+        thisHostId,
         localChain,
         chainSelectionAlgebra,
         headerValidation,
@@ -53,10 +61,15 @@ object ActorPeerHandlerBridgeAlgebra {
         headerStore,
         bodyStore,
         transactionStore,
+        knownHostsStore,
         blockIdTree,
         networkAlgebra,
-        List.empty,
-        pingPongInterval
+        remotePeers.map(_.remoteAddress),
+        networkProperties,
+        clockAlgebra,
+        PeerCreationRequestAlgebra(addRemotePeer),
+        closedPeers,
+        hotPeersUpdate
       )
 
     networkManager.map(makeAlgebra(_))
@@ -65,11 +78,8 @@ object ActorPeerHandlerBridgeAlgebra {
   private def makeAlgebra[F[_]: Concurrent](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
     (client: BlockchainPeerClient[F]) =>
       for {
-        hostId <- client.remotePeer.map(_.remoteAddress.host).toResource
-        // TODO: Resource.onFinalize send "DestroyPeer" message?
-        _ <- peersManager.sendNoWait(PeersManager.Message.SetupPeer(hostId, client)).toResource
-        _ <- peersManager.sendNoWait(PeersManager.Message.UpdatePeerStatus(hostId, PeerState.Hot)).toResource
-        _ <- peersManager.sendNoWait(PeersManager.Message.GetCurrentTip(hostId)).toResource
+        hostId <- client.remotePeer.map(_.remoteAddress).toResource
+        _      <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(hostId, client)).toResource
       } yield ()
   }
 }

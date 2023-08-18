@@ -1,5 +1,6 @@
 package co.topl.blockchain
 
+import co.topl.blockchain.BigBang.Config
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.Challenge
 import co.topl.brambl.models.box.Lock
@@ -15,6 +16,7 @@ import com.google.protobuf.ByteString
 import quivr.models.Int128
 import quivr.models.Proposition
 import co.topl.brambl.constants.NetworkConstants
+import co.topl.consensus.models.ProtocolVersion
 
 object PrivateTestnet {
 
@@ -45,8 +47,11 @@ object PrivateTestnet {
    * Constructs a BigBang Config containing registrations of the given Stakers.  In addition, a single Poly box is
    * produced and is publicly spendable.
    */
-  def config(timestamp: Timestamp, stakers: List[StakerInitializers.Operator], stakes: Option[List[BigInt]])(implicit
-    networkPrefix: NetworkPrefix
+  def config(
+    timestamp:       Timestamp,
+    stakers:         List[StakerInitializers.Operator],
+    stakes:          Option[List[BigInt]],
+    protocolVersion: ProtocolVersion
   ): BigBang.Config = {
     require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
     BigBang.Config(
@@ -59,13 +64,15 @@ object PrivateTestnet {
             )
           )
         )
-        .flatMap { case (staker, stake) => staker.bigBangOutputs(stake) }
+        .flatMap { case (staker, stake) => staker.registrationOutputs(stake) }
         .appended(
           UnspentTransactionOutput(
             HeightLockOneSpendingAddress,
-            Value().withLvl(Value.LVL(10_000_000L))
+            Value.defaultInstance.withLvl(Value.LVL(10_000_000L))
           )
-        )
+        ),
+      Config.DefaultEtaPrefix,
+      protocolVersion
     )
   }
 

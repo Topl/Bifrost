@@ -5,6 +5,7 @@ import cats.effect.Resource
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
+import co.topl.brambl.models.LockAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -25,6 +26,7 @@ object Staking {
 
   def make[F[_]: Sync](
     a:                        StakingAddress,
+    rewardAddress:            LockAddress,
     vkVrf:                    ByteString,
     operationalKeyMaker:      OperationalKeyMakerAlgebra[F],
     consensusState:           ConsensusValidationStateAlgebra[F],
@@ -32,12 +34,15 @@ object Staking {
     ed25519Resource:          UnsafeResource[F, Ed25519],
     blake2b256Resource:       UnsafeResource[F, Blake2b256],
     vrfCalculator:            VrfCalculatorAlgebra[F],
-    leaderElectionValidation: LeaderElectionValidationAlgebra[F]
+    leaderElectionValidation: LeaderElectionValidationAlgebra[F],
+    protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     Resource.pure {
+      val _rewardAddress = rewardAddress
       new StakingAlgebra[F] {
         implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromClass[F](Staking.getClass)
         val address: F[StakingAddress] = a.pure[F]
+        val rewardAddress: F[LockAddress] = _rewardAddress.pure[F]
 
         def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] =
           (
@@ -113,7 +118,8 @@ object Staking {
                 unsignedBlock.eligibilityCertificate,
                 operationalCertificate,
                 unsignedBlock.metadata,
-                unsignedBlock.address
+                unsignedBlock.address,
+                protocolVersion
               )
             } yield header
           }.value

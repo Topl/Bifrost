@@ -11,11 +11,11 @@ import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.brambl.models._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
+import co.topl.models.utility._
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.transactiongenerator.interpreters.Fs2TransactionGenerator
 import co.topl.transactiongenerator.interpreters.ToplRpcWalletInitializer
-import co.topl.typeclasses.implicits._
 import fs2._
 import fs2.io.file.Files
 import fs2.io.file.Path
@@ -50,7 +50,8 @@ class NodeAppTest extends CatsEffectSuite {
          |  p2p:
          |    bind-port: 9150
          |    public-port: 9150
-         |    experimental: false
+         |    network-properties:
+         |      legacy-network: false
          |  rpc:
          |    bind-port: 9151
          |  big-bang:
@@ -73,7 +74,8 @@ class NodeAppTest extends CatsEffectSuite {
          |    bind-port: 9152
          |    public-port: 9152
          |    known-peers: localhost:9150
-         |    experimental: false
+         |    network-properties:
+         |      legacy-network: false
          |  rpc:
          |    bind-port: 9153
          |  big-bang:
@@ -184,7 +186,7 @@ class NodeAppTest extends CatsEffectSuite {
     def filterTransactions(targetBlock: BlockId)(ids: Set[TransactionId]): F[Set[TransactionId]] =
       client
         .fetchBlockBody(targetBlock)
-        .map(ids -- _.get.transactionIds)
+        .map(ids -- _.get.allTransactionIds)
         .flatMap(ids =>
           if (ids.isEmpty) ids.pure[F]
           else
@@ -206,7 +208,7 @@ class NodeAppTest extends CatsEffectSuite {
           .flatMap(filterTransactions(_)(ids))
           .map(_.isEmpty)
           .assert,
-        1000.milli,
+        1500.milli,
         identity,
         30
       )
@@ -216,7 +218,7 @@ class NodeAppTest extends CatsEffectSuite {
 
   private def verifyNotConfirmed(client: RpcClient)(ids: Set[TransactionId]) =
     client.history
-      .flatMap(block => Stream.emits(block.fullBody.transactions))
+      .flatMap(block => Stream.emits(block.fullBody.allTransactions))
       .map(_.id)
       .forall(!ids.contains(_))
       .compile

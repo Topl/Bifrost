@@ -3,16 +3,16 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.5"
-  val kamonVersion = "2.6.1"
+  val kamonVersion = "2.6.3"
   val simulacrumVersion = "1.0.1"
-  val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.5.0"
-  val fs2Version = "3.7.0"
-  val logback = "1.4.7"
-  val orientDbVersion = "3.2.19"
-  val protobufSpecsVersion = "e03a093" // scala-steward:off
-  val bramblScVersion = "d5bc746" // scala-steward:off
-  val quivr4sVersion = "1e48130" // scala-steward:off
+  val catsCoreVersion = "2.10.0"
+  val catsEffectVersion = "3.5.1"
+  val fs2Version = "3.8.0"
+  val logback = "1.4.11"
+  val orientDbVersion = "3.2.21"
+  val ioGrpcVersion = "1.57.1"
+  val protobufSpecsVersion = "2.0.0-alpha3" // scala-steward:off
+  val bramblScVersion = "2.0.0-alpha4" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -26,7 +26,7 @@ object Dependencies {
   )
 
   val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"  % "test",
+    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
     "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % "test"
   )
 
@@ -85,12 +85,12 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.73"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.76"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
-    "org.ethereum"     % "leveldbjni-all" % "1.18.3",
-    "org.iq80.leveldb" % "leveldb"        % "0.12"
+    "io.github.tronprotocol" % "leveldbjni-all" % "1.23.2",
+    "org.iq80.leveldb"       % "leveldb"        % "0.12"
   )
 
   val scodec = Seq(
@@ -100,7 +100,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.5.0"
+    "com.lihaoyi" %% "mainargs" % "0.5.1"
   )
 
   val monocle: Seq[ModuleID] = Seq(
@@ -113,14 +113,14 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.0"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
 
-  val bramblScCrypto = "com.github.Topl.BramblSc" %% "crypto"     % bramblScVersion
-  val bramblScSdk = "com.github.Topl.BramblSc"    %% "brambl-sdk" % bramblScVersion
-  val quivr4s = "com.github.Topl"                  % "quivr4s"    % quivr4sVersion
+  val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
+  val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
+  val quivr4s = "co.topl"        %% "quivr4s"    % bramblScVersion
 
   val protobufSpecs: Seq[ModuleID] = Seq(
-    "com.github.Topl.protobuf-specs" %% "protobuf-fs2" % protobufSpecsVersion
+    "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
   )
 
   // For NTP-UDP
@@ -128,6 +128,8 @@ object Dependencies {
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
+
+  val grpcServices = "io.grpc" % "grpc-services" % ioGrpcVersion
 
   val node: Seq[ModuleID] =
     Seq(
@@ -141,10 +143,8 @@ object Dependencies {
     logging ++
     monocle ++
     monitoring ++
-    mUnitTestBase.map(_ % IntegrationTest) ++
-    Seq(
-      "io.grpc" % "grpc-services" % "1.55.1"
-    )
+    mUnitTestBase ++
+    Seq(grpcServices)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -161,7 +161,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.22.3"
+      "com.google.cloud" % "google-cloud-storage" % "2.26.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -241,8 +241,8 @@ object Dependencies {
     mUnitTest ++
     protobufSpecs ++
     Seq(
-      "io.grpc" % "grpc-netty-shaded" % "1.55.1",
-      "io.grpc" % "grpc-services"     % "1.55.1"
+      "io.grpc" % "grpc-netty-shaded" % ioGrpcVersion,
+      grpcServices
     )
 
   lazy val levelDbStore: Seq[ModuleID] =
@@ -273,6 +273,6 @@ object Dependencies {
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
 
-  lazy val byzantineTests: Seq[ModuleID] =
-    (mUnitTestBase :+ dockerClient).map(_ % IntegrationTest)
+  lazy val byzantineIt: Seq[ModuleID] =
+    (mUnitTestBase :+ dockerClient).map(_ % Test)
 }

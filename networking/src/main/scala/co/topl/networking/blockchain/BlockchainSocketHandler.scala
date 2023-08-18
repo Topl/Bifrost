@@ -5,16 +5,14 @@ import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.networking._
 import co.topl.networking.blockchain.NetworkTypeTags._
-import co.topl.networking.p2p.ConnectionLeader
-import co.topl.networking.p2p.ConnectedPeer
+import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
+import co.topl.node.models._
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.Logger
 import fs2._
+import org.typelevel.log4cats.Logger
 
 object BlockchainSocketHandler {
 
@@ -127,6 +125,14 @@ object BlockchainSocketHandler {
         20: Byte
       )
 
+    val remotePeerServerF =
+      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Unit, Int](
+        BlockchainProtocols.RemotePeerServerPort,
+        _ => protocolServer.serverPort,
+        21: Byte,
+        22: Byte
+      )
+
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
         (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
@@ -141,8 +147,10 @@ object BlockchainSocketHandler {
         (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
         (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
         (pingPongHandlers, pingMessageReceivedCallback)            <- pingPongF.ap(connectionLeader.pure[F])
+        (peerServerHandlers, peerServerCallback)                   <- remotePeerServerF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
+          val remotePeerServerPort: F[Option[Int]] = peerServerCallback(())
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
           val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
             remoteTransactionIdsSource.pure[F]
@@ -181,7 +189,8 @@ object BlockchainSocketHandler {
             idAtHeightTypedSubHandlers ++
             idAtDepthTypedSubHandlers ++
             knownHostsTypedSubHandlers ++
-            pingPongHandlers
+            pingPongHandlers ++
+            peerServerHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 

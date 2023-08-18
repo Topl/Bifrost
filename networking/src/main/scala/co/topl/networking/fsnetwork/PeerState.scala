@@ -22,6 +22,12 @@ object PeerState {
     override def applicationLevel: Boolean = false
   }
 
+  case object PreWarm extends PeerState {
+    override def networkLevel: Boolean = false
+
+    override def applicationLevel: Boolean = false
+  }
+
   case object Warm extends PeerState {
     override def networkLevel: Boolean = true
 
@@ -33,4 +39,5 @@ object PeerState {
 
     override def applicationLevel: Boolean = true
   }
+
 }

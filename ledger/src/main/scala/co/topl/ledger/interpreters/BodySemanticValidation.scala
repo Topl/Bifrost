@@ -1,6 +1,6 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{NonEmptyChain, Validated, ValidatedNec}
+import cats.data.{EitherT, NonEmptyChain, Validated, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
@@ -13,7 +13,8 @@ object BodySemanticValidation {
 
   def make[F[_]: Sync](
     fetchTransaction:              TransactionId => F[IoTransaction],
-    transactionSemanticValidation: TransactionSemanticValidationAlgebra[F]
+    transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
+    registrationAccumulator:       RegistrationAccumulatorAlgebra[F]
   ): F[BodySemanticValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySemanticValidationAlgebra[F] {
@@ -23,10 +24,11 @@ object BodySemanticValidation {
          * the outputs of previous transactions in the block, but no two transactions may spend the same input.
          */
         def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
+          // Note: Do not run validation on the reward transaction
           body.transactionIds
             .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
               case (Validated.Valid(prefix), transactionId) =>
-                validateTransaction(context, prefix)(transactionId).map(_.map(prefix :+ _))
+                validateTransaction(context, prefix)(transactionId).map(prefix :+ _).value.map(_.toValidated)
               case (invalid, _) => invalid.pure[F]
             }
             .map(_.as(body))
@@ -42,18 +44,38 @@ object BodySemanticValidation {
           prefix:  Seq[IoTransaction]
         )(transactionId: TransactionId) =
           for {
-            transaction <- fetchTransaction(transactionId)
+            transaction <- EitherT.liftF(fetchTransaction(transactionId))
             transactionValidationContext = StaticTransactionValidationContext(
               context.parentHeaderId,
               prefix,
               context.height,
               context.slot
             )
-            validationResult <- transactionSemanticValidation.validate(transactionValidationContext)(transaction)
-          } yield validationResult
-            .leftMap(errors =>
-              NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionSemanticErrors(transaction, errors))
+            _ <-
+              EitherT(transactionSemanticValidation.validate(transactionValidationContext)(transaction).map(_.toEither))
+                .leftMap(errors =>
+                  NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionSemanticErrors(transaction, errors))
+                )
+            augmentedRegistrationAccumulator = RegistrationAccumulator.Augmented.make(registrationAccumulator)(
+              prefix.foldLeft(RegistrationAccumulator.Augmentation.empty)(_.augment(_))
             )
+            newRegistrations = transaction.outputs
+              .flatMap(_.value.value.topl.flatMap(_.registration).map(_.address))
+              .toSet -- transaction.inputs.flatMap(_.value.value.topl.flatMap(_.registration).map(_.address))
+            _ <- EitherT
+              .liftF(
+                augmentedRegistrationAccumulator.use(accumulator =>
+                  newRegistrations.toList.forallM(accumulator.contains(context.parentHeaderId)(_).map(!_))
+                )
+              )
+              .flatMap(
+                EitherT.cond(
+                  _,
+                  (),
+                  NonEmptyChain[BodySemanticError](BodySemanticErrors.TransactionRegistrationError(transaction))
+                )
+              )
+          } yield transaction
       }
     }
 

@@ -3,26 +3,37 @@ package co.topl.networking
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.implicits._
-import cats.{Monad, MonadThrow, Show}
+import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.Cache
+import org.typelevel.log4cats.Logger
+
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.util.Random
 
 package object fsnetwork {
 
   type HostId = String // IP address? IP address could be changed and bad for identify good peer
-  type HostReputationValue = Long // will be more complex, to get high reputation host shall fulfill different criteria
+
+  type HostReputationValue =
+    Double // will be more complex, to get high reputation host shall fulfill different criteria
 
   // how many block/headers could be requested from remote host in the same time,
   // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
   val chunkSize = 1
 
   val requestCacheSize = 100
+
+  val blockSourceCacheSize = 512
 
   implicit class CacheOps[K, V](cache: Cache[K, V]) {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
@@ -76,10 +87,14 @@ package object fsnetwork {
   implicit val showBodyValidationError: Show[BodyValidationError] =
     Show.fromToString
 
+  implicit val showNoPongMessage: Show[NetworkQualityError] = {
+    case _: NoPongMessage.type        => "Failed to receive pong message"
+    case _: IncorrectPongMessage.type => "Receive incorrect pong message"
+  }
+
   implicit val showPongMessage: Show[PingPongMessagePing] = {
-    case PingPongMessagePing(host, Right(delay))               => s"Received pong delay $delay from host $host"
-    case PingPongMessagePing(host, Left(NoPongMessage))        => s"Failed to receive pong message from host $host"
-    case PingPongMessagePing(host, Left(IncorrectPongMessage)) => s"Receive incorrect pong message from host $host"
+    case PingPongMessagePing(host, Right(delay))       => show"Received pong delay $delay from host $host"
+    case PingPongMessagePing(host, Left(networkError)) => show"$networkError from host $host"
   }
 
   /**
@@ -139,6 +154,100 @@ package object fsnetwork {
   ): F[Option[NonEmptyChain[(I, D)]]] =
     data.dropWhileF(d => store.contains(iToId(d._1))).map(NonEmptyChain.fromSeq)
 
-  case class UnverifiedBlockHeader(source: HostId, blockHeader: BlockHeader)
-  case class UnverifiedBlockBody(source: HostId, blockBody: BlockBody)
+  case class UnverifiedBlockHeader(source: HostId, blockHeader: BlockHeader, downloadTimeMs: Long)
+
+  case class UnverifiedBlockBody(
+    source:           HostId,
+    blockBody:        BlockBody,
+    downloadTimeMs:   Long,
+    downloadTimeTxMs: Seq[Long] = Seq.empty
+  )
+
+  case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: FiniteDuration) {
+
+    /**
+     * Block providing novelty reputation if new unknown block is received in current slot.
+     * Shall be always equal one.
+     */
+    val blockNoveltyInitialValue: Double = 1
+
+    /**
+     * Reducing block novelty reputation for each already known source, i.e:
+     * blockNoveltyReputation = 1 - knewSourceForThatBlockId * blockNoveltyReputationStep
+     */
+    val blockNoveltyReputationStep: Double = 0.2
+
+    /**
+     * Block novelty reputation shall be reducing every slot by X number.
+     * If we have reputation of "blockNoveltyInitialValue" then after "expectedSlotsPerBlock" slots that
+     * reputation shall be equal to "blockNoveltyInitialValue" - "blockNoveltyReputationStep".
+     * Thus we need such X number where:
+     *  pow(X, expectedSlotsPerBlock - 1) == "blockNoveltyInitialValue" - blockNoveltyReputationStep,
+     * then:
+     *  X = root of (1 - blockNoveltyReputationStep) with index (expectedSlotsPerBlock - 1)
+     */
+    val blockNoveltyDecoy: Double =
+      Math.pow(blockNoveltyInitialValue - blockNoveltyReputationStep, 1 / (networkProperties.expectedSlotsPerBlock - 1))
+
+    /**
+     * Maximum possible performance reputation, i.e. reputation for host with delay in 0 ms
+     */
+    val performanceReputationInitialValue: Double = 1
+
+    /**
+     * Any remote peer with "ping" equal or more than performanceReputationMaxDelay will have 0 performance reputation
+     */
+    val performanceReputationMaxDelay: Double = slotDuration.toMillis * networkProperties.maxPerformanceDelayInSlots
+
+    /**
+     * New remote peer will not be closed during "remotePeerNoveltyInSlots" slots even if reputation is low.
+     * It gives a chance to build-up reputation for remote peer
+     */
+    val remotePeerNoveltyInSlots: Long =
+      Math.ceil(networkProperties.expectedSlotsPerBlock * networkProperties.remotePeerNoveltyInExpectedBlocks).toLong
+
+    /**
+     * How often we update our list of warm hosts
+     */
+    val warmHostsUpdateInterval: FiniteDuration =
+      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
+  }
+
+  trait ColdToWarmSelector {
+    def select(coldHosts: Set[RemoteAddress], countToReceive: Int): Set[RemoteAddress]
+  }
+
+  val RandomColdToWarmSelector: ColdToWarmSelector =
+    (coldHosts: Set[RemoteAddress], countToReceive: Int) => Random.shuffle(coldHosts).take(countToReceive)
+
+  implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
+
+    def infoIf(predicate: => Boolean, message: => String): F[Unit] =
+      if (predicate)
+        logger.info(message)
+      else
+        Applicative[F].unit
+  }
+
+  trait DnsResolver[F[_]] {
+    def resolving(host: String): F[Option[String]]
+  }
+
+  implicit class DnsResolverOps[F[_]: DnsResolver](host: String) {
+    def resolveHost: F[Option[String]] = implicitly[DnsResolver[F]].resolving(host)
+  }
+
+  object DnsResolverInstances {
+
+    def defaultResolver[F[_]: Dns: Monad]: DnsResolver[F] = unresolvedHost => {
+      val resolver: Dns[F] = implicitly[Dns[F]]
+
+      val res =
+        for {
+          host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
+          resolved <- OptionT.liftF(resolver.resolve(host))
+        } yield resolved.toUriString
+      res.value
+    }
+  }
 }

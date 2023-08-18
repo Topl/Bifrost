@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.implicits._
 import cats.data.NonEmptyChain
 import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockId}
 import co.topl.ledger.models.BodyValidationError
@@ -20,7 +21,7 @@ object BlockApplyError {
       override def toString: String = {
         val name = Option(ex.getClass.getName).getOrElse("")
         val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during applying block header due next throwable $name : $message"
+        show"Unknown error during applying block header due next throwable $name : $message"
       }
     }
   }
@@ -38,7 +39,7 @@ object BlockApplyError {
       override def toString: String = {
         val name = Option(ex.getClass.getName).getOrElse("")
         val message = Option(ex.getLocalizedMessage).getOrElse("")
-        s"Unknown error during applying block body due next throwable $name : $message"
+        show"Unknown error during applying block body due next throwable $name : $message"
       }
     }
   }

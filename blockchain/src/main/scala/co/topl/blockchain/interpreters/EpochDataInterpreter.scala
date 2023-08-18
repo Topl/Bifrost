@@ -16,6 +16,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.models._
+import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import co.topl.numerics.implicits._
@@ -203,12 +204,13 @@ object EpochDataEventSourcedState {
     private def applyTransactions(epochData: EpochData)(header: BlockHeader): F[EpochData] =
       fetchBlockBody(header.id)
         .flatMap(body =>
-          if (body.transactionIds.isEmpty) epochData.pure[F]
+          if (body.allTransactionIds.isEmpty) epochData.pure[F]
           else
-            body.transactionIds.foldLeftM(epochData) { case (epochData, id) =>
+            body.allTransactionIds.foldLeftM(epochData) { case (epochData, id) =>
               fetchTransaction(id)
                 .flatMap(transaction =>
                   (
+                    // TODO: Read reward transaction from body
                     transactionRewardCalculator.rewardOf(transaction),
                     Sync[F].delay(
                       ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
@@ -286,12 +288,13 @@ object EpochDataEventSourcedState {
     private def unapplyTransactions(epochData: EpochData)(header: BlockHeader): F[EpochData] =
       fetchBlockBody(header.id)
         .flatMap(body =>
-          if (body.transactionIds.isEmpty) epochData.pure[F]
+          if (body.allTransactionIds.isEmpty) epochData.pure[F]
           else
-            body.transactionIds.reverse.foldLeftM(epochData) { case (epochData, id) =>
+            body.allTransactionIds.reverse.foldLeftM(epochData) { case (epochData, id) =>
               fetchTransaction(id)
                 .flatMap(transaction =>
                   (
+                    // TODO: Read reward transaction from body
                     transactionRewardCalculator.rewardOf(transaction),
                     Sync[F].delay(
                       ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()

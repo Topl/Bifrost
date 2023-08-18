@@ -17,14 +17,10 @@ import com.tinkerpop.blueprints.{Direction, Vertex}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
-
-  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
   test("On fetchTransaction with throwable response, a FailureMessageWithCause should be returned") {
 
@@ -188,10 +184,11 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
     PropF.forAllF { (transactionId: TransactionId, ioTransaction: IoTransaction, blockHeader: BlockHeader) =>
       withMock {
 
+        val blockHeaderVertex = mock[Vertex]
+        val iotxVertex = mock[Vertex]
+
         val res = for {
           vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
-          iotxVertex = mock[Vertex]
-          blockHeaderVertex = mock[Vertex] // OrientVertex is not possible to mock
 
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -286,6 +283,12 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             .once()
             .returning(blockHeader.timestamp)
 
+          _ = (blockHeaderVertex
+            .getProperty[Array[Byte]] _)
+            .expects(SchemaBlockHeader.Field.Version)
+            .once()
+            .returning(blockHeader.version.toByteArray)
+
           _ = (blockHeaderVertex.getPropertyKeys _)
             .expects()
             .once()
@@ -302,7 +305,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
                 SchemaBlockHeader.Field.EligibilityCertificate,
                 SchemaBlockHeader.Field.OperationalCertificate,
                 SchemaBlockHeader.Field.Metadata,
-                SchemaBlockHeader.Field.Address
+                SchemaBlockHeader.Field.Address,
+                SchemaBlockHeader.Field.Version
               )
             )
 

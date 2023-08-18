@@ -11,23 +11,25 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
+import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
-import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 
 object DataStoresInit {
 
   def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
     for {
       dataDir <- Resource.pure[F, Path](
-        Path(appConfig.bifrost.data.directory) / bigBangBlock.header.id.show
+        Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.data.directory))
       )
       _ <- Resource.eval(Files.forAsync[F].createDirectories(dataDir))
       _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
@@ -94,6 +96,18 @@ object DataStoresInit {
         appConfig.bifrost.cache.epochData,
         Long.box
       )
+      registrationAccumulatorStore <- makeCachedDb[
+        F,
+        StakingAddress,
+        StakingAddress,
+        Unit
+      ](dataDir)(
+        "registration-accumulator",
+        appConfig.bifrost.cache.registrationAccumulator,
+        identity
+      )
+
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownHost]](dataDir)("known-remote-peers")
 
       dataStores = DataStores(
         dataDir,
@@ -110,7 +124,9 @@ object DataStoresInit {
         inactiveStakeStore,
         registrationsStore,
         blockHeightTreeStore,
-        epochDataStore
+        epochDataStore,
+        registrationAccumulatorStore,
+        knownRemotePeersStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
@@ -150,7 +166,8 @@ object DataStoresInit {
             CurrentEventIdGetterSetters.Indices.BlockHeightTree,
             CurrentEventIdGetterSetters.Indices.BoxState,
             CurrentEventIdGetterSetters.Indices.Mempool,
-            CurrentEventIdGetterSetters.Indices.EpochData
+            CurrentEventIdGetterSetters.Indices.EpochData,
+            CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
           ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
         )
       _ <- dataStores.slotData.put(
@@ -160,9 +177,9 @@ object DataStoresInit {
       _ <- dataStores.headers.put(bigBangBlock.header.id, bigBangBlock.header)
       _ <- dataStores.bodies.put(
         bigBangBlock.header.id,
-        BlockBody(bigBangBlock.fullBody.transactions.map(_.id))
+        BlockBody(bigBangBlock.fullBody.transactions.map(_.id), bigBangBlock.fullBody.rewardTransaction.map(_.id))
       )
-      _ <- bigBangBlock.fullBody.transactions.traverseTap(transaction =>
+      _ <- bigBangBlock.fullBody.allTransactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)
       )
       _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)

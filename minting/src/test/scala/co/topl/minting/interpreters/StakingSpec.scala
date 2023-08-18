@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.IO.asyncForIO
 import cats.implicits._
 import co.topl.algebras.UnsafeResource
+import co.topl.brambl.models.{LockAddress, LockId}
 import co.topl.consensus.algebras.{
   ConsensusValidationStateAlgebra,
   EtaCalculationAlgebra,
@@ -37,6 +38,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
         val relativeStake = Ratio.One
         val address = StakingAddress(ByteString.copyFrom(Array.fill[Byte](32)(0)))
+        val rewardAddress = LockAddress(0, 0, LockId(ByteString.copyFrom(Array.fill[Byte](32)(0))))
 
         val vkVrf = ByteString.copyFrom(Array.fill[Byte](32)(0))
         val proof = ByteString.copyFrom(
@@ -90,6 +92,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           staking <- Staking
             .make[F](
               a = address,
+              rewardAddress = rewardAddress,
               vkVrf,
               operationalKeyMaker = null,
               consensusState,
@@ -99,7 +102,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                 def use[Res](f: Blake2b256 => F[Res]): F[Res] = f(new Blake2b256)
               },
               vrfCalculator,
-              leaderElectionValidation
+              leaderElectionValidation,
+              ProtocolVersion(0, 0, 1)
             )
 
           testProof <- vrfCalculator.proofForSlot(slot, eta).toResource
@@ -134,6 +138,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           staking <- Staking
             .make[F](
               a = null,
+              rewardAddress = null,
               vkVrf = null,
               operationalKeyMaker,
               consensusState = null,
@@ -141,7 +146,8 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               ed25519Resource = null,
               blake2b256Resource = null,
               vrfCalculator = null,
-              leaderElectionValidation = null
+              leaderElectionValidation = null,
+              ProtocolVersion(0, 0, 1)
             )
 
           _ <- staking

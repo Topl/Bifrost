@@ -10,6 +10,7 @@ import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
+import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 import quivr.models.SmallData
 
@@ -28,9 +29,10 @@ object BigBang {
    * @param etaPrefix a sequence of bytes to be prepended to the value that gets hashed to produce the Big Bang Eta.
    */
   case class Config(
-    timestamp: Timestamp,
-    outputs:   List[UnspentTransactionOutput],
-    etaPrefix: Bytes = Config.DefaultEtaPrefix
+    timestamp:       Timestamp,
+    outputs:         List[UnspentTransactionOutput],
+    etaPrefix:       Bytes = Config.DefaultEtaPrefix,
+    protocolVersion: ProtocolVersion
   )
 
   object Config {
@@ -55,8 +57,9 @@ object BigBang {
     val eta: Eta =
       Sized.strictUnsafe(
         new Blake2b256().hash(
-          (config.etaPrefix +:
-          transactions.map(_.id.value)).map(v => v: Array[Byte]): _*
+          (config.etaPrefix.toByteArray +:
+          Longs.toByteArray(config.timestamp) +:
+          transactions.map(_.id.value.toByteArray)): _*
         )
       )
 
@@ -72,7 +75,8 @@ object BigBang {
         eligibilityCertificate = vrfCertificate(eta),
         operationalCertificate = kesCertificate,
         metadata = ByteString.EMPTY,
-        address = StakingAddress(zeroBytes(Lengths.`32`).data)
+        address = StakingAddress(zeroBytes(Lengths.`32`).data),
+        version = config.protocolVersion
       )
     FullBlock(header, FullBlockBody(transactions))
   }

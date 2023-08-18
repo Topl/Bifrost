@@ -5,6 +5,7 @@ import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs}
 import mainargs._
 import monocle.macros.GenLens
 import monocle.macros.Lenses
+import monocle.syntax.all._
 
 // $COVERAGE-OFF$
 
@@ -28,7 +29,8 @@ object Args {
     @arg(
       doc = "An optional flag to enable debug mode on this node."
     )
-    debug: Flag
+    debug: Flag,
+    cli:   Boolean = false
   )
 
   @main @Lenses
@@ -97,10 +99,13 @@ object Args {
     orientDbPassword: Option[String]
   )
 
+  def parse(args: Seq[String]): Args =
+    if (args.headOption.contains("cli")) parserArgs.constructOrThrow(args.tail).focus(_.startup.cli).replace(true)
+    else parserArgs.constructOrThrow(args)
+
   implicit val showArgs: Show[Args] = {
     val base = Show.fromToString[Args]
-    val genLens = GenLens[Args]
-    val sanitizer = genLens(_.runtime.genusArgs.orientDbPassword).replace(Some("SANITIZED"))
+    val sanitizer = GenLens[Args](_.runtime.genusArgs.orientDbPassword).replace(Some("SANITIZED"))
     args => base.show(sanitizer(args))
   }
 

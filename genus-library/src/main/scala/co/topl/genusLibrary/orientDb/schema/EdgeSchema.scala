@@ -30,6 +30,12 @@ object EdgeSchemaInstances {
     override def label: String = "hasTxIO"
   }
 
+  // Edge: blockHeader <--> transactionIO
+  // Specifically, the reward transaction ID
+  val blockHeaderRewardEdge: EdgeSchema = new EdgeSchema {
+    override def label: String = "hasRewardTx"
+  }
+
   // Edge: lockAddress <--> transactionIO
   val addressTxIOEdge: EdgeSchema = new EdgeSchema {
     override def label: String = "hasLockAddress"

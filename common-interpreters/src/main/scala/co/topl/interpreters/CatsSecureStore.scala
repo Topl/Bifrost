@@ -66,7 +66,7 @@ object CatsSecureStore {
    */
   private[interpreters] def eraseImplNoCheck(path: Path): Unit = {
     val size = Files.size(path).toInt
-    Files.write(path, Array.fill[Byte](size)(0), StandardOpenOption.TRUNCATE_EXISTING)
+    Files.write(path, Array.fill[Byte](size)(0), StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING)
     Files.delete(path)
   }
 

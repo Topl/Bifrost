@@ -38,7 +38,7 @@ object ApplicationConfig {
     case class Publish(bucket: String, filePrefix: String)
   }
 
-  def unsafe(args: Args, config: Config): ApplicationConfig =
+  def unsafe(config: Config): ApplicationConfig =
     ConfigSource.fromConfig(config).loadOrThrow[ApplicationConfig]
 
   implicit val showApplicationConfig: Show[ApplicationConfig] =

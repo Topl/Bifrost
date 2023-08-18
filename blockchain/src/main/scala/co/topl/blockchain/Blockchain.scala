@@ -5,14 +5,16 @@ import cats.Parallel
 import cats.data.OptionT
 import cats.data.Validated
 import cats.effect._
-import cats.effect.std.Random
+import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
+import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.brambl.validation._
 import co.topl.catsutils.DroppingTopic
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.SlotData
@@ -22,19 +24,19 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.grpc.NodeGrpc
 import co.topl.grpc.ToplGrpc
 import co.topl.ledger.algebras._
-import co.topl.ledger.interpreters.TransactionRewardCalculator
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters._
 import co.topl.networking.blockchain._
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebra
 import co.topl.networking.p2p._
+import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import com.comcast.ip4s.Dns
 import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
 
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -42,7 +44,7 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def make[F[_]: Parallel: Async: Random](
+  def make[F[_]: Parallel: Async: Random: Dns](
     clock:                     ClockAlgebra[F],
     stakerOpt:                 Option[StakingAlgebra[F]],
     dataStores:                DataStores[F],
@@ -54,20 +56,25 @@ object Blockchain {
     _mempool:                  MempoolAlgebra[F],
     ed25519VrfResource:        UnsafeResource[F, Ed25519VRF],
     localPeer:                 LocalPeer,
-    remotePeers:               Stream[F, DisconnectedPeer],
+    knownPeers:                List[KnownPeer],
     rpcHost:                   String,
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
-    experimentalP2P:           Boolean = false,
     _epochData:                EpochDataAlgebra[F],
-    pingPongInterval:          FiniteDuration
+    networkProperties:         NetworkProperties
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
-      (localChain, blockAdoptionsTopic)    <- LocalChainBroadcaster.make(_localChain)
+      remotePeers  <- Resource.liftK(Queue.unbounded[F, DisconnectedPeer])
+      closedPeers  <- Resource.liftK(Queue.unbounded[F, ConnectedPeer])
+      _            <- Resource.liftK(Logger[F].info(s"Received known peers from config: $knownPeers"))
+      currentPeers <- Resource.liftK(Ref.of[F, Set[RemoteAddress]](Set.empty[RemoteAddress]))
+      initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
+      remotePeersStream                 <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
+      (localChain, blockAdoptionsTopic) <- LocalChainBroadcaster.make(_localChain)
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
-      // Whenever a block is adopted locally, broadcast all of its corresponding _transactions_ to eagerly notify peers
+      // Whenever a block is adopted locally, broadcast all of its corresponding (non-reward) _transactions_ to eagerly notify peers
       _ <- Async[F].background(
         blockAdoptionsTopic.subscribeUnbounded
           .evalMap(id => dataStores.bodies.getOrRaise(id))
@@ -77,23 +84,7 @@ object Blockchain {
           .drain
       )
       synchronizationHandler <-
-        if (experimentalP2P) {
-          ActorPeerHandlerBridgeAlgebra.make(
-            localChain,
-            chainSelectionAlgebra,
-            validators.header,
-            validators.headerToBody,
-            validators.bodySyntax,
-            validators.bodySemantics,
-            validators.bodyAuthorization,
-            dataStores.slotData,
-            dataStores.headers,
-            dataStores.bodies,
-            dataStores.transactions,
-            blockIdTree,
-            pingPongInterval
-          )
-        } else {
+        if (networkProperties.legacyNetwork) {
           Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
             BlockchainPeerHandler.ChainSynchronizer.make[F](
               clock,
@@ -109,6 +100,29 @@ object Blockchain {
               dataStores.transactions,
               blockIdTree
             )
+          )
+        } else {
+          ActorPeerHandlerBridgeAlgebra.make(
+            localPeer.localAddress.host,
+            localChain,
+            chainSelectionAlgebra,
+            validators.header,
+            validators.headerToBody,
+            validators.bodySyntax,
+            validators.bodySemantics,
+            validators.bodyAuthorization,
+            dataStores.slotData,
+            dataStores.headers,
+            dataStores.bodies,
+            dataStores.transactions,
+            dataStores.knownHosts,
+            blockIdTree,
+            networkProperties,
+            clock,
+            initialPeers,
+            Stream.fromQueueUnterminated[F, ConnectedPeer](closedPeers),
+            remotePeers.offer,
+            currentPeers.set
           )
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
@@ -137,6 +151,8 @@ object Blockchain {
         dataStores.bodies.get,
         dataStores.transactions.get,
         blockHeights,
+        () => Option(localPeer.localAddress.port),
+        () => currentPeers.get,
         localChain,
         mempool,
         blockAdoptionsTopic,
@@ -147,11 +163,11 @@ object Blockchain {
           localPeer.localAddress.host,
           localPeer.localAddress.port,
           localPeer,
-          remotePeers,
+          remotePeersStream,
           clientHandler,
-          peerServerF
+          peerServerF,
+          closedPeers
         )
-
       droppingBlockAdoptionsTopic <- DroppingTopic(blockAdoptionsTopic, 10)
       rpcInterpreter <- Resource.eval(
         ToplRpcServer.make(
@@ -177,17 +193,17 @@ object Blockchain {
         )
       mintedBlockStream =
         for {
-          staker           <- Stream.fromOption[F](stakerOpt)
-          rewardCalculator <- Stream.resource(TransactionRewardCalculator.make[F])
+          staker <- Stream.fromOption[F](stakerOpt)
           costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
           blockPacker <- Stream.resource(
             BlockPacker
               .make[F](
                 mempool,
                 validators.boxState,
-                rewardCalculator,
+                validators.rewardCalculator,
                 costCalculator,
-                validators.transactionAuthorization
+                validators.transactionAuthorization,
+                validators.registrationAccumulator
               )
           )
           blockProducer <- Stream.eval(
@@ -206,7 +222,8 @@ object Blockchain {
                   ),
                 staker,
                 clock,
-                blockPacker
+                blockPacker,
+                validators.rewardCalculator
               )
           )
           block <- Stream.force(blockProducer.blocks)
@@ -217,7 +234,9 @@ object Blockchain {
             val id = block.header.id
             blockIdTree.associate(id, block.header.parentHeaderId) &>
             dataStores.headers.put(id, block.header) &>
-            dataStores.bodies.put(id, block.body) &>
+            dataStores.bodies
+              .put(id, BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))) &>
+            block.fullBody.rewardTransaction.traverse(tx => dataStores.transactions.put(tx.id, tx)) &>
             ed25519VrfResource
               .use(implicit e => Sync[F].delay(block.header.slotData))
               .flatTap(dataStores.slotData.put(id, _))

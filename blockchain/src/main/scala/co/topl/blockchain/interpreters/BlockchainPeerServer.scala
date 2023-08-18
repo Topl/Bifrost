@@ -13,7 +13,7 @@ import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
 import co.topl.typeclasses.implicits._
 import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
-import co.topl.networking.p2p.ConnectedPeer
+import co.topl.networking.p2p.{ConnectedPeer, RemoteAddress}
 import fs2.Stream
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -27,6 +27,8 @@ object BlockchainPeerServer {
     fetchBody:               BlockId => F[Option[BlockBody]],
     fetchTransaction:        TransactionId => F[Option[IoTransaction]],
     blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    peerServerPort:          () => Option[Int],
+    currentHotPeers:         () => F[Set[RemoteAddress]],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MempoolAlgebra[F],
     newBlockIds:             Topic[F, BlockId],
@@ -46,10 +48,12 @@ object BlockchainPeerServer {
               .getLoggerFromName[F]("P2P.BlockchainPeerServer")
               .withModifiedString(value => show"peer=${peer.remoteAddress} $value")
 
+          override def serverPort: F[Option[Int]] = peerServerPort().pure[F]
+
           /**
            * Serves a stream containing the current head ID plus a stream of block IDs adopted in the local chain.
            */
-          def localBlockAdoptions: F[Stream[F, BlockId]] =
+          override def localBlockAdoptions: F[Stream[F, BlockId]] =
             Async[F].delay(
               Stream
                 .eval(localChain.head.map(_.slotId.blockId))
@@ -61,7 +65,7 @@ object BlockchainPeerServer {
            * Serves a stream containing all _current_ mempool transactions plus a stream containing
            * any new mempool transaction as-it-happens
            */
-          def localTransactionNotifications: F[Stream[F, TransactionId]] =
+          override def localTransactionNotifications: F[Stream[F, TransactionId]] =
             Async[F].delay(
               Stream
                 .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
@@ -70,36 +74,34 @@ object BlockchainPeerServer {
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
             )
 
-          def getLocalSlotData(id: BlockId): F[Option[SlotData]] =
+          override def getLocalSlotData(id: BlockId): F[Option[SlotData]] =
             fetchSlotData(id)
 
-          def getLocalHeader(id: BlockId): F[Option[BlockHeader]] =
+          override def getLocalHeader(id: BlockId): F[Option[BlockHeader]] =
             fetchHeader(id)
 
-          def getLocalBody(id: BlockId): F[Option[BlockBody]] =
+          override def getLocalBody(id: BlockId): F[Option[BlockBody]] =
             fetchBody(id)
 
-          def getLocalTransaction(id: TransactionId): F[Option[IoTransaction]] =
+          override def getLocalTransaction(id: TransactionId): F[Option[IoTransaction]] =
             fetchTransaction(id)
 
-          def getLocalBlockAtHeight(height: Long): F[Option[BlockId]] =
+          override def getLocalBlockAtHeight(height: Long): F[Option[BlockId]] =
             for {
               head       <- localChain.head
               blockIdOpt <- blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
             } yield blockIdOpt
 
-          def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
+          override def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
             localChain.head.flatMap(s => getLocalBlockAtHeight(s.height - depth))
 
-          // Stub implementation at the moment
-          def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] = {
-            val knownHostStub: KnownHost = KnownHost("0.0.0.0", 0)
-            val knownHostsStub = Seq.fill(10)(knownHostStub)
+          override def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
+            for {
+              remotePeersRemoteAddresses <- currentHotPeers().map(_.toSeq.take(req.maxCount))
+              knownHosts = remotePeersRemoteAddresses.map(ra => KnownHost(ra.host, ra.port))
+            } yield Option(CurrentKnownHostsRes(knownHosts, Seq.empty, Seq.empty))
 
-            Option(CurrentKnownHostsRes(knownHostsStub, knownHostsStub, knownHostsStub)).pure[F]
-          }
-
-          def getPong(req: PingMessage): F[Option[PongMessage]] =
+          override def getPong(req: PingMessage): F[Option[PongMessage]] =
             Option(PongMessage(req.ping.reverse)).pure[F]
         }
       )

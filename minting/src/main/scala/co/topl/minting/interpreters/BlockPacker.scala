@@ -19,9 +19,10 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.immutable.ListSet
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
-import co.topl.ledger.interpreters.QuivrContext
+import co.topl.ledger.interpreters.{QuivrContext, RegistrationAccumulator}
 import cats.data.EitherT
 import org.typelevel.log4cats.Logger
+
 import scala.concurrent.duration._
 
 /**
@@ -34,7 +35,8 @@ object BlockPacker {
     boxState:                           BoxStateAlgebra[F],
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
-    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F]
+    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
   ): Resource[F, BlockPackerAlgebra[F]] =
     Resource.pure(
       new Impl(
@@ -42,7 +44,8 @@ object BlockPacker {
         boxState,
         transactionRewardCalculator,
         transactionCostCalculator,
-        transactionAuthorizationValidation
+        transactionAuthorizationValidation,
+        registrationAccumulator
       )
     )
 
@@ -51,7 +54,8 @@ object BlockPacker {
     boxState:                           BoxStateAlgebra[F],
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
-    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F]
+    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
   ) extends BlockPackerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -209,26 +213,41 @@ object BlockPacker {
                 .incl(transaction)
 
             def go(
-              accepted: ListSet[IoTransaction],
-              queue:    ListSet[IoTransaction]
+              accepted:                            ListSet[IoTransaction],
+              queue:                               ListSet[IoTransaction],
+              registrationAccumulatorAugmentation: RegistrationAccumulator.Augmentation
             ): F[ListSet[IoTransaction]] =
               queue.headOption match {
                 case Some(transaction) if accepted.contains(transaction) =>
-                  go(accepted, queue.tail)
+                  go(accepted, queue.tail, registrationAccumulatorAugmentation)
                 case Some(transaction) =>
-                  val newAccepted = accepted ++ withDependencies(transaction)
-                  graph.spenders
-                    .get(transaction.id)
-                    .fold(newAccepted.pure[F])(spenders =>
-                      go(
-                        newAccepted,
-                        queue.tail.concat(
-                          spenders.values
-                            .flatMap(_.map(_._1))
-                            .toSet
-                            .flatMap(graph.transactions.get)
-                        )
-                      )
+                  RegistrationAccumulator.Augmented
+                    .make[F](registrationAccumulator)(registrationAccumulatorAugmentation)
+                    .use(registrationAccumulator =>
+                      (transaction.outputs.flatMap(_.value.value.topl).flatMap(_.registration).map(_.address).toSet --
+                      transaction.inputs.flatMap(_.value.value.topl).flatMap(_.registration).map(_.address)).toList
+                        .forallM(registrationAccumulator.contains(parentBlockId)(_).map(!_))
+                    )
+                    .ifM(
+                      Sync[F]
+                        .delay(accepted ++ withDependencies(transaction))
+                        .flatMap(newAccepted =>
+                          graph.spenders
+                            .get(transaction.id)
+                            .fold(newAccepted.pure[F])(spenders =>
+                              go(
+                                newAccepted,
+                                queue.tail.concat(
+                                  spenders.values
+                                    .flatMap(_.map(_._1))
+                                    .toSet
+                                    .flatMap(graph.transactions.get)
+                                ),
+                                registrationAccumulatorAugmentation.augment(transaction)
+                              )
+                            )
+                        ),
+                      go(accepted, queue.tail, registrationAccumulatorAugmentation)
                     )
                 case _ =>
                   accepted.pure[F]
@@ -236,7 +255,13 @@ object BlockPacker {
 
             nextIterationFunction.set(((_: FullBlockBody) => Async[F].never[FullBlockBody]).some) *>
             Sync[F]
-              .defer(go(ListSet.empty, ListSet.from(graph.unresolved.keys.map(graph.transactions))))
+              .defer(
+                go(
+                  ListSet.empty,
+                  ListSet.from(graph.unresolved.keys.map(graph.transactions)),
+                  RegistrationAccumulator.Augmentation.empty
+                )
+              )
               .map(transactionSet => FullBlockBody(transactionSet.toList))
           }
 
@@ -259,9 +284,16 @@ object BlockPacker {
                 .spenders(transaction.id)
                 .toList
                 .map(_._2)
-                .foldMapM(spenders =>
-                  spenders.toList.map(_._1).map(graph.transactions).traverse(subgraphScore(graph)).map(_.max)
-                )
+                .foldMapM {
+                  case spenders if spenders.isEmpty =>
+                    BigInt(0).pure[F]
+                  case spenders =>
+                    spenders.toList
+                      .map(_._1)
+                      .map(graph.transactions)
+                      .traverse(subgraphScore(graph))
+                      .map(_.max)
+                }
             ).mapN(_ + _)
 
           /**

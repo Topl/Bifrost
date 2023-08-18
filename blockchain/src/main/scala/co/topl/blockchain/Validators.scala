@@ -1,6 +1,7 @@
 package co.topl.blockchain
 
-import cats.effect.Async
+import cats.effect.{Async, Resource}
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.validation.TransactionAuthorizationInterpreter
@@ -16,14 +17,18 @@ import co.topl.consensus.interpreters.BlockHeaderToBodyValidation
 import co.topl.consensus.interpreters.BlockHeaderValidation
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
-import co.topl.ledger.algebras.BodyAuthorizationValidationAlgebra
-import co.topl.ledger.algebras.BodySemanticValidationAlgebra
-import co.topl.ledger.algebras.BodySyntaxValidationAlgebra
-import co.topl.ledger.algebras.BoxStateAlgebra
+import co.topl.ledger.algebras.{
+  BodyAuthorizationValidationAlgebra,
+  BodySemanticValidationAlgebra,
+  BodySyntaxValidationAlgebra,
+  BoxStateAlgebra,
+  RegistrationAccumulatorAlgebra,
+  TransactionRewardCalculatorAlgebra,
+  TransactionSemanticValidationAlgebra
+}
 import co.topl.ledger.interpreters._
 import co.topl.quivr.api.Verifier.instances.verifierInstance
 import co.topl.typeclasses.implicits._
-import co.topl.ledger.algebras.TransactionSemanticValidationAlgebra
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 
 case class Validators[F[_]](
@@ -35,7 +40,9 @@ case class Validators[F[_]](
   bodySyntax:               BodySyntaxValidationAlgebra[F],
   bodySemantics:            BodySemanticValidationAlgebra[F],
   bodyAuthorization:        BodyAuthorizationValidationAlgebra[F],
-  boxState:                 BoxStateAlgebra[F]
+  boxState:                 BoxStateAlgebra[F],
+  registrationAccumulator:  RegistrationAccumulatorAlgebra[F],
+  rewardCalculator:         TransactionRewardCalculatorAlgebra[F]
 )
 
 object Validators {
@@ -51,7 +58,7 @@ object Validators {
     consensusValidationState:    ConsensusValidationStateAlgebra[F],
     leaderElectionThreshold:     LeaderElectionValidationAlgebra[F],
     clockAlgebra:                ClockAlgebra[F]
-  ): F[Validators[F]] =
+  ): Resource[F, Validators[F]] =
     for {
       headerValidation <- BlockHeaderValidation
         .make[F](
@@ -68,29 +75,48 @@ object Validators {
           cryptoResources.blake2b256
         )
         .flatMap(BlockHeaderValidation.WithCache.make[F](_))
-      headerToBody <- BlockHeaderToBodyValidation.make()
-      boxState <- BoxState.make(
-        currentEventIdGetterSetters.boxState.get(),
-        dataStores.bodies.getOrRaise,
-        dataStores.transactions.getOrRaise,
-        blockIdTree,
-        currentEventIdGetterSetters.boxState.set,
-        dataStores.spendableBoxIds.pure[F]
-      )
+        .toResource
+      headerToBody <- BlockHeaderToBodyValidation.make().toResource
+      boxState <- BoxState
+        .make(
+          currentEventIdGetterSetters.boxState.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.boxState.set,
+          dataStores.spendableBoxIds.pure[F]
+        )
+        .toResource
       transactionSyntaxValidation = TransactionSyntaxInterpreter.make[F]()
       transactionSemanticValidation <- TransactionSemanticValidation
         .make[F](dataStores.transactions.getOrRaise, boxState)
+        .toResource
       transactionAuthorizationValidation = TransactionAuthorizationInterpreter.make[F]()
+      rewardCalculator <- TransactionRewardCalculator.make[F]
       bodySyntaxValidation <- BodySyntaxValidation
-        .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation)
-      bodySemanticValidation <- BodySemanticValidation.make[F](
+        .make[F](dataStores.transactions.getOrRaise, transactionSyntaxValidation, rewardCalculator)
+        .toResource
+      registrationAccumulator <- RegistrationAccumulator.make[F](
+        currentEventIdGetterSetters.registrationAccumulator.get(),
+        dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise,
-        transactionSemanticValidation
+        blockIdTree,
+        currentEventIdGetterSetters.registrationAccumulator.set,
+        dataStores.registrationAccumulator.pure[F]
       )
-      bodyAuthorizationValidation <- BodyAuthorizationValidation.make[F](
-        dataStores.transactions.getOrRaise,
-        transactionAuthorizationValidation
-      )
+      bodySemanticValidation <- BodySemanticValidation
+        .make[F](
+          dataStores.transactions.getOrRaise,
+          transactionSemanticValidation,
+          registrationAccumulator
+        )
+        .toResource
+      bodyAuthorizationValidation <- BodyAuthorizationValidation
+        .make[F](
+          dataStores.transactions.getOrRaise,
+          transactionAuthorizationValidation
+        )
+        .toResource
     } yield Validators(
       headerValidation,
       headerToBody,
@@ -100,6 +126,8 @@ object Validators {
       bodySyntaxValidation,
       bodySemanticValidation,
       bodyAuthorizationValidation,
-      boxState
+      boxState,
+      registrationAccumulator,
+      rewardCalculator
     )
 }

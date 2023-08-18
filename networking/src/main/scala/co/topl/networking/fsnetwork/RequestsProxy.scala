@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.models.{BlockHeader, BlockId}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyDownloadError, BlockHeaderDownloadError}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
@@ -16,6 +16,7 @@ import co.topl.node.models.BlockBody
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
+import scala.annotation.nowarn
 
 object RequestsProxy {
   sealed trait Message
@@ -25,6 +26,12 @@ object RequestsProxy {
 
     case object GetCurrentTips extends Message
 
+    case class RemoteSlotData(hostId: HostId, slotData: NonEmptyChain[SlotData]) extends Message
+
+    case class BlocksSource(sources: NonEmptyChain[(HostId, BlockId)]) extends Message
+
+    case class BadKLookbackSlotData(hostId: HostId) extends Message
+
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
     case class DownloadHeadersRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
@@ -33,7 +40,7 @@ object RequestsProxy {
     // then A is parent of B and B is parent of C
     case class DownloadHeadersResponse(
       hostId:   HostId,
-      response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+      response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
     ) extends Message
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
@@ -44,7 +51,7 @@ object RequestsProxy {
     // then A is parent of B and B is parent of C
     case class DownloadBodiesResponse(
       source:   HostId,
-      response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])]
+      response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
     ) extends Message
 
     // If verification of block is failed then we shall no longer process that particular blockId
@@ -58,7 +65,8 @@ object RequestsProxy {
     headerStore:          Store[F, BlockId, BlockHeader],
     bodyStore:            Store[F, BlockId, BlockBody],
     headerRequests:       Cache[BlockId, Option[UnverifiedBlockHeader]],
-    bodyRequests:         Cache[BlockId, Option[UnverifiedBlockBody]]
+    bodyRequests:         Cache[BlockId, Option[UnverifiedBlockBody]],
+    blockSource:          Cache[BlockId, Set[HostId]]
   )
 
   type Response[F[_]] = State[F]
@@ -68,6 +76,9 @@ object RequestsProxy {
     Fsm {
       case (state, message: SetupBlockChecker[F] @unchecked)    => setupBlockChecker(state, message.blockCheckerActor)
       case (state, GetCurrentTips)                              => getCurrentTips(state)
+      case (state, RemoteSlotData(hostId, slotData))            => processRemoteSlotData(state, hostId, slotData)
+      case (state, BadKLookbackSlotData(hostId))                => resendBadKLookbackSlotData(state, hostId)
+      case (state, BlocksSource(sources))                       => blocksSourceProcessing(state, sources)
       case (state, DownloadHeadersRequest(hostId, blockIds))    => downloadHeadersRequest(state, hostId, blockIds)
       case (state, DownloadHeadersResponse(source, response))   => downloadHeadersResponse(state, source, response)
       case (state, DownloadBodiesRequest(hostId, blockHeaders)) => downloadBodiesRequest(state, hostId, blockHeaders)
@@ -83,7 +94,9 @@ object RequestsProxy {
     headerRequests: Cache[BlockId, Option[UnverifiedBlockHeader]] =
       Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockHeader]](),
     bodyRequests: Cache[BlockId, Option[UnverifiedBlockBody]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]]()
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]](),
+    blockSource: Cache[BlockId, Set[HostId]] =
+      Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
       State(
@@ -93,7 +106,8 @@ object RequestsProxy {
         headerStore,
         bodyStore,
         headerRequests,
-        bodyRequests
+        bodyRequests,
+        blockSource
       )
     Actor.make(initialState, getFsm[F])
   }
@@ -110,6 +124,46 @@ object RequestsProxy {
   private def getCurrentTips[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
     state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips) >>
     (state, state).pure[F]
+
+  private def processRemoteSlotData[F[_]: Async](
+    state:    State[F],
+    source:   HostId,
+    slotData: NonEmptyChain[SlotData]
+  ): F[(State[F], Response[F])] = {
+    val message = BlockChecker.Message.RemoteSlotData(source, slotData)
+    state.blockCheckerOpt.map(blockChecker => blockChecker.sendNoWait(message)).getOrElse(().pure[F]) >>
+    (state, state).pure[F]
+  }
+
+  private def resendBadKLookbackSlotData[F[_]: Async: Logger](
+    state:  State[F],
+    source: HostId
+  ): F[(State[F], Response[F])] =
+    Logger[F].warn(show"Received declined remote slot data chain because of low density") >>
+    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BadKLookbackSlotData(source)) >>
+    (state, state).pure[F]
+
+  private def blocksSourceProcessing[F[_]: Async](
+    state:   State[F],
+    sources: NonEmptyChain[(HostId, BlockId)]
+  ): F[(State[F], Response[F])] = {
+    val toSend: Seq[(HostId, Long)] =
+      sources.toList.flatMap { case (host, blockId) =>
+        val previousSource: Set[HostId] = state.blockSource.get(blockId).getOrElse(Set.empty[HostId])
+        if (previousSource.contains(host)) {
+          Option.empty[(HostId, Long)]
+        } else {
+          val newSource: Set[HostId] = previousSource + host
+          state.blockSource.put(blockId, newSource)
+          Option((host, newSource.size))
+        }
+      }
+
+    val sendMessage: NonEmptyChain[(HostId, Long)] => F[Unit] =
+      d => state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BlockProvidingReputationUpdate(d))
+
+    NonEmptyChain.fromSeq(toSend).map(sendMessage).getOrElse(().pure[F]) >> (state, state).pure[F]
+  }
 
   private def downloadHeadersRequest[F[_]: Async: Logger](
     state:    State[F],
@@ -162,16 +216,17 @@ object RequestsProxy {
   private def downloadHeadersResponse[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+    response: NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
   ): F[(State[F], Response[F])] = {
     val responseLog =
       response.map { case (id, res) => show"$id with res ${res.isRight}" }.mkString_(", ")
 
     val successfullyDownloadedHeaders =
-      response.collect { case (id, Right(header)) => (id, UnverifiedBlockHeader(source, header)) }.toList
+      response.collect { case (id, Right(header)) => (id, header) }.toList
 
     for {
       _       <- Logger[F].info(show"Download next headers: $responseLog")
+      _       <- processHeaderDownloadPerformance(state.reputationAggregator, response)
       _       <- processHeaderDownloadErrors(state.reputationAggregator, state.peersManager, source, response)
       sentIds <- sendSuccessfulHeadersPrefix(state, successfullyDownloadedHeaders)
       _       <- Logger[F].info(show"Send headers prefix to block checker $sentIds")
@@ -179,20 +234,30 @@ object RequestsProxy {
     } yield (state, state)
   }
 
+  private def processHeaderDownloadPerformance[F[_]: Async](
+    reputationAggregator: ReputationAggregatorActor[F],
+    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
+  ): F[Unit] =
+    response
+      .collect { case (_, Right(header)) => header }
+      .traverse { h =>
+        reputationAggregator.sendNoWait(ReputationAggregator.Message.DownloadTimeHeader(h.source, h.downloadTimeMs))
+      }
+      .void
+
   private def processHeaderDownloadErrors[F[_]: Async](
     reputationAggregator: ReputationAggregatorActor[F],
     peersManager:         PeersManagerActor[F],
     source:               HostId,
-    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, BlockHeader])]
+    response:             NonEmptyChain[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]
   ): F[Unit] = {
     val errorsOpt =
       NonEmptyChain.fromChain(response.collect { case (id, Left(error)) => (id, error) })
 
     errorsOpt match {
       case Some(errors) =>
-        // TODO translate error to reputation value or send error itself?
         val reputationMessage: ReputationAggregator.Message =
-          ReputationAggregator.Message.UpdatePeerReputation(source, -1)
+          ReputationAggregator.Message.HostProvideIncorrectBlock(source)
 
         errors.traverse { case (id, _) =>
           reputationAggregator.sendNoWait(reputationMessage) >>
@@ -278,16 +343,17 @@ object RequestsProxy {
   private def downloadBodiesResponse[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])]
+    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
   ): F[(State[F], Response[F])] = {
     val responseLog =
       response.map { case (header, res) => show"${header.id} with res ${res.isRight}" }.mkString_(", ")
 
     val successfullyDownloadedBodies =
-      response.collect { case (header, Right(body)) => (header, UnverifiedBlockBody(source, body)) }.toList
+      response.collect { case (header, Right(body)) => (header, body) }.toList
 
     for {
       _       <- Logger[F].info(show"Download next bodies: $responseLog")
+      _       <- processBodyDownloadPerformance(state.reputationAggregator, response)
       _       <- processBlockBodyDownloadErrors(state, source, response)
       sentIds <- sendSuccessfulBodiesPrefix(state, successfullyDownloadedBodies)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
@@ -295,10 +361,23 @@ object RequestsProxy {
     } yield (state, state)
   }
 
+  private def processBodyDownloadPerformance[F[_]: Async](
+    reputationAggregator: ReputationAggregatorActor[F],
+    response:             NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
+  ): F[Unit] =
+    response
+      .collect { case (_, Right(body)) => body }
+      .traverse { h =>
+        reputationAggregator.sendNoWait(
+          ReputationAggregator.Message.DownloadTimeBody(h.source, h.downloadTimeMs, h.downloadTimeTxMs)
+        )
+      }
+      .void
+
   private def processBlockBodyDownloadErrors[F[_]: Async](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, BlockBody])]
+    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
   ): F[Unit] = {
     val reputationAggregator: ReputationAggregatorActor[F] = state.reputationAggregator
     val peersManager: PeersManagerActor[F] = state.peersManager
@@ -307,9 +386,8 @@ object RequestsProxy {
       NonEmptyChain.fromChain(response.collect { case (header, Left(error)) => (header, error) })
 
     def processError(header: BlockHeader): F[Unit] = {
-      // TODO translate error to reputation value or send error itself?
       val reputationMessage: ReputationAggregator.Message =
-        ReputationAggregator.Message.UpdatePeerReputation(source, -1)
+        ReputationAggregator.Message.HostProvideIncorrectBlock(source)
 
       {
         for {
@@ -326,10 +404,10 @@ object RequestsProxy {
     }
   }
 
-  private def invalidateBlockId[F[_]: Async: Logger](
-    state:   State[F],
-    source:  HostId,
-    blockId: BlockId
+  private def invalidateBlockId[F[_]: Async](
+    state:           State[F],
+    source:          HostId,
+    @nowarn blockId: BlockId
   ): F[(State[F], Response[F])] =
     // TODO add cache for invalid block thus no longer accept blocks with that particular id
     state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectBlock(source)) >>

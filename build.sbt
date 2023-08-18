@@ -1,7 +1,7 @@
 import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
 
-val scala213 = "2.13.10"
+val scala213 = "2.13.11"
 
 inThisBuild(
   List(
@@ -70,7 +70,7 @@ lazy val dockerSettings = Seq(
 lazy val nodeDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
+    dockerExposedVolumes ++= Seq("/bifrost-data", "/bifrost-staking", "/bifrost-config"),
     Docker / packageName := "bifrost-node"
   )
 
@@ -121,8 +121,9 @@ lazy val commonScalacOptions = Seq(
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Ywarn-unused:-implicits,-privates,_",
-  "-Yrangepos"
+  "-Ywarn-unused:_",
+  "-Yrangepos",
+  "-Ywarn-macros:after"
 )
 
 javaOptions ++= Seq(
@@ -155,10 +156,10 @@ lazy val bifrost = project
     publish / skip := true,
     crossScalaVersions := Nil
   )
-  .configs(IntegrationTest)
   .aggregate(
     node,
     typeclasses,
+    config,
     toplGrpc,
     nodeCrypto,
     catsUtils,
@@ -191,7 +192,6 @@ lazy val node = project
     assemblySettings("co.topl.node.NodeApp"),
     assemblyJarName := s"bifrost-node-${version.value}.jar",
     nodeDockerSettings,
-    Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.node.NodeApp"),
     publish / skip := true,
@@ -199,13 +199,12 @@ lazy val node = project
     buildInfoPackage := "co.topl.buildinfo.node",
     libraryDependencies ++= Dependencies.node
   )
-  .configs(IntegrationTest)
   .settings(
-    IntegrationTest / parallelExecution := false,
     classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat // required for correct loading https://github.com/kamon-io/sbt-kanela-runner
   )
   .dependsOn(
     models % "compile->compile;test->test",
+    config,
     typeclasses,
     consensus,
     minting,
@@ -221,17 +220,16 @@ lazy val node = project
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
 
-lazy val nodeIt = project
-  .in(file("node-it"))
+lazy val config = project
+  .in(file("config"))
   .settings(
-    name := "node-it",
+    name := "config",
     commonSettings,
-    crossScalaVersions := Seq(scala213)
+    crossScalaVersions := Seq(scala213),
+    libraryDependencies ++= Dependencies.monocle
   )
-  .dependsOn(
-    node,
-    transactionGenerator % "test->compile"
-  )
+  .dependsOn(models, numerics)
+  .settings(scalamacrosParadiseSettings)
 
 lazy val networkDelayer = project
   .in(file("network-delayer"))
@@ -242,17 +240,12 @@ lazy val networkDelayer = project
     assemblySettings("co.topl.networkdelayer.NetworkDelayer"),
     assemblyJarName := s"network-delayer-${version.value}.jar",
     networkDelayerDockerSettings,
-    Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.networkdelayer.NetworkDelayer"),
     publish / skip := true,
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.networkdelayer",
     libraryDependencies ++= Dependencies.networkDelayer
-  )
-  .configs(IntegrationTest)
-  .settings(
-    IntegrationTest / parallelExecution := false
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
@@ -267,7 +260,6 @@ lazy val testnetSimulationOrchestrator = project
     assemblySettings("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
     assemblyJarName := s"testnet-simulation-orchestrator-${version.value}.jar",
     testnetSimulationOrchestratorDockerSettings,
-    Defaults.itSettings,
     crossScalaVersions := Seq(scala213),
     Compile / mainClass := Some("co.topl.testnetsimulationorchestrator.app.Orchestrator"),
     publish / skip := true,
@@ -489,6 +481,7 @@ lazy val networking = project
   .settings(scalamacrosParadiseSettings)
   .dependsOn(
     models % "compile->compile;test->test",
+    config,
     typeclasses,
     nodeCrypto,
     byteCodecs,
@@ -547,7 +540,8 @@ lazy val ledger = project
     algebras % "compile->compile;test->test",
     typeclasses,
     eventTree,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    numerics
   )
 
 lazy val blockchain = project
@@ -565,6 +559,7 @@ lazy val blockchain = project
   .dependsOn(
     models   % "compile->compile;test->test",
     algebras % "compile->compile;test->test",
+    config,
     typeclasses,
     eventTree,
     ledger,
@@ -659,18 +654,33 @@ lazy val munitScalamock = project
     libraryDependencies ++= Dependencies.munitScalamock
   )
 
-lazy val byzantineTests = project
-  .in(file("byzantine-tests"))
+lazy val nodeIt = project
+  .in(file("node-it"))
   .settings(
-    name := "byzantine-tests",
+    name := "node-it",
     commonSettings,
-    Defaults.itSettings,
-    IntegrationTest / parallelExecution := false,
-    libraryDependencies ++= Dependencies.byzantineTests
+    crossScalaVersions := Seq(scala213)
   )
-  .configs(IntegrationTest)
-  .dependsOn(node)
+  .dependsOn(
+    node,
+    transactionGenerator % "test->compile"
+  )
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; IntegrationTest/compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; IntegrationTest/compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; IntegrationTest/compile")
+lazy val byzantineIt = project
+  .in(file("byzantine-it"))
+  .settings(
+    name := "byzantine-it",
+    commonSettings,
+    Test / parallelExecution := false,
+    libraryDependencies ++= Dependencies.byzantineIt
+  )
+  .dependsOn(
+    node
+  )
+
+lazy val integration = (project in file("integration"))
+  .aggregate(nodeIt, byzantineIt)
+
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/compile")

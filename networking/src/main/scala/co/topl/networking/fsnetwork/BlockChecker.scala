@@ -53,11 +53,11 @@ object BlockChecker {
     case class RemoteBlockBodies(blocks: NonEmptyChain[(BlockHeader, UnverifiedBlockBody)]) extends Message
 
     /**
-     * Invalidate block because block is invalid by some reason, for example no block body available at any peer or
+     * Invalidate blocks because blocks are invalid by some reason, for example no block body available at any peer or
      * validation of block had been failed
-     * @param blockId invalid blockId
+     * @param blockIds invalid blockIds
      */
-    case class InvalidateBlockId(blockId: BlockId) extends Message
+    case class InvalidateBlockIds(blockIds: NonEmptyChain[BlockId]) extends Message
   }
 
   case class State[F[_]](
@@ -83,10 +83,10 @@ object BlockChecker {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, RemoteSlotData(hostId, slotData))  => processSlotData(state, hostId, slotData)
-      case (state, RemoteBlockHeaders(blockHeaders))  => processRemoteHeaders(state, blockHeaders)
-      case (state, RemoteBlockBodies(blocks))         => processRemoteBodies(state, blocks)
-      case (state, InvalidateBlockId(invalidBlockId)) => processInvalidBlockId(state, invalidBlockId)
+      case (state, RemoteSlotData(hostId, slotData))    => processSlotData(state, hostId, slotData)
+      case (state, RemoteBlockHeaders(blockHeaders))    => processRemoteHeaders(state, blockHeaders)
+      case (state, RemoteBlockBodies(blocks))           => processRemoteBodies(state, blocks)
+      case (state, InvalidateBlockIds(invalidBlockIds)) => processInvalidBlockId(state, invalidBlockIds)
     }
 
   def makeActor[F[_]: Async: Logger](
@@ -135,7 +135,7 @@ object BlockChecker {
       _ <- Logger[F].info(show"Received slot data proposal with best block id $bestRemoteBlockId")
       newState <- remoteSlotDataBetter(state, bestRemoteSlotData).ifM(
         ifTrue = processNewBestSlotData(state, slotData, candidateHostId),
-        ifFalse = Logger[F].debug(s"Ignore weaker slot data $bestRemoteBlockId") >> state.pure[F]
+        ifFalse = Logger[F].debug(show"Ignore weaker slot data $bestRemoteBlockId") >> state.pure[F]
       )
     } yield (newState, newState)
   }
@@ -277,7 +277,7 @@ object BlockChecker {
       .map {
         case HeaderValidationException(blockId, source, _) =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.InvalidateBlockId(source, blockId)) >>
-          invalidateBlockId(state, blockId)
+          invalidateBlockId(state, NonEmptyChain.one(blockId))
         case _ => state.pure[F] // TODO any error message for underlying exception?
       }
       .getOrElse(state.pure[F])
@@ -401,7 +401,7 @@ object BlockChecker {
       .map {
         case BodyValidationException(blockId, source, _) =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.InvalidateBlockId(source, blockId)) >>
-          invalidateBlockId(state, blockId)
+          invalidateBlockId(state, NonEmptyChain.one(blockId))
         case _ => state.pure[F] // TODO any error message for underlying exception?
       }
       .getOrElse(state.pure[F])
@@ -443,16 +443,18 @@ object BlockChecker {
 
   private def processInvalidBlockId[F[_]: Async: Logger](
     state:          State[F],
-    invalidBlockId: BlockId
+    invalidBlockId: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     invalidateBlockId(state, invalidBlockId).map(s => (s, s))
 
   private def invalidateBlockId[F[_]: Async: Logger](
-    state:          State[F],
-    invalidBlockId: BlockId
+    state:           State[F],
+    invalidBlockIds: NonEmptyChain[BlockId]
   ): F[State[F]] = {
     val invalidBlockOnCurrentBestChain =
-      state.bestKnownRemoteSlotDataOpt.exists(_.containsBlockId(invalidBlockId))
+      invalidBlockIds.find { invalidBlockId =>
+        state.bestKnownRemoteSlotDataOpt.exists(_.containsBlockId(invalidBlockId))
+      }.isDefined
 
     if (invalidBlockOnCurrentBestChain) {
       val newState = state.copy(bestKnownRemoteSlotDataOpt = None, bestKnownRemoteSlotDataHost = None)

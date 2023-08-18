@@ -11,8 +11,8 @@ import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChai
 import co.topl.consensus.models.{BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActorTest.F
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
@@ -35,14 +35,13 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Ping shall be started for warm hosts and sent result to reputation aggregator") {
     withMock {
-      val blockChecker = mock[BlockCheckerActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val pingPongInterval = FiniteDuration(100, MILLISECONDS)
       val pingDelay = FiniteDuration(10, MILLISECONDS)
 
       val client = mock[BlockchainPeerClient[F]]
@@ -64,18 +63,20 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .makeActor(
           hostId,
           client,
-          blockChecker,
           requestsProxy,
           reputationAggregation,
+          peersManager,
           localChain,
           slotDataStore,
           transactionStore,
           blockIdTree,
-          headerToBodyValidation,
-          pingPongInterval
+          headerToBodyValidation
         )
         .use { actor =>
-          Async[F].andWait(actor.send(PeerActor.Message.UpdateState(PeerState.Warm)), pingPongInterval + pingDelay * 5)
+          for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
+            _ <- Async[F].andWait(actor.send(PeerActor.Message.GetNetworkQuality), pingDelay * 5)
+          } yield ()
         }
     }
 

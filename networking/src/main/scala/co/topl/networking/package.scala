@@ -1,5 +1,8 @@
 package co.topl
 
+import co.topl.networking.p2p.RemoteAddress
+import co.topl.node.models.KnownHost
+
 import java.nio.ByteBuffer
 
 package object networking {
@@ -9,4 +12,12 @@ package object networking {
    */
   def encodeInt(value: Int): Array[Byte] =
     ByteBuffer.allocate(4).putInt(value).array()
+
+  implicit class KnownHostOps(knownHost: KnownHost) {
+    def asRemoteAddress: RemoteAddress = RemoteAddress(knownHost.host, knownHost.port)
+  }
+
+  implicit class RemoteAddressOps(remoteAddress: RemoteAddress) {
+    def asKnownHost: KnownHost = KnownHost(remoteAddress.host, remoteAddress.port)
+  }
 }

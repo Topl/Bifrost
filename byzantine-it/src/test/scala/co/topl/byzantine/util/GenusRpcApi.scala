@@ -1,4 +1,4 @@
-package co.topl.tetra.it.util
+package co.topl.byzantine.util
 
 import cats.effect._
 import cats.implicits._
