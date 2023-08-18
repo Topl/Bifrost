@@ -1,8 +1,8 @@
 package co.topl.blockchain
 
 import cats.Parallel
-import cats.data.EitherT
-import cats.effect.Sync
+import cats.data.{EitherT, Kleisli, ReaderT}
+import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
@@ -127,13 +127,13 @@ object BigBang {
    * The header will be retrieved first, using the file name ${block ID}.header.pbuf.
    * Next, the body will be retrieved using the file name ${block ID}.body.pbuf.
    * Next, all transactions will be retrieved using the file names ${transaction ID}.transaction.pbuf.
-   * @param blockId The block ID to retrieve
    * @param readFile A function which retrieves a file by name
+   * @param blockId The block ID to retrieve
    * @return a FullBlock associated with the given block ID
    */
   def loadFromRemote[F[_]: Sync: Parallel](
-    txRootValidation: BlockHeaderToBodyValidationAlgebra[F]
-  )(blockId: BlockId)(readFile: String => F[Array[Byte]]): F[FullBlock] =
+    readFile: ReaderT[F, String, Array[Byte]]
+  )(txRootValidation: BlockHeaderToBodyValidationAlgebra[F])(blockId: BlockId): F[FullBlock] =
     for {
       genesisBlockIdStr <- Sync[F].delay(blockId.show)
       header <-
