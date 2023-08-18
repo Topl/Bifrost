@@ -24,6 +24,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
   type F[+A] = IO[A]
 
   private val c = Console[F]
+  private val handleProposalUpdateCommand = ProposalCommandImpl.make
 
   def run: F[Unit] = applicationResource.use_
 
@@ -34,13 +35,15 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
   private def readUserCommand =
     StageResultT[F, CliApp.Command](
       (
-        c.println("Please enter a command. [ QUIT | register ]") >>
+        c.println("Please enter a command. [ QUIT | register | proposal]") >>
         readLowercaseInput
       ).flatMap {
         case "" | "quit" =>
           CliApp.Command.Quit.some.widen[CliApp.Command].pure[F]
         case "register" =>
           CliApp.Command.Register.some.widen[CliApp.Command].pure[F]
+        case "proposal" =>
+          CliApp.Command.Proposal.some.widen[CliApp.Command].pure[F]
         case v =>
           c.println(s"Invalid command: `$v`").as(none[CliApp.Command])
       }.untilDefinedM
@@ -53,6 +56,8 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
         StageResultT[F, Unit](c.println("Mischief Managed.").as(StageResult.Exit))
       case CliApp.Command.Register =>
         handleRegistrationCommand
+      case CliApp.Command.Proposal =>
+        handleProposalUpdateCommand.command
     }
 
   /**
@@ -298,5 +303,6 @@ object CliApp {
   object Command {
     case object Quit extends Command
     case object Register extends Command
+    case object Proposal extends Command
   }
 }
