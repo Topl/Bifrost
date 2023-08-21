@@ -93,7 +93,7 @@ object ApplicationConfig {
       case class Public(
         genesisId:  BlockId,
         sourcePath: String
-      )
+      ) extends BigBang
     }
 
     @Lenses

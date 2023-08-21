@@ -16,9 +16,11 @@ class StakerInitializersSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   test("Big bang outputs for PrivateTestnet, currentTime, 1 staker") {
     for {
-      timestamp      <- System.currentTimeMillis().pure[F]
-      operator       <- PrivateTestnet.stakerInitializers(timestamp, 1).pure[F]
-      bigBangOutputs <- Async[F].delay(operator.head.registrationOutputs(Ratio(DefaultTotalStake, 1: BigInt).round))
+      timestamp <- System.currentTimeMillis().pure[F]
+      operator  <- PrivateTestnet.stakerInitializers(timestamp, 1).pure[F]
+      bigBangOutputs <- Async[F].delay(
+        operator.head.registrationTransaction(Ratio(DefaultTotalStake, 1: BigInt).round).outputs
+      )
 
       _ <- assertIO(bigBangOutputs.size.pure[F], 1)
       _ <- assertIOBoolean(bigBangOutputs.forall(_.address == operator.head.lockAddress).pure[F])
@@ -36,9 +38,11 @@ class StakerInitializersSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
 
   test("Big bang outputs for PrivateTestnet, currentTime + 5 seg, 1 staker") {
     for {
-      timestamp      <- (System.currentTimeMillis() + 5000).pure[F]
-      operator       <- PrivateTestnet.stakerInitializers(timestamp, 1).pure[F]
-      bigBangOutputs <- Async[F].delay(operator.head.registrationOutputs(Ratio(DefaultTotalStake, 1: BigInt).round))
+      timestamp <- (System.currentTimeMillis() + 5000).pure[F]
+      operator  <- PrivateTestnet.stakerInitializers(timestamp, 1).pure[F]
+      bigBangOutputs <- Async[F].delay(
+        operator.head.registrationTransaction(Ratio(DefaultTotalStake, 1: BigInt).round).outputs
+      )
 
       _ <- assertIO(bigBangOutputs.size.pure[F], 1)
       _ <- assertIOBoolean(bigBangOutputs.forall(_.address == operator.head.lockAddress).pure[F])
@@ -61,7 +65,7 @@ class StakerInitializersSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
       _ <- operator
         .zip(LazyList.from(1))
         .traverse { case (operator, index) =>
-          val bigBangOutputs = operator.registrationOutputs(Ratio(DefaultTotalStake, index: BigInt).round)
+          val bigBangOutputs = operator.registrationTransaction(Ratio(DefaultTotalStake, index: BigInt).round).outputs
 
           assertIO(bigBangOutputs.size.pure[F], 1) &>
           assertIOBoolean(bigBangOutputs.forall(_.address == operator.lockAddress).pure[F]) &>

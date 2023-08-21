@@ -1,24 +1,16 @@
-package co.topl.node
+package co.topl.blockchain
 
 import cats._
 import cats.data.OptionT
-import cats.implicits._
-import cats.effect.implicits._
 import cats.effect._
+import cats.effect.implicits._
+import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.blockchain.{CryptoResources, StakerInitializers}
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
-import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.config.ApplicationConfig
-import co.topl.consensus.algebras.{
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra
-}
+import co.topl.consensus.algebras._
 import co.topl.consensus.models.{ProtocolVersion, StakingAddress, VrfConfig}
-import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.interpreters.CatsSecureStore
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
@@ -48,51 +40,6 @@ object StakingInit {
         files.exists(_.endsWith(VrfKeyName)) &&
         files.exists(_.endsWith(RegistrationTxName))
       )
-
-  /**
-   * Initializes a Staking object from a private genesis configuration.
-   */
-  def makeStakingFromGenesis[F[_]: Async: Logger](
-    stakingDir:               Path,
-    initializer:              StakerInitializers.Operator,
-    rewardAddress:            LockAddress,
-    clock:                    ClockAlgebra[F],
-    etaCalculation:           EtaCalculationAlgebra[F],
-    consensusValidationState: ConsensusValidationStateAlgebra[F],
-    leaderElectionThreshold:  LeaderElectionValidationAlgebra[F],
-    cryptoResources:          CryptoResources[F],
-    protocol:                 ApplicationConfig.Bifrost.Protocol,
-    vrfConfig:                VrfConfig,
-    protocolVersion:          ProtocolVersion
-  ): Resource[F, StakingAlgebra[F]] =
-    for {
-      _       <- Logger[F].info("Generating a private testnet genesis staker").toResource
-      kesPath <- Sync[F].delay(stakingDir / "kes").toResource
-      _       <- Files.forAsync[F].createDirectories(kesPath).toResource
-      _ <- fs2.Stream
-        .chunk(
-          Chunk.byteBuffer(Persistable[SecretKeyKesProduct].persistedBytes(initializer.kesSK).asReadOnlyByteBuffer())
-        )
-        .through(Files.forAsync[F].writeAll(kesPath / "0"))
-        .compile
-        .drain
-        .toResource
-      staking <- makeStaking(
-        stakingDir,
-        initializer.vrfSK,
-        initializer.vrfVK,
-        initializer.stakingAddress,
-        rewardAddress,
-        clock,
-        etaCalculation,
-        consensusValidationState,
-        leaderElectionThreshold,
-        cryptoResources,
-        protocol,
-        vrfConfig,
-        protocolVersion
-      )
-    } yield staking
 
   /**
    * Initializes a Staking object from existing files on disk.  The files are expected to be in the format created

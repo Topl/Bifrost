@@ -1,8 +1,8 @@
 package co.topl.blockchain
 
 import cats.Parallel
-import cats.data.{EitherT, Kleisli, ReaderT}
-import cats.effect.{Async, Sync}
+import cats.data.{EitherT, ReaderT}
+import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models._
 import co.topl.brambl.models.transaction._
@@ -19,7 +19,6 @@ import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
-import quivr.models.SmallData
 
 /**
  * The beginning of everything.  ("everything" of course just means the first block of a blockchain)
@@ -30,14 +29,14 @@ object BigBang {
    * Represents a way of configuring the variables of the Big Bang Block.
    * @param timestamp The unix epoch (in milliseconds) of the block.  Also represents the timestamp of the first slot
    *                  of the blockchain's clock.
-   * @param outputs The initial set of outputs for the blockchain.  This generally includes the initial distribution
-   *                to the blockchain's initial investors.  In addition, it should specify the staking registrations
-   *                for the blockchain's initial operators.
+   * @param transactions The initial set of transactions with outputs for the blockchain.  This generally includes the
+   *                     initial distribution to the blockchain's initial investors.  In addition, it should specify
+   *                     the staking registrations for the blockchain's initial operators.
    * @param etaPrefix a sequence of bytes to be prepended to the value that gets hashed to produce the Big Bang Eta.
    */
   case class Config(
     timestamp:       Timestamp,
-    outputs:         List[UnspentTransactionOutput],
+    transactions:    List[IoTransaction],
     etaPrefix:       Bytes = Config.DefaultEtaPrefix,
     protocolVersion: ProtocolVersion
   )
@@ -51,22 +50,14 @@ object BigBang {
   /**
    * Constructs a full block using the given Big Bang Configuration
    */
-  def block(implicit config: Config): FullBlock = { // TODO move to Block.FullConsensus
-    val transactions: List[IoTransaction] =
-      List(
-        IoTransaction(
-          inputs = Nil,
-          outputs = config.outputs,
-          datum = Datum.IoTransaction(Event.IoTransaction(Schedule(Slot, Slot, 0L), SmallData.defaultInstance))
-        )
-      )
+  def fromConfig(config: Config): FullBlock = {
 
     val eta: Eta =
       Sized.strictUnsafe(
         new Blake2b256().hash(
           (config.etaPrefix.toByteArray +:
           Longs.toByteArray(config.timestamp) +:
-          transactions.map(_.id.value.toByteArray)): _*
+          config.transactions.map(_.id.value.toByteArray)): _*
         )
       )
 
@@ -74,8 +65,8 @@ object BigBang {
       BlockHeader(
         parentHeaderId = ParentId,
         parentSlot = ParentSlot,
-        txRoot = transactions.merkleTreeRootHash.data,
-        bloomFilter = transactions.bloomFilter.data,
+        txRoot = config.transactions.merkleTreeRootHash.data,
+        bloomFilter = config.transactions.bloomFilter.data,
         timestamp = config.timestamp,
         height = Height,
         slot = Slot,
@@ -84,8 +75,8 @@ object BigBang {
         metadata = ByteString.EMPTY,
         address = StakingAddress(zeroBytes(Lengths.`32`).data),
         version = config.protocolVersion
-      )
-    FullBlock(header, FullBlockBody(transactions))
+      ).embedId
+    FullBlock(header, FullBlockBody(config.transactions))
   }
 
   val ParentId: BlockId = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))
@@ -131,7 +122,7 @@ object BigBang {
    * @param blockId The block ID to retrieve
    * @return a FullBlock associated with the given block ID
    */
-  def loadFromRemote[F[_]: Sync: Parallel](
+  def fromRemote[F[_]: Sync: Parallel](
     readFile: ReaderT[F, String, Array[Byte]]
   )(txRootValidation: BlockHeaderToBodyValidationAlgebra[F])(blockId: BlockId): F[FullBlock] =
     for {

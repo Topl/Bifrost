@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.NodeRpc
-import co.topl.blockchain.{PrivateTestnet, StakerInitializers}
+import co.topl.blockchain.{PrivateTestnet, StakerInitializers, StakingInit}
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
 import co.topl.brambl.models.box.{Attestation, Value}
@@ -23,7 +23,6 @@ import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
 import co.topl.interpreters.NodeRpcOps._
-import co.topl.node.StakingInit
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path, PosixPermission, PosixPermissions}
