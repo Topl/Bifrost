@@ -125,40 +125,37 @@ object BigBang {
   def fromRemote[F[_]: Sync: Parallel](
     readFile: ReaderT[F, String, Array[Byte]]
   )(txRootValidation: BlockHeaderToBodyValidationAlgebra[F])(blockId: BlockId): F[FullBlock] =
-    for {
-      genesisBlockIdStr <- Sync[F].delay(blockId.show)
-      header <-
-        EitherT(
-          readFile(s"$genesisBlockIdStr.header.pbuf")
-            .map(ByteString.copyFrom)
-            .map(Transmittable[BlockHeader].fromTransmittableBytes)
-        )
-          .map(_.embedId)
-          .ensure("Computed header ID is not the same as requested header ID")(_.id == blockId)
-          .leftMap(new IllegalArgumentException(_))
-          .rethrowT
-      body <-
-        EitherT(
-          readFile(s"$genesisBlockIdStr.body.pbuf")
-            .map(ByteString.copyFrom)
-            .map(Transmittable[BlockBody].fromTransmittableBytes)
-        ).leftMap(new IllegalArgumentException(_)).rethrowT
-      _ <- EitherT(txRootValidation.validate(Block(header, body)))
-        .leftMap(e => new IllegalArgumentException(e.toString))
-        .rethrowT
-      fetchTransaction = (id: TransactionId) =>
-        EitherT(
-          readFile(s"${id.show}.transaction.pbuf")
-            .map(ByteString.copyFrom)
-            .map(Transmittable[IoTransaction].fromTransmittableBytes)
-        )
-          .map(_.embedId)
-          .ensure("Computed transaction ID is not the same as requested transaction ID")(_.id == id)
-          .leftMap(new IllegalArgumentException(_))
-          .rethrowT
-      transactions      <- body.transactionIds.parTraverse(fetchTransaction)
-      rewardTransaction <- body.rewardTransactionId.parTraverse(fetchTransaction)
-      fullBlockBody = FullBlockBody(transactions, rewardTransaction)
-      fullBlock = FullBlock(header, fullBlockBody)
-    } yield fullBlock
+    (
+      for {
+        genesisBlockIdStr <- EitherT.liftF(Sync[F].delay(blockId.show))
+        header <-
+          EitherT(
+            readFile(s"$genesisBlockIdStr.header.pbuf")
+              .map(ByteString.copyFrom)
+              .map(Transmittable[BlockHeader].fromTransmittableBytes)
+          )
+            .map(_.embedId)
+            .ensure("Computed header ID is not the same as requested header ID")(_.id == blockId)
+        body <-
+          EitherT(
+            readFile(s"$genesisBlockIdStr.body.pbuf")
+              .map(ByteString.copyFrom)
+              .map(Transmittable[BlockBody].fromTransmittableBytes)
+          )
+        _ <- EitherT(txRootValidation.validate(Block(header, body)))
+          .leftMap(_.toString)
+        fetchTransaction = (id: TransactionId) =>
+          EitherT(
+            readFile(s"${id.show}.transaction.pbuf")
+              .map(ByteString.copyFrom)
+              .map(Transmittable[IoTransaction].fromTransmittableBytes)
+          )
+            .map(_.embedId)
+            .ensure("Computed transaction ID is not the same as requested transaction ID")(_.id == id)
+        transactions      <- body.transactionIds.parTraverse(fetchTransaction)
+        rewardTransaction <- body.rewardTransactionId.parTraverse(fetchTransaction)
+        fullBlockBody = FullBlockBody(transactions, rewardTransaction)
+        fullBlock = FullBlock(header, fullBlockBody)
+      } yield fullBlock
+    ).leftMap(new IllegalArgumentException(_)).rethrowT
 }

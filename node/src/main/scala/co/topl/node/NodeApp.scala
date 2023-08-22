@@ -12,8 +12,6 @@ import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInt
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
-import co.topl.consensus.algebras._
-import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
 import co.topl.consensus.interpreters._
@@ -339,11 +337,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         blockIdTree,
         currentEventIdGetterSetters.consensusData.set,
         ConsensusDataEventSourcedState
-          .ConsensusData(
-            dataStores.activeStake,
-            dataStores.inactiveStake,
-            dataStores.registrations
-          )
+          .ConsensusData(dataStores.activeStake, dataStores.inactiveStake, dataStores.registrations)
           .pure[F],
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise
@@ -358,6 +352,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .make[F](vrfConfig, blake2b512Resource, exp, log1p)
     } yield leaderElectionThreshold
 
+  /**
+   * Based on the application config, determines if the genesis block is a public network or a private testnet, and
+   * initialize it accordingly
+   */
   private def initializeBigBang(protocolVersion: ProtocolVersion): Resource[F, FullBlock] =
     appConfig.bifrost.bigBang match {
       case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
@@ -384,11 +382,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         } yield bigBangBlock
       case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
         for {
-          reader <-
-            if (publicBigBang.sourcePath.startsWith("http://") || publicBigBang.sourcePath.startsWith("https://"))
-              DataReaders.fromUrl[F](publicBigBang.sourcePath)
-            else
-              Resource.pure[F, DataReaders.DataReader[F]](DataReaders.fromDisk[F](Path(publicBigBang.sourcePath)))
+          reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
           headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
           bigBangBlock         <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
         } yield bigBangBlock

@@ -35,4 +35,15 @@ object DataReaders {
       .map(client => Kleisli(fileName => client.expect[Array[Byte]](s"$baseUrl/$fileName")))
   }
 
+  /**
+   * Determines if the given sourcePath points to a remote URL, and if so, creates a fromUrl reader.  Otherwise,
+   * assumes a local directory and returns a fromDisk reader
+   * @param sourcePath The configured source path, either a URL or a local directory
+   */
+  def fromSourcePath[F[_]: Async](sourcePath: String): Resource[F, DataReader[F]] =
+    if (sourcePath.startsWith("http://") || sourcePath.startsWith("https://"))
+      fromUrl[F](sourcePath)
+    else
+      Resource.pure[F, DataReader[F]](fromDisk[F](Path(sourcePath)))
+
 }
