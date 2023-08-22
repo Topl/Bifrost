@@ -1,12 +1,34 @@
 package co.topl.networking.fsnetwork
 
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
+import co.topl.networking.fsnetwork.PeersHandler.allowedTransition
 import co.topl.networking.fsnetwork.PeersManager.Peer
 import co.topl.networking.p2p.RemoteAddress
 import org.typelevel.log4cats.Logger
 
+object PeersHandler {
+
+  def allowedTransition(initialState: PeerState): Set[PeerState] =
+    initialState match {
+      case PeerState.Unknown => Set(PeerState.Cold)
+      case PeerState.Banned  => Set.empty
+      case PeerState.Cold    => Set(PeerState.PreWarm, PeerState.Warm)
+      case PeerState.PreWarm => Set(PeerState.Cold, PeerState.Warm)
+      case PeerState.Warm    => Set(PeerState.Cold, PeerState.Hot, PeerState.Banned)
+      case PeerState.Hot     => Set(PeerState.Cold, PeerState.Banned)
+    }
+}
+
 case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
-  def hosts: Set[HostId] = peers.keySet
+
+  private def couldTransit(hostId: HostId, newState: PeerState): Boolean = {
+    val currentState: PeerState = peers.get(hostId).map(_.state).getOrElse(PeerState.Unknown)
+    if (currentState == newState) {
+      true
+    } else {
+      allowedTransition(currentState).contains(newState)
+    }
+  }
 
   def get(hostId: HostId): Option[Peer[F]] = peers.get(hostId)
 
@@ -21,8 +43,6 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
 
   def getWarmPeers: Map[HostId, Peer[F]] = getPeers(PeerState.Warm)
 
-  def getPreWarmPeers: Map[HostId, Peer[F]] = getPeers(PeerState.PreWarm)
-
   def getAvailableToConnectAddresses: Set[RemoteAddress] =
     peers
       .filterNot(_._2.state == PeerState.Banned)
@@ -36,17 +56,37 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
       RemoteAddress(host, address)
     }.toSet
 
-  def copyWithUpdatedState(toUpdate: Seq[(HostId, PeerState)]): PeersHandler[F] = {
-    val updated =
-      toUpdate.flatMap { case (host, newState) => peers.get(host).map(peer => host -> peer.copy(state = newState)) }
-    PeersHandler(peers ++ updated)
+  def moveToState(forUpdate: HostId, newState: PeerState): (Map[HostId, Peer[F]], PeersHandler[F]) =
+    moveToState(Set(forUpdate), newState)
+
+  def moveToState(forUpdate: Set[HostId], newState: PeerState): (Map[HostId, Peer[F]], PeersHandler[F]) = {
+    val update: Map[HostId, Peer[F]] = forUpdate
+      .filter(host => couldTransit(host, newState) && peers.contains(host))
+      .map(host => host -> peers(host).copy(state = newState))
+      .toMap
+    (update, PeersHandler(peers ++ update))
   }
 
-  def copyWithUpdatedState(hostId: HostId, state: PeerState): PeersHandler[F] =
-    peers
-      .get(hostId)
-      .map(peer => PeersHandler(peers + (hostId -> peer.copy(state = state))))
-      .getOrElse(this)
+  def copyWithAddedRemoteAddresses(newPeers: Set[RemoteAddress]): PeersHandler[F] =
+    copyWithAddedHostAndPort(newPeers.map { case RemoteAddress(host, port) => (host, Option(port)) })
+
+  def copyWithAddedHost(host: HostId): PeersHandler[F] =
+    copyWithAddedHostAndPort(Set(host -> None))
+
+  private def copyWithAddedHostAndPort(newPeers: Set[(HostId, Option[Int])]): PeersHandler[F] = {
+    val peersToAdd = newPeers
+      .withFilter { case (host, _) => couldTransit(host, PeerState.Cold) }
+      .map { case (host, port) =>
+        peers.get(host) match {
+          case None                          => host -> Peer(PeerState.Cold, None, port)
+          case Some(peer @ Peer(_, _, None)) => host -> peer.copy(serverPort = port)
+          case Some(peer)                    => host -> peer
+        }
+      }
+      .toMap
+
+    PeersHandler(peers ++ peersToAdd)
+  }
 
   def copyWithUpdatedServerPort(hostId: HostId, serverPort: Int): PeersHandler[F] =
     peers
@@ -59,32 +99,4 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
       .get(hostId)
       .map(peer => PeersHandler(peers + (hostId -> peer.copy(actorOpt = Option(peerActor)))))
       .getOrElse(this)
-
-  def copyWithAddedWarmPeer(host: HostId): PeersHandler[F] = {
-    val toUpdate = peers.get(host) match {
-      case Some(peer) => host -> peer.copy(state = PeerState.Warm)
-      case None       => host -> Peer(state = PeerState.Warm, None, None)
-    }
-    PeersHandler(peers + toUpdate)
-  }
-
-  def copyWithAddedColdPeers(newPeers: Seq[RemoteAddress]): PeersHandler[F] = {
-    val knownPeers: Set[HostId] = peers.keySet
-    val toAdd: Seq[RemoteAddress] = newPeers.filterNot(ra => knownPeers.contains(ra.host))
-    val peersToAdd: Map[HostId, Peer[F]] =
-      toAdd.map(h => h.host -> Peer(PeerState.Cold, None, Option(h.port))).toMap
-    PeersHandler(peers ++ peersToAdd)
-  }
-
-  def copyWithAddedPreWarmPeers(addressesToAdd: Seq[RemoteAddress]): PeersHandler[F] = {
-    val toUpdate = addressesToAdd.map { case RemoteAddress(host, port) =>
-      peers.get(host) match {
-        case Some(peer @ Peer(PeerState.Cold, _, _)) =>
-          host -> peer.copy(state = PeerState.PreWarm, serverPort = Option(port))
-        case Some(peer) => host -> peer
-        case None       => host -> Peer(PeerState.PreWarm, None, Option(port))
-      }
-    }.toMap
-    PeersHandler(peers ++ toUpdate)
-  }
 }
