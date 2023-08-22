@@ -10,6 +10,12 @@ sealed trait PeerState {
 
 object PeerState {
 
+  // Peer was not known for us, i.e. no record for peer at all
+  case object Unknown extends PeerState {
+    override def networkLevel: Boolean = false
+    override def applicationLevel: Boolean = false
+  }
+
   case object Banned extends PeerState {
     override def networkLevel: Boolean = false
 
