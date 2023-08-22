@@ -73,7 +73,7 @@ class PeersManagerTest
         .returns(().pure[F])
 
       val initialPeersMap =
-        Map.empty[HostId, Peer[F]] + (hostId -> Peer(PeerState.Hot, Option(peerActor), None, None))
+        Map.empty[HostId, Peer[F]] + (hostId -> Peer(PeerState.Hot, Option(peerActor), None))
 
       PeersManager
         .makeActor(
@@ -124,7 +124,7 @@ class PeersManagerTest
         .returns(().pure[F])
 
       val initialPeersMap =
-        Map.empty[HostId, Peer[F]] + (hostId -> Peer(PeerState.Hot, Option(peerActor), None, None))
+        Map.empty[HostId, Peer[F]] + (hostId -> Peer(PeerState.Hot, Option(peerActor), None))
 
       PeersManager
         .makeActor(
@@ -249,12 +249,12 @@ class PeersManagerTest
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
-          host1.host -> Peer(PeerState.Hot, Option(peer1), Option(1), None),
-          host2.host -> Peer(PeerState.Hot, Option(peer2), None, None),
-          host3.host -> Peer(PeerState.Hot, Option(peer3), Option(3), None),
-          host4.host -> Peer(PeerState.Hot, Option(peer4), None, None),
-          host5.host -> Peer(PeerState.Hot, Option(peer5), None, None),
-          host6.host -> Peer(PeerState.Hot, Option(peer6), None, None)
+          host1.host -> Peer(PeerState.Hot, Option(peer1), Option(1)),
+          host2.host -> Peer(PeerState.Hot, Option(peer2), None),
+          host3.host -> Peer(PeerState.Hot, Option(peer3), Option(3)),
+          host4.host -> Peer(PeerState.Hot, Option(peer4), None),
+          host5.host -> Peer(PeerState.Hot, Option(peer5), None),
+          host6.host -> Peer(PeerState.Hot, Option(peer6), None)
         )
 
       val performanceRep: Map[HostId, HostReputationValue] =
@@ -341,10 +341,10 @@ class PeersManagerTest
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
-          host1.host -> Peer(PeerState.Warm, Option(peer1), Option(1), None),
-          host2.host -> Peer(PeerState.Warm, Option(peer2), Option(2), None),
-          host3.host -> Peer(PeerState.Warm, Option(peer3), None, None),
-          host4.host -> Peer(PeerState.Warm, Option(peer4), None, None)
+          host1.host -> Peer(PeerState.Warm, Option(peer1), Option(1)),
+          host2.host -> Peer(PeerState.Warm, Option(peer2), Option(2)),
+          host3.host -> Peer(PeerState.Warm, Option(peer3), None),
+          host4.host -> Peer(PeerState.Warm, Option(peer4), None)
         )
 
       (reputationAggregator.sendNoWait _)
@@ -435,7 +435,7 @@ class PeersManagerTest
         .expects(PeerActor.Message.GetPeerServerAddress)
         .returns(Applicative[F].unit)
 
-      val initialPeersMap = Map(host1.host -> Peer(PeerState.PreWarm, None, None, None))
+      val initialPeersMap = Map(host1.host -> Peer(PeerState.PreWarm, None, None))
 
       PeersManager
         .makeActor(
@@ -459,16 +459,14 @@ class PeersManagerTest
             _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             stateHost1 <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost1.peers(host1.host).state == PeerState.Warm)
-            _ = assert(stateHost1.peers(host1.host).clientPort == Option(host1.port))
             stateHost2 <- actor.send(PeersManager.Message.OpenedPeerConnection(host2, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost2.peers(host2.host).state == PeerState.Warm)
-            _ = assert(stateHost2.peers(host2.host).clientPort == Option(host2.port))
           } yield ()
         }
     }
   }
 
-  test("Adding prewarm hosts shall initiate peer connection") {
+  test("Adding prewarm hosts shall initiate peer connection for cold peers") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -482,13 +480,21 @@ class PeersManagerTest
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
 
-      val host1 = RemoteAddress("first", 1)
-      val host2 = RemoteAddress("second", 2)
+      val host1 = RemoteAddress("1", 1)
+      val host2 = RemoteAddress("2", 2)
+      val host3 = RemoteAddress("3", 3)
+      val host4 = RemoteAddress("4", 4)
+      val host5 = RemoteAddress("5", 5)
 
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).once().returns(Applicative[F].unit)
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).once().returns(Applicative[F].unit)
 
-      val initialPeersMap: Map[HostId, Peer[F]] = Map.empty
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        host1.host -> Peer(PeerState.Cold, None, None),
+        host3.host -> Peer(PeerState.Banned, None, None),
+        host4.host -> Peer(PeerState.Warm, None, None),
+        host5.host -> Peer(PeerState.Hot, None, None)
+      )
 
       PeersManager
         .makeActor(
@@ -510,9 +516,13 @@ class PeersManagerTest
             _        <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
-            newState <- actor.send(PeersManager.Message.AddPreWarmPeers(NonEmptyChain(host1, host2)))
+            toSend = NonEmptyChain(host1, host2, host3, host4, host5)
+            newState <- actor.send(PeersManager.Message.AddPreWarmPeers(toSend))
             _ = assert(newState.peers(host1.host).state == PeerState.PreWarm)
             _ = assert(newState.peers(host2.host).state == PeerState.PreWarm)
+            _ = assert(newState.peers(host3.host).state == PeerState.Banned)
+            _ = assert(newState.peers(host4.host).state == PeerState.Warm)
+            _ = assert(newState.peers(host5.host).state == PeerState.Hot)
           } yield ()
         }
     }
@@ -555,10 +565,10 @@ class PeersManagerTest
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
-          host1.host -> Peer(PeerState.Hot, Option(peer1), None, None),
-          host3.host -> Peer(PeerState.Hot, Option(peer3), None, None),
-          host4.host -> Peer(PeerState.Hot, Option(peer4), Option(host4serverAddress.port), None),
-          host5.host -> Peer(PeerState.Warm, Option(peer5), Option(hostServer5.port), None)
+          host1.host -> Peer(PeerState.Hot, Option(peer1), None),
+          host3.host -> Peer(PeerState.Hot, Option(peer3), None),
+          host4.host -> Peer(PeerState.Hot, Option(peer4), Option(host4serverAddress.port)),
+          host5.host -> Peer(PeerState.Warm, Option(peer5), Option(hostServer5.port))
         )
 
       val hotUpdater = mock[Set[RemoteAddress] => F[Unit]]
@@ -626,12 +636,12 @@ class PeersManagerTest
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
-          host1 -> Peer(PeerState.Banned, None, Option(hostServer1Port), None),
-          host2 -> Peer(PeerState.Cold, None, Option(hostServer2Port), None),
-          host3 -> Peer(PeerState.PreWarm, None, Option(hostServer3Port), None),
-          host4 -> Peer(PeerState.Warm, None, Option(hostServer4Port), None),
-          host5 -> Peer(PeerState.Hot, None, Option(hostServer5Port), None),
-          host6 -> Peer(PeerState.Hot, None, None, None)
+          host1 -> Peer(PeerState.Banned, None, Option(hostServer1Port)),
+          host2 -> Peer(PeerState.Cold, None, Option(hostServer2Port)),
+          host3 -> Peer(PeerState.PreWarm, None, Option(hostServer3Port)),
+          host4 -> Peer(PeerState.Warm, None, Option(hostServer4Port)),
+          host5 -> Peer(PeerState.Hot, None, Option(hostServer5Port)),
+          host6 -> Peer(PeerState.Hot, None, None)
         )
 
       val writingHosts = mock[Set[RemoteAddress] => F[Unit]]
