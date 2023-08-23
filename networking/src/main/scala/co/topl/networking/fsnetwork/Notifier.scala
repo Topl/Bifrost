@@ -44,7 +44,8 @@ object Notifier {
     p2pNetworkConfig:     P2PNetworkConfig
   ): Resource[F, NotifierActor[F]] = {
     val initialState = State(peersManager, reputationAggregator, p2pNetworkConfig)
-    Actor.makeWithFinalize(initialState, getFsm, finalizer[F])
+    val actorName = "Notifier actor"
+    Actor.makeWithFinalize(actorName, initialState, getFsm, finalizer[F])
   }
 
   private def startSendingNotifications[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =

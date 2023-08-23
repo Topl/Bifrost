@@ -62,7 +62,11 @@ object ApplicationConfig {
       minimumHotConnections:                Int = 3,
       minimumWarmConnections:               Int = 6,
       maximumWarmConnections:               Int = 12,
-      warmHostsUpdateEveryNBlock:           Double = 4.0
+      warmHostsUpdateEveryNBlock:           Double = 4.0,
+      // we could try to connect to remote peer again after
+      // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
+      closeTimeoutFirstDelayInMs: Long = 1000,
+      closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24 // 1 day
     )
 
     case class KnownPeer(host: String, port: Int)

@@ -1,8 +1,8 @@
 package co.topl.networking.fsnetwork
 
+import cats.implicits.showInterpolator
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersHandler.allowedTransition
-import co.topl.networking.fsnetwork.PeersManager.Peer
 import co.topl.networking.p2p.RemoteAddress
 import org.typelevel.log4cats.Logger
 
@@ -12,7 +12,7 @@ object PeersHandler {
     initialState match {
       case PeerState.Unknown => Set(PeerState.Cold)
       case PeerState.Banned  => Set.empty
-      case PeerState.Cold    => Set(PeerState.PreWarm, PeerState.Warm)
+      case PeerState.Cold    => Set(PeerState.Cold, PeerState.PreWarm, PeerState.Warm)
       case PeerState.PreWarm => Set(PeerState.Cold, PeerState.Warm)
       case PeerState.Warm    => Set(PeerState.Cold, PeerState.Hot, PeerState.Banned)
       case PeerState.Hot     => Set(PeerState.Cold, PeerState.Banned)
@@ -23,18 +23,12 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
 
   private def couldTransit(hostId: HostId, newState: PeerState): Boolean = {
     val currentState: PeerState = peers.get(hostId).map(_.state).getOrElse(PeerState.Unknown)
-    if (currentState == newState) {
-      true
-    } else {
-      allowedTransition(currentState).contains(newState)
-    }
+    allowedTransition(currentState).contains(newState)
   }
 
   def get(hostId: HostId): Option[Peer[F]] = peers.get(hostId)
 
   def apply(hostId: HostId): Peer[F] = peers(hostId)
-
-  def values: Iterable[Peer[F]] = peers.values
 
   private def getPeers(peerState: PeerState): Map[HostId, Peer[F]] =
     peers.filter { case (_: String, peer) => peer.state == peerState }
@@ -46,14 +40,14 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
   def getAvailableToConnectAddresses: Set[RemoteAddress] =
     peers
       .filterNot(_._2.state == PeerState.Banned)
-      .collect { case (hostId, Peer(_, _, Some(serverPort))) =>
+      .collect { case (hostId, Peer(_, _, Some(serverPort), _)) =>
         RemoteAddress(hostId, serverPort)
       }
       .toSet
 
-  def getPeersWithServerPort(state: PeerState): Set[RemoteAddress] =
-    peers.collect { case (host, Peer(`state`, _, Some(address))) =>
-      RemoteAddress(host, address)
+  def getPeersWithPort(state: PeerState): Set[PeerWithHostAndPort[F]] =
+    peers.collect { case (host, Peer(`state`, actor, Some(port), timestamps)) =>
+      PeerWithHostAndPort(host, state, actor, port, timestamps)
     }.toSet
 
   def moveToState(forUpdate: HostId, newState: PeerState): (Map[HostId, Peer[F]], PeersHandler[F]) =
@@ -78,9 +72,9 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
       .withFilter { case (host, _) => couldTransit(host, PeerState.Cold) }
       .map { case (host, port) =>
         peers.get(host) match {
-          case None                          => host -> Peer(PeerState.Cold, None, port)
-          case Some(peer @ Peer(_, _, None)) => host -> peer.copy(serverPort = port)
-          case Some(peer)                    => host -> peer
+          case None                             => host -> Peer(PeerState.Cold, None, port, Seq.empty)
+          case Some(peer @ Peer(_, _, None, _)) => host -> peer.copy(serverPort = port)
+          case Some(peer)                       => host -> peer
         }
       }
       .toMap
@@ -99,4 +93,48 @@ case class PeersHandler[F[_]: Logger](peers: Map[HostId, Peer[F]]) {
       .get(hostId)
       .map(peer => PeersHandler(peers + (hostId -> peer.copy(actorOpt = Option(peerActor)))))
       .getOrElse(this)
+
+  def moveToClosedState(
+    hostId:          HostId,
+    closeStatus:     PeerState,
+    closeTimestamp:  Long,
+    timeStampWindow: Long
+  ): (Map[HostId, Peer[F]], PeersHandler[F]) = {
+    val (closedPeers, peerHandler) = moveToState(hostId, closeStatus)
+    val updatedPeerHandler =
+      peerHandler
+        .get(hostId)
+        .map { peer =>
+          val eligibleTimestamps = peer.closedTimestamps.filter(_ >= (closeTimestamp - timeStampWindow))
+          val newPeer = peer.copy(closedTimestamps = eligibleTimestamps :+ closeTimestamp, actorOpt = None)
+          PeersHandler(peers + (hostId -> newPeer))
+        }
+        .getOrElse(peerHandler)
+
+    (closedPeers, updatedPeerHandler)
+  }
+}
+
+case class Peer[F[_]: Logger](
+  state:            PeerState,
+  actorOpt:         Option[PeerActor[F]],
+  serverPort:       Option[Int],
+  closedTimestamps: Seq[Long]
+) {
+
+  def sendNoWait(message: PeerActor.Message): F[Unit] =
+    actorOpt match {
+      case Some(actor) => actor.sendNoWait(message)
+      case None        => Logger[F].error(show"Try to send message to peer with no running client")
+    }
+}
+
+case class PeerWithHostAndPort[F[_]](
+  host:            HostId,
+  state:           PeerState,
+  actorOpt:        Option[PeerActor[F]],
+  serverPort:      Int,
+  closeTimestamps: Seq[Long]
+) {
+  val asRemoteAddress: RemoteAddress = RemoteAddress(host, serverPort)
 }

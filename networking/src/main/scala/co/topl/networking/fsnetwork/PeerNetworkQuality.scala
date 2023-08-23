@@ -43,7 +43,8 @@ object PeerNetworkQuality {
     reputationAggregator: ReputationAggregatorActor[F]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState = State(hostId, client, reputationAggregator)
-    Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
+    val actorName = s"Network quality actor for peer $hostId"
+    Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
 
   private def getNetworkQuality[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =

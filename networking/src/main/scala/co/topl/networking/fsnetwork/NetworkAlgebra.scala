@@ -95,7 +95,10 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
     p2pNetworkConfig:       P2PNetworkConfig,
     hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
     savePeersFunction:      Set[RemoteAddress] => F[Unit]
-  ): Resource[F, PeersManagerActor[F]] =
+  ): Resource[F, PeersManagerActor[F]] = {
+    val peerSelector: ColdToWarmSelector[F] =
+      new RandomColdToWarmSelector[F](p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs)
+
     PeersManager.makeActor(
       thisHostId,
       networkAlgebra,
@@ -107,8 +110,10 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
       newPeerCreationAlgebra,
       p2pNetworkConfig,
       hotPeersUpdate,
-      savePeersFunction
+      savePeersFunction,
+      peerSelector
     )
+  }
 
   override def makeReputationAggregation(
     peersManager:  PeersManagerActor[F],

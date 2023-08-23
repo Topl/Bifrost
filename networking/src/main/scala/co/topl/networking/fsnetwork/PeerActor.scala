@@ -118,7 +118,8 @@ object PeerActor {
       body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
       networkQuality <- PeerNetworkQuality.makeActor(hostId, client, reputationAggregator)
       initialState = State(hostId, client, header, body, networkQuality, peersManager, initNetworkLevel, initAppLevel)
-      actor <- Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
+      actorName = s"Peer Actor for peer $hostId"
+      actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
     } yield actor
   }
 
@@ -195,13 +196,13 @@ object PeerActor {
     maxHosts: Int
   ): F[(State[F], Response[F])] = {
     for {
-      _        <- OptionT.liftF(Logger[F].info(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
+      _        <- OptionT.liftF(Logger[F].debug(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
       response <- OptionT(state.client.getRemoteKnownHosts(CurrentKnownHostsReq(maxHosts)))
       hotPeers <- OptionT
         .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
         .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
-      _ <- OptionT.liftF(Logger[F].info(s"Got hot peers $hotPeers from ${state.hostId}"))
-      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddPreWarmPeers(hotPeers)))
+      _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
+      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownPeers(hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
 
