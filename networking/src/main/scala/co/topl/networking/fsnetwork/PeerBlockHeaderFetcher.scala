@@ -69,7 +69,8 @@ object PeerBlockHeaderFetcher {
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
       State(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, None)
-    Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
+    val actorName = s"Header fetcher actor for peer $hostId"
+    Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
 
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
