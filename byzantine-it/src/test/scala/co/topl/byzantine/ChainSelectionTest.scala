@@ -56,7 +56,7 @@ class ChainSelectionTest extends IntegrationSuite {
         .parTraverse(node =>
           node
             .rpcClient[F](node.config.rpcPort, tls = false)
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(4.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < epochSlotLength).timeout(4.minutes).compile.lastOrError)
         )
         .toResource
 

@@ -4,7 +4,7 @@ import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.std.Random
 import cats.effect.std.SecureRandom
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{Async, IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
@@ -370,15 +370,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             )
             .toResource
           bigBangBlock = BigBang.fromConfig(bigBangConfig)
-          _ <- privateBigBang.localStakerIndex.traverse(index =>
-            PrivateTestnet
-              .writeStaker[F](
-                Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.staking.directory)),
-                testnetStakerInitializers(index),
-                privateBigBang.stakes.fold(PrivateTestnet.defaultStake(privateBigBang.stakerCount))(_.apply(index))
-              )
-              .toResource
-          )
+          _ <- privateBigBang.localStakerIndex
+            .filter(_ >= 0)
+            .traverse(index =>
+              PrivateTestnet
+                .writeStaker[F](
+                  Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.staking.directory)),
+                  testnetStakerInitializers(index),
+                  privateBigBang.stakes.fold(PrivateTestnet.defaultStake(privateBigBang.stakerCount))(_.apply(index))
+                )
+                .toResource
+            )
         } yield bigBangBlock
       case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
         for {

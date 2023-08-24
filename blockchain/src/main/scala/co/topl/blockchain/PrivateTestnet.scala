@@ -92,23 +92,31 @@ object PrivateTestnet {
     initializer: StakerInitializers.Operator,
     stake:       Int128
   ): F[Unit] =
-    for {
-      _ <- Logger[F].info(show"Generating a private testnet genesis staker into $stakingDir")
-      registrationTx = initializer.registrationTransaction(stake)
-      writeFile = (name: String, data: Array[Byte]) =>
-        fs2.Stream
-          .chunk(Chunk.array(data))
-          .through(Files.forAsync[F].writeAll(stakingDir / name))
-          .compile
-          .drain
-      _ <- Files.forAsync[F].createDirectories(stakingDir / StakingInit.KesDirectoryName)
-      _ <- writeFile(
-        s"${StakingInit.KesDirectoryName}/0",
-        Persistable[SecretKeyKesProduct].persistedBytes(initializer.kesSK).toByteArray
+    Files[F]
+      .list(stakingDir)
+      .compile
+      .count
+      .flatMap(c =>
+        if (c > 0) Logger[F].info(show"Staker already initialized at $stakingDir")
+        else
+          for {
+            _ <- Logger[F].info(show"Generating a private testnet genesis staker into $stakingDir")
+            registrationTx = initializer.registrationTransaction(stake)
+            writeFile = (name: String, data: Array[Byte]) =>
+              fs2.Stream
+                .chunk(Chunk.array(data))
+                .through(Files.forAsync[F].writeAll(stakingDir / name))
+                .compile
+                .drain
+            _ <- Files.forAsync[F].createDirectories(stakingDir / StakingInit.KesDirectoryName)
+            _ <- writeFile(
+              s"${StakingInit.KesDirectoryName}/0",
+              Persistable[SecretKeyKesProduct].persistedBytes(initializer.kesSK).toByteArray
+            )
+            _ <- writeFile(StakingInit.VrfKeyName, initializer.vrfSK.toByteArray)
+            _ <- writeFile(StakingInit.RegistrationTxName, registrationTx.toByteArray)
+          } yield ()
       )
-      _ <- writeFile(StakingInit.VrfKeyName, initializer.vrfSK.toByteArray)
-      _ <- writeFile(StakingInit.RegistrationTxName, registrationTx.toByteArray)
-    } yield ()
 
   val HeightLockOneProposition: Proposition =
     Proposition(

@@ -189,7 +189,6 @@ class MultiNodeTest extends IntegrationSuite {
       )
       spendableTopl = spendableOutput.value.value.topl.get
       spendableQuantity = spendableTopl.quantity: BigInt
-      registrationOutputs = stakerInitializer.registrationOutputs(spendableQuantity / 2)
       changeOutput = UnspentTransactionOutput(
         PrivateTestnet.HeightLockOneSpendingAddress,
         Value.defaultInstance.withTopl(
@@ -199,15 +198,17 @@ class MultiNodeTest extends IntegrationSuite {
           )
         )
       )
-      unprovenTransaction = IoTransaction(datum =
-        Datum.IoTransaction(
-          Event.IoTransaction.defaultInstance.withSchedule(
-            Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+      unprovenTransaction = stakerInitializer
+        .registrationTransaction(spendableQuantity / 2)
+        .withDatum(
+          Datum.IoTransaction(
+            Event.IoTransaction.defaultInstance.withSchedule(
+              Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+            )
           )
         )
-      )
-        .withInputs(List(unprovenInput))
-        .withOutputs(registrationOutputs :+ changeOutput)
+        .addInputs(unprovenInput)
+        .addOutputs(changeOutput)
 
       proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
       provenPredicateAttestation = unprovenPredicateAttestation.copy(responses = List(proof))
