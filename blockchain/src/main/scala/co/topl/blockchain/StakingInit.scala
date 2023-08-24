@@ -58,16 +58,18 @@ object StakingInit {
     protocolVersion:          ProtocolVersion
   ): Resource[F, StakingAlgebra[F]] =
     for {
-      _       <- Logger[F].info("Loading registered staker from disk").toResource
+      _       <- Logger[F].info(show"Loading registered staker from disk at path=$stakingDir").toResource
       kesPath <- Sync[F].delay(stakingDir / KesDirectoryName).toResource
       _ <- Files
         .forAsync[F]
         .list(kesPath)
         .compile
-        .toList
-        .flatMap(files =>
+        .count
+        .flatMap(kesKeyCount =>
           MonadThrow[F]
-            .raiseWhen(files.length != 1)(new IllegalArgumentException("Expected exactly one KES key in secure store."))
+            .raiseWhen(kesKeyCount != 1)(
+              new IllegalArgumentException(s"Expected exactly one KES key in secure store but found $kesKeyCount.")
+            )
         )
         .toResource
       readFile = (p: Path) => Files.forAsync[F].readAll(p).compile.to(Chunk)
