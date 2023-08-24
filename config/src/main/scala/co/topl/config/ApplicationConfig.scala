@@ -1,6 +1,7 @@
 package co.topl.config
 
 import co.topl.brambl.models.LockAddress
+import co.topl.consensus.models.BlockId
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.numerics.implicits.Ops
@@ -86,6 +87,12 @@ object ApplicationConfig {
         stakerCount:      Int,
         stakes:           Option[List[BigInt]],
         localStakerIndex: Option[Int]
+      ) extends BigBang
+
+      @Lenses
+      case class Public(
+        genesisId:  BlockId,
+        sourcePath: String
       ) extends BigBang
     }
 
