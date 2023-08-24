@@ -12,7 +12,7 @@ object PeersHandler {
     initialState match {
       case PeerState.Unknown => Set(PeerState.Cold)
       case PeerState.Banned  => Set.empty
-      case PeerState.Cold    => Set(PeerState.Cold, PeerState.PreWarm, PeerState.Warm)
+      case PeerState.Cold    => Set(PeerState.PreWarm, PeerState.Warm)
       case PeerState.PreWarm => Set(PeerState.Cold, PeerState.Warm)
       case PeerState.Warm    => Set(PeerState.Cold, PeerState.Hot, PeerState.Banned)
       case PeerState.Hot     => Set(PeerState.Cold, PeerState.Banned)
