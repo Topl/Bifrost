@@ -21,11 +21,10 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.networking.fsnetwork.TestHelper.{CallHandler1Ops, CallHandler2Ops}
+import co.topl.networking.fsnetwork.TestHelper._
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
-import org.scalamock.function.FunctionAdapter1
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -48,26 +47,6 @@ class PeerBlockBodyFetcherTest
 
   val maxChainSize = 99
 
-  private def compareWithoutDownloadTimeMatcher(
-    rawExpectedMessage: RequestsProxy.Message
-  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
-    val matchingFunction: RequestsProxy.Message => Boolean =
-      (rawActualMessage: RequestsProxy.Message) =>
-        (rawExpectedMessage, rawActualMessage) match {
-          case (
-                expectedMessage: RequestsProxy.Message.DownloadBodiesResponse,
-                actualMessage: RequestsProxy.Message.DownloadBodiesResponse
-              ) =>
-            val newResp =
-              actualMessage.response.map { case (header, res) =>
-                (header, res.map(b => b.copy(downloadTimeMs = 0, downloadTimeTxMs = Seq.empty)))
-              }
-            expectedMessage == actualMessage.copy(response = newResp)
-          case (_, _) => throw new IllegalStateException("Unexpected case")
-        }
-    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
-  }
-
   test("Block bodies shall return error if block is not present on client") {
     withMock {
       val client = mock[BlockchainPeerClient[F]]
@@ -76,7 +55,7 @@ class PeerBlockBodyFetcherTest
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, bodies) =
-        nonEmptyChainArbOf(TestHelper.arbitraryTxsAndBlock).arbitrary
+        nonEmptyChainArbOf(arbitraryTxsAndBlock).arbitrary
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
           .unzip
@@ -132,7 +111,7 @@ class PeerBlockBodyFetcherTest
 
       val expectedMessage: RequestsProxy.Message = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -155,7 +134,7 @@ class PeerBlockBodyFetcherTest
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, bodies) =
-        nonEmptyChainArbOf(TestHelper.arbitraryTxsAndBlock).arbitrary
+        nonEmptyChainArbOf(arbitraryTxsAndBlock).arbitrary
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
           .unzip
@@ -224,7 +203,7 @@ class PeerBlockBodyFetcherTest
 
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -248,7 +227,7 @@ class PeerBlockBodyFetcherTest
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val transactionsAndBody =
-        nonEmptyChainArbOf(TestHelper.arbitraryTxsAndBlock).arbitrary
+        nonEmptyChainArbOf(arbitraryTxsAndBlock).arbitrary
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
 
@@ -312,7 +291,7 @@ class PeerBlockBodyFetcherTest
       val expectedMessage =
         RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -334,7 +313,7 @@ class PeerBlockBodyFetcherTest
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val transactionsAndBody =
-        nonEmptyChainArbOf(TestHelper.arbitraryTxsAndBlock).arbitrary
+        nonEmptyChainArbOf(arbitraryTxsAndBlock).arbitrary
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
 
@@ -403,7 +382,7 @@ class PeerBlockBodyFetcherTest
       val expectedMessage =
         RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -425,7 +404,7 @@ class PeerBlockBodyFetcherTest
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, bodies) =
-        nonEmptyChainArbOf(TestHelper.arbitraryTxsAndBlock).arbitrary
+        nonEmptyChainArbOf(arbitraryTxsAndBlock).arbitrary
           .retryUntil(c => c.size > 1 && c.size < maxChainSize)
           .first
           .unzip
@@ -475,7 +454,7 @@ class PeerBlockBodyFetcherTest
         }
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -500,7 +479,7 @@ class PeerBlockBodyFetcherTest
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
 
       val (txs, body) =
-        TestHelper.arbitraryTxsAndBlock.arbitrary.first
+        arbitraryTxsAndBlock.arbitrary.first
 
       val header =
         ModelGenerators.arbitraryHeader.arbitrary.first.embedId.copy(txRoot = body.merkleTreeRootHash.data)

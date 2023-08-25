@@ -707,7 +707,7 @@ class PeersManagerTest
 
       val host1 = RemoteAddress("first", 1)
       val peer1 = mock[PeerActor[F]]
-      (networkAlgebra.makePeer _).expects(host1.host, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer1))
+      (networkAlgebra.makePeer _).expects(host1.host, *, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer1))
       (() => peer1.id).expects().anyNumberOfTimes().returns(1)
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
@@ -721,7 +721,7 @@ class PeersManagerTest
 
       val host2 = RemoteAddress("second", 2)
       val peer2 = mock[PeerActor[F]]
-      (networkAlgebra.makePeer _).expects(host2.host, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer2))
+      (networkAlgebra.makePeer _).expects(host2.host, *, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer2))
       (() => peer2.id).expects().anyNumberOfTimes().returns(2)
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
@@ -735,7 +735,7 @@ class PeersManagerTest
 
       val host3 = RemoteAddress("3", 3)
       val peer3 = mock[PeerActor[F]]
-      (networkAlgebra.makePeer _).expects(host3.host, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer3))
+      (networkAlgebra.makePeer _).expects(host3.host, *, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer3))
       (() => peer3.id).expects().anyNumberOfTimes().returns(2)
       (peer3.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
