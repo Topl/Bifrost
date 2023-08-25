@@ -371,6 +371,7 @@ object PeersManager {
         .acquireActor(() =>
           state.networkAlgebra.makePeer(
             hostId,
+            state.networkAlgebra,
             client,
             state.requestsProxy.get,
             state.reputationAggregator.get,

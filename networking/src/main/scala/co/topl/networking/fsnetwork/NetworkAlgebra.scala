@@ -12,6 +12,8 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.Notifier.NotifierActor
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
+import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
+import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
@@ -69,6 +71,7 @@ trait NetworkAlgebra[F[_]] {
 
   def makePeer(
     hostId:                 HostId,
+    networkAlgebra:         NetworkAlgebra[F],
     client:                 BlockchainPeerClient[F],
     requestsProxy:          RequestsProxyActor[F],
     reputationAggregator:   ReputationAggregatorActor[F],
@@ -79,6 +82,23 @@ trait NetworkAlgebra[F[_]] {
     blockIdTree:            ParentChildTree[F, BlockId],
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerActor[F]]
+
+  def makePeerHeaderFetcher(
+    hostId:        HostId,
+    client:        BlockchainPeerClient[F],
+    requestsProxy: RequestsProxyActor[F],
+    localChain:    LocalChainAlgebra[F],
+    slotDataStore: Store[F, BlockId, SlotData],
+    blockIdTree:   ParentChildTree[F, BlockId]
+  ): Resource[F, PeerBlockHeaderFetcherActor[F]]
+
+  def makePeerBodyFetcher(
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    requestsProxy:          RequestsProxyActor[F],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+  ): Resource[F, PeerBlockBodyFetcherActor[F]]
 }
 
 class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebra[F] {
@@ -165,6 +185,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
 
   override def makePeer(
     hostId:                 HostId,
+    networkAlgebra:         NetworkAlgebra[F],
     client:                 BlockchainPeerClient[F],
     requestsProxy:          RequestsProxyActor[F],
     reputationAggregator:   ReputationAggregatorActor[F],
@@ -177,6 +198,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
   ): Resource[F, PeerActor[F]] =
     PeerActor.makeActor(
       hostId,
+      networkAlgebra,
       client,
       requestsProxy,
       reputationAggregator,
@@ -187,4 +209,23 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
       blockIdTree,
       headerToBodyValidation
     )
+
+  def makePeerHeaderFetcher(
+    hostId:        HostId,
+    client:        BlockchainPeerClient[F],
+    requestsProxy: RequestsProxyActor[F],
+    localChain:    LocalChainAlgebra[F],
+    slotDataStore: Store[F, BlockId, SlotData],
+    blockIdTree:   ParentChildTree[F, BlockId]
+  ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
+    PeerBlockHeaderFetcher.makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree)
+
+  def makePeerBodyFetcher(
+    hostId:                 HostId,
+    client:                 BlockchainPeerClient[F],
+    requestsProxy:          RequestsProxyActor[F],
+    transactionStore:       Store[F, TransactionId, IoTransaction],
+    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+  ): Resource[F, PeerBlockBodyFetcherActor[F]] =
+    PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
 }
