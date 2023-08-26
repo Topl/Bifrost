@@ -31,7 +31,8 @@ trait NetworkAlgebra[F[_]] {
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
     newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:       P2PNetworkConfig,
-    hotPeersUpdate:         Set[RemoteAddress] => F[Unit]
+    hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
+    savePeersFunction:      Set[RemoteAddress] => F[Unit]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeReputationAggregation(
@@ -92,8 +93,12 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
     newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:       P2PNetworkConfig,
-    hotPeersUpdate:         Set[RemoteAddress] => F[Unit]
-  ): Resource[F, PeersManagerActor[F]] =
+    hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
+    savePeersFunction:      Set[RemoteAddress] => F[Unit]
+  ): Resource[F, PeersManagerActor[F]] = {
+    val peerSelector: ColdToWarmSelector[F] =
+      new RandomColdToWarmSelector[F](p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs)
+
     PeersManager.makeActor(
       thisHostId,
       networkAlgebra,
@@ -104,8 +109,11 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
       headerToBodyValidation,
       newPeerCreationAlgebra,
       p2pNetworkConfig,
-      hotPeersUpdate
+      hotPeersUpdate,
+      savePeersFunction,
+      peerSelector
     )
+  }
 
   override def makeReputationAggregation(
     peersManager:  PeersManagerActor[F],

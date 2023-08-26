@@ -1,5 +1,6 @@
 package co.topl.byzantine
 
+import cats.effect.Async
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.interpreters.NodeRpcOps._
@@ -52,11 +53,15 @@ class ChainSelectionTest extends IntegrationSuite {
         .parTraverse(node => node.rpcClient[F](node.config.rpcPort, tls = false).use(_.waitForRpcStartUp))
         .toResource
       _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
-      blockHeaders <- initialNodes
-        .parTraverse(node =>
-          node
-            .rpcClient[F](node.config.rpcPort, tls = false)
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength)).timeout(4.minutes).compile.lastOrError)
+      blockHeaders <- Async[F]
+        .andWait(
+          initialNodes
+            .parTraverse(node =>
+              node
+                .rpcClient[F](node.config.rpcPort, tls = false)
+                .use(_.adoptedHeaders.takeWhile(_.slot < epochSlotLength).timeout(4.minutes).compile.lastOrError)
+            ),
+          5.seconds
         )
         .toResource
 

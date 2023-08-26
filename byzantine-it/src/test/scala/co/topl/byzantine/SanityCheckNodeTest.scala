@@ -22,7 +22,11 @@ class SanityCheckNodeTest extends IntegrationSuite {
         _            <- node1Client.blockIdAtHeight(1).map(_.nonEmpty).assert.toResource
         _            <- Logger[F].info("Fetching genesis block Genus Grpc Client").toResource
         _            <- genus1Client.blockIdAtHeight(1).map(_.block.header.height).assertEquals(1L).toResource
-        _            <- Logger[F].info("Success").toResource
+        // Restart the container to verify that it is able to reload from disk
+        _ <- node1.restartContainer[F].toResource
+        _ <- node1Client.waitForRpcStartUp.toResource
+        _ <- fs2.Stream.force(node1Client.synchronizationTraversal()).drop(1).head.compile.lastOrError.toResource
+        _ <- Logger[F].info("Success").toResource
       } yield ()
 
     resource.use_

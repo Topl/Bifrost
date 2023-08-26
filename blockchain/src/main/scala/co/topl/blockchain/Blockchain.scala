@@ -115,6 +115,7 @@ object Blockchain {
             dataStores.headers,
             dataStores.bodies,
             dataStores.transactions,
+            dataStores.knownHosts,
             blockIdTree,
             networkProperties,
             clock,
