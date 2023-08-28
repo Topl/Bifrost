@@ -73,15 +73,16 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       protocolVersion <- Sync[F]
         .delay(ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion)
         .toResource
-      bigBangBlock <- initializeBigBang(protocolVersion)
-      bigBangBlockId = bigBangBlock.header.id
+
+      cryptoResources <- CryptoResources.make[F].toResource
+      bigBangBlock    <- initializeBigBang(protocolVersion)
+      bigBangSlotData <- cryptoResources.ed25519VRF.useSync(implicit r => bigBangBlock.header.slotData).toResource
+      bigBangBlockId = bigBangSlotData.slotId.blockId
       _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
 
       stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
       _ <- Files[F].createDirectories(stakingDir).toResource
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
-
-      cryptoResources <- CryptoResources.make[F].toResource
 
       dataStores <- DataStoresInit.init[F](appConfig)(bigBangBlock)
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
@@ -169,6 +170,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       localChain <-
         LocalChain
           .make(
+            bigBangSlotData,
             canonicalHeadSlotData,
             chainSelectionAlgebra,
             currentEventIdGetterSetters.canonicalHead.set

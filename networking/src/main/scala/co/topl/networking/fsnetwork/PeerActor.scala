@@ -2,6 +2,7 @@ package co.topl.networking.fsnetwork
 
 import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.{Async, Concurrent, Resource}
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
@@ -19,6 +20,7 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
+import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
 import scala.util.Random
@@ -76,7 +78,8 @@ object PeerActor {
     blockBodyActor:       PeerBlockBodyFetcherActor[F],
     peersManager:         PeersManagerActor[F],
     networkLevel:         Boolean,
-    applicationLevel:     Boolean
+    applicationLevel:     Boolean,
+    genesisBlockId:       BlockId
   )
 
   type Response[F[_]] = State[F]
@@ -124,6 +127,7 @@ object PeerActor {
         transactionStore,
         headerToBodyValidation
       )
+      genesisSlotData <- localChain.genesis.toResource
       initialState = State(
         hostId,
         client,
@@ -132,8 +136,10 @@ object PeerActor {
         body,
         peersManager,
         initNetworkLevel,
-        initAppLevel
+        initAppLevel,
+        genesisSlotData.slotId.blockId
       )
+      _ <- verifyGenesisAgreement(initialState).toResource
       actorName = s"Peer Actor for peer $hostId"
       actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
     } yield actor
@@ -247,4 +253,21 @@ object PeerActor {
       ping = after - before
       res <- EitherT.fromEither[F](Either.cond(pongCorrect, ping, incorrectPongMessage))
     } yield res
+
+  /**
+   * Ensure that the two peers agree on a genesis block.  If not, raise an excecption.
+   */
+  private def verifyGenesisAgreement[F[_]: Async](state: State[F]) =
+    state.client
+      .getRemoteBlockIdAtHeight(1, state.genesisBlockId.some)
+      .flatMap(
+        OptionT
+          .fromOption[F](_)
+          .getOrRaise(new IllegalStateException("Remote peer does not have a genesis block"))
+          .flatMap(remoteGenesisId =>
+            Async[F].raiseWhen(remoteGenesisId =!= state.genesisBlockId)(
+              new IllegalStateException("Remote peer is using a different genesis block")
+            )
+          )
+      )
 }

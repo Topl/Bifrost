@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Fiber}
 import cats.effect.{Resource, Spawn}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
-import co.topl.algebras.Store
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.{BlockId, SlotData}
@@ -46,7 +46,8 @@ object PeerBlockHeaderFetcher {
     localChain:    LocalChainAlgebra[F],
     slotDataStore: Store[F, BlockId, SlotData],
     blockIdTree:   ParentChildTree[F, BlockId],
-    fetchingFiber: Option[Fiber[F, Throwable, Unit]]
+    fetchingFiber: Option[Fiber[F, Throwable, Unit]],
+    clock:         ClockAlgebra[F]
   )
 
   type Response[F[_]] = State[F]
@@ -65,10 +66,11 @@ object PeerBlockHeaderFetcher {
     requestsProxy: RequestsProxyActor[F],
     localChain:    LocalChainAlgebra[F],
     slotDataStore: Store[F, BlockId, SlotData],
-    blockIdTree:   ParentChildTree[F, BlockId]
+    blockIdTree:   ParentChildTree[F, BlockId],
+    clock:         ClockAlgebra[F]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
-      State(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, None)
+      State(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, None, clock)
     val actorName = s"Header fetcher actor for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
@@ -94,15 +96,33 @@ object PeerBlockHeaderFetcher {
     newBlockIdsStream: Stream[F, BlockId]
   ): Stream[F, Unit] =
     // TODO close connection to remote peer in case of error
-    newBlockIdsStream.evalMap { newBlockId =>
-      getRemoteSlotDataByBlockId(state, newBlockId)
-        .handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
-    }
+    newBlockIdsStream
+      .evalMap { newBlockId =>
+        getRemoteSlotDataByBlockId(state, newBlockId)
+          .handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
+      }
 
-  private def getRemoteSlotDataByBlockId[F[_]: Async: Logger](state: State[F], blockId: BlockId): F[Unit] =
+  private def getRemoteSlotDataByBlockId[F[_]: Async: Logger](
+    state:   State[F],
+    blockId: BlockId
+  ): F[Unit] =
     for {
-      _                 <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
-      newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockId).value
+      _              <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
+      newSlotDataOpt <- getRemoteBetterSlotDataChain(state, blockId).value
+      // If the remote peer provided slot data during pre-genesis, we must verify that it isn't a "new" block
+      _ <- OptionT
+        .fromOption[F](newSlotDataOpt)
+        .semiflatMap(slotData =>
+          // Allow genesis block notification but reject anything else
+          Async[F].whenA(slotData.last.slotId.slot >= 0)(
+            Async[F].defer(
+              state.clock.globalSlot.flatMap(globalSlot =>
+                Async[F].raiseWhen(globalSlot < 0)(new IllegalStateException("Peer provided new data prior to genesis"))
+              )
+            )
+          )
+        )
+        .value
       _                 <- Logger[F].info(show"Build slot data chain from tip $blockId is ${newSlotDataOpt.isDefined}")
       newBlockSourceOpt <- buildBlockSource(state, blockId, newSlotDataOpt)
       _                 <- sendMessagesToProxy(state, newSlotDataOpt, newBlockSourceOpt)

@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.{Async, Resource}
-import co.topl.algebras.Store
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras._
@@ -101,7 +101,7 @@ trait NetworkAlgebra[F[_]] {
   ): Resource[F, PeerBlockBodyFetcherActor[F]]
 }
 
-class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebra[F] {
+class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F]) extends NetworkAlgebra[F] {
 
   override def makePeerManger(
     thisHostId:             HostId,
@@ -218,7 +218,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver] extends NetworkAlgebr
     slotDataStore: Store[F, BlockId, SlotData],
     blockIdTree:   ParentChildTree[F, BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
-    PeerBlockHeaderFetcher.makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree)
+    PeerBlockHeaderFetcher.makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, clock)
 
   def makePeerBodyFetcher(
     hostId:                 HostId,

@@ -92,7 +92,9 @@ object PrivateTestnet {
     initializer: StakerInitializers.Operator,
     stake:       Int128
   ): F[Unit] =
-    Files[F]
+    Files.forAsync[F].createDirectories(stakingDir) >>
+    Files
+      .forAsync[F]
       .list(stakingDir)
       .compile
       .count
