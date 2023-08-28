@@ -116,7 +116,7 @@ object TestHelper extends TransactionGenerator {
                 (header, res.map(b => b.copy(downloadTimeMs = 0)))
               }
             expectedMessage == actualMessage.copy(response = newResp)
-          case (_, _) => throw new IllegalStateException()
+          case (_, _) => throw new IllegalStateException("Unexpected case")
         }
     new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
   }
