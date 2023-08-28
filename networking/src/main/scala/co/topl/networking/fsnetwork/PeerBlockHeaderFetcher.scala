@@ -107,22 +107,8 @@ object PeerBlockHeaderFetcher {
     blockId: BlockId
   ): F[Unit] =
     for {
-      _              <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
-      newSlotDataOpt <- getRemoteBetterSlotDataChain(state, blockId).value
-      // If the remote peer provided slot data during pre-genesis, we must verify that it isn't a "new" block
-      _ <- OptionT
-        .fromOption[F](newSlotDataOpt)
-        .semiflatMap(slotData =>
-          // Allow genesis block notification but reject anything else
-          Async[F].whenA(slotData.last.slotId.slot >= 0)(
-            Async[F].defer(
-              state.clock.globalSlot.flatMap(globalSlot =>
-                Async[F].raiseWhen(globalSlot < 0)(new IllegalStateException("Peer provided new data prior to genesis"))
-              )
-            )
-          )
-        )
-        .value
+      _                 <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
+      newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockId).value
       _                 <- Logger[F].info(show"Build slot data chain from tip $blockId is ${newSlotDataOpt.isDefined}")
       newBlockSourceOpt <- buildBlockSource(state, blockId, newSlotDataOpt)
       _                 <- sendMessagesToProxy(state, newSlotDataOpt, newBlockSourceOpt)
@@ -223,7 +209,20 @@ object PeerBlockHeaderFetcher {
       case Some(sd) => sd.pure[F]
       case None =>
         Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostId}") >>
-        state.client.getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
+        state.client
+          .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
+          // If the node is in a pre-genesis state, verify that the remote peer only notified about the genesis block.
+          // It would be adversarial to send any new blocks during this time.
+          .flatTap(slotData =>
+            Async[F].whenA(slotData.slotId.slot >= 0)(
+              Async[F].defer(
+                state.clock.globalSlot.flatMap(globalSlot =>
+                  Async[F]
+                    .raiseWhen(globalSlot < 0)(new IllegalStateException("Peer provided new data prior to genesis"))
+                )
+              )
+            )
+          )
     }
 
   // return: recent (current) block is the last

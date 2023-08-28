@@ -617,4 +617,49 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         }
     }
   }
+
+  test("Mismatched genesis block should result in an exception") {
+    withMock {
+      val localGenesis = arbitrarySlotData.arbitrary.first
+      val remoteGenesisId = arbitraryBlockId.arbitrary.first
+      val peersManager = mock[PeersManagerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      (() => localChain.genesis).expects().once().returning(localGenesis.pure[F])
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
+        .expects(1L, localGenesis.slotId.blockId.some)
+        .once()
+        .returning(remoteGenesisId.some.pure[F])
+      val reputationAggregation = mock[ReputationAggregatorActor[F]]
+      val networkAlgebra = mock[NetworkAlgebra[F]]
+      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+
+      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
+      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
+
+      PeerActor
+        .makeActor(
+          hostId,
+          networkAlgebra,
+          client,
+          requestsProxy,
+          reputationAggregation,
+          peersManager,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          headerToBodyValidation
+        )
+        .use_
+        .intercept[IllegalStateException]
+    }
+  }
 }
