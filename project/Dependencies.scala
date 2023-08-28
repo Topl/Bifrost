@@ -11,7 +11,8 @@ object Dependencies {
   val logback = "1.4.11"
   val orientDbVersion = "3.2.21"
   val ioGrpcVersion = "1.57.1"
-  val protobufSpecsVersion = "2.0.0-alpha3+3-b7f3c508-SNAPSHOT" // scala-steward:off
+  val http4sVersion = "0.23.23"
+  val protobufSpecsVersion = "2.0.0-alpha3+2-69b81d1f-SNAPSHOT" // scala-steward:off // TODO requires protobuf release
   val bramblScVersion = "2.0.0-alpha4" // scala-steward:off
 
   val catsSlf4j =
@@ -115,6 +116,11 @@ object Dependencies {
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
 
+  val http4s = Seq(
+    "org.http4s" %% "http4s-ember-client" % http4sVersion,
+    "org.http4s" %% "http4s-dsl"          % http4sVersion
+  )
+
   val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
   val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
   val quivr4s = "co.topl"        %% "quivr4s"    % bramblScVersion
@@ -144,7 +150,8 @@ object Dependencies {
     monocle ++
     monitoring ++
     mUnitTestBase ++
-    Seq(grpcServices)
+    Seq(grpcServices) ++
+    http4s
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(

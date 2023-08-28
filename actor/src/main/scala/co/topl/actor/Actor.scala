@@ -21,6 +21,12 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 trait Actor[F[_], I, O] {
 
   /**
+   * Name for current actor
+   * @return
+   */
+  def name: String
+
+  /**
    * Get unique actor id
    * @return
    */
@@ -88,12 +94,14 @@ object Actor {
   /**
    * Create a new actor that can self-reference
    *
+   * @param actorName name for actor
    * @param initialState the initial state
    * @param createFsm    fsm constructor with self actor ref
    * @param finalize     the finalizer effect with the last state
    * @return Actor object
    */
   def makeFull[F[_]: Concurrent, S, I, O](
+    actorName:    String,
     initialState: S,
     createFsm:    Actor[F, I, O] => Fsm[F, S, I, O],
     finalize:     S => F[Unit]
@@ -126,8 +134,10 @@ object Actor {
 
       _ <- Resource.onFinalize(mailbox.offer(none) *> processOutcome.flatMap(_.embed(Applicative[F].unit)))
 
-      throwIfDead = isDeadRef.get.flatMap(Concurrent[F].raiseWhen(_)(ActorDeadException("Actor is dead")))
+      throwIfDead = isDeadRef.get.flatMap(Concurrent[F].raiseWhen(_)(ActorDeadException(s"Actor: $actorName; is dead")))
       actor = new Actor[F, I, O] {
+        override val name: String = actorName
+
         override val id: Int = java.util.Objects.hash(mailbox)
 
         override def mailboxSize: F[Int] = mailbox.size
@@ -161,29 +171,33 @@ object Actor {
   /**
    * Create a new actor with finalizer
    *
+   * @param actorName name for actor
    * @param initialState Initial state of the actor
    * @param fsm          the finite state machine
    * @param finalize     the cleanup effect with the last known state
    * @return Actor object
    */
   def makeWithFinalize[F[_]: Concurrent, S, I, O](
+    actorName:    String,
     initialState: S,
     fsm:          Fsm[F, S, I, O],
     finalize:     S => F[Unit]
   ): Resource[F, Actor[F, I, O]] =
-    makeFull(initialState, (_: Actor[F, I, O]) => fsm, finalize)
+    makeFull(actorName, initialState, (_: Actor[F, I, O]) => fsm, finalize)
 
   def make[F[_]: Concurrent, S, I, O](
+    actorName:    String,
     initialState: S,
     fsm:          Fsm[F, S, I, O]
   ): Resource[F, Actor[F, I, O]] =
-    makeWithFinalize(initialState, fsm, (_: S) => Concurrent[F].unit)
+    makeWithFinalize(actorName, initialState, fsm, (_: S) => Concurrent[F].unit)
 
   def makeSimple[F[_]: Concurrent, S, I, O](
+    actorName:    String,
     initialState: S,
     fsm:          Fsm[F, S, I, O]
   ): Resource[F, I => F[O]] =
-    make(initialState, fsm).map(_.send)
+    make(actorName, initialState, fsm).map(_.send)
 
   implicit class ActorOps[F[_]: Concurrent: Temporal, I, O](actor: Actor[F, I, O]) {
 

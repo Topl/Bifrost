@@ -13,6 +13,7 @@ import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import org.scalacheck.{Arbitrary, Gen}
+import org.scalamock.function.FunctionAdapter1
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
 
 import scala.annotation.tailrec
@@ -99,4 +100,44 @@ object TestHelper extends TransactionGenerator {
         })
         .get
     )
+
+  def compareDownloadedHeaderWithoutDownloadTimeMatcher(
+    rawExpectedMessage: RequestsProxy.Message
+  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
+    val matchingFunction: RequestsProxy.Message => Boolean =
+      (rawActualMessage: RequestsProxy.Message) =>
+        (rawExpectedMessage, rawActualMessage) match {
+          case (
+                expectedMessage: RequestsProxy.Message.DownloadHeadersResponse,
+                actualMessage: RequestsProxy.Message.DownloadHeadersResponse
+              ) =>
+            val newResp =
+              actualMessage.response.map { case (header, res) =>
+                (header, res.map(b => b.copy(downloadTimeMs = 0)))
+              }
+            expectedMessage == actualMessage.copy(response = newResp)
+          case (_, _) => throw new IllegalStateException("Unexpected case")
+        }
+    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
+  }
+
+  def compareDownloadedBodiesWithoutDownloadTimeMatcher(
+    rawExpectedMessage: RequestsProxy.Message
+  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
+    val matchingFunction: RequestsProxy.Message => Boolean =
+      (rawActualMessage: RequestsProxy.Message) =>
+        (rawExpectedMessage, rawActualMessage) match {
+          case (
+                expectedMessage: RequestsProxy.Message.DownloadBodiesResponse,
+                actualMessage: RequestsProxy.Message.DownloadBodiesResponse
+              ) =>
+            val newResp =
+              actualMessage.response.map { case (header, res) =>
+                (header, res.map(b => b.copy(downloadTimeMs = 0, downloadTimeTxMs = Seq.empty)))
+              }
+            expectedMessage == actualMessage.copy(response = newResp)
+          case (_, _) => throw new IllegalStateException("Unexpected case")
+        }
+    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
+  }
 }

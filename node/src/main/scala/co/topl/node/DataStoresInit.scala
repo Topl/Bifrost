@@ -22,6 +22,7 @@ import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 
 object DataStoresInit {
 
@@ -105,6 +106,9 @@ object DataStoresInit {
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
+
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownHost]](dataDir)("known-remote-peers")
+
       dataStores = DataStores(
         dataDir,
         parentChildTree,
@@ -121,7 +125,8 @@ object DataStoresInit {
         registrationsStore,
         blockHeightTreeStore,
         epochDataStore,
-        registrationAccumulatorStore
+        registrationAccumulatorStore,
+        knownRemotePeersStore
       )
       _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores

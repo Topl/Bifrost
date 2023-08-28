@@ -37,7 +37,7 @@ object ProposalCommandImpl {
     for {
       _ <- writeMessage[F](Messages.intro)
 
-      label                      <- read[F, String]("label", "Ex: Update Slot duration")
+      label                      <- read[F, String]("label <required>", "Ex: Update Slot duration")
       fEffective                 <- readOptional[F, Ratio]("f-effective", "Ex:18/2, 9/1, 9")
       vrfLddCutoff               <- readOptional[F, Int]("vrf-ldd-cutoff", "Ex:50")
       vrfPrecision               <- readOptional[F, Int]("vrf-precision", "Ex:40")
@@ -68,7 +68,7 @@ object ProposalCommandImpl {
       lockAddress <- read[F, LockAddress]("Address", "Ex: ptetP7jshHVrEKqDRdKAZtuybPZoMWTKKM2ngaJ7L5iZnxP5BprDB3hGJEFr")
 
       _ <- writeMessage[F](Messages.lockAddress)
-      //      _ <- requiresBramblCli // TODO refactor this method and print this message for BrambleCLI
+      //      _ <- requiresBramblCli // TODO refactor this method and print this message for BramblCLI
 
       unspentTransactionOutput =
         UnspentTransactionOutput(lockAddress, Value.defaultInstance.withUpdateProposal(proposal))
@@ -161,19 +161,18 @@ object ProposalCommand {
     implicit private[cli] val parseString: String => Try[String] = (s: String) =>
       Either.cond(s.nonEmpty, s, new IllegalArgumentException("Empty Input")).toTry
 
-    implicit private[cli] val parseRatio: String => Try[co.topl.node.models.Ratio] =
+    implicit private[cli] val parseRatio: String => Try[Ratio] =
       (s: String) =>
         Try {
           s.split("/") match {
-            case Array(numerator) => co.topl.node.models.Ratio(numerator.toInt, 1)
-            case Array(numerator, denominator) =>
-              co.topl.node.models.Ratio(numerator.toInt, denominator.toInt)
-            case _ => throw new IllegalArgumentException("Ratio parse error")
+            case Array(numerator)              => Ratio(numerator.toInt, 1)
+            case Array(numerator, denominator) => Ratio(numerator.toInt, denominator.toInt)
+            case _                             => throw new IllegalArgumentException("Ratio parse error")
           }
         }
 
     implicit private[cli] val parseDuration: String => Try[Duration] = (s: String) =>
-      Try(Duration(scala.concurrent.duration.Duration(s).toSeconds, 0))
+      Try(com.google.protobuf.duration.Duration(scala.concurrent.duration.Duration(s).toSeconds, 0))
 
     implicit private[cli] val parseLockAddress: String => Try[LockAddress] = (s: String) =>
       co.topl.brambl.codecs.AddressCodecs.decodeAddress(s).toTry
@@ -190,6 +189,6 @@ object ProposalCommand {
     val writeTransaction = "This process will save the Proposal update in the current /tmp path"
 
     val finalMsg =
-      "Your Update proposal has been saved. The Transaction that was saved should be imported into Brambl for input selection and broadcast."
+      "Your Update proposal has been saved. The Transaction that was saved should be imported into Brambl-CLI for input selection and broadcast."
   }
 }

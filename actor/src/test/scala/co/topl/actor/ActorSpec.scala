@@ -20,7 +20,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
       }
 
     def getActor: F[Actor[F, Ping, Pong]] =
-      Actor.make[F, State[F, Ping, Pong], Ping, Pong](State(0), pingFsm[F]).allocated.map(_._1)
+      Actor.make[F, State[F, Ping, Pong], Ping, Pong]("", State(0), pingFsm[F]).allocated.map(_._1)
 
     PropF.forAllF { (inputs: Seq[Int]) =>
       for {
@@ -34,6 +34,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
   test("Actor release all resources taken by child actors") {
     def makeChildActor[F[_]: Concurrent](resourceCounter: Ref[F, Long])(): Resource[F, Actor[F, Unit, Unit]] =
       Actor.makeWithFinalize(
+        "",
         resourceCounter,
         Fsm[F, Ref[F, Long], Unit, Unit] { case (state, _) => state.update(v => v + 1) as (state, ()) },
         (s: Ref[F, Long]) => s.update(s => s - 1)
@@ -55,6 +56,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
         ref <- Ref.of[F, Long](1)
         _ <- Actor
           .makeFull[F, State[F, Ping, Pong], Ping, Pong](
+            "",
             State(ref),
             pingFsm[F],
             s => s.resourceCounter.update(v => v - 1)
@@ -83,6 +85,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
     def getActor(ref: Ref[F, Long], finishedFlag: Deferred[F, Boolean]): F[(Actor[F, Ping, Pong], F[Unit])] =
       Actor
         .makeWithFinalize[F, State[F, Ping, Pong], Ping, Pong](
+          "",
           State(0),
           pingFsm[F],
           s => ref.set(s.counter) *> finishedFlag.complete(true) as ()

@@ -1,6 +1,6 @@
 package co.topl.networking.fsnetwork
 
-import cats.data.{NonEmptyChain, OptionT}
+import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.{Async, Concurrent, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
@@ -15,12 +15,13 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
-import co.topl.networking.fsnetwork.PeerNetworkQuality.PeerNetworkQualityActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.node.models.CurrentKnownHostsReq
+import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import org.typelevel.log4cats.Logger
+
+import scala.util.Random
 
 object PeerActor {
   sealed trait Message
@@ -68,14 +69,14 @@ object PeerActor {
   }
 
   case class State[F[_]](
-    hostId:              HostId,
-    client:              BlockchainPeerClient[F],
-    blockHeaderActor:    PeerBlockHeaderFetcherActor[F],
-    blockBodyActor:      PeerBlockBodyFetcherActor[F],
-    networkQualityActor: PeerNetworkQualityActor[F],
-    peersManager:        PeersManagerActor[F],
-    networkLevel:        Boolean,
-    applicationLevel:    Boolean
+    hostId:               HostId,
+    client:               BlockchainPeerClient[F],
+    reputationAggregator: ReputationAggregatorActor[F],
+    blockHeaderActor:     PeerBlockHeaderFetcherActor[F],
+    blockBodyActor:       PeerBlockBodyFetcherActor[F],
+    peersManager:         PeersManagerActor[F],
+    networkLevel:         Boolean,
+    applicationLevel:     Boolean
   )
 
   type Response[F[_]] = State[F]
@@ -93,6 +94,7 @@ object PeerActor {
 
   def makeActor[F[_]: Async: Logger](
     hostId:                 HostId,
+    networkAlgebra:         NetworkAlgebra[F],
     client:                 BlockchainPeerClient[F],
     requestsProxy:          RequestsProxyActor[F],
     reputationAggregator:   ReputationAggregatorActor[F],
@@ -107,7 +109,7 @@ object PeerActor {
     val initAppLevel = false
 
     for {
-      header <- PeerBlockHeaderFetcher.makeActor(
+      header <- networkAlgebra.makePeerHeaderFetcher(
         hostId,
         client,
         requestsProxy,
@@ -115,10 +117,25 @@ object PeerActor {
         slotDataStore,
         blockIdTree
       )
-      body <- PeerBlockBodyFetcher.makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
-      networkQuality <- PeerNetworkQuality.makeActor(hostId, client, reputationAggregator)
-      initialState = State(hostId, client, header, body, networkQuality, peersManager, initNetworkLevel, initAppLevel)
-      actor <- Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
+      body <- networkAlgebra.makePeerBodyFetcher(
+        hostId,
+        client,
+        requestsProxy,
+        transactionStore,
+        headerToBodyValidation
+      )
+      initialState = State(
+        hostId,
+        client,
+        reputationAggregator,
+        header,
+        body,
+        peersManager,
+        initNetworkLevel,
+        initAppLevel
+      )
+      actorName = s"Peer Actor for peer $hostId"
+      actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
     } yield actor
   }
 
@@ -160,13 +177,11 @@ object PeerActor {
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StopActor) >>
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
 
-  private def startNetworkLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Network level is started for ${state.hostId}") >>
-    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.StartActor)
+  private def startNetworkLevel[F[_]: Logger](state: State[F]): F[Unit] =
+    Logger[F].info(show"Network level is started for ${state.hostId}")
 
-  private def stopNetworkLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Network level is stop for ${state.hostId}") >>
-    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.StopActor)
+  private def stopNetworkLevel[F[_]: Logger](state: State[F]): F[Unit] =
+    Logger[F].info(show"Network level is stop for ${state.hostId}")
 
   private def downloadHeaders[F[_]: Concurrent](
     state:    State[F],
@@ -186,22 +201,18 @@ object PeerActor {
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.GetCurrentTip) >>
     (state, state).pure[F]
 
-  private def getNetworkQuality[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
-    state.networkQualityActor.sendNoWait(PeerNetworkQuality.Message.GetNetworkQuality) >>
-    (state, state).pure[F]
-
   private def getHotPeersOfCurrentPeer[F[_]: Concurrent: Logger](
     state:    State[F],
     maxHosts: Int
   ): F[(State[F], Response[F])] = {
     for {
-      _        <- OptionT.liftF(Logger[F].info(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
+      _        <- OptionT.liftF(Logger[F].debug(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
       response <- OptionT(state.client.getRemoteKnownHosts(CurrentKnownHostsReq(maxHosts)))
       hotPeers <- OptionT
         .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
         .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
-      _ <- OptionT.liftF(Logger[F].info(s"Got hot peers $hotPeers from ${state.hostId}"))
-      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddPreWarmPeers(hotPeers)))
+      _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
+      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownPeers(hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
 
@@ -214,4 +225,26 @@ object PeerActor {
       _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
     } yield (state, state)
   }.getOrElse(state, state)
+
+  private def getNetworkQuality[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] =
+    getPing(state).value.flatMap { res =>
+      val message =
+        ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
+      Logger[F].info(show"From host ${state.hostId}: $message") >>
+      state.reputationAggregator.sendNoWait(message)
+    } >> (state, state).pure[F]
+
+  private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
+  private val pingMessageSize = 1024 // 1024 hardcoded on protobuf level
+
+  private def getPing[F[_]: Concurrent](state: State[F]): EitherT[F, NetworkQualityError, Long] =
+    for {
+      pingMessage <- EitherT.liftF(PingMessage(Random.nextString(pingMessageSize)).pure[F])
+      before      <- EitherT.liftF(System.currentTimeMillis().pure[F])
+      pongMessage <- EitherT.fromOptionF(state.client.getPongMessage(pingMessage), NetworkQualityError.NoPongMessage)
+      after       <- EitherT.liftF(System.currentTimeMillis().pure[F])
+      pongCorrect = pongMessage.pong.reverse == pingMessage.ping
+      ping = after - before
+      res <- EitherT.fromEither[F](Either.cond(pongCorrect, ping, incorrectPongMessage))
+    } yield res
 }

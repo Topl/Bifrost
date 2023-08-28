@@ -40,13 +40,13 @@ class NodeAppTest extends CatsEffectSuite {
     // All of the nodes should agree on the same block at this height
     val targetConsensusHeight = 8
     val startTimestamp = System.currentTimeMillis() + 20_000L
-    val configNodeA =
+    def configNodeA(dataDir: Path, stakingDir: Path) =
       s"""
          |bifrost:
          |  data:
-         |    directory: /tmp/bifrostNodeA/data
+         |    directory: $dataDir
          |  staking:
-         |    directory: /tmp/bifrostNodeA/staking
+         |    directory: $stakingDir
          |  p2p:
          |    bind-port: 9150
          |    public-port: 9150
@@ -63,13 +63,13 @@ class NodeAppTest extends CatsEffectSuite {
          |genus:
          |  enable: true
          |""".stripMargin
-    val configNodeB =
+    def configNodeB(dataDir: Path, stakingDir: Path) =
       s"""
          |bifrost:
          |  data:
-         |    directory: /tmp/bifrostNodeB/data
+         |    directory: $dataDir
          |  staking:
-         |    directory: /tmp/bifrostNodeB/staking
+         |    directory: $stakingDir
          |  p2p:
          |    bind-port: 9152
          |    public-port: 9152
@@ -91,12 +91,16 @@ class NodeAppTest extends CatsEffectSuite {
 
     val resource =
       for {
-        configFileA <- saveLocalConfig(configNodeA, "nodeA")
-        configFileB <- saveLocalConfig(configNodeB, "nodeB")
-        _           <- launch(configFileA)
-        _           <- launch(configFileB)
-        rpcClientA  <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
-        rpcClientB  <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
+        configFileA <- (Files.forAsync[F].tempDirectory, Files.forAsync[F].tempDirectory)
+          .mapN(configNodeA)
+          .flatMap(saveLocalConfig(_, "nodeA"))
+        configFileB <- (Files.forAsync[F].tempDirectory, Files.forAsync[F].tempDirectory)
+          .mapN(configNodeB)
+          .flatMap(saveLocalConfig(_, "nodeB"))
+        _          <- launch(configFileA)
+        _          <- launch(configFileB)
+        rpcClientA <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
+        rpcClientB <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
         rpcClients = List(rpcClientA, rpcClientB)
         implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
         _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
