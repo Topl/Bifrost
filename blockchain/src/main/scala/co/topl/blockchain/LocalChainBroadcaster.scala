@@ -43,6 +43,8 @@ object LocalChainBroadcaster {
               .rethrowT
 
           def head: F[SlotData] = localChain.head
+
+          def genesis: F[SlotData] = localChain.genesis
         }
 
         (interpreter, topic)

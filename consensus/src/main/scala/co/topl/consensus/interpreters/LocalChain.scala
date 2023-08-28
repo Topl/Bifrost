@@ -16,15 +16,16 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 object LocalChain {
 
   def make[F[_]: Sync](
+    genesis:        SlotData,
     initialHead:    SlotData,
     chainSelection: ChainSelectionAlgebra[F, SlotData],
     onAdopted:      BlockId => F[Unit]
-  ): F[LocalChainAlgebra[F]] =
+  ): F[LocalChainAlgebra[F]] = {
+    val _g = genesis
     Ref
       .of[F, SlotData](initialHead)
       .map(headRef =>
         new LocalChainAlgebra[F] {
-
           implicit private val logger: SelfAwareStructuredLogger[F] =
             Slf4jLogger.getLoggerFromName[F]("Bifrost.LocalChain")
 
@@ -50,6 +51,10 @@ object LocalChain {
 
           val head: F[SlotData] =
             headRef.get
+
+          val genesis: F[SlotData] =
+            _g.pure[F]
         }
       )
+  }
 }

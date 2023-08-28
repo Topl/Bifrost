@@ -30,15 +30,20 @@ object StakingInit {
    * Inspects the given stakingDir for the expected keys/files.  If the expected files exist, `true` is returned.
    */
   def stakingIsInitialized[F[_]: Async](stakingDir: Path): F[Boolean] =
-    Files
-      .forAsync[F]
-      .list(stakingDir)
-      .compile
-      .toList
-      .map(files =>
-        files.exists(_.endsWith(KesDirectoryName)) &&
-        files.exists(_.endsWith(VrfKeyName)) &&
-        files.exists(_.endsWith(RegistrationTxName))
+    Files[F]
+      .exists(stakingDir)
+      .ifM(
+        Files
+          .forAsync[F]
+          .list(stakingDir)
+          .compile
+          .toList
+          .map(files =>
+            files.exists(_.endsWith(KesDirectoryName)) &&
+            files.exists(_.endsWith(VrfKeyName)) &&
+            files.exists(_.endsWith(RegistrationTxName))
+          ),
+        false.pure[F]
       )
 
   /**

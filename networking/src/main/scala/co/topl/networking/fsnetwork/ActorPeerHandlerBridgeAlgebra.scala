@@ -46,7 +46,7 @@ object ActorPeerHandlerBridgeAlgebra {
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
 
-    val networkAlgebra = new NetworkAlgebraImpl[F]()
+    val networkAlgebra = new NetworkAlgebraImpl[F](clockAlgebra)
     val networkManager =
       NetworkManager.startNetwork[F](
         thisHostId,

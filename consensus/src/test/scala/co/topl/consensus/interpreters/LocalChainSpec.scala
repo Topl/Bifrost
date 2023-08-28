@@ -44,7 +44,8 @@ class LocalChainSpec
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
+      val underTest =
+        LocalChain.make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       underTest.head.unsafeRunSync() shouldBe initialHead
     }
@@ -63,7 +64,8 @@ class LocalChainSpec
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
+      val underTest =
+        LocalChain.make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(
@@ -91,7 +93,8 @@ class LocalChainSpec
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
+      val underTest =
+        LocalChain.make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(
