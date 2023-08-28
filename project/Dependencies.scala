@@ -9,8 +9,8 @@ object Dependencies {
   val catsEffectVersion = "3.5.1"
   val fs2Version = "3.8.0"
   val logback = "1.4.11"
-  val orientDbVersion = "3.2.21"
-  val ioGrpcVersion = "1.57.1"
+  val orientDbVersion = "3.2.22"
+  val ioGrpcVersion = "1.57.2"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha3+2-69b81d1f-SNAPSHOT" // scala-steward:off // TODO requires protobuf release
   val bramblScVersion = "2.0.0-alpha4" // scala-steward:off
