@@ -21,7 +21,6 @@ import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
-import org.scalamock.function.FunctionAdapter1
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -39,26 +38,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
-
-  private def compareWithoutDownloadTimeMatcher(
-    rawExpectedMessage: RequestsProxy.Message
-  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
-    val matchingFunction: RequestsProxy.Message => Boolean =
-      (rawActualMessage: RequestsProxy.Message) =>
-        (rawExpectedMessage, rawActualMessage) match {
-          case (
-                expectedMessage: RequestsProxy.Message.DownloadHeadersResponse,
-                actualMessage: RequestsProxy.Message.DownloadHeadersResponse
-              ) =>
-            val newResp =
-              actualMessage.response.map { case (header, res) =>
-                (header, res.map(b => b.copy(downloadTimeMs = 0)))
-              }
-            expectedMessage == actualMessage.copy(response = newResp)
-          case (_, _) => throw new IllegalStateException()
-        }
-    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
-  }
 
   test("Block header shall be downloaded by request") {
     withMock {
@@ -85,7 +64,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           idAndHeader.map { case (id, header) => (id, Either.right(UnverifiedBlockHeader(hostId, header, 0))) }
         )
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedHeaderWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -181,7 +160,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           }
         )
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedHeaderWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
@@ -239,7 +218,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           }
         )
       (requestsProxy.sendNoWait _)
-        .expects(compareWithoutDownloadTimeMatcher(expectedMessage))
+        .expects(compareDownloadedHeaderWithoutDownloadTimeMatcher(expectedMessage))
         .once()
         .returning(().pure[F])
 
