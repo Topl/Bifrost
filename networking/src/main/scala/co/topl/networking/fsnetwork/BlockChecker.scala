@@ -120,7 +120,8 @@ object BlockChecker {
         bestChain,
         bestKnownRemoteSlotDataHost
       )
-    Actor.make(initialState, getFsm[F])
+    val actorName = "Block checker actor"
+    Actor.make(actorName, initialState, getFsm[F])
   }
 
   private def processSlotData[F[_]: Async: Logger](
@@ -266,7 +267,7 @@ object BlockChecker {
       case Left(HeaderValidationException(id, hostId, error)) =>
         Logger[F].error(show"Failed to apply header $id due validation error: $error from host $hostId")
       case Left(HeaderApplyException.UnknownError(error)) =>
-        Logger[F].error(show"Failed to apply header due next error: ${error.toString}")
+        Logger[F].error(show"Failed to apply header due next error: ${error.getLocalizedMessage}")
     }
 
   private def processHeaderValidationError[F[_]: Async: Logger](

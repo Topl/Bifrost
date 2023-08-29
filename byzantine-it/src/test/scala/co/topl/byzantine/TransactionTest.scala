@@ -218,11 +218,12 @@ class TransactionTest extends IntegrationSuite {
 
         _             <- Logger[F].info("Fetching genesis block Genus Grpc Client").toResource
         blockResponse <- genus1Client.blockIdAtHeight(1).toResource
-        genesisIotx = blockResponse.block.fullBody.transactions.head
+        genesisToplTx = blockResponse.block.fullBody.transactions.head
+        genesisLvlTx = blockResponse.block.fullBody.transactions.last
 
         // a wallet populated with the genesis iotx, safe head, it contains 1 transaction, with 0 input and 2 outputs(10000000 TOPL and 10000000 LVL)
-        inputBoxId = genesisIotx.id.outputAddress(0, 0, 0)
-        box = Box(HeightRangeLock, genesisIotx.outputs(1).value) // 10000000 LVL
+        inputBoxId = genesisLvlTx.id.outputAddress(0, 0, 0)
+        box = Box(HeightRangeLock, genesisLvlTx.outputs.head.value) // 10000000 LVL
 
         // A. No Success is expected, InsufficientInputFunds create tx from genesis block using: (10000000 lvl in total)
         iotx_A <- createTransaction_fromGenesisIotx(inputBoxId, box, 10000000, 1, 1, 1, 1, 1, 1, 1, 1).toResource
@@ -386,9 +387,9 @@ class TransactionTest extends IntegrationSuite {
         // R. create a transaction which consumes TOPLs
         walletWithSpendableTopls = Wallet(
           spendableBoxes = Map(
-            genesisIotx.id.outputAddress(0, 0, 0) -> Box(
+            genesisToplTx.id.outputAddress(0, 0, 0) -> Box(
               PrivateTestnet.HeightLockOneLock,
-              genesisIotx.outputs(0).value
+              genesisToplTx.outputs(0).value
             ) // 10000000 TOPLs
           ),
           propositions = Map(

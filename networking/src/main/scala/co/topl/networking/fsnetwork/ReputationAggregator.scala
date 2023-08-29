@@ -138,8 +138,8 @@ object ReputationAggregator {
       networkConfig,
       None
     )
-
-    Actor.make[F, State[F], Message, Response[F]](initialState, getFsm[F])
+    val actorName = "Reputation aggregator actor"
+    Actor.make[F, State[F], Message, Response[F]](actorName, initialState, getFsm[F])
   }
 
   private def processReputationUpdateTick[F[_]: Async](state: State[F]): F[(State[F], Response[F])] = {

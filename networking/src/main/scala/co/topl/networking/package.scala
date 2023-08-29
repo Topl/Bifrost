@@ -16,4 +16,8 @@ package object networking {
   implicit class KnownHostOps(knownHost: KnownHost) {
     def asRemoteAddress: RemoteAddress = RemoteAddress(knownHost.host, knownHost.port)
   }
+
+  implicit class RemoteAddressOps(remoteAddress: RemoteAddress) {
+    def asKnownHost: KnownHost = KnownHost(remoteAddress.host, remoteAddress.port)
+  }
 }

@@ -13,15 +13,16 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
+import co.topl.networking.KnownHostOps
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{ConnectedPeer, RemoteAddress}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, KnownHost}
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object NetworkManager {
 
-  def startNetwork[F[_]: Async: Logger: DnsResolver](
+  def startNetwork[F[_]: Async: Logger](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
@@ -34,6 +35,7 @@ object NetworkManager {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
+    knownHostsStore:             Store[F, Unit, Seq[KnownHost]],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                List[RemoteAddress],
@@ -44,10 +46,12 @@ object NetworkManager {
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] =
     for {
-      _            <- Resource.liftK(Logger[F].info(s"Start actors network with list of known peers: $initialHosts"))
+      _            <- Resource.liftK(Logger[F].info(s"Start actors network with list of peers: $initialHosts"))
       slotDuration <- Resource.liftK(clock.slotLength)
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
+      peersFromStorage <- Resource.liftK(knownHostsStore.get(()).map(_.getOrElse(Seq.empty).map(_.asRemoteAddress)))
+      _                <- Resource.liftK(Logger[F].info(s"Loaded from storage next known hosts: $peersFromStorage"))
       peerManager <- networkAlgebra.makePeerManger(
         thisHostId,
         networkAlgebra,
@@ -58,7 +62,8 @@ object NetworkManager {
         headerToBodyValidation,
         addRemotePeerAlgebra,
         p2pNetworkConfig,
-        hotPeersUpdate
+        hotPeersUpdate,
+        buildSaveRemotePeersFunction(knownHostsStore)
       )
 
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager, p2pNetworkConfig)
@@ -85,7 +90,7 @@ object NetworkManager {
 
       _ <- Resource.liftK(
         NonEmptyChain
-          .fromSeq(initialHosts)
+          .fromSeq(initialHosts ++ peersFromStorage)
           .map { initialPeers =>
             peerManager.sendNoWait(PeersManager.Message.AddKnownPeers(initialPeers))
           }
@@ -116,4 +121,11 @@ object NetworkManager {
       .compile
       .drain
       .background
+
+  private def buildSaveRemotePeersFunction[F[_]: Async: Logger](
+    knownHostsStore: Store[F, Unit, Seq[KnownHost]]
+  ): Set[RemoteAddress] => F[Unit] = { peers: Set[RemoteAddress] =>
+    Logger[F].info(s"Going to save known hosts $peers to local data storage") >>
+    knownHostsStore.put((), peers.map(_.asKnownHost).toList)
+  }
 }

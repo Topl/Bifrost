@@ -45,4 +45,9 @@ trait LocalChainAlgebra[F[_]] {
    * The head of the chain that has been adopted locally by this node.
    */
   def head: F[SlotData]
+
+  /**
+   * The first block (SlotData) in the chain
+   */
+  def genesis: F[SlotData]
 }

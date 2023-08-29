@@ -63,7 +63,8 @@ object PeerBlockBodyFetcher {
     headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
     val initialState = State(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
-    Actor.makeWithFinalize(initialState, getFsm[F], finalizer[F])
+    val actorName = s"Body fetcher actor for peer $hostId"
+    Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
 
   private def downloadBodies[F[_]: Async: Logger](

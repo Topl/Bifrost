@@ -1,6 +1,7 @@
 package co.topl.config
 
 import co.topl.brambl.models.LockAddress
+import co.topl.consensus.models.BlockId
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.numerics.implicits.Ops
@@ -62,7 +63,11 @@ object ApplicationConfig {
       minimumHotConnections:                Int = 3,
       minimumWarmConnections:               Int = 6,
       maximumWarmConnections:               Int = 12,
-      warmHostsUpdateEveryNBlock:           Double = 4.0
+      warmHostsUpdateEveryNBlock:           Double = 4.0,
+      // we could try to connect to remote peer again after
+      // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
+      closeTimeoutFirstDelayInMs: Long = 1000,
+      closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24 // 1 day
     )
 
     case class KnownPeer(host: String, port: Int)
@@ -82,6 +87,12 @@ object ApplicationConfig {
         stakerCount:      Int,
         stakes:           Option[List[BigInt]],
         localStakerIndex: Option[Int]
+      ) extends BigBang
+
+      @Lenses
+      case class Public(
+        genesisId:  BlockId,
+        sourcePath: String
       ) extends BigBang
     }
 

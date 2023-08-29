@@ -3,7 +3,7 @@ package co.topl.blockchain
 import cats.implicits._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.models.transaction.{IoTransaction, UnspentTransactionOutput}
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
@@ -61,14 +61,15 @@ object StakerInitializers {
     /**
      * This staker's initial stake in the network
      */
-    def registrationOutputs(stake: Int128): List[UnspentTransactionOutput] = {
+    def registrationTransaction(stake: Int128): IoTransaction = {
       val toplValue =
         Value.defaultInstance.withTopl(
           Value.TOPL(stake, StakingRegistration(stakingAddress, registrationSignature).some)
         )
-      List(
+      val outputs = List(
         UnspentTransactionOutput(lockAddress, toplValue)
       )
+      IoTransaction(inputs = Nil, outputs = outputs, datum = Datum.IoTransaction.defaultInstance)
     }
   }
 

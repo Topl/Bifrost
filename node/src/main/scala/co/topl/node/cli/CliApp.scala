@@ -4,14 +4,13 @@ import cats.MonadThrow
 import cats.data.EitherT
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
-import co.topl.blockchain.StakerInitializers
-import co.topl.brambl.models.transaction.{IoTransaction, Schedule}
+import co.topl.blockchain.{StakerInitializers, StakingInit}
+import co.topl.brambl.models.transaction.Schedule
 import co.topl.brambl.models.{Datum, Event, LockAddress}
 import co.topl.config.ApplicationConfig
 import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
-import co.topl.node.StakingInit
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
@@ -24,6 +23,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
   type F[+A] = IO[A]
 
   private val c = Console[F]
+  private val handleProposalUpdateCommand = ProposalCommandImpl.make
 
   def run: F[Unit] = applicationResource.use_
 
@@ -34,13 +34,15 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
   private def readUserCommand =
     StageResultT[F, CliApp.Command](
       (
-        c.println("Please enter a command. [ QUIT | register ]") >>
+        c.println("Please enter a command. [ QUIT | register | proposal]") >>
         readLowercaseInput
       ).flatMap {
         case "" | "quit" =>
           CliApp.Command.Quit.some.widen[CliApp.Command].pure[F]
         case "register" =>
           CliApp.Command.Register.some.widen[CliApp.Command].pure[F]
+        case "proposal" =>
+          CliApp.Command.Proposal.some.widen[CliApp.Command].pure[F]
         case v =>
           c.println(s"Invalid command: `$v`").as(none[CliApp.Command])
       }.untilDefinedM
@@ -53,6 +55,8 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
         StageResultT[F, Unit](c.println("Mischief Managed.").as(StageResult.Exit))
       case CliApp.Command.Register =>
         handleRegistrationCommand
+      case CliApp.Command.Proposal =>
+        handleProposalUpdateCommand.command
     }
 
   /**
@@ -83,16 +87,16 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
       _ <- StageResultT.liftF[F, Unit](
         c.println(show"Your staking address is ${stakerInitializer.registration.address}")
       )
-      transactionOutputs = stakerInitializer.registrationOutputs(quantity)
-      transaction = IoTransaction(datum =
-        Datum.IoTransaction(
-          Event.IoTransaction.defaultInstance.withSchedule(
-            if (isExistingNetwork) Schedule(0L, Long.MaxValue, System.currentTimeMillis())
-            else Schedule(0L, 0L, System.currentTimeMillis())
+      transaction = stakerInitializer
+        .registrationTransaction(quantity)
+        .withDatum(
+          Datum.IoTransaction(
+            Event.IoTransaction.defaultInstance.withSchedule(
+              if (isExistingNetwork) Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+              else Schedule(0L, 0L, System.currentTimeMillis())
+            )
           )
         )
-      )
-        .withOutputs(transactionOutputs)
       _ <- write(transaction.toByteArray)("Registration Transaction", StakingInit.RegistrationTxName)
       _ <- finalInstructions(isExistingNetwork)
     } yield StageResult.Menu
@@ -298,5 +302,6 @@ object CliApp {
   object Command {
     case object Quit extends Command
     case object Register extends Command
+    case object Proposal extends Command
   }
 }

@@ -109,7 +109,8 @@ object RequestsProxy {
         bodyRequests,
         blockSource
       )
-    Actor.make(initialState, getFsm[F])
+    val actorName = "Requests proxy actor"
+    Actor.make(actorName, initialState, getFsm[F])
   }
 
   private def setupBlockChecker[F[_]: Async: Logger](
