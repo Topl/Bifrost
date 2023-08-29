@@ -29,7 +29,7 @@ All pre-requisites should be automatically installed, including: Java, SBT, Dock
 
 ### Helm Charts
 1. Run `cd /workspaces`
-1. Run `sudo git clone https://github.com/Topl/helm-charts.git`
+1. Run `sudo git clone https://github.com/Topl/helm-charts.git && sudo chown -R $(stat -c '%u:%g' ./Bifrost) helm-charts`
 
 ## Run Simulation
 1. From terminal, run (modify `my-testnet-name` accordingly)
