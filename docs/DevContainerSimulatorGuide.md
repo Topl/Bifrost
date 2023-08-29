@@ -47,7 +47,7 @@ All pre-requisites should be automatically installed, including: Java, SBT, Dock
     Note: You can specify a different configuration file by changing the `-f` argument.
 1. View the [results](https://console.cloud.google.com/storage/browser/bifrost-topl-labs-testnet-scenario-results/%2Fsimulation/results)
 
-### Issues
+### Troubleshooting
 
 > StatefulSet.apps "DEMO_NAME" is invalid: metadata.name: Invalid value: "DEMO_NAME": must be no more than 63 characters
 
