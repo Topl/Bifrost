@@ -16,13 +16,12 @@ import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandle
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
 import co.topl.node.models.{BlockBody, KnownHost}
-import com.comcast.ip4s.Dns
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: Logger: Dns](
+  def make[F[_]: Async: Logger: DnsResolver](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
@@ -44,7 +43,6 @@ object ActorPeerHandlerBridgeAlgebra {
     addRemotePeer:               DisconnectedPeer => F[Unit],
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
-    implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
 
     val networkAlgebra = new NetworkAlgebraImpl[F](clockAlgebra)
     val networkManager =

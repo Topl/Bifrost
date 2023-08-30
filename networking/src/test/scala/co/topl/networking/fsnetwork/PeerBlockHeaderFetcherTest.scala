@@ -709,7 +709,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (() => client.remotePeerAdoptions)
         .expects()
         .once()
-        .returning(Stream(slotData.slotId.blockId).pure[F])
+        .returning(Stream(slotData.slotId.blockId).covaryAll[F, BlockId].pure[F])
       (client
         .getSlotDataOrError[Throwable](_: BlockId, _: Throwable)(_: MonadThrow[F]))
         .expects(slotData.slotId.blockId, *, *)
@@ -726,7 +726,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .get(_: BlockId))
         .expects(slotData.slotId.blockId)
         .once()
-        .returning(none.pure[F])
+        .returning(none[SlotData].pure[F])
 
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
 
@@ -734,7 +734,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (() => clock.globalSlot)
         .expects()
         .once()
-        .returning((-1L).pure[F])
+        .returning((-10L).pure[F])
+      // magic number -10, can't use -1 because test could failed sometimes otherwise
 
       PeerBlockHeaderFetcher
         .makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, clock)

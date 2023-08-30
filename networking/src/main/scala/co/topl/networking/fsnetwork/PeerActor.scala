@@ -255,7 +255,7 @@ object PeerActor {
     } yield res
 
   /**
-   * Ensure that the two peers agree on a genesis block.  If not, raise an excecption.
+   * Ensure that the two peers agree on a genesis block.  If not, raise an exception.
    */
   private def verifyGenesisAgreement[F[_]: Async](state: State[F]) =
     state.client
