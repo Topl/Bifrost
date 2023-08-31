@@ -2,6 +2,7 @@ package co.topl.networking.fsnetwork
 
 import cats.MonadThrow
 import cats.data.{NonEmptyChain, OptionT}
+import cats.effect.kernel.Sync
 import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
@@ -734,14 +735,16 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (() => clock.globalSlot)
         .expects()
         .once()
-        .returning((-10L).pure[F])
-      // magic number -10, can't use -1 because test could failed sometimes otherwise
+        .returning((-1L).pure[F])
 
       PeerBlockHeaderFetcher
         .makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, clock)
         .use { actor =>
           for {
-            _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.StartActor)
+            _ <- Sync[F].andWait(
+              actor.sendNoWait(PeerBlockHeaderFetcher.Message.StartActor),
+              FiniteDuration(100, MILLISECONDS)
+            )
           } yield ()
         }
     }

@@ -637,12 +637,25 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .once()
         .returning(remoteGenesisId.some.pure[F])
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
+      (reputationAggregation.sendNoWait _)
+        .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
+        .once()
+        .returns(Applicative[F].unit)
+
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (blockHeaderFetcher.sendNoWait _)
+        .expects(PeerBlockHeaderFetcher.Message.StopActor)
+        .once()
+        .returns(Applicative[F].unit)
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
+      (blockBodyFetcher.sendNoWait _)
+        .expects(PeerBlockBodyFetcher.Message.StopActor)
+        .once()
+        .returns(Applicative[F].unit)
 
       PeerActor
         .makeActor(
@@ -658,8 +671,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           blockIdTree,
           headerToBodyValidation
         )
-        .use_
-        .intercept[IllegalStateException]
+        .use(_ => Applicative[F].unit)
     }
   }
 }

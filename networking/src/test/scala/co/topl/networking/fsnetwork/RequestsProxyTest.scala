@@ -186,7 +186,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           response.collect { case (id, Left(_)) =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
+              .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockHeadersRequest(hostId, NonEmptyChain.one(id)))
@@ -355,7 +355,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           response.collect { case (header, Left(_)) =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
+              .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockBodyRequest(hostId, NonEmptyChain.one(header)))
@@ -414,7 +414,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
 
       (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
+        .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
         .returns(().pure[F])
 
       RequestsProxy

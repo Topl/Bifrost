@@ -258,7 +258,7 @@ object RequestsProxy {
     errorsOpt match {
       case Some(errors) =>
         val reputationMessage: ReputationAggregator.Message =
-          ReputationAggregator.Message.HostProvideIncorrectBlock(source)
+          ReputationAggregator.Message.HostProvideIncorrectData(source)
 
         errors.traverse { case (id, _) =>
           reputationAggregator.sendNoWait(reputationMessage) >>
@@ -388,7 +388,7 @@ object RequestsProxy {
 
     def processError(header: BlockHeader): F[Unit] = {
       val reputationMessage: ReputationAggregator.Message =
-        ReputationAggregator.Message.HostProvideIncorrectBlock(source)
+        ReputationAggregator.Message.HostProvideIncorrectData(source)
 
       {
         for {
@@ -411,7 +411,7 @@ object RequestsProxy {
     @nowarn blockId: BlockId
   ): F[(State[F], Response[F])] =
     // TODO add cache for invalid block thus no longer accept blocks with that particular id
-    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectBlock(source)) >>
+    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectData(source)) >>
     (state, state).pure[F]
 
   // Send to block checker first available body for checking,
