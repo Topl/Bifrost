@@ -2,10 +2,9 @@ package co.topl.networking.fsnetwork
 
 import cats.Applicative
 import cats.data.{Validated, ValidatedNec}
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Sync
 import cats.effect.{IO, Resource}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Datum, TransactionId}
@@ -19,11 +18,11 @@ import co.topl.consensus.models.{
   SlotData
 }
 import co.topl.eventtree.ParentChildTree
+import co.topl.interpreters.SchedulerClock
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationContext}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
-import co.topl.models.{Epoch, Slot, Timestamp}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebraTest._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
@@ -38,8 +37,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
-import scala.collection.immutable.NumericRange
-import scala.concurrent.duration.{Duration, DurationLong, FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object ActorPeerHandlerBridgeAlgebraTest {
   type F[A] = IO[A]
@@ -110,47 +108,10 @@ object ActorPeerHandlerBridgeAlgebraTest {
     override def genesis: F[SlotData] = genesisSlotData.pure[F]
   }
 
-  def createClockAlgebra: ClockAlgebra[F] = new ClockAlgebra[F] {
-    private val genesisTime: Instant = Instant.ofEpochMilli(System.currentTimeMillis())
-    private val startTime = genesisTime.toEpochMilli
-
-    private val _slotLength = FiniteDuration(200, MILLISECONDS)
-    override def slotLength: F[FiniteDuration] = _slotLength.pure[F]
-
-    override def slotsPerEpoch: F[Long] = 100L.pure[F]
-
-    override def slotsPerOperationalPeriod: F[Long] = 20L.pure[F]
-
-    override def currentTimestamp: F[Timestamp] = System.currentTimeMillis().pure[F]
-
-    override def timestampToSlot(timestamp: Timestamp): F[Slot] =
-      ((timestamp - startTime) / _slotLength.toMillis).pure[F]
-
-    override def slotToTimestamps(slot: Slot): F[NumericRange.Inclusive[Long]] =
-      Sync[F].delay {
-        val startTimestamp = startTime + (slot * _slotLength.toMillis)
-        val endTimestamp = startTimestamp + (_slotLength.toMillis - 1)
-        NumericRange.inclusive(startTimestamp, endTimestamp, 1L)
-      }
-
-    private val _forwardBiasedSlotWindow = 10L
-    override val forwardBiasedSlotWindow: F[Slot] = _forwardBiasedSlotWindow.pure[F]
-
-    override def globalSlot: F[Slot] = currentTimestamp.flatMap(timestampToSlot)
-
-    override def currentEpoch: F[Epoch] =
-      (globalSlot, slotsPerEpoch).mapN(_ / _)
-
-    override def delayedUntilSlot(slot: Slot): F[Unit] =
-      globalSlot.map(currentSlot => (slot - currentSlot) * _slotLength).flatMap(delayedFor)
-
-    override def delayedUntilTimestamp(timestamp: Timestamp): F[Unit] =
-      currentTimestamp.map(now => (timestamp - now).milli).flatMap(delayedFor)
-
-    private def delayedFor(duration: FiniteDuration): F[Unit] =
-      if (duration < Duration.Zero) Applicative[F].unit
-      else Async[F].sleep(duration)
-  }
+  val slotLength: FiniteDuration = FiniteDuration(200, MILLISECONDS)
+  val forwardBiasedSlotWindow = 10L
+  val slotsPerEpoch: Long = 100L
+  val slotsPerOperationalPeriod: Long = 20L
 }
 
 class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -210,7 +171,14 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         knownHostsStore  <- Resource.liftK(createKnownHostsStore)
         blockIdTree      <- Resource.liftK(createBlockIdTree)
         localChain       <- Resource.pure(localChainMock)
-        clockAlgebra     <- Resource.pure(createClockAlgebra)
+        clockAlgebra <- SchedulerClock.make(
+          slotLength,
+          slotsPerEpoch,
+          slotsPerOperationalPeriod,
+          Instant.ofEpochMilli(System.currentTimeMillis()),
+          forwardBiasedSlotWindow,
+          () => 0L.pure[F]
+        )
 
         algebra <- ActorPeerHandlerBridgeAlgebra
           .make(
