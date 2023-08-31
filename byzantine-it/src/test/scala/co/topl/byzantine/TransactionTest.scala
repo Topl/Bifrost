@@ -1,6 +1,6 @@
 package co.topl.byzantine
 
-import cats.data.OptionT
+import cats.data.{Chain, NonEmptyChain, OptionT, Validated, ValidatedNec}
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras.NodeRpc
@@ -13,7 +13,9 @@ import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, SpentTransactionOutput, UnspentTransactionOutput}
-import co.topl.brambl.syntax.{ioTransactionAsTransactionSyntaxOps, lockAsLockSyntaxOps, transactionIdAsIdSyntaxOps}
+import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, ioTransactionAsTransactionSyntaxOps, lockAsLockSyntaxOps, transactionIdAsIdSyntaxOps}
+import co.topl.brambl.validation.TransactionSyntaxError
+import co.topl.brambl.validation.TransactionSyntaxInterpreter.quantityBasedValidation
 import co.topl.brambl.wallet.WalletApi
 import co.topl.byzantine.util._
 import co.topl.crypto.generation.Bip32Indexes
@@ -166,17 +168,13 @@ class TransactionTest extends IntegrationSuite {
 
   // TickRange END
 
-  // Same model that co.topl.transactiongenerator.models, creating it again to not depend on that module
-  case class Wallet(
-    spendableBoxes: Map[TransactionOutputAddress, Box],
-    propositions:   Map[LockAddress, Lock]
-  )
+  case class Wallet(spendableBoxes: Map[TransactionOutputAddress, Box], propositions:   Map[LockAddress, Lock] )
 
   /**
    * Submits many transactions to a group of running node and verifies the transactions are confirmed
    * The following step are being evaluated: No success meaning: broadcast the iotx to the node, produce an error.
    * A. InsufficientInputFunds, if we use a iotx which spent more items than expected from a box, using genesis iotx
-   * B. Success, produces 'transaction_1', uses genesis txio, produces N outputs, described on step B
+   * B. Success, produces 'iotx_B', uses genesis txio, produces N outputs, described on step B
    * C. Received duplicate transaction, if we try to do the same that step B
    * D. Verify that submit a transaction contains at least one input
    * E. Verify that this transaction does not spend the same box more than once, No Success is expected
@@ -187,15 +185,18 @@ class TransactionTest extends IntegrationSuite {
    * J. Verify again that the schedule of the timestamp contains valid minimum and maximum slot values. No Success is expected
    * K. Verify that each transaction output contains a positive quantity (where applicable). No Success is expected
    * L. Validates that the proofs associated with each proposition matches the expected _type_ for a Predicate Attestation, No Success is expected
-   * N. Success, create and broadcast a txio using a wallet which contains a Digest proposition, and consumes input 'transaction_1' (step B)
-   * M. Success, create and broadcast a txio using a wallet which contains a DigitalSignature proposition, and consumes input 'transaction_1' (step B)
-   * O. Success, create and broadcast a txio using a wallet which contains a TickRange proposition, and consumes input 'transaction_1' (step B)
-   * P. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
-   * Q. Success iotx with a wallet which contains a good TickRange proposition, consumes input transaction_1
+   * N. Success, create and broadcast a txio using a wallet which contains a Digest proposition, and consumes input 'iotx_B' (step B)
+   * M. Success, create and broadcast a txio using a wallet which contains a DigitalSignature proposition, and consumes input 'iotx_B' (step B)
+   * O. Success, create and broadcast a txio using a wallet which contains a TickRange proposition, and consumes input 'iotx_B' (step B)
+   * P. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input iotx_B
+   * Q. Success iotx with a wallet which contains a good TickRange proposition, consumes input iotx_B
    * Q_and. Failure, same than P, but using And proposition, consumes input transaction_1
    * Q_not. Failure, same than P, but using not proposition, consumes input transaction_1
    * Q_or. Success, same than P, but using or proposition, consumes input transaction_1
-   * R. ...
+   * R. Success. create and broadcast a txio using a wallet which contains a HighLock proposition, and consumes input 'genesisToplTx' (step B)
+   * S. Success. create Group Constructor and broadcast a txio using a wallet which contains a HighLock proposition, consumes input 'genesisToplTx' (step B)
+   * T. Failure. create a invalid Group Constructor and broadcast a txio using a wallet which contains a HighLock proposition, consumes input 'genesisToplTx' (step B)
+   * ....
    * Z. Finally, fetch node container logs, and assert expected results.
    *    When the test ends, it prints: Writing container logs to byzantine-it/target/logs/TransactionTest-node1-ed2a0569.log, chech it out
    */
@@ -218,15 +219,27 @@ class TransactionTest extends IntegrationSuite {
 
         _             <- Logger[F].info("Fetching genesis block Genus Grpc Client").toResource
         blockResponse <- genus1Client.blockIdAtHeight(1).toResource
-        genesisToplTx = blockResponse.block.fullBody.transactions.head
-        genesisLvlTx = blockResponse.block.fullBody.transactions.last
+        // blockResponse transactions outputs(10000000 TOPL and 10000000 LVL)
+        _ <- Logger[F].info(blockResponse.block.fullBody.transactions.size.toString).toResource
+        genesisToplTx = blockResponse.block.fullBody.transactions(0) // 10000000 TOPL
+        genesisLvlTx = blockResponse.block.fullBody.transactions(1) // 10000000 LVL
 
-        // a wallet populated with the genesis iotx, safe head, it contains 1 transaction, with 0 input and 2 outputs(10000000 TOPL and 10000000 LVL)
+        // genesisToplTx quantity=10000000
+        _ <- Logger[F]
+          .info(show"genesisToplTx quantity=${genesisToplTx.outputs.head.value.getTopl.quantity: BigInt}")
+          .toResource
+        // genesisLvlTx quantity=10000000
+        _ <- Logger[F]
+          .info(show"genesisLvlTx  quantity=${genesisLvlTx.outputs.head.value.getLvl.quantity: BigInt}")
+          .toResource
+
+        // a box populated with the genesis iotx Lvls
         inputBoxId = genesisLvlTx.id.outputAddress(0, 0, 0)
         box = Box(HeightRangeLock, genesisLvlTx.outputs.head.value) // 10000000 LVL
 
         // A. No Success is expected, InsufficientInputFunds create tx from genesis block using: (10000000 lvl in total)
         iotx_A <- createTransaction_fromGenesisIotx(inputBoxId, box, 10000000, 1, 1, 1, 1, 1, 1, 1, 1).toResource
+        _      <- Logger[F].info(show"Success iotx_A ${iotx_A.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_A).voidError.toResource
 
         /**
@@ -241,11 +254,13 @@ class TransactionTest extends IntegrationSuite {
          * Output7: GoodAndBadTickRange, 1 lvl, with threshold 2,
          */
         iotx_B <- createTransaction_fromGenesisIotx(inputBoxId, box, 9999900, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L).toResource
+        _      <- Logger[F].info(show"Success iotx_B ${iotx_B.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_B).toResource
 
         iotxRes_B <- OptionT(node1Client.fetchTransaction(iotx_B.id))
           .getOrRaise(new FailSuiteException("ERROR! fetchTransaction 1", Location.empty))
           .toResource
+
         _ <- assertIO((iotxRes_B.outputs(0).value.getLvl.quantity: BigInt).pure[F], BigInt(9999900)).toResource
         _ <- assertIO((iotxRes_B.outputs(1).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
         _ <- assertIO((iotxRes_B.outputs(2).value.getLvl.quantity: BigInt).pure[F], BigInt(1)).toResource
@@ -262,34 +277,42 @@ class TransactionTest extends IntegrationSuite {
 
         // D. No Success, Verify that this transaction contains at least one input
         iotx_D <- IoTransaction.defaultInstance.pure[F].toResource
+        _      <- Logger[F].info(show"Failure iotx_D ${iotx_D.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_D).voidError.toResource
 
         // E. No Success, Verify that this transaction does not spend the same box more than once
         iotx_E <- createTransaction_DoubleSpend(inputBoxId, box).toResource
+        _      <- Logger[F].info(show"Failure iotx_E ${iotx_E.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_E).voidError.toResource
 
         // F. No Success, Verify that this transaction contain too many outputs, ExcessiveOutputsCount, DataLengthValidation
         iotx_F <- createTransaction_ManyOutputs(inputBoxId, box).toResource
+        _      <- Logger[F].info(show"Failure iotx_F ${iotx_F.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_F).voidError.toResource
 
         // G. No Success, Verify that the timestamp of the transaction is positive (greater than or equal to 0). Bad timestamp
         iotx_G <- createTransaction_BadSchedule(inputBoxId, box, min = 0L, max = 0L, timestamp = -1L).toResource
+        _      <- Logger[F].info(show"Failure iotx_G ${iotx_G.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_G).voidError.toResource
 
         // H. No Success, Verify that the schedule of the timestamp contains valid minimum and maximum slot values. Bad min
         iotx_H <- createTransaction_BadSchedule(inputBoxId, box, min = 1L, max = 0L, timestamp = 0L).toResource
+        _      <- Logger[F].info(show"Failure iotx_H ${iotx_H.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_H).voidError.toResource
 
         // I. No Success, Verify that the schedule of the timestamp contains valid minimum and maximum slot values Bad min,max
         iotx_I <- createTransaction_BadSchedule(inputBoxId, box, min = -1L, max = 0L, timestamp = 0L).toResource
+        _      <- Logger[F].info(show"Failure iotx_I ${iotx_I.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_I).voidError.toResource
 
         // J. No Success, Verify that the schedule of the timestamp contains valid minimum and maximum slot values Bad min,max
         iotx_J <- createTransaction_BadSchedule(inputBoxId, box, min = 1L, max = 0L, timestamp = 0L).toResource
+        _      <- Logger[F].info(show"Failure iotx_J ${iotx_J.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_J).voidError.toResource
 
         // K. No Success, Verify that each transaction output contains a positive quantity (where applicable)
         iotx_K <- createTransaction_fromGenesisIotx(inputBoxId, box, -1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L, 1L).toResource
+        _      <- Logger[F].info(show"Failure iotx_K ${iotx_K.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_K).voidError.toResource
 
         // L No Success, Validates that the proofs associated with each proposition matches the expected _type_ for a Predicate Attestation
@@ -325,6 +348,7 @@ class TransactionTest extends IntegrationSuite {
           1L,
           PropositionTemplate.types.Digest
         ).toResource
+        _ <- Logger[F].info(show"Success iotx_N ${iotx_N.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_N).toResource
 
         // M. Success a wallet which contains a DigitalSignature proposition, consumes input  transaction_1
@@ -333,6 +357,7 @@ class TransactionTest extends IntegrationSuite {
           1L,
           PropositionTemplate.types.Signature
         ).toResource
+        _ <- Logger[F].info(show"Success iotx_M ${iotx_M.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_M).toResource
 
         // O. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
@@ -341,6 +366,7 @@ class TransactionTest extends IntegrationSuite {
           1L,
           PropositionTemplate.types.Tick
         ).toResource
+        _ <- Logger[F].info(show"Failure iotx_O ${iotx_O.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_O).toResource
 
         // P. Failure iotx with a wallet which contains a Bad and good TickRange proposition, consumes input transaction_1
@@ -349,6 +375,7 @@ class TransactionTest extends IntegrationSuite {
           1L,
           PropositionTemplate.types.Tick
         ).toResource
+        _ <- Logger[F].info(show"Failure iotx_P ${iotx_P.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_P).toResource
 
         // Q. Success iotx with a wallet which contains and good TickRange proposition, consumes input transaction_1
@@ -357,39 +384,46 @@ class TransactionTest extends IntegrationSuite {
           1L,
           PropositionTemplate.types.Tick
         ).toResource
+        _ <- Logger[F].info(show"Success iotx_Q ${iotx_Q.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_Q).toResource
 
+        // Q with And. Failure
         iotx_Q_And <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(GoodBadTickRangeAndLockAddress -> GoodBadTickRangeAndLock), iotx_B),
           1L,
           PropositionTemplate.types.And
         ).toResource
+        _ <- Logger[F].info(show"Failure iotx_Q_And ${iotx_Q_And.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_Q_And).toResource
 
         // here block packer should contain 3 errors
 
+        // Q with Not, Failure
         iotx_Q_Not <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(GoodBadTickRangeNotLockAddress -> GoodBadTickRangeNotLock), iotx_B),
           1L,
           PropositionTemplate.types.Not
         ).toResource
+        _ <- Logger[F].info(show"Failure iotx_Q_Not ${iotx_Q_Not.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_Q_Not).toResource
 
         // here block packer should contain 4 errors
 
+        // Q with Or, Failure
         iotx_Q_Or <- createTransaction_afterGenesisIotxSuccess(
           createWallet(Map(GoodBadTickRangeOrLockAddress -> GoodBadTickRangeOrLock), iotx_B),
           1L,
           PropositionTemplate.types.Or
         ).toResource
+        _ <- Logger[F].info(show"Failure iotx_Q_Or ${iotx_Q_Or.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_Q_Or).toResource
 
-        // R. create a transaction which consumes TOPLs
+        // R. Success create a transaction which consumes TOPLs
         walletWithSpendableTopls = Wallet(
           spendableBoxes = Map(
             genesisToplTx.id.outputAddress(0, 0, 0) -> Box(
               PrivateTestnet.HeightLockOneLock,
-              genesisToplTx.outputs(0).value
+              genesisToplTx.outputs.head.value
             ) // 10000000 TOPLs
           ),
           propositions = Map(
@@ -402,11 +436,42 @@ class TransactionTest extends IntegrationSuite {
         )
 
         iotx_R <- createTransaction_TOPL(walletWithSpendableTopls, 1, stakingOperator.head).toResource
+        _      <- Logger[F].info(show"Success iotx_R ${iotx_R.id.show}").toResource
         _      <- node1Client.broadcastTransaction(iotx_R).toResource
         iotxRes_R <- OptionT(node1Client.fetchTransaction(iotx_R.id))
           .getOrRaise(new FailSuiteException("ERROR! fetchTransaction R", Location.empty))
           .toResource
-        _ <- assertIO((iotxRes_R.outputs(0).value.getTopl.quantity: BigInt).pure[F], BigInt(1)).toResource
+        _ <- assertIO((iotxRes_R.outputs.head.value.getTopl.quantity: BigInt).pure[F], BigInt(1)).toResource
+
+        //S. Success Create a group transaction token , using genesis lvl Tx
+        iotx_S <- createTransactionTamV2_fromGenesisIotx(
+          inputBoxId = genesisLvlTx.id.outputAddress(0, 0, 0),
+          Box(HeightRangeLock, genesisLvlTx.outputs.head.value),
+          quantity = BigInt(1)
+        ).toResource
+
+        _ <- Logger[F].info(show"Success iotx_S ${iotx_S.id.show}").toResource
+        _ <- node1Client.broadcastTransaction(iotx_S).toResource
+
+        //T. Failure Create a group transaction token , using genesis lvl Tx, quantity is > that the input txo lvl
+        iotx_T <- createTransactionTamV2_fromGenesisIotx(
+          inputBoxId = genesisLvlTx.id.outputAddress(0, 0, 0),
+          Box(HeightRangeLock, genesisLvlTx.outputs.head.value),
+          quantity = BigInt(10000001)
+        ).toResource
+
+        _ <- Logger[F].info(show"Failure iotx_T ${iotx_T.id.show}").toResource
+        _ <- node1Client.broadcastTransaction(iotx_T).voidError.toResource
+
+        //U. Testing!!! Failure Create a group transaction token , using genesis lvl Tx thas was conusmed before, In step_S there was a succes we consume 1 LVL, and here I
+        iotx_U <- createTransactionTamV2_fromGenesisIotx(
+          inputBoxId = genesisLvlTx.id.outputAddress(0, 0, 0),
+          Box(HeightRangeLock, genesisLvlTx.outputs.head.value),
+          quantity = BigInt(10000000)
+        ).toResource
+
+        _ <- Logger[F].info(show"Failure iotx_U ${iotx_U.id.show}").toResource
+        _ <- node1Client.broadcastTransaction(iotx_U).toResource
 
         _ <- Async[F].sleep(15.seconds).toResource
 
@@ -435,7 +500,9 @@ class TransactionTest extends IntegrationSuite {
         _ = assert(logs.contains(s"EvaluationAuthorizationFailed(Proposition(TickRange(TickRange(0,1")) // step Q AND, AND(tickrange good, tickrange bad), fix this message
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_Not.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
         _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_Q_Or.id.show} from RPC")) // step Q AND, AND(tickrange good, tickrange bad)
-        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_R.id.show} from RPC"))
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_R.id.show} from RPC")) // step R, consumes a TOPL transaction
+        _ = assert(logs.contains(s"INFO  Bifrost.RPC.Server - Processed Transaction id=${iotx_S.id.show} from RPC")) // step O, Group constructor token
+        _ = assert(logs.contains(s"WARN  Bifrost.RPC.Server - Received syntactically invalid transaction id=${iotx_T.id.show} reasons=NonEmptyChain(InvalidConstructorTokens)")) // step P, Group constructor token invalid quantity
         // format: on
 
       } yield ()
@@ -528,17 +595,17 @@ class TransactionTest extends IntegrationSuite {
    *  - output n TODO: ExactMatch, LessThan, GreaterThan, EqualTo, Threshold, or
    */
   private def createTransaction_fromGenesisIotx(
-    inputBoxId:         TransactionOutputAddress,
-    box:                Box,
-    lvlQuantityOutput1: BigInt,
-    lvlQuantityOutput2: BigInt,
-    lvlQuantityOutput3: BigInt,
-    lvlQuantityOutput4: BigInt,
-    lvlQuantityOutput5: BigInt,
-    lvlQuantityOutput6: BigInt,
-    lvlQuantityOutput7: BigInt,
-    lvlQuantityOutput8: BigInt,
-    lvlQuantityOutput9: BigInt
+    inputBoxId:   TransactionOutputAddress,
+    box:          Box,
+    lvlQuantity1: BigInt,
+    lvlQuantity2: BigInt,
+    lvlQuantity3: BigInt,
+    lvlQuantity4: BigInt,
+    lvlQuantity5: BigInt,
+    lvlQuantity6: BigInt,
+    lvlQuantity7: BigInt,
+    lvlQuantity8: BigInt,
+    lvlQuantity9: BigInt
   ): F[IoTransaction] =
     for {
       timestamp <- Async[F].realTimeInstant
@@ -553,30 +620,76 @@ class TransactionTest extends IntegrationSuite {
         )
       )
 
+      value1 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity1))
+      value2 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity2))
+      value3 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity3))
+      value4 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity4))
+      value5 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity5))
+      value6 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity6))
+      value7 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity7))
+      value8 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity8))
+      value9 = Value.defaultInstance.withLvl(Value.LVL(lvlQuantity9))
+
       outputs = List(
-        UnspentTransactionOutput(HeightRangeLockAddress, Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput1))),
-        UnspentTransactionOutput(DigestLockAddress, Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput2))),
+        UnspentTransactionOutput(HeightRangeLockAddress, value1),
+        UnspentTransactionOutput(DigestLockAddress, value2),
+        UnspentTransactionOutput(DigitalSignatureLockAddress, value3),
+        UnspentTransactionOutput(TickRangeLockAddress, value4),
+        UnspentTransactionOutput(BadTickRangeLockAddress, value5),
+        UnspentTransactionOutput(GoodAndBadTickRangeLockAddress, value6),
+        UnspentTransactionOutput(GoodBadTickRangeAndLockAddress, value7),
+        UnspentTransactionOutput(GoodBadTickRangeNotLockAddress, value8),
+        UnspentTransactionOutput(GoodBadTickRangeOrLockAddress, value9)
+      )
+
+      unprovenTransaction =
+        IoTransaction.defaultInstance
+          .withInputs(inputs)
+          .withOutputs(outputs)
+          .withDatum(
+            Datum.IoTransaction(
+              Event.IoTransaction(Schedule(0, Long.MaxValue, timestamp.toEpochMilli), SmallData.defaultInstance)
+            )
+          )
+
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      predicateWithProof = predicate.copy(responses = List(proof))
+      iotx = proveTransaction(unprovenTransaction, predicateWithProof)
+    } yield iotx
+
+  /**
+   * Transacion used to test the following validations
+   * - Processed Transaction with a Group Transaction Token
+   *
+   * @param wallet populated wallet with spendableBoxes
+   * @return a transaction with n outputs
+   *  - output 1: HeightRangeLockAddress
+   */
+  private def createTransactionTamV2_fromGenesisIotx(inputBoxId: TransactionOutputAddress, box: Box, quantity:BigInt): F[IoTransaction] =
+    for {
+      timestamp <- Async[F].realTimeInstant
+
+      predicate = Attestation.Predicate(box.lock.getPredicate, Nil)
+
+      inputs = List(
+        SpentTransactionOutput(
+          address = inputBoxId,
+          attestation = Attestation(Attestation.Value.Predicate(predicate)),
+          value = box.value
+        )
+      )
+
+      groupPolicy = Event.GroupPolicy(label = "Crypto Frogs", inputBoxId)
+      outputs = List(
         UnspentTransactionOutput(
-          DigitalSignatureLockAddress,
-          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput3))
-        ),
-        UnspentTransactionOutput(TickRangeLockAddress, Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput4))),
-        UnspentTransactionOutput(BadTickRangeLockAddress, Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput5))),
-        UnspentTransactionOutput(
-          GoodAndBadTickRangeLockAddress,
-          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput6))
-        ),
-        UnspentTransactionOutput(
-          GoodBadTickRangeAndLockAddress,
-          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput7))
-        ),
-        UnspentTransactionOutput(
-          GoodBadTickRangeNotLockAddress,
-          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput8))
-        ),
-        UnspentTransactionOutput(
-          GoodBadTickRangeOrLockAddress,
-          Value.defaultInstance.withLvl(Value.LVL(lvlQuantityOutput9))
+          HeightRangeLockAddress,
+          Value.defaultInstance.withGroup(
+            Value.Group(
+              groupId = groupPolicy.computeId,
+              fixedSeries = Option.empty[SeriesId],
+              quantity = Int128(ByteString.copyFrom(quantity.toByteArray))
+            )
+          )
         )
       )
 
@@ -584,6 +697,7 @@ class TransactionTest extends IntegrationSuite {
         IoTransaction.defaultInstance
           .withInputs(inputs)
           .withOutputs(outputs)
+          .withGroupPolicies(Seq(Datum.GroupPolicy(groupPolicy)))
           .withDatum(
             Datum.IoTransaction(
               Event.IoTransaction(Schedule(0, Long.MaxValue, timestamp.toEpochMilli), SmallData.defaultInstance)
