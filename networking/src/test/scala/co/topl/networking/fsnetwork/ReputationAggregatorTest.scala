@@ -149,7 +149,7 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.HostProvideIncorrectBlock(host))
+            newState <- actor.send(ReputationAggregator.Message.HostProvideIncorrectData(host))
             _ = assert(newState.performanceReputation == initialPerfMap)
             _ = assert(newState.blockProvidingReputation == initialBlockMap)
             _ = assert(newState.noveltyReputation == initialNewMap)

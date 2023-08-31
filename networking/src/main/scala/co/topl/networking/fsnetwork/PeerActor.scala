@@ -257,7 +257,7 @@ object PeerActor {
   /**
    * Ensure that the two peers agree on a genesis block.  If not, raise an exception.
    */
-  private def verifyGenesisAgreement[F[_]: Async](state: State[F]) =
+  private def verifyGenesisAgreement[F[_]: Async: Logger](state: State[F]): F[Unit] =
     state.client
       .getRemoteBlockIdAtHeight(1, state.genesisBlockId.some)
       .flatMap(
@@ -270,4 +270,8 @@ object PeerActor {
             )
           )
       )
+      .recoverWith { case exception =>
+        Logger[F].error(s"Remote peer provide incorrect genesis information: ${exception.getLocalizedMessage}") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectData(state.hostId))
+      }
 }
