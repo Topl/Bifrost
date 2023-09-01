@@ -106,6 +106,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
       currentHead.copy().pure[F]
 
     override def genesis: F[SlotData] = genesisSlotData.pure[F]
+
+    def adoptions: F[Stream[F, BlockId]] = fs2.Stream.never[F].pure[F]
   }
 
   val slotLength: FiniteDuration = FiniteDuration(200, MILLISECONDS)
