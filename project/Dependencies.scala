@@ -104,6 +104,8 @@ object Dependencies {
     "com.lihaoyi" %% "mainargs" % "0.5.1"
   )
 
+  val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
+
   val monocle: Seq[ModuleID] = Seq(
     "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
     "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
@@ -281,5 +283,5 @@ object Dependencies {
     mUnitTest
 
   lazy val byzantineIt: Seq[ModuleID] =
-    (mUnitTestBase :+ dockerClient).map(_ % Test)
+    (mUnitTestBase :+ dockerClient :+ fastparse).map(_ % Test)
 }

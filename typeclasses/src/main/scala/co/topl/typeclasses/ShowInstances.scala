@@ -44,7 +44,7 @@ trait ShowInstances {
       show"id=${header.id}" +
       show" parentId=${header.parentHeaderId}" +
       show" parentSlot=${header.parentSlot}" +
-      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       // Don't show these fields because they create too much noise in the logs
