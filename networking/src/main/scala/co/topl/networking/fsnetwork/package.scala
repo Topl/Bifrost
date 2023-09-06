@@ -37,6 +37,9 @@ package object fsnetwork {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
 
     def get(key: K): Option[V] = Option(cache.getIfPresent(key))
+
+    def getOrElse[B >: V](key: K, default: => V): V =
+      get(key).getOrElse(default)
   }
 
   implicit class StreamOps[T, F[_]: Async](stream: fs2.Stream[F, T]) {

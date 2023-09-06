@@ -36,7 +36,7 @@ trait Actor[F[_], I, O] {
   /**
    * Get number unprocessed messages for that actor
    */
-  def mailboxSize: F[Int]
+  def mailboxSize(): F[Int]
 
   /**
    * Send the message without waiting for acknowledgement
@@ -140,7 +140,7 @@ object Actor {
 
         override val id: Int = java.util.Objects.hash(mailbox)
 
-        override def mailboxSize: F[Int] = mailbox.size
+        override def mailboxSize(): F[Int] = mailbox.size
 
         override def sendNoWait(input: I): F[Unit] =
           isAlive.get
@@ -221,7 +221,7 @@ object Actor {
       shutdownFunction: F[Unit],
       attemptTimeout:   FiniteDuration = 1 second
     ): F[Fiber[F, Throwable, Unit]] = {
-      def tryToShutdown(stopSignal: SignallingRef[F, Boolean]) = actor.mailboxSize.flatMap {
+      def tryToShutdown(stopSignal: SignallingRef[F, Boolean]) = actor.mailboxSize().flatMap {
         case 0 => shutdownFunction *> stopSignal.set(true)
         case _ => ().pure
       }
