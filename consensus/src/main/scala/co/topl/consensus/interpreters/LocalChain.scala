@@ -40,7 +40,7 @@ object LocalChain {
           Sync[F].uncancelable(_ =>
             onAdopted(slotData.slotId.blockId) >>
             headRef.set(slotData) >>
-            EitherT(adoptionsTopic.publish1(newHead.a.slotId.blockId))
+            EitherT(adoptionsTopic.publish1(slotData.slotId.blockId))
               .leftMap(_ => new IllegalStateException("LocalChain topic unexpectedly closed"))
               .rethrowT >>
             Logger[F].info(

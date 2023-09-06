@@ -140,7 +140,7 @@ object StakingInit {
       registrationEpoch <- clock.epochOf(registrationHeader.slot).toResource
       // Stakers who are registered in the genesis block have an activation epoch of 0.  Everyone else has an
       // activation epoch = registration epoch + 2
-      activationEpoch = if (registrationHeader.height == 1) 0L else registrationEpoch + 2
+      activationEpoch = if (registrationHeader.height == BigBang.Height) 0L else registrationEpoch + 2
       beginSlot <- clock
         .epochRange(activationEpoch)
         .map(_.start)
