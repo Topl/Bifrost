@@ -102,18 +102,25 @@ class MultiNodeTest extends IntegrationSuite {
           .rpcClient[F](node1.config.rpcPort)
           // Take stake from node0 and transfer it to the delayed node
           .evalMap(registerStaker(genesisTransaction, 0)(_, tmpHostStakingDirectory))
+        _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
+        _ <- delayedNode.startContainer[F].toResource
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- initialNodes
           .parTraverse(node =>
             node
               .rpcClient[F](node.config.rpcPort)
-              .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(9.minutes).compile.lastOrError)
+              .use(
+                _.adoptedHeaders
+                  .takeWhile(_.slot < (epochSlotLength * 3))
+                  // Verify that the delayed node doesn't produce any blocks in the first 2 epochs
+                  .evalTap(h => IO(h.slot >= (epochSlotLength * 2) || h.address != delayedNodeStakingAddress).assert)
+                  .timeout(9.minutes)
+                  .compile
+                  .lastOrError
+              )
           )
           .toResource
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
-        // The delayed node's registration should now be active, so the delayed node can launch and start producing blocks
-        _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
-        _ <- delayedNode.startContainer[F].toResource
         // The delayed node's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
         // by the delayed node's staking address
         _ <- node0
