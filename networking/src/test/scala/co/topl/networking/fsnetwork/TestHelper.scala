@@ -45,7 +45,7 @@ object TestHelper extends TransactionGenerator {
         addHeaderToChain(headers.append(gen.sample.get.copy(parentHeaderId = parentId)), gen, count - 1)
     }
 
-  val arbitraryHost: Arbitrary[HostId] = Arbitrary(Arbitrary.arbitrary[String])
+  val arbitraryHost: Arbitrary[HostId] = Arbitrary(Gen.identifier)
 
   val arbitraryHostBlockId: Arbitrary[(HostId, BlockId)] = Arbitrary(
     for {

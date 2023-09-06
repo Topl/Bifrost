@@ -14,6 +14,7 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -43,6 +44,7 @@ object PeerBlockHeaderFetcher {
     hostId:        HostId,
     client:        BlockchainPeerClient[F],
     requestsProxy: RequestsProxyActor[F],
+    peersManager:  PeersManagerActor[F],
     localChain:    LocalChainAlgebra[F],
     slotDataStore: Store[F, BlockId, SlotData],
     blockIdTree:   ParentChildTree[F, BlockId],
@@ -64,13 +66,14 @@ object PeerBlockHeaderFetcher {
     hostId:        HostId,
     client:        BlockchainPeerClient[F],
     requestsProxy: RequestsProxyActor[F],
+    peersManager:  PeersManagerActor[F],
     localChain:    LocalChainAlgebra[F],
     slotDataStore: Store[F, BlockId, SlotData],
     blockIdTree:   ParentChildTree[F, BlockId],
     clock:         ClockAlgebra[F]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
-      State(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, None, clock)
+      State(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, None, clock)
     val actorName = s"Header fetcher actor for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
@@ -111,7 +114,7 @@ object PeerBlockHeaderFetcher {
       newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockId).value
       _                 <- Logger[F].info(show"Build slot data chain from tip $blockId is ${newSlotDataOpt.isDefined}")
       newBlockSourceOpt <- buildBlockSource(state, blockId, newSlotDataOpt)
-      _                 <- sendMessagesToProxy(state, newSlotDataOpt, newBlockSourceOpt)
+      _                 <- sendMessages(state, newSlotDataOpt, newBlockSourceOpt)
     } yield ()
 
   private def getRemoteBetterSlotDataChain[F[_]: Async: Logger](
@@ -153,14 +156,14 @@ object PeerBlockHeaderFetcher {
       })
       .flatMap(OptionT.when(_)(newSlotData))
 
-  private def sendMessagesToProxy[F[_]: Async](
+  private def sendMessages[F[_]: Async](
     state:          State[F],
     newSlotDataOpt: Option[NonEmptyChain[SlotData]],
     newSourcesOpt:  Option[NonEmptyChain[(HostId, BlockId)]]
   ): F[Unit] = {
     val newSourcesF =
       newSourcesOpt
-        .map(sources => state.requestsProxy.sendNoWait(RequestsProxy.Message.BlocksSource(sources)))
+        .map(sources => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(sources)))
         .getOrElse(().pure[F])
 
     val newSlotDataF =

@@ -10,13 +10,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Datum, TransactionId}
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.{
-  BlockHeader,
-  BlockHeaderToBodyValidationFailure,
-  BlockHeaderValidationFailure,
-  BlockId,
-  SlotData
-}
+import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.interpreters.SchedulerClock
 import co.topl.ledger.algebras._

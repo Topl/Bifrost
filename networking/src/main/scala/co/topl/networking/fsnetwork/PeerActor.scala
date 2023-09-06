@@ -1,8 +1,8 @@
 package co.topl.networking.fsnetwork
 
 import cats.data.{EitherT, NonEmptyChain, OptionT}
-import cats.effect.{Async, Concurrent, Resource}
 import cats.effect.implicits._
+import cats.effect.{Async, Concurrent, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
@@ -116,6 +116,7 @@ object PeerActor {
         hostId,
         client,
         requestsProxy,
+        peersManager,
         localChain,
         slotDataStore,
         blockIdTree

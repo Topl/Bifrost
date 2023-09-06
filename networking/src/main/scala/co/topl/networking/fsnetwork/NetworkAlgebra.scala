@@ -19,6 +19,7 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
+import com.github.benmanes.caffeine.cache.Caffeine
 import org.typelevel.log4cats.Logger
 
 trait NetworkAlgebra[F[_]] {
@@ -87,6 +88,7 @@ trait NetworkAlgebra[F[_]] {
     hostId:        HostId,
     client:        BlockchainPeerClient[F],
     requestsProxy: RequestsProxyActor[F],
+    peersManager:  PeersManagerActor[F],
     localChain:    LocalChainAlgebra[F],
     slotDataStore: Store[F, BlockId, SlotData],
     blockIdTree:   ParentChildTree[F, BlockId]
@@ -131,7 +133,9 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
       p2pNetworkConfig,
       hotPeersUpdate,
       savePeersFunction,
-      peerSelector
+      peerSelector,
+      initialPeers = Map.empty[HostId, Peer[F]],
+      blockSource = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
     )
   }
 
@@ -214,11 +218,21 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
     hostId:        HostId,
     client:        BlockchainPeerClient[F],
     requestsProxy: RequestsProxyActor[F],
+    peersManager:  PeersManagerActor[F],
     localChain:    LocalChainAlgebra[F],
     slotDataStore: Store[F, BlockId, SlotData],
     blockIdTree:   ParentChildTree[F, BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
-    PeerBlockHeaderFetcher.makeActor(hostId, client, requestsProxy, localChain, slotDataStore, blockIdTree, clock)
+    PeerBlockHeaderFetcher.makeActor(
+      hostId,
+      client,
+      requestsProxy,
+      peersManager,
+      localChain,
+      slotDataStore,
+      blockIdTree,
+      clock
+    )
 
   def makePeerBodyFetcher(
     hostId:                 HostId,
