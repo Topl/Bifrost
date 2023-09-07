@@ -331,17 +331,6 @@ class TransactionTest extends IntegrationSuite {
         iotxRes_R <- OptionT(node1Client.fetchTransaction(iotx_R.id)).getOrRaise(failSuiteException("R")).toResource
         _         <- assertIO((iotxRes_R.outputs.head.value.getTopl.quantity: BigInt).pure[F], BigInt(1)).toResource
 
-        // S_Fail_1. Failure Create a group transaction token , using iotxRes_B lvl Tx, quantity is 2 > 1 the input txo lvl
-        iotx_S_Fail_1 <- TransactionFactory
-          .createTransactionGroupTamV2[F](
-            inputBoxId = iotxRes_B.id.outputAddress(0, 0, 9),
-            Box(Locks.HeightRangeLock, iotxRes_B.outputs(9).value),
-            quantity = BigInt(2)
-          )
-          .toResource
-        _ <- Logger[F].info(show"Failure iotx_S_Fail_1 ${iotx_S_Fail_1.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_S_Fail_1).voidError.toResource
-
         // S. Success Create a group transaction token , using iotxRes_B lvl Tx
         iotx_S <- TransactionFactory
           .createTransactionGroupTamV2[F](
@@ -355,17 +344,6 @@ class TransactionTest extends IntegrationSuite {
         _         <- node1Client.broadcastTransaction(iotx_S).toResource
         iotxRes_S <- OptionT(node1Client.fetchTransaction(iotx_S.id)).getOrRaise(failSuiteException("S")).toResource
         _         <- assertIO((iotxRes_S.outputs.head.value.getGroup.quantity: BigInt).pure[F], BigInt(1)).toResource
-
-        // T_Fail_1. Failure Create a series transaction token , using iotxRes_B lvl Tx, quantity is 2 > 1 = the input txo lvl
-        iotx_T_Fail_1 <- TransactionFactory
-          .createTransactionSeriesTamV2[F](
-            inputBoxId = iotxRes_B.id.outputAddress(0, 0, 10),
-            Box(Locks.HeightRangeLock, iotxRes_B.outputs(10).value),
-            quantity = BigInt(2)
-          )
-          .toResource
-        _ <- Logger[F].info(show"Failure iotx_T_Fail_1 ${iotx_T_Fail_1.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_T_Fail_1).voidError.toResource
 
         // T. Success Create a series transaction token , using iotxRes_B lvl Tx
         iotx_T <- TransactionFactory
@@ -381,56 +359,8 @@ class TransactionTest extends IntegrationSuite {
         iotxRes_T <- OptionT(node1Client.fetchTransaction(iotx_T.id)).getOrRaise(failSuiteException("T")).toResource
         _         <- assertIO((iotxRes_T.outputs.head.value.getSeries.quantity: BigInt).pure[F], BigInt(1)).toResource
 
-        // U_Fail_1. Failure, Create a Series and Group constructor token, in the same transaction, but quantities are both wrong
+        // U_Fail_1. Failure, Create a Series and Group constructor token, in the same transaction, same outputAddress wrong
         iotx_U_Fail_1 <- TransactionFactory
-          .createTransactionGroupANDSeriesTamV2[F](
-            inputBoxIdGroup = iotxRes_B.id.outputAddress(0, 0, 11),
-            inputBoxIdSeries = iotxRes_B.id.outputAddress(0, 0, 12),
-            lock = Locks.HeightRangeLock, // using the same lock boths
-            valueInputGroup = iotxRes_B.outputs(11).value,
-            valueInputSeries = iotxRes_B.outputs(12).value,
-            groupQuantity = BigInt(2),
-            seriesQuantity = BigInt(2)
-          )
-          .toResource
-
-        _ <- Logger[F].info(show"Failure iotx_U_Fail_1 ${iotx_U_Fail_1.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_U_Fail_1).voidError.toResource
-
-        // U_Fail_2. Failure, Create a Series and Group constructor token, in the same transaction, groupQuantity is wrong
-        iotx_U_Fail_2 <- TransactionFactory
-          .createTransactionGroupANDSeriesTamV2[F](
-            inputBoxIdGroup = iotxRes_B.id.outputAddress(0, 0, 11),
-            inputBoxIdSeries = iotxRes_B.id.outputAddress(0, 0, 12),
-            lock = Locks.HeightRangeLock, // using the same lock boths
-            valueInputGroup = iotxRes_B.outputs(11).value,
-            valueInputSeries = iotxRes_B.outputs(12).value,
-            groupQuantity = BigInt(2),
-            seriesQuantity = BigInt(1)
-          )
-          .toResource
-
-        _ <- Logger[F].info(show"Failure iotx_U_Fail_2 ${iotx_U_Fail_2.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_U_Fail_2).voidError.toResource
-
-        // U_Fail_3. Failure, Create a Series and Group constructor token, in the same transaction, seriesQuantity is wrong
-        iotx_U_Fail_3 <- TransactionFactory
-          .createTransactionGroupANDSeriesTamV2[F](
-            inputBoxIdGroup = iotxRes_B.id.outputAddress(0, 0, 11),
-            inputBoxIdSeries = iotxRes_B.id.outputAddress(0, 0, 12),
-            lock = Locks.HeightRangeLock, // using the same lock boths
-            valueInputGroup = iotxRes_B.outputs(11).value,
-            valueInputSeries = iotxRes_B.outputs(12).value,
-            groupQuantity = BigInt(1),
-            seriesQuantity = BigInt(2)
-          )
-          .toResource
-
-        _ <- Logger[F].info(show"Failure iotx_U_Fail_3 ${iotx_U_Fail_3.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_U_Fail_3).voidError.toResource
-
-        // U_Fail_4. Failure, Create a Series and Group constructor token, in the same transaction, same outputAddress wrong, quantities good
-        iotx_U_Fail_4 <- TransactionFactory
           .createTransactionGroupANDSeriesTamV2[F](
             inputBoxIdGroup = iotxRes_B.id.outputAddress(0, 0, 11),
             inputBoxIdSeries = iotxRes_B.id.outputAddress(0, 0, 11),
@@ -442,8 +372,8 @@ class TransactionTest extends IntegrationSuite {
           )
           .toResource
 
-        _ <- Logger[F].info(show"Failure iotx_U_Fail_4 ${iotx_U_Fail_4.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_U_Fail_4).voidError.toResource
+        _ <- Logger[F].info(show"Failure iotx_U_Fail_1 ${iotx_U_Fail_1.id.show}").toResource
+        _ <- node1Client.broadcastTransaction(iotx_U_Fail_1).voidError.toResource
 
         // U_Success. Create a Series and Group constructor token, in the same transaction, quantities good
         iotx_U <- TransactionFactory
@@ -462,146 +392,131 @@ class TransactionTest extends IntegrationSuite {
         _ <- node1Client.broadcastTransaction(iotx_U).toResource
 
         // V_Fail_1. Moving a Group constructor token, It was created on step S.
-        iotx_V_Fail_1 <- TransactionFactory.createTransactionMoveGroupANDSeriesTamV2[F](
-          inputBoxIdGroup = iotxRes_S.id.outputAddress(0, 0, 0),
-          lock = Locks.HeightRangeLock,
-          valueInputGroup = iotxRes_S.outputs.head.value,
-          valueOutputGroup = Value.defaultInstance.withGroup(
-            Value.Group(
-              groupId = iotxRes_S.outputs.head.value.getGroup.groupId,
-              quantity = BigInt(2)
+        iotx_V_Fail_1 <- TransactionFactory
+          .createTransactionMoveGroupANDSeriesTamV2[F](
+            inputBoxIdGroup = iotxRes_S.id.outputAddress(0, 0, 0),
+            lock = Locks.HeightRangeLock,
+            valueInputGroup = iotxRes_S.outputs.head.value,
+            valueOutputGroup = Value.defaultInstance.withGroup(
+              Value.Group(
+                groupId = iotxRes_S.outputs.head.value.getGroup.groupId,
+                quantity = BigInt(2)
+              )
             )
           )
-        ).toResource
+          .toResource
 
         _ <- Logger[F].info(show"Failure iotx_V_Fail_1 ${iotx_V_Fail_1.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_V_Fail_1).voidError.toResource
 
-        
         // V_Succed. Moving a Group constructor token, It was created on step S.
-        iotx_V <- TransactionFactory.createTransactionMoveGroupANDSeriesTamV2[F](
-          inputBoxIdGroup = iotxRes_S.id.outputAddress(0, 0, 0),
-          lock = Locks.HeightRangeLock,
-          valueInputGroup = iotxRes_S.outputs.head.value,
-          valueOutputGroup = Value.defaultInstance.withGroup(
-            Value.Group(
-              groupId = iotxRes_S.outputs.head.value.getGroup.groupId,
-              quantity = BigInt(1)
+        iotx_V <- TransactionFactory
+          .createTransactionMoveGroupANDSeriesTamV2[F](
+            inputBoxIdGroup = iotxRes_S.id.outputAddress(0, 0, 0),
+            lock = Locks.HeightRangeLock,
+            valueInputGroup = iotxRes_S.outputs.head.value,
+            valueOutputGroup = Value.defaultInstance.withGroup(
+              Value.Group(
+                groupId = iotxRes_S.outputs.head.value.getGroup.groupId,
+                quantity = BigInt(1)
+              )
             )
           )
-        ).toResource
+          .toResource
 
         _ <- Logger[F].info(show"Success iotx_V ${iotx_V.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_V).toResource  
-
+        _ <- node1Client.broadcastTransaction(iotx_V).toResource
 
         // W_Fail_1. Moving a Series constructor token, It was created on step T.
-        iotx_W_Fail_1 <- TransactionFactory.createTransactionMoveGroupANDSeriesTamV2[F](
-          inputBoxIdGroup = iotxRes_T.id.outputAddress(0, 0, 0),
-          lock = Locks.HeightRangeLock,
-          valueInputGroup = iotxRes_T.outputs.head.value,
-          valueOutputGroup = Value.defaultInstance.withSeries(
-            Value.Series(
-              seriesId = iotxRes_T.outputs.head.value.getSeries.seriesId,
-              quantity = BigInt(2)
+        iotx_W_Fail_1 <- TransactionFactory
+          .createTransactionMoveGroupANDSeriesTamV2[F](
+            inputBoxIdGroup = iotxRes_T.id.outputAddress(0, 0, 0),
+            lock = Locks.HeightRangeLock,
+            valueInputGroup = iotxRes_T.outputs.head.value,
+            valueOutputGroup = Value.defaultInstance.withSeries(
+              Value.Series(
+                seriesId = iotxRes_T.outputs.head.value.getSeries.seriesId,
+                quantity = BigInt(2)
+              )
             )
           )
-        ).toResource
+          .toResource
 
         _ <- Logger[F].info(show"W_Fail_1 iotx_W_Fail_1 ${iotx_W_Fail_1.id.show}").toResource
         _ <- node1Client.broadcastTransaction(iotx_W_Fail_1).voidError.toResource
 
-        
         // W_Succed. Moving a Series constructor token, It was created on step T.
-        iotx_W <- TransactionFactory.createTransactionMoveGroupANDSeriesTamV2[F](
-          inputBoxIdGroup = iotxRes_T.id.outputAddress(0, 0, 0),
-          lock = Locks.HeightRangeLock,
-          valueInputGroup = iotxRes_T.outputs.head.value,
-          valueOutputGroup = Value.defaultInstance.withSeries(
-            Value.Series(
-              seriesId = iotxRes_T.outputs.head.value.getSeries.seriesId,
-              quantity = BigInt(1)
+        iotx_W <- TransactionFactory
+          .createTransactionMoveGroupANDSeriesTamV2[F](
+            inputBoxIdGroup = iotxRes_T.id.outputAddress(0, 0, 0),
+            lock = Locks.HeightRangeLock,
+            valueInputGroup = iotxRes_T.outputs.head.value,
+            valueOutputGroup = Value.defaultInstance.withSeries(
+              Value.Series(
+                seriesId = iotxRes_T.outputs.head.value.getSeries.seriesId,
+                quantity = BigInt(1)
+              )
             )
           )
-        ).toResource
+          .toResource
 
         _ <- Logger[F].info(show"iotx_W ${iotx_W.id.show}").toResource
-        _ <- node1Client.broadcastTransaction(iotx_W).toResource    
-
+        _ <- node1Client.broadcastTransaction(iotx_W).toResource
 
         // END of sending transaction, waiting for logs
         _ <- Async[F].sleep(10.seconds).toResource
 
         processedTransaction <- LogParserTest.processStreamFromRpc(node1.containerLogs[F]).toResource
         _ <- Logger[F].info("PROCESSED").toResource >> Logger[F].info(processedTransaction.mkString(",")).toResource
-        _ = assert(
-          List(
-            iotx_B.id.show,
-            iotx_N.id.show,
-            iotx_M.id.show,
-            iotx_Q.id.show,
-            iotx_Q_And.id.show,
-            iotx_Q_Not.id.show,
-            iotx_Q_Or.id.show,
-            iotx_R.id.show,
-            iotx_S.id.show,
-            iotx_T.id.show,
-            iotx_V.id.show,
-          )
-            .forall(processedTransaction.contains)
-        )
 
-        receivedSyntacticallyInvalid <- LogParserTest
+        _ = assert(processedTransaction.contains(iotx_B.id.show))
+        _ = assert(processedTransaction.contains(iotx_N.id.show))
+        _ = assert(processedTransaction.contains(iotx_M.id.show))
+        _ = assert(processedTransaction.contains(iotx_Q.id.show))
+        _ = assert(processedTransaction.contains(iotx_Q_And.id.show))
+        _ = assert(processedTransaction.contains(iotx_Q_Not.id.show))
+        _ = assert(processedTransaction.contains(iotx_Q_Or.id.show))
+        _ = assert(processedTransaction.contains(iotx_R.id.show))
+        _ = assert(processedTransaction.contains(iotx_S.id.show))
+        _ = assert(processedTransaction.contains(iotx_T.id.show))
+        _ = assert(processedTransaction.contains(iotx_V.id.show))
+
+        syntacticallyInvalid <- LogParserTest
           .receivedSyntacticallyInvalidStream(node1.containerLogs[F])
           .toResource
 
         _ <- Logger[F]
           .info("SYNTACTIC INVALID")
-          .toResource >> Logger[F].info(receivedSyntacticallyInvalid.mkString(",")).toResource
+          .toResource >> Logger[F].info(syntacticallyInvalid.mkString(",")).toResource
 
-        _ = assert(
-          List(
-            iotx_A.id.show,
-            iotx_D.id.show, // reasons=NonEmptyChain(EmptyInputs)"))
-            iotx_E.id.show, // reasons=NonEmptyChain(DuplicateInput(boxId="))
-            iotx_F.id.show, // reasons=NonEmptyChain(ExcessiveOutputsCount, InvalidDataLength)"))
-            iotx_G.id.show, // reasons=NonEmptyChain(InvalidTimestamp(timestamp=-1))"))
-            iotx_H.id.show, // reasons=NonEmptyChain(InvalidSchedule(creation=0,maximumSlot=0,minimumSlot=1))
-            iotx_I.id.show, // reasons=NonEmptyChain(InvalidSchedule(creation=0,maximumSlot=0,minimumSlot=-1))"))
-            iotx_J.id.show, // reasons=NonEmptyChain(InvalidSchedule(creation=0,maximumSlot=0,minimumSlot=1))"))
-            iotx_K.id.show, // reasons=NonEmptyChain(NonPositiveOutputValue"))
-            iotx_S_Fail_1.id.show, // reasons=NonEmptyChain(InvalidConstructorTokens)
-            iotx_T_Fail_1.id.show, // reasons=NonEmptyChain(InvalidConstructorTokens)
-            iotx_U_Fail_1.id.show, // reasons=NonEmptyChain(InvalidConstructorTokens)
-            iotx_U_Fail_2.id.show, // reasons=NonEmptyChain(InvalidConstructorTokens)
-            iotx_U_Fail_3.id.show, // reasons=NonEmptyChain(InvalidConstructorTokens)
-            iotx_U_Fail_4.id.show, // reasons=NonEmptyChain(InvalidConstructorTokens)
-            iotx_V_Fail_1.id.show, // reasons=NonEmptyChain(InsufficientInputFunds)
-            iotx_W_Fail_1.id.show, // reasons=NonEmptyChain(InsufficientInputFunds)
-          )
-            .forall(receivedSyntacticallyInvalid.contains)
-        )
+        _ = assert(syntacticallyInvalid.contains(iotx_A.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_D.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_E.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_F.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_G.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_H.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_I.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_J.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_K.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_U_Fail_1.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_V_Fail_1.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_W_Fail_1.id.show))
 
         minted <- LogParserTest.mintedStream(node1.containerLogs[F]).toResource
         mintedSplit = minted.flatMap(s => s.split(",")).filter(_.nonEmpty).map(_.trim)
         _ <- Logger[F].info("MINTED").toResource >> Logger[F].info(mintedSplit.mkString(",")).toResource
 
-        _ = assert(
-          List(
-            iotx_B.id.show,
-            iotx_N.id.show,
-            iotx_M.id.show,
-            iotx_Q.id.show,
-            iotx_Q_Or.id.show,
-            iotx_R.id.show,
-            iotx_S.id.show,
-            iotx_T.id.show,
-            iotx_U.id.show,
-            iotx_V.id.show,
-            iotx_W.id.show,
-          )
-            .forall(mintedSplit.contains)
-        )
+        _ = assert(mintedSplit.contains(iotx_B.id.show))
+        _ = assert(mintedSplit.contains(iotx_N.id.show))
+        _ = assert(mintedSplit.contains(iotx_M.id.show))
+        _ = assert(mintedSplit.contains(iotx_Q.id.show))
+        _ = assert(mintedSplit.contains(iotx_Q_Or.id.show))
+        _ = assert(mintedSplit.contains(iotx_R.id.show))
+        _ = assert(mintedSplit.contains(iotx_S.id.show))
+        _ = assert(mintedSplit.contains(iotx_T.id.show))
+        _ = assert(mintedSplit.contains(iotx_U.id.show))
+        _ = assert(mintedSplit.contains(iotx_V.id.show))
+        _ = assert(mintedSplit.contains(iotx_W.id.show))
 
       } yield ()
 
