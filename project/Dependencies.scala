@@ -13,7 +13,7 @@ object Dependencies {
   val ioGrpcVersion = "1.57.2"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha4+1-e3a9ec27-SNAPSHOT" // scala-steward:off // TODO requires protobuf release
-  val bramblScVersion = "2.0.0-alpha4+11-00f09e2a-SNAPSHOT" // scala-steward:off TODO requires bramblsc release
+  val bramblScVersion = "2.0.0-alpha4+12-317ec12d-SNAPSHOT" // scala-steward:off TODO requires bramblsc release
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
