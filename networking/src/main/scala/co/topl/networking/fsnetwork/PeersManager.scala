@@ -569,7 +569,7 @@ object PeersManager {
 
     Logger[F].infoIf(
       hotToCold.nonEmpty,
-      s"Going to close $hotToCold due of bad reputation. Reputations:\n$perfRep;\n$blockRep;\n$noveltyRep"
+      s"Going to close $hotToCold due of bad reputation. Reputations:$perfRep; $blockRep; $noveltyRep"
     ) >>
     peersToCold(thisActor, state, hotToCold)
   }
