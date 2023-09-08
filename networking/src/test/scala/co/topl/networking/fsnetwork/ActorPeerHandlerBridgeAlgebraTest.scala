@@ -19,11 +19,12 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebraTest._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange, RemoteAddress}
 import co.topl.node.models._
 import co.topl.quivr.runtime.DynamicContext
 import co.topl.typeclasses.implicits._
 import fs2.Stream
+import fs2.concurrent.Topic
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
@@ -101,7 +102,7 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
     override def genesis: F[SlotData] = genesisSlotData.pure[F]
 
-    def adoptions: F[Stream[F, BlockId]] = fs2.Stream.never[F].pure[F]
+    override def adoptions: F[Stream[F, BlockId]] = Stream.empty.covaryAll[F, BlockId].pure[F]
   }
 
   val slotLength: FiniteDuration = FiniteDuration(200, MILLISECONDS)
@@ -144,8 +145,6 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         .anyNumberOfTimes()
         .returns(Option(CurrentKnownHostsRes(Seq.empty)).pure[F])
 
-      val closedPeers: Stream[F, ConnectedPeer] = Stream.empty
-
       val peerOpenRequested: AtomicBoolean = new AtomicBoolean(false)
       val addRemotePeer: DisconnectedPeer => F[Unit] = mock[DisconnectedPeer => F[Unit]]
       (addRemotePeer.apply _).expects(remotePeer).once().returns {
@@ -176,6 +175,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
           () => 0L.pure[F]
         )
 
+        topic <- Resource.make(Topic[F, PeerConnectionChange])(_.close.void)
+
         algebra <- ActorPeerHandlerBridgeAlgebra
           .make(
             hostId,
@@ -195,7 +196,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             networkProperties,
             clockAlgebra,
             remotePeers,
-            closedPeers,
+            topic,
             addRemotePeer,
             hotPeersUpdate
           )
