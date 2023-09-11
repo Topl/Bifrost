@@ -3,7 +3,8 @@ package co.topl.genusLibrary.interpreter
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
-import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.brambl.models.Event.GroupPolicy
+import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, ioTransactionAsTransactionSyntaxOps}
 import co.topl.genus.services.{BlockStats, BlockchainSizeStats, Txo, TxoState, TxoStats}
 import co.topl.genusLibrary.DbFixtureUtilV2
 import co.topl.genusLibrary.model.GE
@@ -20,7 +21,7 @@ import com.tinkerpop.blueprints.impls.orient.OrientVertex
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 
-class GraphVertexFetcherV2Test
+class GraphVertexFetcherTest
     extends CatsEffectSuite
     with ScalaCheckEffectSuite
     with AsyncMockFactory
@@ -411,6 +412,47 @@ class GraphVertexFetcherV2Test
         graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
 
         _ <- assertIO(graphVertexFetcher.fetchBlockStats().rethrow, BlockStats(empty = 0, nonEmpty = 1)).toResource
+      } yield ()
+
+      res.use_
+
+  }
+
+  orientDbFixtureV2.test("On fetchGroupPolicy, None should be returned") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        registrationUtxo <- BramblGenerator.arbitraryTransactionOutputAddress.arbitrary.first.pure[F].toResource
+        groupPolicy = GroupPolicy(label = "Crypto Frogs with None fixed series", registrationUtxo, None)
+        notx               <- oThread.delay(odbFactory.getNoTx).toResource
+        graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
+
+        _ <- assertIO(
+          graphVertexFetcher.fetchGroupPolicy(groupPolicy.computeId),
+          Option.empty[Vertex].asRight[GE]
+        ).toResource
+      } yield ()
+
+      res.use_
+  }
+
+  orientDbFixtureV2.test("On fetchGroupPolicy, a policy should be returned") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        registrationUtxo <- BramblGenerator.arbitraryTransactionOutputAddress.arbitrary.first.pure[F].toResource
+        groupPolicy = GroupPolicy(label = "Crypto Frogs with None fixed series", registrationUtxo, None)
+
+        tx                 <- oThread.delay(odbFactory.getTx).toResource
+        notx               <- oThread.delay(odbFactory.getNoTx).toResource
+        graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
+
+        _ <- oThread.delay {
+          tx.addGroupPolicy(groupPolicy)
+          tx.commit()
+          tx.shutdown()
+        }.toResource
+
+        vertex <- graphVertexFetcher.fetchGroupPolicy(groupPolicy.computeId).rethrow.toResource
+        _ = assert(vertex.isDefined)
       } yield ()
 
       res.use_

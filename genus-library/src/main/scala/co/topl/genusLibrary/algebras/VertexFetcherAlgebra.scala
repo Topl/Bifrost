@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
+import co.topl.brambl.models.{GroupId, LockAddress, TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.{BlockStats, BlockchainSizeStats, TxoStats}
 import co.topl.genusLibrary.model.GE
@@ -106,4 +106,10 @@ trait VertexFetcherAlgebra[F[_]] {
    */
   def fetchBlockStats(): F[Either[GE, BlockStats]]
 
+  /**
+   * Fetch Group Policy vertex
+   * @param groupId groupId
+   * @return a group policy
+   */
+  def fetchGroupPolicy(groupId: GroupId): F[Either[GE, Option[Vertex]]]
 }
