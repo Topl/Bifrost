@@ -46,7 +46,7 @@ object PrivateTestnet {
           ByteString.copyFrom(BigInt(timestamp).toByteArray).concat(ByteString.copyFrom(BigInt(index).toByteArray))
         )
       )
-      .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9)))
+      .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9), HeightLockOneSpendingAddress))
   }
 
   def defaultStake(stakerCount: Int): BigInt = Ratio(DefaultTotalStake, stakerCount).round
