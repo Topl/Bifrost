@@ -12,9 +12,8 @@ import co.topl.brambl.models.transaction.{IoTransaction, Schedule, UnspentTransa
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig
+import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility.Sized
 import co.topl.node.ProtocolVersioner
 import co.topl.node.models.{BlockBody, FullBlock}
 import co.topl.typeclasses.implicits._
@@ -92,7 +91,7 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       lockAddress <- readLockAddress
       quantity    <- readStakerQuantity
       initializer = StakerInitializers.Operator(
-        Sized.strictUnsafe(ByteString.copyFrom(seed)),
+        seed,
         (appConfig.bifrost.protocols(0).kesKeyHours, appConfig.bifrost.protocols(0).kesKeyMinutes),
         lockAddress
       )
@@ -227,12 +226,17 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       )
     } yield ()
 
-  private def outro(dir: Path): StageResultT[F, Unit] =
+  private def outro(dir: Path, genesisId: BlockId): StageResultT[F, Unit] =
     writeMessage[F](s"The testnet has been initialized.") >> writeMessage[F](
       s"Each of the stakers in ${dir / "stakers"} should be copied to the corresponding node/machine."
     ) >> writeMessage[F](
-      s"The directory ${dir / "genesis"} can either be referenced in the application setting `bifrost.big-bang.source-path`, or it can be uploaded to GitHub."
-    )
+      s"The node should also be reconfigured such that by adding the following lines to your YAML config:"
+    ) >>
+    writeMessage[F]("bifrost:") >>
+    writeMessage[F]("  big-bang:") >>
+    writeMessage[F]("    type: public") >>
+    writeMessage[F](s"   genesis-id: ${genesisId.show}") >>
+    writeMessage[F](s"   source-path: ${dir / "genesis"}")
 
   val command: StageResultT[F, Unit] =
     for {
@@ -262,7 +266,7 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
         val name = staker.initializer.stakingAddress.show
         saveStaker(outputDirectory / "stakers", name)(staker)
       }
-      _ <- outro(outputDirectory)
+      _ <- outro(outputDirectory, genesisBlock.header.id)
     } yield ()
 }
 

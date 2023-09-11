@@ -121,6 +121,10 @@ object Dependencies {
     "org.http4s" %% "http4s-dsl"          % http4sVersion
   )
 
+  val http4sServer = http4s ++ Seq(
+    "org.http4s" %% "http4s-ember-server" % http4sVersion
+  )
+
   val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
   val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
   val quivr4s = "co.topl"        %% "quivr4s"    % bramblScVersion
@@ -152,6 +156,9 @@ object Dependencies {
     mUnitTestBase ++
     Seq(grpcServices) ++
     http4s
+
+  val nodeIt =
+    http4sServer.map(_ % Test)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
