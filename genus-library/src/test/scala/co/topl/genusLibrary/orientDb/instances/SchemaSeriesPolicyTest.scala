@@ -2,19 +2,18 @@ package co.topl.genusLibrary.orientDb.instances
 
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
-import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
+import co.topl.brambl.models.Event.SeriesPolicy
 import co.topl.brambl.models.TransactionOutputAddress
-import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, seriesPolicyAsSeriesPolicySyntaxOps}
+import co.topl.brambl.syntax.seriesPolicyAsSeriesPolicySyntaxOps
 import co.topl.genusLibrary.DbFixtureUtilV2
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.SchemaSeriesPolicy.Field
-import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{groupPolicySchema, seriesPolicySchema}
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.seriesPolicySchema
 import co.topl.models.ModelGenerators.GenHelper
 import com.orientechnologies.orient.core.metadata.schema.OType
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import scala.jdk.CollectionConverters._
-import shapeless.syntax.std.tuple.unitTupleOps
 
 class SchemaSeriesPolicyTest
     extends CatsEffectSuite
