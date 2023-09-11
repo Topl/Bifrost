@@ -6,21 +6,21 @@ import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.Event.GroupPolicy
 import co.topl.brambl.models.{GroupId, SeriesId, TransactionOutputAddress}
 import co.topl.genus.services._
-import co.topl.genusLibrary.algebras.ValueFetcherAlgebra
+import co.topl.genusLibrary.algebras.TokenFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import io.grpc.{Metadata, StatusException}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
-class GrpcValueServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GrpcTokenServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   test("getGroupPolicy: Exceptions") {
     PropF.forAllF { (id: GroupId) =>
       withMock {
-        val fetcher = mock[ValueFetcherAlgebra[F]]
-        val underTest = new GrpcValueService[F](fetcher)
+        val fetcher = mock[TokenFetcherAlgebra[F]]
+        val underTest = new GrpcTokenService[F](fetcher)
 
         (fetcher.fetchGroupPolicy _)
           .expects(id)
@@ -40,8 +40,8 @@ class GrpcValueServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test("getGroupPolicy: Not Found") {
     PropF.forAllF { (id: GroupId) =>
       withMock {
-        val fetcher = mock[ValueFetcherAlgebra[F]]
-        val underTest = new GrpcValueService[F](fetcher)
+        val fetcher = mock[TokenFetcherAlgebra[F]]
+        val underTest = new GrpcTokenService[F](fetcher)
 
         (fetcher.fetchGroupPolicy _)
           .expects(id)
@@ -60,8 +60,8 @@ class GrpcValueServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test("getGroupPolicy: Ok") {
     PropF.forAllF { (id: GroupId, seriesId: SeriesId, address: TransactionOutputAddress) =>
       withMock {
-        val fetcher = mock[ValueFetcherAlgebra[F]]
-        val underTest = new GrpcValueService[F](fetcher)
+        val fetcher = mock[TokenFetcherAlgebra[F]]
+        val underTest = new GrpcTokenService[F](fetcher)
 
         val groupPolicy = GroupPolicy("fooboo", address, Some(seriesId))
 

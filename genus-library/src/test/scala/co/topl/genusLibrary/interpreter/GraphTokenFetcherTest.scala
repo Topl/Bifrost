@@ -13,7 +13,7 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
-class GraphValueFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class GraphTokenFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
@@ -34,9 +34,9 @@ class GraphValueFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite w
                 .asLeft[Option[Vertex]]
                 .pure[F]
             )
-          graphValueFetcher <- GraphValueFetcher.make[F](vertexFetcher)
+          tokenFetcher <- GraphTokenFetcher.make[F](vertexFetcher)
           _ <- assertIO(
-            graphValueFetcher.fetchGroupPolicy(groupId),
+            tokenFetcher.fetchGroupPolicy(groupId),
             (GEs.InternalMessageCause("GraphVertexFetcher:fetchGroupPolicy", expectedTh): GE)
               .asLeft[Option[GroupPolicy]]
           ).toResource
@@ -90,8 +90,8 @@ class GraphValueFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite w
             .once()
             .returning(groupPolicy.fixedSeries.map(_.value.toByteArray).getOrElse(Array.empty[Byte]))
 
-          graphValueFetcher <- GraphValueFetcher.make[F](vertexFetcher)
-          _ <- assertIO(graphValueFetcher.fetchGroupPolicy(groupId), Some(groupPolicy).asRight[GE]).toResource
+          tokenFetcher <- GraphTokenFetcher.make[F](vertexFetcher)
+          _            <- assertIO(tokenFetcher.fetchGroupPolicy(groupId), Some(groupPolicy).asRight[GE]).toResource
         } yield ()
 
         res.use_

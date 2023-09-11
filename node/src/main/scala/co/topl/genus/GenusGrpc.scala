@@ -9,8 +9,8 @@ import co.topl.algebras.ToplGenusRpc
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.{
   BlockFetcherAlgebra,
+  TokenFetcherAlgebra,
   TransactionFetcherAlgebra,
-  ValueFetcherAlgebra,
   VertexFetcherAlgebra
 }
 import fs2.grpc.syntax.all._
@@ -65,13 +65,13 @@ object GenusGrpc {
       blockFetcher:       BlockFetcherAlgebra[F],
       transactionFetcher: TransactionFetcherAlgebra[F],
       vertexFetcher:      VertexFetcherAlgebra[F],
-      valueFetcher:       ValueFetcherAlgebra[F]
+      valueFetcher:       TokenFetcherAlgebra[F]
     ): Resource[F, List[ServerServiceDefinition]] =
       List(
         BlockServiceFs2Grpc.bindServiceResource(new GrpcBlockService(blockFetcher)),
         TransactionServiceFs2Grpc.bindServiceResource(new GrpcTransactionService(transactionFetcher)),
         NetworkMetricsServiceFs2Grpc.bindServiceResource(new GrpcNetworkMetricsService(vertexFetcher)),
-        ValueServiceFs2Grpc.bindServiceResource(new GrpcValueService(valueFetcher))
+        TokenServiceFs2Grpc.bindServiceResource(new GrpcTokenService(valueFetcher))
       ).sequence
 
   }

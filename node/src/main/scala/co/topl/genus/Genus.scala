@@ -21,7 +21,7 @@ case class Genus[F[_], S[_]](
   blockFetcher:       BlockFetcherAlgebra[F],
   blockUpdater:       BlockUpdaterAlgebra[F],
   transactionFetcher: TransactionFetcherAlgebra[F],
-  valueFetcher:       ValueFetcherAlgebra[F]
+  valueFetcher:       TokenFetcherAlgebra[F]
 )
 
 object Genus {
@@ -52,7 +52,7 @@ object Genus {
       blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
       graphBlockUpdater  <- GraphBlockUpdater.make[F](dbTx, blockFetcher, nodeBlockFetcher)
       transactionFetcher <- GraphTransactionFetcher.make(vertexFetcher)
-      valueFetcher       <- GraphValueFetcher.make(vertexFetcher)
+      valueFetcher       <- GraphTokenFetcher.make(vertexFetcher)
     } yield Genus(
       rpcInterpreter,
       nodeBlockFetcher,

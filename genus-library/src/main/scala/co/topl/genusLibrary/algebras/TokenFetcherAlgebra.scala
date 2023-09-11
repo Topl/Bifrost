@@ -9,7 +9,7 @@ import co.topl.genusLibrary.model.GE
  * Value: LVL, TOPL, Asset, Group, Series,..
  * @tparam F the effect-ful context to retrieve the value in
  */
-trait ValueFetcherAlgebra[F[_]] {
+trait TokenFetcherAlgebra[F[_]] {
 
   /**
    * Fetch Group Policy
