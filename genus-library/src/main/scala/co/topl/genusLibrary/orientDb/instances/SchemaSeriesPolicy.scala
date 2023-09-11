@@ -63,7 +63,6 @@ object SchemaSeriesPolicy {
             val bytes = v(Field.PermanentMetadataScheme): Array[Byte]
             Option.when(bytes.nonEmpty)(Struct.parseFrom(bytes))
           }
-
         )
     )
 
