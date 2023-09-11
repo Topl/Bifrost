@@ -105,8 +105,7 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       otherStakers <- List
         .empty[StakerInitializerWithQuantity]
         .tailRecM(current =>
-          writeMessage[F]("Add another staker? [ y | N ]") >>
-          readLowercasedInput[F].flatMap {
+          readLowercasedChoice("Add another staker?")(List("y", "n"), "n".some).flatMap {
             case "y"      => readStaker.map(current.appended).map(_.asLeft[List[StakerInitializerWithQuantity]])
             case "n" | "" => StageResultT.liftF(current.asRight[List[StakerInitializerWithQuantity]].pure[F])
             case _        => writeMessage[F]("Invalid input").as(current.asLeft[List[StakerInitializerWithQuantity]])
