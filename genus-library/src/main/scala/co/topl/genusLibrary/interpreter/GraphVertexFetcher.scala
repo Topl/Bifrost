@@ -2,7 +2,7 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.implicits._
-import co.topl.brambl.models.{GroupId, LockAddress, TransactionId, TransactionOutputAddress}
+import co.topl.brambl.models.{GroupId, LockAddress, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services._
@@ -15,6 +15,7 @@ import co.topl.genusLibrary.orientDb.instances.{
   SchemaGroupPolicy,
   SchemaIoTransaction,
   SchemaLockAddress,
+  SchemaSeriesPolicy,
   SchemaTxo
 }
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
@@ -280,6 +281,20 @@ object GraphVertexFetcher {
             ).toEither
               .map(_.headOption)
               .leftMap[GE](th => GEs.InternalMessageCause("GraphVertexFetcher:fetchGroupPolicy", th))
+          )
+
+        def fetchSeriesPolicy(seriesId: SeriesId): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaSeriesPolicy.Field.SeriesPolicyId,
+                  seriesId.value.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](th => GEs.InternalMessageCause("GraphVertexFetcher:fetchSeriesPolicy", th))
           )
 
       }

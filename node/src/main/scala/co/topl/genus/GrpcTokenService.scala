@@ -4,7 +4,6 @@ import cats.data.EitherT
 import cats.effect.kernel.Async
 import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.TokenFetcherAlgebra
-import co.topl.genusLibrary.model.GEs
 import io.grpc.Metadata
 
 class GrpcTokenService[F[_]: Async](
@@ -18,5 +17,8 @@ class GrpcTokenService[F[_]: Async](
       .adaptErrorsToGrpc
 
   override def getSeriesPolicy(request: QueryBySeriesIdRequest, ctx: Metadata): F[SeriesPolicyResponse] =
-    Async[F].raiseError[SeriesPolicyResponse](GEs.UnImplemented).adaptErrorsToGrpc
+    EitherT(tokenFetcherAlgebra.fetchSeriesPolicy(request.seriesId))
+      .map(SeriesPolicyResponse(_))
+      .rethrowT
+      .adaptErrorsToGrpc
 }

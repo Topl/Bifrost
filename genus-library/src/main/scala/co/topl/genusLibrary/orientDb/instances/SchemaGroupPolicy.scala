@@ -11,7 +11,7 @@ import com.google.protobuf.ByteString
 object SchemaGroupPolicy {
 
   /**
-   * SchemaGroupPolicy model:
+   * Group Policy model:
    *
    * @see https://github.com/Topl/protobuf-specs/blob/main/proto/brambl/models/event.proto#L61
    */
