@@ -7,9 +7,12 @@ import cats.Eval
 import cats.Now
 import co.topl.algebras.ToplGenusRpc
 import co.topl.genus.services._
-import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
-import co.topl.genusLibrary.algebras.TransactionFetcherAlgebra
-import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
+import co.topl.genusLibrary.algebras.{
+  BlockFetcherAlgebra,
+  TransactionFetcherAlgebra,
+  ValueFetcherAlgebra,
+  VertexFetcherAlgebra
+}
 import fs2.grpc.syntax.all._
 import io.grpc.Metadata
 import io.grpc.ServerServiceDefinition
@@ -61,12 +64,14 @@ object GenusGrpc {
     def services[F[_]: Async](
       blockFetcher:       BlockFetcherAlgebra[F],
       transactionFetcher: TransactionFetcherAlgebra[F],
-      vertexFetcher:      VertexFetcherAlgebra[F]
+      vertexFetcher:      VertexFetcherAlgebra[F],
+      valueFetcher:       ValueFetcherAlgebra[F]
     ): Resource[F, List[ServerServiceDefinition]] =
       List(
         BlockServiceFs2Grpc.bindServiceResource(new GrpcBlockService(blockFetcher)),
         TransactionServiceFs2Grpc.bindServiceResource(new GrpcTransactionService(transactionFetcher)),
-        NetworkMetricsServiceFs2Grpc.bindServiceResource(new GrpcNetworkMetricsService(vertexFetcher))
+        NetworkMetricsServiceFs2Grpc.bindServiceResource(new GrpcNetworkMetricsService(vertexFetcher)),
+        ValueServiceFs2Grpc.bindServiceResource(new GrpcValueService(valueFetcher))
       ).sequence
 
   }

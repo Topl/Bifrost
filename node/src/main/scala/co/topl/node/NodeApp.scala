@@ -262,7 +262,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               definitions <- GenusGrpc.Server.services(
                 genus.blockFetcher,
                 genus.transactionFetcher,
-                genus.vertexFetcher
+                genus.vertexFetcher,
+                genus.valueFetcher
               )
             } yield definitions
           )
