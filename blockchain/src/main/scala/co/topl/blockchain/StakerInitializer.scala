@@ -79,11 +79,13 @@ object StakerInitializers {
      * Create an Operator Staker using the given seed and KES configuration
      * @param seed 32 bytes of seed data
      * @param kesKeyHeight KES Key Height
+     * @param lockAddress The LockAddress which can spend the staker's registration
      * @return an Operator Staker
      */
     def apply(
       seed:         Sized.Strict[Bytes, Lengths.`32`.type],
-      kesKeyHeight: (Int, Int)
+      kesKeyHeight: (Int, Int),
+      lockAddress:  LockAddress
     ): Operator = {
       // NOTE: To avoid SK collisions, each SK generated below is from
       // the hash of the given seed appended with a byte suffix
@@ -95,8 +97,6 @@ object StakerInitializers {
         )
         .signingKey
         .bytes
-
-      val spendingLockAddress = PrivateTestnet.HeightLockOneSpendingAddress
 
       val (vrfSK, _) =
         Ed25519VRF
@@ -111,7 +111,7 @@ object StakerInitializers {
       )
       Operator(
         ByteString.copyFrom(operatorSK),
-        spendingLockAddress,
+        lockAddress,
         ByteString.copyFrom(vrfSK),
         kesSK
       )
