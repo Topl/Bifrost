@@ -6,9 +6,9 @@ import cats.effect.std.{Console, SecureRandom}
 import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.blockchain.{BigBang, PrivateTestnet, StakerInitializers, StakingInit}
-import co.topl.brambl.models.{Datum, Event}
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, UnspentTransactionOutput}
+import co.topl.brambl.models.{Datum, Event}
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig
@@ -201,12 +201,33 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       .liftF(Sync[F].delay(block.header.id.show))
       .flatMap(stringifiedHeaderId =>
         writeFile[F](dir)(block.header.toByteArray)("Genesis Header", s"$stringifiedHeaderId.header.pbuf") >>
-        writeFile[F](dir)(
-          BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id)).toByteArray
-        )("Genesis Body", s"$stringifiedHeaderId.body.pbuf") >>
+        writeFile[F](dir)(block.header.toProtoString.getBytes(StandardCharsets.UTF_8))(
+          "Genesis Header (Proto String)",
+          s"$stringifiedHeaderId.header.pstring"
+        ) >>
+        StageResultT
+          .liftF(
+            Sync[F].delay(
+              BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))
+            )
+          )
+          .flatMap(body =>
+            writeFile[F](dir)(body.toByteArray)("Genesis Body", s"$stringifiedHeaderId.body.pbuf") >>
+            writeFile[F](dir)(body.toProtoString.getBytes(StandardCharsets.UTF_8))(
+              "Genesis Body (Proto String)",
+              s"$stringifiedHeaderId.body.pstring"
+            )
+          ) >>
         (block.fullBody.transactions ++ block.fullBody.rewardTransaction).traverse { tx =>
           val stringifiedTxId = tx.id.show
-          writeFile[F](dir)(tx.toByteArray)(s"Transaction $stringifiedTxId", s"$stringifiedTxId.transaction.pbuf")
+          writeFile[F](dir)(tx.toByteArray)(
+            s"Transaction $stringifiedTxId",
+            s"$stringifiedTxId.transaction.pbuf"
+          ) >>
+          writeFile[F](dir)(tx.toProtoString.getBytes(StandardCharsets.UTF_8))(
+            s"Transaction $stringifiedTxId (Proto String)",
+            s"$stringifiedTxId.transaction.pstring"
+          )
         }
       )
 
