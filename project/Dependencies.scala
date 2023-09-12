@@ -2,15 +2,15 @@ import sbt._
 
 object Dependencies {
 
-  val circeVersion = "0.14.5"
+  val circeVersion = "0.14.6"
   val kamonVersion = "2.6.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.1"
-  val fs2Version = "3.8.0"
+  val fs2Version = "3.9.1"
   val logback = "1.4.11"
   val orientDbVersion = "3.2.22"
-  val ioGrpcVersion = "1.57.2"
+  val ioGrpcVersion = "1.58.0"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha4+3-ee5641bf-SNAPSHOT" // scala-steward:off // requires release, commit on main
   val bramblScVersion = "2.0.0-alpha4+8-1e327270-SNAPSHOT" // scala-steward:off // TODO requires release, commit on main
@@ -22,7 +22,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.7",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.9",
     catsSlf4j
   )
 
@@ -35,7 +35,7 @@ object Dependencies {
   val scalamock = scalamockBase        % Test
 
   val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.16" % "test",
+    "org.scalatest"    %% "scalatest"                     % "3.2.17" % "test",
     "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
     "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
     scalamock
