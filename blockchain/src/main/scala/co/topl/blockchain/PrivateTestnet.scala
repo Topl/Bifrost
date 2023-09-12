@@ -14,7 +14,6 @@ import co.topl.consensus.models.ProtocolVersion
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility._
 import co.topl.numerics.implicits._
 import com.google.protobuf.ByteString
@@ -46,7 +45,7 @@ object PrivateTestnet {
           ByteString.copyFrom(BigInt(timestamp).toByteArray).concat(ByteString.copyFrom(BigInt(index).toByteArray))
         )
       )
-      .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9), HeightLockOneSpendingAddress))
+      .map(bytes => StakerInitializers.Operator(bytes, (9, 9), HeightLockOneSpendingAddress))
   }
 
   def defaultStake(stakerCount: Int): BigInt = Ratio(DefaultTotalStake, stakerCount).round

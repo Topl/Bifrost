@@ -14,10 +14,14 @@ trait P2PServer[F[_]] {
 sealed abstract class PeerConnectionChange
 
 object PeerConnectionChanges {
-  case class InboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange
+
+  case class InboundConnectionInitializing(remoteAddress: RemoteAddress, localAddress: RemoteAddress)
+      extends PeerConnectionChange
+
   case class OutboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange
 
-  case class ConnectionEstablished(connectedPeer: ConnectedPeer) extends PeerConnectionChange
+  case class ConnectionEstablished(connectedPeer: ConnectedPeer, localAddress: RemoteAddress)
+      extends PeerConnectionChange
 
   case class ConnectionClosed(connectedPeer: ConnectedPeer, reason: Option[Throwable]) extends PeerConnectionChange
 }

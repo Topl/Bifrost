@@ -659,7 +659,8 @@ lazy val nodeIt = project
   .settings(
     name := "node-it",
     commonSettings,
-    crossScalaVersions := Seq(scala213)
+    crossScalaVersions := Seq(scala213),
+    libraryDependencies ++= Dependencies.nodeIt
   )
   .dependsOn(
     node,

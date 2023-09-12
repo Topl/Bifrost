@@ -3,25 +3,38 @@ package co.topl.node
 import cats.data.OptionT
 import cats.effect._
 import cats.effect.implicits._
-import cats.effect.std.Random
-import cats.effect.std.SecureRandom
+import cats.effect.std.{Random, SecureRandom}
 import cats.implicits._
-import co.topl.algebras.NodeRpc
-import co.topl.algebras.SynchronizationTraversalSteps
+import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
+import co.topl.blockchain.{BigBang, PrivateTestnet, StakerInitializers, StakingInit}
 import co.topl.brambl.models._
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.transaction.{IoTransaction, UnspentTransactionOutput}
 import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.BlockId
-import co.topl.models.utility._
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
-import co.topl.transactiongenerator.interpreters.Fs2TransactionGenerator
-import co.topl.transactiongenerator.interpreters.ToplRpcWalletInitializer
+import co.topl.models.utility._
+import co.topl.node.models.{BlockBody, FullBlock}
+import co.topl.node.ApplicationConfigOps._
+import co.topl.numerics.implicits._
+import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
+import co.topl.typeclasses.implicits._
+import com.comcast.ip4s.Port
 import fs2._
-import fs2.io.file.Files
-import fs2.io.file.Path
+import fs2.io.file.{Files, Path}
 import munit._
+import org.http4s._
+import org.http4s.dsl.io._
+import org.http4s.ember.server._
+import org.http4s.server.Router
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import pureconfig.ConfigSource
+import pureconfig.generic.auto._
+import quivr.models.Int128
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
@@ -39,8 +52,7 @@ class NodeAppTest extends CatsEffectSuite {
     val targetProductionHeight = 10
     // All of the nodes should agree on the same block at this height
     val targetConsensusHeight = 8
-    val startTimestamp = System.currentTimeMillis() + 20_000L
-    def configNodeA(dataDir: Path, stakingDir: Path) =
+    def configNodeA(dataDir: Path, stakingDir: Path, genesisBlockId: BlockId, genesisSourcePath: String) =
       s"""
          |bifrost:
          |  data:
@@ -55,15 +67,16 @@ class NodeAppTest extends CatsEffectSuite {
          |  rpc:
          |    bind-port: 9151
          |  big-bang:
-         |    staker-count: 2
-         |    timestamp: $startTimestamp
+         |    type: public
+         |    genesis-id: ${genesisBlockId.show}
+         |    source-path: $genesisSourcePath
          |  protocols:
          |    0:
          |      slot-duration: 500 milli
          |genus:
          |  enable: true
          |""".stripMargin
-    def configNodeB(dataDir: Path, stakingDir: Path) =
+    def configNodeB(dataDir: Path, stakingDir: Path, genesisBlockId: BlockId, genesisSourcePath: String) =
       s"""
          |bifrost:
          |  data:
@@ -79,9 +92,9 @@ class NodeAppTest extends CatsEffectSuite {
          |  rpc:
          |    bind-port: 9153
          |  big-bang:
-         |    staker-count: 2
-         |    local-staker-index: 1
-         |    timestamp: $startTimestamp
+         |    type: public
+         |    genesis-id: ${genesisBlockId.show}
+         |    source-path: $genesisSourcePath
          |  protocols:
          |    0:
          |      slot-duration: 500 milli
@@ -91,11 +104,30 @@ class NodeAppTest extends CatsEffectSuite {
 
     val resource =
       for {
-        configFileA <- (Files.forAsync[F].tempDirectory, Files.forAsync[F].tempDirectory)
-          .mapN(configNodeA)
+        testnetConfig     <- createTestnetConfig.toResource
+        genesisServerPort <- serveGenesisBlock(testnetConfig.genesis)
+        genesisSourcePath = s"http://localhost:$genesisServerPort/${testnetConfig.genesis.header.id.show}"
+        configFileA <- (
+          Files.forAsync[F].tempDirectory,
+          Files
+            .forAsync[F]
+            .tempDirectory
+            .evalTap(saveStaker(_)(testnetConfig.stakers(0)._1, testnetConfig.stakers(0)._2))
+        ).tupled
+          .map { case (dataDir, stakingDir) =>
+            configNodeA(dataDir, stakingDir, testnetConfig.genesis.header.id, genesisSourcePath)
+          }
           .flatMap(saveLocalConfig(_, "nodeA"))
-        configFileB <- (Files.forAsync[F].tempDirectory, Files.forAsync[F].tempDirectory)
-          .mapN(configNodeB)
+        configFileB <- (
+          Files.forAsync[F].tempDirectory,
+          Files
+            .forAsync[F]
+            .tempDirectory
+            .evalTap(saveStaker(_)(testnetConfig.stakers(1)._1, testnetConfig.stakers(1)._2))
+        ).tupled
+          .map { case (dataDir, stakingDir) =>
+            configNodeB(dataDir, stakingDir, testnetConfig.genesis.header.id, genesisSourcePath)
+          }
           .flatMap(saveLocalConfig(_, "nodeB"))
         _          <- launch(configFileA)
         _          <- launch(configFileB)
@@ -153,6 +185,68 @@ class NodeAppTest extends CatsEffectSuite {
         _ <- IO(idsAtTargetHeight.toSet.size == 1).assert.toResource
       } yield ()
     resource.use_
+  }
+
+  private def createTestnetConfig: F[TestnetConfig] =
+    for {
+      random <- SecureRandom.javaSecuritySecureRandom[F]
+      createStaker = random
+        .nextBytes(32)
+        .map(seed => StakerInitializers.Operator(seed, (9, 9), PrivateTestnet.HeightLockOneSpendingAddress))
+      staker0 <- createStaker
+      staker1 <- createStaker
+      unstakedTopl = UnspentTransactionOutput(
+        PrivateTestnet.HeightLockOneSpendingAddress,
+        Value.defaultInstance.withTopl(Value.TOPL(1_000_000L))
+      )
+      lvl = UnspentTransactionOutput(
+        PrivateTestnet.HeightLockOneSpendingAddress,
+        Value.defaultInstance.withLvl(Value.LVL(1_000_000L))
+      )
+      timestamp <- Async[F].realTime.map(_.plus(20.seconds).toMillis)
+    } yield TestnetConfig(timestamp, List(staker0 -> 500_000L, staker1 -> 500_000L), List(unstakedTopl), List(lvl))
+
+  /**
+   * Launches an HTTP server which mimics the behavior of serving a genesis block from GitHub
+   * @param genesis the block to serve
+   * @return the localhost port number upon which the HTTP server is bound.  The port is randomly created based
+   *         on host availability.
+   */
+  private def serveGenesisBlock(genesis: FullBlock): Resource[F, Int] =
+    for {
+      genesisId <- Sync[F].delay(genesis.header.id).toResource
+      genesisIdStr = genesisId.show
+      files = Map(
+        s"$genesisIdStr.header.pbuf" -> genesis.header.toByteArray,
+        s"$genesisIdStr.body.pbuf" -> BlockBody(
+          genesis.fullBody.transactions.map(_.id),
+          genesis.fullBody.rewardTransaction.map(_.id)
+        ).toByteArray
+      ) ++ genesis.fullBody.transactions.map(tx => s"${tx.id.show}.transaction.pbuf" -> tx.toByteArray)
+      routes =
+        HttpRoutes.of[F] { case GET -> Root / `genesisIdStr` / fileName =>
+          files.get(fileName).fold(NotFound())(Ok(_))
+        }
+      server <- EmberServerBuilder
+        .default[F]
+        .withPort(Port.fromInt(0).get)
+        .withHttpApp(Router("/" -> routes).orNotFound)
+        .build
+      port = server.address.getPort
+    } yield port
+
+  private def saveStaker(dir: Path)(staker: StakerInitializers.Operator, quantity: Int128) = {
+    def saveFile(name: String, data: Array[Byte]) =
+      Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(dir / name)).compile.drain
+
+    saveFile(StakingInit.OperatorKeyName, staker.operatorSK.toByteArray) *>
+    saveFile(StakingInit.VrfKeyName, staker.vrfSK.toByteArray) *>
+    Files.forAsync[F].createDirectories(dir / StakingInit.KesDirectoryName) *>
+    saveFile(
+      s"${StakingInit.KesDirectoryName}/0",
+      co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey.persistedBytes(staker.kesSK).toByteArray
+    ) *>
+    saveFile(StakingInit.RegistrationTxName, staker.registrationTransaction(quantity).toByteArray)
   }
 
   private def saveLocalConfig(config: String, name: String) =
@@ -228,4 +322,33 @@ class NodeAppTest extends CatsEffectSuite {
       .compile
       .lastOrError
       .assert
+
+}
+
+case class TestnetConfig(
+  timestamp:     Long,
+  stakers:       List[(StakerInitializers.Operator, Int128)],
+  unstakedTopls: List[UnspentTransactionOutput],
+  lvls:          List[UnspentTransactionOutput]
+) {
+
+  val genesisTransactions =
+    stakers.map { case (init, quantity) => init.registrationTransaction(quantity) } :+ IoTransaction.defaultInstance
+      .withOutputs(unstakedTopls ++ lvls)
+
+  val genesis = BigBang.fromConfig(
+    BigBang.Config(
+      timestamp,
+      genesisTransactions,
+      protocolVersion = ProtocolVersioner(
+        ConfigSource.default
+          .loadOrThrow[ApplicationConfig]
+          .bifrost
+          .protocols
+          .view
+          .mapValues(_.copy(slotDuration = 500.milli))
+          .toMap
+      ).appVersion.asProtocolVersion
+    )
+  )
 }
