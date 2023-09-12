@@ -64,10 +64,10 @@ object Blockchain {
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
     for {
-      remotePeers  <- Queue.unbounded[F, DisconnectedPeer].toResource
-      closedPeers  <- Queue.unbounded[F, ConnectedPeer].toResource
-      _            <- Logger[F].info(s"Received known peers from config: $knownPeers").toResource
-      currentPeers <- Ref.of[F, Set[RemoteAddress]](Set.empty[RemoteAddress]).toResource
+      remotePeers             <- Queue.unbounded[F, DisconnectedPeer].toResource
+      peersStatusChangesTopic <- Resource.make(Topic[F, PeerConnectionChange])(_.close.void)
+      _                       <- Logger[F].info(s"Received known peers from config: $knownPeers").toResource
+      currentPeers            <- Ref.of[F, Set[RemoteAddress]](Set.empty[RemoteAddress]).toResource
       initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
       remotePeersStream <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
@@ -120,7 +120,7 @@ object Blockchain {
             networkProperties,
             clock,
             initialPeers,
-            Stream.fromQueueUnterminated[F, ConnectedPeer](closedPeers),
+            peersStatusChangesTopic,
             remotePeers.offer,
             currentPeers.set
           )
@@ -168,7 +168,7 @@ object Blockchain {
           remotePeersStream,
           clientHandler,
           peerServerF,
-          closedPeers
+          peersStatusChangesTopic
         )
       rpcInterpreter <- Resource.eval(
         ToplRpcServer.make(

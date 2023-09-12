@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.Applicative
 import cats.data.NonEmptyChain
 import cats.effect.Async
 import cats.effect.implicits.genSpawnOps
@@ -15,9 +16,9 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.KnownHostOps
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.{ConnectedPeer, RemoteAddress}
+import co.topl.networking.p2p.{PeerConnectionChange, PeerConnectionChanges, RemoteAddress}
 import co.topl.node.models.{BlockBody, KnownHost}
-import fs2.Stream
+import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 
 object NetworkManager {
@@ -42,7 +43,7 @@ object NetworkManager {
     networkProperties:           NetworkProperties,
     clock:                       ClockAlgebra[F],
     addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F],
-    closedPeers:                 Stream[F, ConnectedPeer],
+    peersStatusChangesTopic:     Topic[F, PeerConnectionChange],
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] =
     for {
@@ -100,24 +101,23 @@ object NetworkManager {
       notifier <- networkAlgebra.makeNotifier(peerManager, reputationAggregator, p2pNetworkConfig)
       _        <- Resource.liftK(notifier.sendNoWait(Notifier.Message.StartNotifications))
 
-      _ <- startDisconnectedPeersNotifier(peerManager, closedPeers)
-
+      _ <- startPeersStatusNotifier(peerManager, peersStatusChangesTopic)
     } yield peerManager
 
-  private def startDisconnectedPeersNotifier[F[_]: Async: Logger](
+  private def startPeersStatusNotifier[F[_]: Async: Logger](
     peersManager: PeersManagerActor[F],
-    closedPeers:  Stream[F, ConnectedPeer]
+    topic:        Topic[F, PeerConnectionChange]
   ): Resource[F, F[Outcome[F, Throwable, Unit]]] =
-    closedPeers
-      .map(closed =>
-        Stream.resource(
-          for {
-            _ <- Resource.liftK(Logger[F].info(s"Remote peer ${closed.remoteAddress} closing had been detected"))
-            _ <- Resource.liftK(peersManager.sendNoWait(PeersManager.Message.ClosePeer(closed.remoteAddress.host)))
-          } yield ()
-        )
-      )
-      .parJoinUnbounded
+    topic.subscribeUnbounded
+      .evalTap {
+        case PeerConnectionChanges.InboundConnectionInitializing(_, _) => Applicative[F].unit
+        case PeerConnectionChanges.OutboundConnectionInitializing(_)   => Applicative[F].unit
+        case PeerConnectionChanges.ConnectionEstablished(_, localAddress) =>
+          peersManager.sendNoWait(PeersManager.Message.updateThisPeerAddress(localAddress))
+        case PeerConnectionChanges.ConnectionClosed(connectedPeer, _) =>
+          Logger[F].info(s"Remote peer ${connectedPeer.remoteAddress} closing had been detected") >>
+          peersManager.sendNoWait(PeersManager.Message.ClosePeer(connectedPeer.remoteAddress.host))
+      }
       .compile
       .drain
       .background

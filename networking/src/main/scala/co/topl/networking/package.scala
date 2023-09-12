@@ -2,6 +2,7 @@ package co.topl
 
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.KnownHost
+import com.comcast.ip4s.{IpAddress, SocketAddress}
 
 import java.nio.ByteBuffer
 
@@ -19,5 +20,9 @@ package object networking {
 
   implicit class RemoteAddressOps(remoteAddress: RemoteAddress) {
     def asKnownHost: KnownHost = KnownHost(remoteAddress.host, remoteAddress.port)
+  }
+
+  implicit class SocketAddressOps(address: SocketAddress[IpAddress]) {
+    def asRemoteAddress: RemoteAddress = RemoteAddress(address.host.toUriString, address.port.value)
   }
 }
