@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import co.topl.brambl.models.Event.GroupPolicy
+import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
 import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
@@ -58,6 +58,9 @@ object VertexSchemaInstances {
       def addGroupPolicy(groupPolicy: GroupPolicy): OrientVertex =
         graph.addVertex(s"class:${groupPolicySchema.name}", groupPolicySchema.encode(groupPolicy).asJava)
 
+      def addSeriesPolicy(seriesPolicy: SeriesPolicy): OrientVertex =
+        graph.addVertex(s"class:${seriesPolicySchema.name}", seriesPolicySchema.encode(seriesPolicy).asJava)
+
       def getBlockHeader(blockHeader: BlockHeader): Option[Vertex] =
         graph
           .getVertices(SchemaBlockHeader.Field.BlockId, blockHeader.id.value.toByteArray)
@@ -85,6 +88,7 @@ object VertexSchemaInstances {
     private[genusLibrary] val lockAddressSchema: VertexSchema[LockAddress] = SchemaLockAddress.make()
     private[genusLibrary] val txoSchema: VertexSchema[Txo] = SchemaTxo.make()
     private[genusLibrary] val groupPolicySchema: VertexSchema[GroupPolicy] = SchemaGroupPolicy.make()
+    private[genusLibrary] val seriesPolicySchema: VertexSchema[SeriesPolicy] = SchemaSeriesPolicy.make()
 
   }
   object instances extends Instances

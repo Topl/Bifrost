@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
-import co.topl.brambl.models.Event.GroupPolicy
+import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.LockAddress
 import co.topl.consensus.models.BlockHeader
@@ -34,6 +34,10 @@ object OIndexable {
     }
 
     implicit val groupPolicy: OIndexable[GroupPolicy] = new OIndexable[GroupPolicy] {
+      override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
+    }
+
+    implicit val seriesPolicy: OIndexable[SeriesPolicy] = new OIndexable[SeriesPolicy] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
   }

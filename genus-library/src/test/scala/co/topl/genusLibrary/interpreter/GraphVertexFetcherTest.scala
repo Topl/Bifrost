@@ -3,8 +3,12 @@ package co.topl.genusLibrary.interpreter
 import cats.data.EitherT
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
-import co.topl.brambl.models.Event.GroupPolicy
-import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, ioTransactionAsTransactionSyntaxOps}
+import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
+import co.topl.brambl.syntax.{
+  groupPolicyAsGroupPolicySyntaxOps,
+  ioTransactionAsTransactionSyntaxOps,
+  seriesPolicyAsSeriesPolicySyntaxOps
+}
 import co.topl.genus.services.{BlockStats, BlockchainSizeStats, Txo, TxoState, TxoStats}
 import co.topl.genusLibrary.DbFixtureUtilV2
 import co.topl.genusLibrary.model.GE
@@ -456,6 +460,53 @@ class GraphVertexFetcherTest
       } yield ()
 
       res.use_
+  }
 
+  orientDbFixtureV2.test("On fetchSeriesPolicy, None should be returned") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        registrationUtxo <- BramblGenerator.arbitraryTransactionOutputAddress.arbitrary.first.pure[F].toResource
+        seriesPolicy = SeriesPolicy(
+          label = "fooboo",
+          tokenSupply = Some(1),
+          registrationUtxo = registrationUtxo
+        )
+        notx               <- oThread.delay(odbFactory.getNoTx).toResource
+        graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
+
+        _ <- assertIO(
+          graphVertexFetcher.fetchSeriesPolicy(seriesPolicy.computeId),
+          Option.empty[Vertex].asRight[GE]
+        ).toResource
+      } yield ()
+
+      res.use_
+  }
+
+  orientDbFixtureV2.test("On fetchSeriesPolicy, a policy should be returned") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        registrationUtxo <- BramblGenerator.arbitraryTransactionOutputAddress.arbitrary.first.pure[F].toResource
+        seriesPolicy = SeriesPolicy(
+          label = "fooboo",
+          tokenSupply = Some(1),
+          registrationUtxo = registrationUtxo
+        )
+
+        tx                 <- oThread.delay(odbFactory.getTx).toResource
+        notx               <- oThread.delay(odbFactory.getNoTx).toResource
+        graphVertexFetcher <- GraphVertexFetcher.make[F](notx)
+
+        _ <- oThread.delay {
+          tx.addSeriesPolicy(seriesPolicy)
+          tx.commit()
+          tx.shutdown()
+        }.toResource
+
+        vertex <- graphVertexFetcher.fetchSeriesPolicy(seriesPolicy.computeId).rethrow.toResource
+        _ = assert(vertex.isDefined)
+      } yield ()
+
+      res.use_
   }
 }

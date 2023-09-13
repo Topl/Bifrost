@@ -85,7 +85,8 @@ trait DbFixtureUtilV2 { self: FunSuite with CatsEffectSuite =>
           ioTransactionSchema,
           lockAddressSchema,
           txoSchema,
-          groupPolicySchema
+          groupPolicySchema,
+          seriesPolicySchema
         )
           .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
           .void

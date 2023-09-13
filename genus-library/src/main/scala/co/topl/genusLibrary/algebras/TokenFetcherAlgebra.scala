@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.brambl.models.Event.GroupPolicy
-import co.topl.brambl.models.GroupId
+import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
+import co.topl.brambl.models.{GroupId, SeriesId}
 import co.topl.genusLibrary.model.GE
 
 /**
@@ -18,5 +18,13 @@ trait TokenFetcherAlgebra[F[_]] {
    * @return a group policy
    */
   def fetchGroupPolicy(groupId: GroupId): F[Either[GE, Option[GroupPolicy]]]
+
+  /**
+   * Fetch Series Policy
+   *
+   * @param seriesId seriesId
+   * @return a series policy
+   */
+  def fetchSeriesPolicy(seriesId: SeriesId): F[Either[GE, Option[SeriesPolicy]]]
 
 }
