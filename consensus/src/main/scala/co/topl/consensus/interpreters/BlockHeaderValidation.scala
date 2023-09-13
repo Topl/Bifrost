@@ -1,9 +1,10 @@
 package co.topl.consensus.interpreters
 
 import cats.data._
+import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -37,10 +38,10 @@ object BlockHeaderValidation {
     clockAlgebra:             ClockAlgebra[F],
     blockHeaderStore:         Store[F, BlockId, BlockHeader],
     bigBangBlockId:           BlockId,
-    ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    kesProductResource:       UnsafeResource[F, KesProduct],
-    ed25519Resource:          UnsafeResource[F, Ed25519],
-    blake2b256Resource:       UnsafeResource[F, Blake2b256]
+    ed25519VRFResource:       Resource[F, Ed25519VRF],
+    kesProductResource:       Resource[F, KesProduct],
+    ed25519Resource:          Resource[F, Ed25519],
+    blake2b256Resource:       Resource[F, Blake2b256]
   ): F[BlockHeaderValidationAlgebra[F]] =
     Sync[F].delay(
       new Impl[F](
@@ -66,10 +67,10 @@ object BlockHeaderValidation {
     clockAlgebra:             ClockAlgebra[F],
     blockHeaderStore:         Store[F, BlockId, BlockHeader],
     bigBangBlockId:           BlockId,
-    ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    kesProductResource:       UnsafeResource[F, KesProduct],
-    ed25519Resource:          UnsafeResource[F, Ed25519],
-    blake2b256Resource:       UnsafeResource[F, Blake2b256]
+    ed25519VRFResource:       Resource[F, Ed25519VRF],
+    kesProductResource:       Resource[F, KesProduct],
+    ed25519Resource:          Resource[F, Ed25519],
+    blake2b256Resource:       Resource[F, Blake2b256]
   ) extends BlockHeaderValidationAlgebra[F] {
 
     def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
@@ -236,7 +237,7 @@ object BlockHeaderValidation {
     private[consensus] def vrfThresholdVerification(
       header:             BlockHeader,
       threshold:          Ratio,
-      blake2b256Resource: UnsafeResource[F, Blake2b256]
+      blake2b256Resource: Resource[F, Blake2b256]
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
         evidence <-

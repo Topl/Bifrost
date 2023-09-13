@@ -2,8 +2,8 @@ package co.topl.minting.interpreters
 
 import cats.effect.IO
 import cats.effect.IO.asyncForIO
+import co.topl.brambl.utils.CatsUnsafeResource
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._

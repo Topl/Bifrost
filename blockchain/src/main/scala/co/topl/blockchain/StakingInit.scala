@@ -85,7 +85,7 @@ object StakingInit {
         .toResource
       readFile = (p: Path) => Files.forAsync[F].readAll(p).compile.to(Chunk)
       vrfSK       <- readFile(stakingDir / VrfKeyName).map(_.toArray).toResource
-      vrfVK       <- cryptoResources.ed25519VRF.useSync(_.getVerificationKey(vrfSK)).toResource
+      vrfVK       <- cryptoResources.ed25519VRF.use(e => Sync[F].delay(e.getVerificationKey(vrfSK))).toResource
       transaction <- readFile(stakingDir / RegistrationTxName).map(_.toArray).map(IoTransaction.parseFrom).toResource
       registration <- OptionT
         .fromOption[F](transaction.outputs.headOption.flatMap(_.value.value.topl.flatMap(_.registration)))

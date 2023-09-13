@@ -1,17 +1,12 @@
 package co.topl.minting.interpreters
 
 import cats.Monad
-import cats.effect.IO
+import cats.effect._
 import cats.effect.IO.asyncForIO
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
 import co.topl.brambl.models.{LockAddress, LockId}
-import co.topl.consensus.algebras.{
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra
-}
-import co.topl.consensus.models.{EligibilityCertificate, SlotId, _}
+import co.topl.consensus.algebras._
+import co.topl.consensus.models._
 import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
@@ -98,9 +93,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               consensusState,
               etaCalculation,
               ed25519Resource = null,
-              blake2b256Resource = new UnsafeResource[F, Blake2b256] {
-                def use[Res](f: Blake2b256 => F[Res]): F[Res] = f(new Blake2b256)
-              },
+              blake2b256Resource = Resource.pure(new Blake2b256),
               vrfCalculator,
               leaderElectionValidation,
               ProtocolVersion(0, 0, 1)

@@ -76,7 +76,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       cryptoResources <- CryptoResources.make[F].toResource
       bigBangBlock    <- initializeBigBang(protocolVersion)
-      bigBangSlotData <- cryptoResources.ed25519VRF.useSync(implicit r => bigBangBlock.header.slotData).toResource
+      bigBangSlotData <- cryptoResources.ed25519VRF
+        .use(implicit r => Sync[F].delay(bigBangBlock.header.slotData))
+        .toResource
       bigBangBlockId = bigBangSlotData.slotId.blockId
       _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
 
@@ -361,7 +363,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       )
     } yield consensusDataState
 
-  private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =
+  private def makeLeaderElectionThreshold(blake2b512Resource: Resource[F, Blake2b512], vrfConfig: VrfConfig) =
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])

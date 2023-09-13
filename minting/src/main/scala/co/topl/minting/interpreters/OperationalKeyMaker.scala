@@ -46,8 +46,8 @@ object OperationalKeyMaker {
     leaderElection:              LeaderElectionValidationAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
-    kesProductResource:          UnsafeResource[F, KesProduct],
-    ed25519Resource:             UnsafeResource[F, Ed25519]
+    kesProductResource:          Resource[F, KesProduct],
+    ed25519Resource:             Resource[F, Ed25519]
   ): Resource[F, OperationalKeyMakerAlgebra[F]] =
     for {
       // Delay further initialization until the activation period starts
@@ -84,8 +84,8 @@ object OperationalKeyMaker {
     leaderElection:              LeaderElectionValidationAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
-    kesProductResource:          UnsafeResource[F, KesProduct],
-    ed25519Resource:             UnsafeResource[F, Ed25519],
+    kesProductResource:          Resource[F, KesProduct],
+    ed25519Resource:             Resource[F, Ed25519],
     stateRef:                    Ref[F, Option[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]]
   ) extends OperationalKeyMakerAlgebra[F] {
 
