@@ -12,8 +12,8 @@ object Dependencies {
   val orientDbVersion = "3.2.22"
   val ioGrpcVersion = "1.58.0"
   val http4sVersion = "0.23.23"
-  val protobufSpecsVersion = "2.0.0-alpha4+3-ee5641bf-SNAPSHOT" // scala-steward:off // requires release, commit on main
-  val bramblScVersion = "2.0.0-alpha4+8-1e327270-SNAPSHOT" // scala-steward:off // TODO requires release, commit on main
+  val protobufSpecsVersion = "2.0.0-alpha4+4-007e03f0-SNAPSHOT" // scala-steward:off // TODO requires protobuf release
+  val bramblScVersion = "2.0.0-alpha4+9-35127e53-SNAPSHOT" // scala-steward:off TODO requires bramblsc release
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -103,6 +103,8 @@ object Dependencies {
   val mainargs = Seq(
     "com.lihaoyi" %% "mainargs" % "0.5.1"
   )
+
+  val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
 
   val monocle: Seq[ModuleID] = Seq(
     "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
@@ -288,5 +290,5 @@ object Dependencies {
     mUnitTest
 
   lazy val byzantineIt: Seq[ModuleID] =
-    (mUnitTestBase :+ dockerClient).map(_ % Test)
+    (mUnitTestBase :+ dockerClient :+ fastparse).map(_ % Test)
 }
