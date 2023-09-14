@@ -2,9 +2,8 @@ package co.topl.consensus.interpreters
 
 import cats._
 import cats.data._
-import cats.effect.kernel.Sync
+import cats.effect._
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b512
@@ -49,7 +48,7 @@ object ChainSelection {
    */
   def make[F[_]: Sync](
     fetchSlotData:      BlockId => F[SlotData],
-    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
   ): ChainSelectionAlgebra[F, SlotData] =
@@ -60,7 +59,7 @@ object ChainSelection {
    */
   private class ChainSelectionImpl[F[_]: Sync](
     fetchSlotData:      BlockId => F[SlotData],
-    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
   ) extends ChainSelectionAlgebra[F, SlotData] {

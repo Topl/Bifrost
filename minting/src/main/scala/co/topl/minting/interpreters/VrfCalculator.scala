@@ -1,9 +1,7 @@
 package co.topl.minting.interpreters
 
-import cats.effect.Resource
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.models.VrfArgument
 import VrfArgument._
@@ -24,7 +22,7 @@ object VrfCalculator {
 
   def make[F[_]: Sync](
     skVrf:              ByteString,
-    ed25519VRFResource: UnsafeResource[F, Ed25519VRF],
+    ed25519VRFResource: Resource[F, Ed25519VRF],
     vrfCacheSize:       Long
   ): Resource[F, VrfCalculatorAlgebra[F]] =
     for {
@@ -51,7 +49,7 @@ object VrfCalculator {
 
   private class Impl[F[_]: Sync](
     skVrf:              ByteString,
-    ed25519VRFResource: UnsafeResource[F, Ed25519VRF],
+    ed25519VRFResource: Resource[F, Ed25519VRF],
     vrfProofsCache:     CaffeineCache[F, (Bytes, Long), ByteString],
     rhosCache:          CaffeineCache[F, (Bytes, Long), Rho]
   ) extends VrfCalculatorAlgebra[F] {
