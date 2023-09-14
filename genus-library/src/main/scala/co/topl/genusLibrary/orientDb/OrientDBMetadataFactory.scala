@@ -44,7 +44,9 @@ object OrientDBMetadataFactory {
               ioTransactionSchema,
               canonicalHeadSchema,
               lockAddressSchema,
-              txoSchema
+              txoSchema,
+              groupPolicySchema,
+              seriesPolicySchema
             )
               .traverse(createVertex(db, _))
               .void
