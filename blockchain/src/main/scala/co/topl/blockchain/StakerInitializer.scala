@@ -12,8 +12,6 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.crypto.signing.KesProduct
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.models.utility.Lengths
-import co.topl.models.utility.Sized
 import com.google.protobuf.ByteString
 import quivr.models._
 
@@ -79,11 +77,13 @@ object StakerInitializers {
      * Create an Operator Staker using the given seed and KES configuration
      * @param seed 32 bytes of seed data
      * @param kesKeyHeight KES Key Height
+     * @param lockAddress The LockAddress which can spend the staker's registration
      * @return an Operator Staker
      */
     def apply(
-      seed:         Sized.Strict[Bytes, Lengths.`32`.type],
-      kesKeyHeight: (Int, Int)
+      seed:         Array[Byte],
+      kesKeyHeight: (Int, Int),
+      lockAddress:  LockAddress
     ): Operator = {
       // NOTE: To avoid SK collisions, each SK generated below is from
       // the hash of the given seed appended with a byte suffix
@@ -91,27 +91,25 @@ object StakerInitializers {
 
       val operatorSK = new Ed25519()
         .deriveKeyPairFromSeed(
-          blake2b256.hash(seed.data.toByteArray :+ 1)
+          blake2b256.hash(seed :+ 1)
         )
         .signingKey
         .bytes
-
-      val spendingLockAddress = PrivateTestnet.HeightLockOneSpendingAddress
 
       val (vrfSK, _) =
         Ed25519VRF
           .precomputed()
           .deriveKeyPairFromSeed(
-            blake2b256.hash(seed.data.toByteArray :+ 2)
+            blake2b256.hash(seed :+ 2)
           )
       val (kesSK, _) = new KesProduct().createKeyPair(
-        seed = blake2b256.hash(seed.data.toByteArray :+ 3),
+        seed = blake2b256.hash(seed :+ 3),
         height = kesKeyHeight,
         0
       )
       Operator(
         ByteString.copyFrom(operatorSK),
-        spendingLockAddress,
+        lockAddress,
         ByteString.copyFrom(vrfSK),
         kesSK
       )

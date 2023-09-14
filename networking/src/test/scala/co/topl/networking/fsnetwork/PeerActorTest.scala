@@ -14,7 +14,7 @@ import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChai
 import co.topl.consensus.models.{BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators.GenHelper
-import co.topl.models.generators.consensus.ModelGenerators.arbitraryHeader
+import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
@@ -25,12 +25,11 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.node.models.{CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
+import co.topl.node.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.models.generators.consensus.ModelGenerators._
 
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
@@ -64,7 +63,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -119,7 +118,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -180,7 +179,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -234,7 +233,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -305,7 +304,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -399,7 +398,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -455,7 +454,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -520,7 +519,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -576,7 +575,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
@@ -637,12 +636,25 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .once()
         .returning(remoteGenesisId.some.pure[F])
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
+      (reputationAggregation.sendNoWait _)
+        .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
+        .once()
+        .returns(Applicative[F].unit)
+
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+      (blockHeaderFetcher.sendNoWait _)
+        .expects(PeerBlockHeaderFetcher.Message.StopActor)
+        .once()
+        .returns(Applicative[F].unit)
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
       (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
+      (blockBodyFetcher.sendNoWait _)
+        .expects(PeerBlockBodyFetcher.Message.StopActor)
+        .once()
+        .returns(Applicative[F].unit)
 
       PeerActor
         .makeActor(
@@ -658,8 +670,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           blockIdTree,
           headerToBodyValidation
         )
-        .use_
-        .intercept[IllegalStateException]
+        .use(_ => Applicative[F].unit)
     }
   }
 }

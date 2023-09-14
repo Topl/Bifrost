@@ -2,8 +2,7 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.{GroupId, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotId
@@ -12,7 +11,6 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
-
 import java.time.Instant
 
 trait ShowInstances {
@@ -60,6 +58,12 @@ trait ShowInstances {
 
   implicit val showBoxId: Show[TransactionOutputAddress] =
     boxId => show"${boxId.id}.outputs[${boxId.index}]"
+
+  implicit val showGroupId: Show[GroupId] =
+    g => show"g_${g.value: Bytes}"
+
+  implicit val showSeriesId: Show[SeriesId] =
+    s => show"s_${s.value: Bytes}"
 }
 
 object ShowInstances extends ShowInstances

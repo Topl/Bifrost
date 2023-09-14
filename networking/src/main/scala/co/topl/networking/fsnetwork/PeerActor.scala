@@ -1,8 +1,8 @@
 package co.topl.networking.fsnetwork
 
 import cats.data.{EitherT, NonEmptyChain, OptionT}
-import cats.effect.{Async, Concurrent, Resource}
 import cats.effect.implicits._
+import cats.effect.{Async, Concurrent, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
@@ -116,6 +116,7 @@ object PeerActor {
         hostId,
         client,
         requestsProxy,
+        peersManager,
         localChain,
         slotDataStore,
         blockIdTree
@@ -255,9 +256,9 @@ object PeerActor {
     } yield res
 
   /**
-   * Ensure that the two peers agree on a genesis block.  If not, raise an excecption.
+   * Ensure that the two peers agree on a genesis block.  If not, raise an exception.
    */
-  private def verifyGenesisAgreement[F[_]: Async](state: State[F]) =
+  private def verifyGenesisAgreement[F[_]: Async: Logger](state: State[F]): F[Unit] =
     state.client
       .getRemoteBlockIdAtHeight(1, state.genesisBlockId.some)
       .flatMap(
@@ -270,4 +271,8 @@ object PeerActor {
             )
           )
       )
+      .recoverWith { case exception =>
+        Logger[F].error(s"Remote peer provide incorrect genesis information: ${exception.getLocalizedMessage}") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectData(state.hostId))
+      }
 }

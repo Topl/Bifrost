@@ -8,6 +8,7 @@ import cats.syntax.all._
 import co.topl.actor.Actor.ActorId
 import fs2.Stream
 import fs2.concurrent.SignallingRef
+import org.typelevel.log4cats.Logger
 
 import scala.collection.immutable.ListMap
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -35,7 +36,7 @@ trait Actor[F[_], I, O] {
   /**
    * Get number unprocessed messages for that actor
    */
-  def mailboxSize: F[Int]
+  def mailboxSize(): F[Int]
 
   /**
    * Send the message without waiting for acknowledgement
@@ -100,16 +101,16 @@ object Actor {
    * @param finalize     the finalizer effect with the last state
    * @return Actor object
    */
-  def makeFull[F[_]: Concurrent, S, I, O](
+  def makeFull[F[_]: Concurrent: Logger, S, I, O](
     actorName:    String,
     initialState: S,
     createFsm:    Actor[F, I, O] => Fsm[F, S, I, O],
     finalize:     S => F[Unit]
   ): Resource[F, Actor[F, I, O]] =
     for {
-      actorRef  <- Deferred[F, Actor[F, I, O]].toResource
-      mailbox   <- Queue.unbounded[F, Option[(I, Deferred[F, O])]].toResource
-      isDeadRef <- Resource.make(Ref.of[F, Boolean](false))(_.set(true))
+      actorRef <- Deferred[F, Actor[F, I, O]].toResource
+      mailbox  <- Queue.unbounded[F, Option[(I, Deferred[F, O])]].toResource
+      isAlive  <- Resource.make(Ref.of[F, Boolean](true))(_.set(false))
       acquiredActors <-
         Resource.make(Ref.of[F, ListMap[ActorId, F[Unit]]](ListMap.empty))(_.get.flatMap(_.values.toList.sequence).void)
       stateRef <- Resource.make(Ref.of[F, S](initialState))(_.get.flatMap(finalize))
@@ -134,19 +135,28 @@ object Actor {
 
       _ <- Resource.onFinalize(mailbox.offer(none) *> processOutcome.flatMap(_.embed(Applicative[F].unit)))
 
-      throwIfDead = isDeadRef.get.flatMap(Concurrent[F].raiseWhen(_)(ActorDeadException(s"Actor: $actorName; is dead")))
       actor = new Actor[F, I, O] {
         override val name: String = actorName
 
         override val id: Int = java.util.Objects.hash(mailbox)
 
-        override def mailboxSize: F[Int] = mailbox.size
+        override def mailboxSize(): F[Int] = mailbox.size
 
         override def sendNoWait(input: I): F[Unit] =
-          throwIfDead *> Deferred[F, O].flatMap(promise => mailbox.offer((input, promise).some)).void
+          isAlive.get
+            .ifF(
+              ifTrue = Deferred[F, O].flatMap(promise => mailbox.offer((input, promise).some)).void,
+              ifFalse = Logger[F].error(s"Actor: $actorName; is dead")
+            )
+            .flatten
 
         override def send(msg: I): F[O] =
-          throwIfDead *> Deferred[F, O].flatMap(promise => mailbox.offer((msg, promise).some) *> promise.get)
+          isAlive.get
+            .ifF[F[O]](
+              ifTrue = Deferred[F, O].flatMap(promise => mailbox.offer((msg, promise).some) *> promise.get),
+              ifFalse = throw ActorDeadException(s"Actor: $actorName; is dead")
+            )
+            .flatten
 
         override def acquireActor[I2, O2](actorCreator: () => Resource[F, Actor[F, I2, O2]]): F[Actor[F, I2, O2]] =
           for {
@@ -177,7 +187,7 @@ object Actor {
    * @param finalize     the cleanup effect with the last known state
    * @return Actor object
    */
-  def makeWithFinalize[F[_]: Concurrent, S, I, O](
+  def makeWithFinalize[F[_]: Concurrent: Logger, S, I, O](
     actorName:    String,
     initialState: S,
     fsm:          Fsm[F, S, I, O],
@@ -185,14 +195,14 @@ object Actor {
   ): Resource[F, Actor[F, I, O]] =
     makeFull(actorName, initialState, (_: Actor[F, I, O]) => fsm, finalize)
 
-  def make[F[_]: Concurrent, S, I, O](
+  def make[F[_]: Concurrent: Logger, S, I, O](
     actorName:    String,
     initialState: S,
     fsm:          Fsm[F, S, I, O]
   ): Resource[F, Actor[F, I, O]] =
     makeWithFinalize(actorName, initialState, fsm, (_: S) => Concurrent[F].unit)
 
-  def makeSimple[F[_]: Concurrent, S, I, O](
+  def makeSimple[F[_]: Concurrent: Logger, S, I, O](
     actorName:    String,
     initialState: S,
     fsm:          Fsm[F, S, I, O]
@@ -211,7 +221,7 @@ object Actor {
       shutdownFunction: F[Unit],
       attemptTimeout:   FiniteDuration = 1 second
     ): F[Fiber[F, Throwable, Unit]] = {
-      def tryToShutdown(stopSignal: SignallingRef[F, Boolean]) = actor.mailboxSize.flatMap {
+      def tryToShutdown(stopSignal: SignallingRef[F, Boolean]) = actor.mailboxSize().flatMap {
         case 0 => shutdownFunction *> stopSignal.set(true)
         case _ => ().pure
       }

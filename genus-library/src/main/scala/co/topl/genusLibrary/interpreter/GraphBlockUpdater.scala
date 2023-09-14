@@ -109,6 +109,10 @@ object GraphBlockUpdater {
                     )
                   )
                   graph.addEdge(s"class:${addressTxoEdge.name}", lockAddressVertex, txoVertex, addressTxoEdge.label)
+
+                // TODO once we are able to create group-series constructor token, for each output, add here group and series vertices
+                // We are not able at this point, because it requires a specif branch on brambl, which is not merged. Related to Validator discussion
+                // see: https://topl.atlassian.net/wiki/spaces/LABS/pages/678658061/Validation+TAMv2+Transactions+-+Meeting+Fernando+Edmundo+2023-09-08
                 }
 
               }

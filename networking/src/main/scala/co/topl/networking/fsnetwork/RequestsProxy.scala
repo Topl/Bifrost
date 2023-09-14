@@ -12,10 +12,11 @@ import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyDownloadError, 
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.Message._
-import co.topl.node.models.BlockBody
-import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
+import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
+import org.typelevel.log4cats.Logger
+
 import scala.annotation.nowarn
 
 object RequestsProxy {
@@ -27,8 +28,6 @@ object RequestsProxy {
     case object GetCurrentTips extends Message
 
     case class RemoteSlotData(hostId: HostId, slotData: NonEmptyChain[SlotData]) extends Message
-
-    case class BlocksSource(sources: NonEmptyChain[(HostId, BlockId)]) extends Message
 
     case class BadKLookbackSlotData(hostId: HostId) extends Message
 
@@ -65,8 +64,7 @@ object RequestsProxy {
     headerStore:          Store[F, BlockId, BlockHeader],
     bodyStore:            Store[F, BlockId, BlockBody],
     headerRequests:       Cache[BlockId, Option[UnverifiedBlockHeader]],
-    bodyRequests:         Cache[BlockId, Option[UnverifiedBlockBody]],
-    blockSource:          Cache[BlockId, Set[HostId]]
+    bodyRequests:         Cache[BlockId, Option[UnverifiedBlockBody]]
   )
 
   type Response[F[_]] = State[F]
@@ -78,7 +76,6 @@ object RequestsProxy {
       case (state, GetCurrentTips)                              => getCurrentTips(state)
       case (state, RemoteSlotData(hostId, slotData))            => processRemoteSlotData(state, hostId, slotData)
       case (state, BadKLookbackSlotData(hostId))                => resendBadKLookbackSlotData(state, hostId)
-      case (state, BlocksSource(sources))                       => blocksSourceProcessing(state, sources)
       case (state, DownloadHeadersRequest(hostId, blockIds))    => downloadHeadersRequest(state, hostId, blockIds)
       case (state, DownloadHeadersResponse(source, response))   => downloadHeadersResponse(state, source, response)
       case (state, DownloadBodiesRequest(hostId, blockHeaders)) => downloadBodiesRequest(state, hostId, blockHeaders)
@@ -94,9 +91,7 @@ object RequestsProxy {
     headerRequests: Cache[BlockId, Option[UnverifiedBlockHeader]] =
       Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockHeader]](),
     bodyRequests: Cache[BlockId, Option[UnverifiedBlockBody]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]](),
-    blockSource: Cache[BlockId, Set[HostId]] =
-      Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
       State(
@@ -106,8 +101,7 @@ object RequestsProxy {
         headerStore,
         bodyStore,
         headerRequests,
-        bodyRequests,
-        blockSource
+        bodyRequests
       )
     val actorName = "Requests proxy actor"
     Actor.make(actorName, initialState, getFsm[F])
@@ -144,38 +138,16 @@ object RequestsProxy {
     state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BadKLookbackSlotData(source)) >>
     (state, state).pure[F]
 
-  private def blocksSourceProcessing[F[_]: Async](
-    state:   State[F],
-    sources: NonEmptyChain[(HostId, BlockId)]
-  ): F[(State[F], Response[F])] = {
-    val toSend: Seq[(HostId, Long)] =
-      sources.toList.flatMap { case (host, blockId) =>
-        val previousSource: Set[HostId] = state.blockSource.get(blockId).getOrElse(Set.empty[HostId])
-        if (previousSource.contains(host)) {
-          Option.empty[(HostId, Long)]
-        } else {
-          val newSource: Set[HostId] = previousSource + host
-          state.blockSource.put(blockId, newSource)
-          Option((host, newSource.size))
-        }
-      }
-
-    val sendMessage: NonEmptyChain[(HostId, Long)] => F[Unit] =
-      d => state.reputationAggregator.sendNoWait(ReputationAggregator.Message.BlockProvidingReputationUpdate(d))
-
-    NonEmptyChain.fromSeq(toSend).map(sendMessage).getOrElse(().pure[F]) >> (state, state).pure[F]
-  }
-
   private def downloadHeadersRequest[F[_]: Async: Logger](
     state:    State[F],
-    hostId:   HostId,
+    source:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[(State[F], Response[F])] =
     for {
       _              <- Logger[F].info(show"Get request for headers downloads $blockIds")
       idsDownloaded  <- sendAlreadyDownloadedHeadersToBlockChecker(state, blockIds)
       _              <- Logger[F].info(show"Send already downloaded header to block checker $idsDownloaded")
-      idsForDownload <- sendDownloadRequestForNewHeaders(state, hostId, blockIds)
+      idsForDownload <- sendDownloadRequestForNewHeaders(state, source, blockIds)
       _              <- Logger[F].info(show"Send request for additional block header download $idsForDownload")
       _ = saveDownloadRequestToCache(state.headerRequests, idsForDownload)
     } yield (state, state)
@@ -201,14 +173,14 @@ object RequestsProxy {
   // send block download request only for new headers
   private def sendDownloadRequestForNewHeaders[F[_]: Async](
     state:    State[F],
-    hostId:   HostId,
+    source:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[List[BlockId]] = {
     val newBlockIds = blockIds.filterNot(state.headerRequests.contains)
     NonEmptyChain
       .fromChain(newBlockIds)
       .map { blockIds =>
-        state.peersManager.sendNoWait(PeersManager.Message.BlockHeadersRequest(hostId, blockIds)) >>
+        state.peersManager.sendNoWait(PeersManager.Message.BlockHeadersRequest(source.some, blockIds)) >>
         blockIds.toList.pure[F]
       }
       .getOrElse(List.empty[BlockId].pure[F])
@@ -258,12 +230,12 @@ object RequestsProxy {
     errorsOpt match {
       case Some(errors) =>
         val reputationMessage: ReputationAggregator.Message =
-          ReputationAggregator.Message.HostProvideIncorrectBlock(source)
+          ReputationAggregator.Message.HostProvideIncorrectData(source)
 
         errors.traverse { case (id, _) =>
           reputationAggregator.sendNoWait(reputationMessage) >>
           // TODO we shall not try to download header from the same host, peer manager shall decide it
-          peersManager.sendNoWait(PeersManager.Message.BlockHeadersRequest(source, NonEmptyChain.one(id)))
+          peersManager.sendNoWait(PeersManager.Message.BlockHeadersRequest(None, NonEmptyChain.one(id)))
         }.void
 
       case None => ().pure[F]
@@ -335,7 +307,7 @@ object RequestsProxy {
     NonEmptyChain
       .fromChain(newBlockData)
       .map { blockData =>
-        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyRequest(hostId, blockData)) >>
+        state.peersManager.sendNoWait(PeersManager.Message.BlockBodyRequest(hostId.some, blockData)) >>
         blockData.map(_.id).toList.pure[F]
       }
       .getOrElse(List.empty[BlockId].pure[F])
@@ -388,12 +360,12 @@ object RequestsProxy {
 
     def processError(header: BlockHeader): F[Unit] = {
       val reputationMessage: ReputationAggregator.Message =
-        ReputationAggregator.Message.HostProvideIncorrectBlock(source)
+        ReputationAggregator.Message.HostProvideIncorrectData(source)
 
       {
         for {
           _ <- OptionT.liftF(reputationAggregator.sendNoWait(reputationMessage))
-          message = PeersManager.Message.BlockBodyRequest(source, NonEmptyChain.one(header))
+          message = PeersManager.Message.BlockBodyRequest(None, NonEmptyChain.one(header))
           _ <- OptionT.liftF(peersManager.sendNoWait(message))
         } yield ()
       }.getOrElse(())
@@ -411,7 +383,7 @@ object RequestsProxy {
     @nowarn blockId: BlockId
   ): F[(State[F], Response[F])] =
     // TODO add cache for invalid block thus no longer accept blocks with that particular id
-    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectBlock(source)) >>
+    state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectData(source)) >>
     (state, state).pure[F]
 
   // Send to block checker first available body for checking,

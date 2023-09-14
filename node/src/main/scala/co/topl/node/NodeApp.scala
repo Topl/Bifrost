@@ -168,14 +168,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           bigBangProtocol.chainSelectionSWindow
         )
       localChain <-
-        LocalChain
-          .make(
-            bigBangSlotData,
-            canonicalHeadSlotData,
-            chainSelectionAlgebra,
-            currentEventIdGetterSetters.canonicalHead.set
-          )
-          .toResource
+        LocalChain.make(
+          bigBangSlotData,
+          canonicalHeadSlotData,
+          chainSelectionAlgebra,
+          currentEventIdGetterSetters.canonicalHead.set
+        )
       mempool <- Mempool.make[F](
         currentEventIdGetterSetters.mempool.get(),
         dataStores.bodies.getOrRaise,
@@ -186,7 +184,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      staking <-
+      staking =
         OptionT
           .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
           .flatMap(
@@ -202,7 +200,23 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   cryptoResources,
                   bigBangProtocol,
                   vrfConfig,
-                  protocolVersion
+                  protocolVersion,
+                  BlockFinder
+                    .forTransactionId(dataStores.bodies.getOrRaise)(
+                      fs2.Stream
+                        .eval(localChain.head)
+                        .flatMap(head =>
+                          fs2.Stream.unfoldLoopEval(head)(previous =>
+                            if (previous.height > 1)
+                              dataStores.slotData
+                                .getOrRaise(previous.parentSlotId.blockId)
+                                .map(v => (previous.slotId.blockId, v.some))
+                            else (previous.slotId.blockId, none).pure[F]
+                          )
+                        ),
+                      fs2.Stream.force(localChain.adoptions)
+                    )(_)
+                    .flatMap(dataStores.headers.getOrRaise)
                 )
             )
           )
@@ -248,7 +262,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               definitions <- GenusGrpc.Server.services(
                 genus.blockFetcher,
                 genus.transactionFetcher,
-                genus.vertexFetcher
+                genus.vertexFetcher,
+                genus.valueFetcher
               )
             } yield definitions
           )
