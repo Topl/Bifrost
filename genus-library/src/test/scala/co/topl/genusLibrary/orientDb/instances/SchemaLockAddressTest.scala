@@ -1,18 +1,16 @@
 package co.topl.genusLibrary.orientDb.instances
 
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress.Field
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
-import co.topl.models.ModelGenerators.GenHelper
+import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.brambl.models.LockAddress
-import co.topl.brambl.codecs.AddressCodecs
 import co.topl.genusLibrary.DbFixtureUtil
+import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress.Field
+import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
+import co.topl.models.ModelGenerators.GenHelper
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-
 import scala.jdk.CollectionConverters._
 
 class SchemaLockAddressTest
@@ -22,12 +20,8 @@ class SchemaLockAddressTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Address Schema Metadata") { case (odb, oThread) =>
+  orientDbFixture.test("Address Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-      _          <- oThread.delay(dbNoTx.makeActive()).toResource
-
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
       schema = SchemaLockAddress.make()
       _ <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema).toResource
@@ -78,72 +72,69 @@ class SchemaLockAddressTest
 
   }
 
-  orientDbFixture.test("Address Schema Add vertex Lock Address") { case (odb, oThread) =>
-    val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+  orientDbFixture.test("Address Schema Add vertex Lock Address") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
 
-      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-      _      <- oThread.delay(dbNoTx.makeActive()).toResource
+        schema = SchemaLockAddress.make()
+        _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
 
-      schema = SchemaLockAddress.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
+        dbTx <- oThread.delay(odbFactory.getTx).toResource
 
-      dbTx <- oThread.delay(odbFactory.getTx).toResource
-      _    <- oThread.delay(dbTx.makeActive()).toResource
-
-      address <- BramblGens.arbitraryLockAddress.arbitrary
-        .map(lockAddress =>
-          LockAddress(
-            lockAddress.network,
-            lockAddress.ledger,
-            lockAddress.id
+        address <- BramblGens.arbitraryLockAddress.arbitrary
+          .map(lockAddress =>
+            LockAddress(
+              lockAddress.network,
+              lockAddress.ledger,
+              lockAddress.id
+            )
           )
-        )
-        .first
-        .pure[F]
-        .toResource
+          .first
+          .pure[F]
+          .toResource
 
-      vertex <- oThread
-        .delay(
-          dbTx
-            .addVertex(s"class:${schema.name}", schema.encode(address).asJava)
-        )
-        .toResource
+        vertex <- oThread
+          .delay(
+            dbTx
+              .addVertex(s"class:${schema.name}", schema.encode(address).asJava)
+          )
+          .toResource
 
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Network).head.name).pure[F],
-        address.network
-      ).toResource
+        _ <- assertIO(
+          vertex.getProperty[Int](schema.properties.filter(_.name == Field.Network).head.name).pure[F],
+          address.network
+        ).toResource
 
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Ledger).head.name).pure[F],
-        address.ledger
-      ).toResource
+        _ <- assertIO(
+          vertex.getProperty[Int](schema.properties.filter(_.name == Field.Ledger).head.name).pure[F],
+          address.ledger
+        ).toResource
 
-      _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
-        address.id.value.toByteArray.toSeq
-      ).toResource
+        _ <- assertIO(
+          vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
+          address.id.value.toByteArray.toSeq
+        ).toResource
 
-      _ <- assertIO(
-        vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
-        AddressCodecs.encodeAddress(address)
-      ).toResource
+        _ <- assertIO(
+          vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
+          AddressCodecs.encodeAddress(address)
+        ).toResource
 
-      _ <- assertIO(
-        oThread.delay(
-          dbTx
-            .getVertices(SchemaLockAddress.Field.AddressId, address.id.value.toByteArray)
-            .iterator()
-            .next()
-            .getProperty[Array[Byte]](Field.AddressId)
-            .toSeq
-        ),
-        address.id.value.toByteArray.toSeq
-      ).toResource
+        _ <- assertIO(
+          oThread.delay(
+            dbTx
+              .getVertices(SchemaLockAddress.Field.AddressId, address.id.value.toByteArray)
+              .iterator()
+              .next()
+              .getProperty[Array[Byte]](Field.AddressId)
+              .toSeq
+          ),
+          address.id.value.toByteArray.toSeq
+        ).toResource
 
-    } yield ()
-    res.use_
+      } yield ()
+      res.use_
 
   }
 

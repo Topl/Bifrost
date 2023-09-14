@@ -11,7 +11,6 @@ import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.node.models.FullBlockBody
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import fs2.Stream
 
 import java.util.concurrent.TimeUnit
@@ -37,17 +36,13 @@ class GraphBlockUpdaterFixtureTest
   override def munitTimeout: Duration =
     new FiniteDuration(10, TimeUnit.SECONDS)
 
-  orientDbFixture.test("Insert and remove genesis block") { case (odb, oThread) =>
+  orientDbFixture.test("Insert and remove genesis block") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     PropF.forAllF { (blockHeader: BlockHeader, blockBody: FullBlockBody) =>
       withMock {
         val nodeBlockFetcher = mock[NodeBlockFetcherAlgebra[F, Stream[F, *]]]
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val res = for {
-          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-          odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-          dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-          _          <- oThread.delay(dbNoTx.makeActive()).toResource
 
+        val res = for {
           databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
 
           _ <- Seq(
@@ -56,7 +51,9 @@ class GraphBlockUpdaterFixtureTest
             ioTransactionSchema,
             canonicalHeadSchema,
             lockAddressSchema,
-            txoSchema
+            txoSchema,
+            groupPolicySchema,
+            seriesPolicySchema
           )
             .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
             .void
@@ -102,6 +99,12 @@ class GraphBlockUpdaterFixtureTest
             oThread.delay(dbTx.getVerticesOfClass(ioTransactionSchema.name).asScala.isEmpty)
           ).toResource
           _ <- assertIOBoolean(oThread.delay(dbTx.getVerticesOfClass(txoSchema.name).asScala.isEmpty)).toResource
+          _ <- assertIOBoolean(
+            oThread.delay(dbTx.getVerticesOfClass(groupPolicySchema.name).asScala.isEmpty)
+          ).toResource
+          _ <- assertIOBoolean(
+            oThread.delay(dbTx.getVerticesOfClass(seriesPolicySchema.name).asScala.isEmpty)
+          ).toResource
 
         } yield ()
 

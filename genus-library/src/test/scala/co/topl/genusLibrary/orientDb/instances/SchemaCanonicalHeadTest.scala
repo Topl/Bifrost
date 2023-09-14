@@ -5,14 +5,13 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.instances.SchemaCanonicalHead.CanonicalHead
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
+import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactoryV2, OrientVertex}
+import com.tinkerpop.blueprints.impls.orient.OrientVertex
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-
 import scala.jdk.CollectionConverters._
 
 class SchemaCanonicalHeadTest
@@ -22,12 +21,8 @@ class SchemaCanonicalHeadTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Canonical Head Schema Metadata") { case (odb, oThread) =>
+  orientDbFixture.test("Canonical Head Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-      _          <- oThread.delay(dbNoTx.makeActive()).toResource
-
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
       _                  <- oThread.delay(databaseDocumentTx.activateOnCurrentThread()).toResource
 
@@ -57,12 +52,9 @@ class SchemaCanonicalHeadTest
 
   }
 
-  orientDbFixture.test("Canonical Header Schema Add vertex") { case (odb, oThread) =>
+  orientDbFixture.test("Canonical Header Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-
       dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-      _      <- oThread.delay(dbNoTx.makeActive()).toResource
 
       blockHeaderSchema = SchemaBlockHeader.make()
       rawGraph <- oThread.delay(dbNoTx.getRawGraph).toResource
@@ -73,7 +65,6 @@ class SchemaCanonicalHeadTest
       _ <- OrientDBMetadataFactory.createVertex[F](rawGraph, canonicalHeadSchema).toResource
 
       dbTx <- oThread.delay(odbFactory.getTx).toResource
-      _    <- oThread.delay(dbTx.makeActive()).toResource
 
       blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.embedId.pure[F].toResource
 

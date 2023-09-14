@@ -6,7 +6,7 @@ import com.google.protobuf.ByteString
 
 import scala.collection.immutable.ListSet
 
-class GESuite extends munit.FunSuite {
+class GETest extends munit.FunSuite {
 
   test("Genus Exception Message") {
     val msg = "boom!"

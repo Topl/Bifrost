@@ -1,52 +1,33 @@
 package co.topl.genusLibrary.orientDb.instances
 
-import cats.effect.kernel.Async
-import cats.effect.{IO, Resource}
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
 import co.topl.brambl.syntax._
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
+import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.OrientThread
+import co.topl.genusLibrary.orientDb.instances.SchemaIoTransaction.Field
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.{blockHeaderSchema, ioTransactionSchema}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphFactory, OrientVertex}
+import com.tinkerpop.blueprints.impls.orient.OrientVertex
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-import org.typelevel.log4cats.Logger
-import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import scala.jdk.CollectionConverters._
 
-class SchemaIoTransactionTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class SchemaIoTransactionTest
+    extends CatsEffectSuite
+    with ScalaCheckEffectSuite
+    with AsyncMockFactory
+    with DbFixtureUtil {
 
-  type F[A] = IO[A]
-  implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
-
-  test("IoTransaction Schema Metadata") {
-
+  orientDbFixture.test("IoTransaction Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-      orientGraphFactory                       <- Resource.pure(new OrientGraphFactory("memory:test"))
-      db <- Resource.make(orientThread.delay(orientGraphFactory.getDatabase))(db =>
-        orientThread.delay {
-          db.drop()
-          db.close()
-        }
-      )
+      dbNoTx             <- oThread.delay(odbFactory.getNoTx).toResource
+      databaseDocumentTx <- oThread.delay(dbNoTx.getRawGraph).toResource
+      oClass             <- oThread.delay(databaseDocumentTx.getClass(Field.SchemaName)).toResource
 
-      blockHeaderSchema = SchemaBlockHeader.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](db, blockHeaderSchema).toResource
-      transactionSchema = SchemaIoTransaction.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](db, transactionSchema).toResource
-
-      oClass <- Async[F].delay(db.getClass(transactionSchema.name)).toResource
-
-      _ <- assertIO(
-        oClass.getName.pure[F],
-        transactionSchema.name,
-        s"${transactionSchema.name} Class was not created"
-      ).toResource
+      _ <- assertIO(oClass.getName.pure[F], Field.SchemaName, s"${Field.SchemaName} Class was not created").toResource
 
       transactionIdProperty <- oClass.getProperty(SchemaIoTransaction.Field.TransactionId).pure[F].toResource
       _ <- (
@@ -88,65 +69,53 @@ class SchemaIoTransactionTest extends CatsEffectSuite with ScalaCheckEffectSuite
 
   }
 
-  test("Transaction and Block Header Schema Add vertex") {
-    val res = for {
-      implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-      orientGraphFactory                       <- Resource.pure(new OrientGraphFactory("memory:test"))
-      db <- Resource.make(orientThread.delay(orientGraphFactory.getDatabase))(db =>
-        orientThread.delay {
-          db.drop()
-          db.close()
-        }
-      )
+  orientDbFixture.test("Transaction and Block Header Schema Add vertex") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
 
-      blockHeaderSchema = SchemaBlockHeader.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](db, blockHeaderSchema).toResource
-      transactionSchema = SchemaIoTransaction.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](db, transactionSchema).toResource
+        dbTx        <- oThread.delay(odbFactory.getTx).toResource
+        blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
+        transaction <- BramblGenerator.arbitraryIoTransaction.arbitrary.first.pure[F].toResource
 
-      orientGraph <- orientThread.delay(orientGraphFactory.getTx).toResource
-      _           <- orientThread.delay(orientGraph.makeActive()).toResource
-      blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
-      transaction <- BramblGenerator.arbitraryIoTransaction.arbitrary.first.pure[F].toResource
-
-      blockHeaderVertex <- orientThread
-        .delay(
-          orientGraph
-            .addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(blockHeader).asJava)
-        )
-        .toResource
-
-      transactionVertex <- orientThread.delay {
-        val v = orientGraph
-          .addVertex(s"class:${transactionSchema.name}", transactionSchema.encode(transaction).asJava)
-        v.setProperty(transactionSchema.links.head.propertyName, blockHeaderVertex.getId)
-        v
-      }.toResource
-
-      _ <- assertIO(
-        transactionVertex
-          .getProperty[Array[Byte]](
-            transactionSchema.properties.filter(_.name == SchemaIoTransaction.Field.TransactionId).head.name
+        blockHeaderVertex <- oThread
+          .delay(
+            dbTx.addVertex(s"class:${blockHeaderSchema.name}", blockHeaderSchema.encode(blockHeader).asJava)
           )
-          .toSeq
-          .pure[F],
-        transaction.id.value.toByteArray.toSeq
-      ).toResource
+          .toResource
 
-      _ <- assertIO(
-        transactionVertex
-          .getProperty[Long](transactionSchema.properties.filter(_.name == SchemaIoTransaction.Field.Size).head.name)
-          .pure[F],
-        SchemaIoTransaction.size(transaction)
-      ).toResource
+        transactionVertex <- oThread.delay {
+          val v = dbTx
+            .addVertex(s"class:${ioTransactionSchema.name}", ioTransactionSchema.encode(transaction).asJava)
+          v.setProperty(ioTransactionSchema.links.head.propertyName, blockHeaderVertex.getId)
+          v
+        }.toResource
 
-      _ <- assertIO(
-        orientThread.delay(transactionVertex.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)),
-        blockHeaderVertex
-      ).toResource
+        _ <- assertIO(
+          transactionVertex
+            .getProperty[Array[Byte]](
+              ioTransactionSchema.properties.filter(_.name == SchemaIoTransaction.Field.TransactionId).head.name
+            )
+            .toSeq
+            .pure[F],
+          transaction.id.value.toByteArray.toSeq
+        ).toResource
 
-    } yield ()
-    res.use_
+        _ <- assertIO(
+          transactionVertex
+            .getProperty[Long](
+              ioTransactionSchema.properties.filter(_.name == SchemaIoTransaction.Field.Size).head.name
+            )
+            .pure[F],
+          SchemaIoTransaction.size(transaction)
+        ).toResource
+
+        _ <- assertIO(
+          oThread.delay(transactionVertex.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)),
+          blockHeaderVertex
+        ).toResource
+
+      } yield ()
+      res.use_
   }
 
 }

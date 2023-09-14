@@ -5,7 +5,7 @@ import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
 import co.topl.brambl.syntax.seriesPolicyAsSeriesPolicySyntaxOps
-import co.topl.genusLibrary.DbFixtureUtilV2
+import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.OrientThread
 import com.orientechnologies.orient.core.metadata.schema.OType
 import co.topl.genusLibrary.orientDb.instances.SchemaGroupPolicy.Field
@@ -21,9 +21,9 @@ class SchemaGroupPolicyTest
     with ScalaCheckEffectSuite
     with AsyncMockFactory
     with CatsEffectFunFixtures
-    with DbFixtureUtilV2 {
+    with DbFixtureUtil {
 
-  orientDbFixtureV2.test("GroupPolicy Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+  orientDbFixture.test("GroupPolicy Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
       dbNoTx             <- oThread.delay(odbFactory.getNoTx).toResource
       databaseDocumentTx <- oThread.delay(dbNoTx.getRawGraph).toResource
@@ -64,7 +64,7 @@ class SchemaGroupPolicyTest
 
   }
 
-  orientDbFixtureV2.test("GroupPolicy Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+  orientDbFixture.test("GroupPolicy Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
 
       dbTx          <- oThread.delay(odbFactory.getTx).toResource
