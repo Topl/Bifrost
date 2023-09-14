@@ -1,10 +1,9 @@
 package co.topl.consensus.interpreters
 
-import cats.data.NonEmptyChain
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.effect.unsafe.implicits.global
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.algebras.ClockAlgebra
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.models.BlockHeader
@@ -42,8 +41,8 @@ class EtaCalculationSpec
 
   it should "compute the eta for an epoch" in {
     val clock = mock[ClockAlgebra[F]]
-    val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
-    val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
+    val blake2b256Resource = Resource.pure[F, Blake2b256](new Blake2b256)
+    val blake2b512Resource = Resource.pure[F, Blake2b512](new Blake2b512)
     val bigBangHeader = arbitraryHeader.arbitrary.first.copy(slot = 0L, parentSlot = -1L)
 
     (() => clock.slotsPerEpoch)
@@ -105,18 +104,6 @@ class EtaCalculationSpec
       )
       .anyNumberOfTimes()
 
-    (blake2b256Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
-      .expects(*)
-      .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b256) }
-
-    (blake2b512Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]]))
-      .expects(*)
-      .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b512) }
-
     val actual =
       underTest
         .etaToBe(SlotId(blocks.last.slot, blocks.last.id), 16L)
@@ -138,8 +125,8 @@ class EtaCalculationSpec
 
   it should "compute the eta for an epoch with only a genesis block" in {
     val clock = mock[ClockAlgebra[F]]
-    val blake2b256Resource = mock[UnsafeResource[F, Blake2b256]]
-    val blake2b512Resource = mock[UnsafeResource[F, Blake2b512]]
+    val blake2b256Resource = Resource.pure[F, Blake2b256](new Blake2b256)
+    val blake2b512Resource = Resource.pure[F, Blake2b512](new Blake2b512)
     val fetchSlotData = mockFunction[BlockId, F[SlotData]]
     val bigBangHeader = arbitraryHeader.arbitrary.first.copy(slot = 0L, parentSlot = -1L)
 
@@ -164,18 +151,6 @@ class EtaCalculationSpec
       .expects(bigBangHeader.id)
       .once()
       .returning(bigBangHeader.slotData.pure[F])
-
-    (blake2b256Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]]))
-      .expects(*)
-      .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b256, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b256) }
-
-    (blake2b512Resource
-      .use[NonEmptyChain[RhoNonceHash]](_: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]]))
-      .expects(*)
-      .anyNumberOfTimes()
-      .onCall { f: Function1[Blake2b512, F[NonEmptyChain[RhoNonceHash]]] => f(new Blake2b512) }
 
     val actual =
       underTest

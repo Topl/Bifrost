@@ -52,7 +52,7 @@ object Blockchain {
     blockHeights:              EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     validators:                Validators[F],
     _mempool:                  MempoolAlgebra[F],
-    ed25519VrfResource:        UnsafeResource[F, Ed25519VRF],
+    ed25519VrfResource:        Resource[F, Ed25519VRF],
     localPeer:                 LocalPeer,
     knownPeers:                List[KnownPeer],
     rpcHost:                   String,

@@ -1,8 +1,7 @@
 package co.topl.consensus.interpreters
 
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
 import co.topl.consensus.models.VrfConfig
 import co.topl.consensus.rhoToRhoTestHash
@@ -25,7 +24,7 @@ object LeaderElectionValidation {
 
   def make[F[_]: Sync](
     config:             VrfConfig,
-    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    blake2b512Resource: Resource[F, Blake2b512],
     exp:                Exp[F],
     log1p:              Log1p[F]
   ): LeaderElectionValidationAlgebra[F] =

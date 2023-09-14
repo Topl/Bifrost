@@ -2,16 +2,16 @@ package co.topl.minting.interpreters
 
 import cats.{Applicative, Monad}
 import cats.data.Chain
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.effect.IO.asyncForIO
 import cats.implicits._
 import co.topl.algebras._
+import co.topl.brambl.utils.CatsUnsafeResource
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
-import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.OperationalKeyMakerAlgebra
 import co.topl.minting.algebras.VrfCalculatorAlgebra
 import co.topl.models.ModelGenerators._
@@ -278,7 +278,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
     parentVK:     VerificationKeyKesProduct,
     slot:         Slot,
     parentSlotId: SlotId
-  )(kesProductResource: UnsafeResource[F, KesProduct], ed25519Resource: UnsafeResource[F, Ed25519]) =
+  )(kesProductResource: Resource[F, KesProduct], ed25519Resource: Resource[F, Ed25519]) =
     for {
       out <- underTest.operationalKeyForSlot(slot, parentSlotId).map(_.get)
       _ = assert(out.slot == slot)

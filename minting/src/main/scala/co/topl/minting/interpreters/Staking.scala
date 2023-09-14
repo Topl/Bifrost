@@ -1,10 +1,8 @@
 package co.topl.minting.interpreters
 
 import cats.data.OptionT
-import cats.effect.Resource
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
 import co.topl.brambl.models.LockAddress
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -31,8 +29,8 @@ object Staking {
     operationalKeyMaker:      OperationalKeyMakerAlgebra[F],
     consensusState:           ConsensusValidationStateAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
-    ed25519Resource:          UnsafeResource[F, Ed25519],
-    blake2b256Resource:       UnsafeResource[F, Blake2b256],
+    ed25519Resource:          Resource[F, Ed25519],
+    blake2b256Resource:       Resource[F, Blake2b256],
     vrfCalculator:            VrfCalculatorAlgebra[F],
     leaderElectionValidation: LeaderElectionValidationAlgebra[F],
     protocolVersion:          ProtocolVersion
