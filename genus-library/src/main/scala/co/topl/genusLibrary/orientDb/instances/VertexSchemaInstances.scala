@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
-import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
+import co.topl.brambl.models.{GroupId, LockAddress, SeriesId, TransactionOutputAddress}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
@@ -77,6 +77,18 @@ object VertexSchemaInstances {
       def getTxo(address: TransactionOutputAddress): Option[Vertex] =
         graph
           .getVertices(SchemaTxo.Field.TxoId, address.id.value.toByteArray :+ address.index.toByte)
+          .asScala
+          .headOption
+
+      def getGroupPolicy(groupId: GroupId): Option[Vertex] =
+        graph
+          .getVertices(SchemaGroupPolicy.Field.GroupPolicyId, groupId.value.toByteArray)
+          .asScala
+          .headOption
+
+      def getSeriesPolicy(seriesId: SeriesId): Option[Vertex] =
+        graph
+          .getVertices(SchemaSeriesPolicy.Field.SeriesPolicyId, seriesId.value.toByteArray)
           .asScala
           .headOption
     }

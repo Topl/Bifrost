@@ -6,7 +6,11 @@ import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.brambl.syntax.{
+  groupPolicyAsGroupPolicySyntaxOps,
+  ioTransactionAsTransactionSyntaxOps,
+  seriesPolicyAsSeriesPolicySyntaxOps
+}
 import co.topl.typeclasses.implicits._
 import co.topl.genus.services.{BlockData, Txo, TxoState}
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockUpdaterAlgebra, NodeBlockFetcherAlgebra}
@@ -21,7 +25,6 @@ import co.topl.models.utility._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-
 import scala.util.Try
 
 object GraphBlockUpdater {
@@ -110,9 +113,16 @@ object GraphBlockUpdater {
                   )
                   graph.addEdge(s"class:${addressTxoEdge.name}", lockAddressVertex, txoVertex, addressTxoEdge.label)
 
-                // TODO once we are able to create group-series constructor token, for each output, add here group and series vertices
-                // We are not able at this point, because it requires a specif branch on brambl, which is not merged. Related to Validator discussion
-                // see: https://topl.atlassian.net/wiki/spaces/LABS/pages/678658061/Validation+TAMv2+Transactions+-+Meeting+Fernando+Edmundo+2023-09-08
+                }
+
+                ioTx.groupPolicies.map(_.event).map { policy =>
+                  if (graph.getGroupPolicy(policy.computeId).isEmpty)
+                    graph.addGroupPolicy(policy)
+                }
+
+                ioTx.seriesPolicies.map(_.event).map { policy =>
+                  if (graph.getSeriesPolicy(policy.computeId).isEmpty)
+                    graph.addSeriesPolicy(policy)
                 }
 
               }
@@ -158,6 +168,14 @@ object GraphBlockUpdater {
                   headerVertex.some
                 ).flatten.map(graph.removeVertex)
               }
+
+              block.body.allTransactions.flatMap(_.groupPolicies).map(_.event).foreach { policy =>
+                graph.getGroupPolicy(policy.computeId).foreach(graph.removeVertex)
+              }
+              block.body.allTransactions.flatMap(_.seriesPolicies).map(_.event).foreach { policy =>
+                graph.getSeriesPolicy(policy.computeId).foreach(graph.removeVertex)
+              }
+
               graph.commit()
             }.toEither
               .leftMap { th =>
