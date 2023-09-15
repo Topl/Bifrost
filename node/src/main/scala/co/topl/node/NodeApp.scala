@@ -18,6 +18,8 @@ import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
+import co.topl.grpc.HealthCheckGrpc
+import co.topl.healthcheck.HealthCheck
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.models.utility.HasLength.instances.byteStringLength
@@ -260,14 +262,21 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                     .getOrElse(dataStores.baseDirectory./("orient-db").toString),
                   appConfig.genus.orientDbPassword
                 )
+              healthCheck <- HealthCheck
+                .make[F]()
               _ <- Replicator.background(genus)
-              definitions <- GenusGrpc.Server.services(
-                genus.blockFetcher,
-                genus.transactionFetcher,
-                genus.vertexFetcher,
-                genus.valueFetcher
-              )
-            } yield definitions
+              definitions <-
+                GenusGrpc.Server.services(
+                  genus.blockFetcher,
+                  genus.transactionFetcher,
+                  genus.vertexFetcher,
+                  genus.valueFetcher
+                )
+              healthDefinitions <- HealthCheckGrpc.Server.services(
+                    healthCheck.healthChecker
+                )
+              allDefinitions = definitions ++ healthDefinitions
+            } yield allDefinitions
           )
             .recoverWith { case e =>
               Logger[F]
