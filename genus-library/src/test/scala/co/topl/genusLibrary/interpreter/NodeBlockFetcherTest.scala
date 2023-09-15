@@ -23,7 +23,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.immutable.ListSet
 
-class NodeBlockFetcherSuite extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
+class NodeBlockFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)

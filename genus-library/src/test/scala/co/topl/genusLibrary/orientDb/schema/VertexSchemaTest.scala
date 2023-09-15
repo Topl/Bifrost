@@ -2,9 +2,8 @@ package co.topl.genusLibrary.orientDb.schema
 
 import cats.implicits._
 import co.topl.genusLibrary.DbFixtureUtil
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
+import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import scala.jdk.CollectionConverters._
@@ -24,9 +23,8 @@ class VertexSchemaTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     v => TestClass(v(StringParamName): String)
   )
 
-  orientDbFixture.test("Test Schema Metadata") { case (odb, oThread) =>
+  orientDbFixture.test("Test Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
       _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema).toResource
 
@@ -44,9 +42,8 @@ class VertexSchemaTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   }
 
-  orientDbFixture.test("Test Schema Add Vertex") { case (odb, oThread) =>
+  orientDbFixture.test("Test Schema Add Vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory         <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
       _                  <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, testSchema).toResource
 
