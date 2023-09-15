@@ -9,13 +9,12 @@ import grpc.health.v1._
 import io.grpc.ServerServiceDefinition
 
 object HealthCheckGrpc {
+
   object Server {
 
-    def services[F[_] : Async](
+    def services[F[_]: Async](
       healthCheck: HealthCheckAlgebra[F, Stream[F, *]]
     ): Resource[F, List[ServerServiceDefinition]] =
-      List(
-        HealthFs2Grpc.bindServiceResource(new HealthCheckService(healthCheck))
-      ).sequence
+      List(HealthFs2Grpc.bindServiceResource(new HealthCheckService(healthCheck))).sequence
   }
 }

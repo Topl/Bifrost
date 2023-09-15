@@ -37,4 +37,7 @@ trait EqInstances {
 
   implicit val eqSlotData: Eq[SlotData] =
     Eq.fromUniversalEquals
+
+  implicit val eq: Eq[ServiceStatus] =
+    Eq.fromUniversalEquals[ServiceStatus]
 }

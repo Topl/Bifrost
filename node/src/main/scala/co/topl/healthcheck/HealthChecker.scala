@@ -4,21 +4,23 @@ import cats.{Eq, MonadThrow}
 import cats.effect.{Async, Ref, Resource}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEq, toFlatMapOps, toFunctorOps}
 import co.topl.algebras.HealthCheckAlgebra
+import co.topl.models.ServiceStatus
 import fs2.Stream
 import fs2.concurrent.SignallingRef
 import grpc.health.v1.{HealthCheckRequest, HealthCheckResponse}
-import grpc.health.v1.HealthCheckResponse.ServingStatus
+import grpc.health.v1.ServingStatus
 import io.grpc.{Status, StatusException}
 
 object HealthChecker {
-  def make[F[_] : Async](
-                          checkRef: Ref[F, Map[String, ServingStatus]],
-                          watchSignal: SignallingRef[F, Option[ServiceStatus]]
-                        ): Resource[F, HealthCheckAlgebra[F, Stream[F, *]]] =
+
+  def make[F[_]: Async](
+    checkRef:    Ref[F, Map[String, ServingStatus]],
+    watchSignal: SignallingRef[F, Option[ServiceStatus]]
+  ): Resource[F, HealthCheckAlgebra[F, Stream[F, *]]] =
     Resource.pure {
       new HealthCheckAlgebra[F, Stream[F, *]] {
 
-        private implicit val eqServingStatus: Eq[ServingStatus] =
+        implicit private val eqServingStatus: Eq[ServingStatus] =
           Eq.fromUniversalEquals
 
         private def getStatus(service: String): F[Option[ServingStatus]] =
@@ -43,7 +45,7 @@ object HealthChecker {
           (currentStatus ++ futureStatuses).changes
             .map(HealthCheckResponse(_))
             .pure[F]
-          }
+        }
       }
     }
 }
