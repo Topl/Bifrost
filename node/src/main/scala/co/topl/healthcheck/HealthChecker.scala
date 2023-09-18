@@ -1,6 +1,6 @@
 package co.topl.healthcheck
 
-import cats.{Eq, MonadThrow}
+import cats.MonadThrow
 import cats.effect.{Async, Ref, Resource}
 import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEq, toFlatMapOps, toFunctorOps}
 import co.topl.algebras.HealthCheckAlgebra
