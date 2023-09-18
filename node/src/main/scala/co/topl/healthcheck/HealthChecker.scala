@@ -10,6 +10,7 @@ import fs2.concurrent.SignallingRef
 import grpc.health.v1.{HealthCheckRequest, HealthCheckResponse}
 import grpc.health.v1.ServingStatus
 import io.grpc.{Status, StatusException}
+import co.topl.typeclasses.implicits._
 
 object HealthChecker {
 
@@ -19,9 +20,6 @@ object HealthChecker {
   ): Resource[F, HealthCheckAlgebra[F, Stream[F, *]]] =
     Resource.pure {
       new HealthCheckAlgebra[F, Stream[F, *]] {
-
-        implicit private val eqServingStatus: Eq[ServingStatus] =
-          Eq.fromUniversalEquals
 
         private def getStatus(service: String): F[Option[ServingStatus]] =
           checkRef.get.map(_.get(service))

@@ -8,6 +8,7 @@ import co.topl.models._
 import co.topl.models.utility.Sized
 import co.topl.consensus.models._
 import com.google.protobuf.ByteString
+import grpc.health.v1.ServingStatus
 
 trait EqInstances {
 
@@ -38,6 +39,9 @@ trait EqInstances {
   implicit val eqSlotData: Eq[SlotData] =
     Eq.fromUniversalEquals
 
-  implicit val eq: Eq[ServiceStatus] =
-    Eq.fromUniversalEquals[ServiceStatus]
+  implicit val eqServiceStatus: Eq[ServiceStatus] =
+    Eq.fromUniversalEquals
+
+  implicit val eqServingStatus: Eq[ServingStatus] =
+    Eq.fromUniversalEquals
 }
