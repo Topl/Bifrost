@@ -18,6 +18,8 @@ import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
+import co.topl.grpc.HealthCheckGrpc
+import co.topl.healthcheck.HealthCheck
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
 import co.topl.models.utility.HasLength.instances.byteStringLength
@@ -247,37 +249,46 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         leaderElectionThreshold,
         clock
       )
-      genusGrpcServices <-
-        if (appConfig.genus.enable) {
-          (
-            for {
-              genus <- Genus
-                .make[F](
-                  appConfig.bifrost.rpc.bindHost,
-                  appConfig.bifrost.rpc.bindPort,
-                  Some(appConfig.genus.orientDbDirectory)
-                    .filterNot(_.isEmpty)
-                    .getOrElse(dataStores.baseDirectory./("orient-db").toString),
-                  appConfig.genus.orientDbPassword
-                )
-              _ <- Replicator.background(genus)
-              definitions <- GenusGrpc.Server.services(
-                genus.blockFetcher,
-                genus.transactionFetcher,
-                genus.vertexFetcher,
-                genus.valueFetcher
+      additionalGrpcServices <-
+        for {
+          genusServices <-
+            if (appConfig.genus.enable) {
+              (
+                for {
+                  genus <- Genus
+                    .make[F](
+                      appConfig.bifrost.rpc.bindHost,
+                      appConfig.bifrost.rpc.bindPort,
+                      Some(appConfig.genus.orientDbDirectory)
+                        .filterNot(_.isEmpty)
+                        .getOrElse(dataStores.baseDirectory./("orient-db").toString),
+                      appConfig.genus.orientDbPassword
+                    )
+                  definitions <-
+                    GenusGrpc.Server.services(
+                      genus.blockFetcher,
+                      genus.transactionFetcher,
+                      genus.vertexFetcher,
+                      genus.valueFetcher
+                    )
+                } yield definitions
               )
-            } yield definitions
+                .recoverWith { case e =>
+                  Logger[F]
+                    .warn(e)("Failed to start Genus server, continuing without it")
+                    .void
+                    .as(Nil)
+                    .toResource
+                }
+            } else
+              Resource.pure[F, List[ServerServiceDefinition]](Nil)
+          healthCheck <- HealthCheck
+            .make[F]()
+          healthServices <- HealthCheckGrpc.Server.services(
+            healthCheck.healthChecker
           )
-            .recoverWith { case e =>
-              Logger[F]
-                .warn(e)("Failed to start Genus server, continuing without it")
-                .void
-                .as(Nil)
-                .toResource
-            }
-        } else
-          Resource.pure[F, List[ServerServiceDefinition]](Nil)
+        } yield (genusServices ::: healthServices)
+
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
 
       protocolConfig <- ProtocolConfiguration.make[F](
@@ -322,7 +333,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
-          genusGrpcServices,
+          additionalGrpcServices,
           epochData,
           appConfig.bifrost.p2p.networkProperties
         )
