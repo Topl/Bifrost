@@ -264,6 +264,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                         .getOrElse(dataStores.baseDirectory./("orient-db").toString),
                       appConfig.genus.orientDbPassword
                     )
+                  _ <- Replicator.background(genus)
                   definitions <-
                     GenusGrpc.Server.services(
                       genus.blockFetcher,
