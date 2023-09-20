@@ -4,6 +4,7 @@ import cats.data.{Kleisli, ReaderT}
 import cats.effect.{Async, Resource}
 import fs2.io.file.{Files, Path}
 import fs2.io.net.Network
+import org.http4s.client.middleware.FollowRedirect
 import org.http4s.ember.client.EmberClientBuilder
 
 object DataReaders {
@@ -32,6 +33,7 @@ object DataReaders {
     EmberClientBuilder
       .default[F]
       .build
+      .map(FollowRedirect(10))
       .map(client => Kleisli(fileName => client.expect[Array[Byte]](s"$baseUrl/$fileName")))
   }
 
