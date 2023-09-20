@@ -19,7 +19,6 @@ import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.models.utility._
 import co.topl.node.models.{BlockBody, FullBlock}
 import co.topl.node.ApplicationConfigOps._
-import co.topl.numerics.implicits._
 import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.Port

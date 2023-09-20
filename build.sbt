@@ -682,6 +682,6 @@ lazy val byzantineIt = project
 lazy val integration = (project in file("integration"))
   .aggregate(nodeIt, byzantineIt)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/Test/compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/Test/compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/Test/compile")
