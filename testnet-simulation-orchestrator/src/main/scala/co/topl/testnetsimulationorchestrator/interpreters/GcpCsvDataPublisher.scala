@@ -6,7 +6,6 @@ import co.topl.brambl.models.box.Value
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.models.utility._
-import co.topl.numerics.implicits._
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.models.AdoptionDatum
 import co.topl.testnetsimulationorchestrator.models.BlockDatum

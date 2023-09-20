@@ -498,8 +498,8 @@ class TransactionTest extends IntegrationSuite {
         _ = assert(syntacticallyInvalid.contains(iotx_I.id.show))
         _ = assert(syntacticallyInvalid.contains(iotx_J.id.show))
         _ = assert(syntacticallyInvalid.contains(iotx_K.id.show))
+         _ = assert(syntacticallyInvalid.contains(iotx_U_Fail_1.id.show))
         // rule was deactivated on bramblSc. Test them whem implemented
-        // _ = assert(syntacticallyInvalid.contains(iotx_U_Fail_1.id.show))
         // _ = assert(syntacticallyInvalid.contains(iotx_V_Fail_1.id.show))
         // _ = assert(syntacticallyInvalid.contains(iotx_W_Fail_1.id.show))
 
