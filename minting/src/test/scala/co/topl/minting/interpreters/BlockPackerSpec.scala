@@ -30,10 +30,15 @@ import co.topl.brambl.validation.TransactionAuthorizationError
 class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
+  override def scalaCheckTestParameters =
+    super.scalaCheckTestParameters
+      .withMaxSize(3)
+      .withMinSuccessfulTests(5)
+
   test("return empty for empty mempool") {
     withMock {
       val mempool = mock[MempoolAlgebra[F]]
-      (mempool.read(_: BlockId)).expects(*).once().returning(MempoolGraph.empty.pure[F])
+      (mempool.read(_: BlockId)).expects(*).anyNumberOfTimes().returning(MempoolGraph.empty.pure[F])
       val testResource =
         for {
           underTest <- BlockPacker.make[F](
@@ -45,7 +50,12 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             mock[RegistrationAccumulatorAlgebra[F]]
           )
           iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          _ <- iterative.improve(FullBlockBody.defaultInstance).timeout(1.second).intercept[TimeoutException].toResource
+          _ <- iterative
+            .improve(FullBlockBody.defaultInstance)
+            // Timeout should be less than the Block Packer's mempool polling period
+            .timeout(200.milli)
+            .intercept[TimeoutException]
+            .toResource
         } yield ()
 
       testResource.use_

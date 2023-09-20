@@ -38,7 +38,8 @@ object BlockPacker {
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:             FiniteDuration = 1.second
   ): Resource[F, BlockPackerAlgebra[F]] =
     Resource.pure(
       new Impl(
@@ -47,7 +48,8 @@ object BlockPacker {
         transactionRewardCalculator,
         transactionCostCalculator,
         transactionAuthorizationValidation,
-        registrationAccumulator
+        registrationAccumulator,
+        emptyMempoolPollPeriod
       )
     )
 
@@ -57,7 +59,8 @@ object BlockPacker {
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:             FiniteDuration
   ) extends BlockPackerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -91,12 +94,12 @@ object BlockPacker {
                     .as(FullBlockBody.defaultInstance)
                 } else {
                   // If the mempool was empty, wait and try again
-                  Logger[F].debug(s"Mempool is empty.  Retrying in 5 seconds") *>
+                  Logger[F].debug(s"Mempool is empty.  Retrying in $emptyMempoolPollPeriod") *>
                   Async[F].delayBy(
                     nextIterationFunction
                       .set(((_: FullBlockBody) => initFromMempool).some)
                       .as(FullBlockBody.defaultInstance),
-                    1.seconds
+                    emptyMempoolPollPeriod
                   )
                 }
               )
