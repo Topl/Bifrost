@@ -1,26 +1,31 @@
 package co.topl.blockchain
 
+import cats.effect.Async
+import cats.implicits._
 import co.topl.blockchain.BigBang.Config
-import co.topl.brambl.models.LockAddress
-import co.topl.brambl.models.box.Challenge
-import co.topl.brambl.models.box.Lock
-import co.topl.brambl.models.box.Value
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.brambl.syntax.lockAsLockSyntaxOps
-import co.topl.crypto.hash.Blake2b256
-import co.topl.models._
-import co.topl.models.utility.HasLength.instances._
-import co.topl.models.utility._
-import co.topl.numerics.implicits._
-import com.google.protobuf.ByteString
-import quivr.models.Int128
-import quivr.models.Proposition
 import co.topl.brambl.constants.NetworkConstants
+import co.topl.brambl.models.box.{Challenge, Lock, Value}
+import co.topl.brambl.models.transaction.{IoTransaction, UnspentTransactionOutput}
+import co.topl.brambl.models.{Datum, LockAddress}
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
+import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.models.ProtocolVersion
+import co.topl.crypto.hash.Blake2b256
+import co.topl.crypto.models.SecretKeyKesProduct
+import co.topl.models._
+import co.topl.models.utility._
+import co.topl.numerics.RatioOps.implicits._
+import com.google.protobuf.ByteString
+import fs2.Chunk
+import fs2.io.file.{Files, Path}
+import org.typelevel.log4cats.Logger
+import quivr.models.{Int128, Proposition}
 
 object PrivateTestnet {
 
   val DefaultTotalStake: Int128 = 10_000_000L
+  val DefaultTotalLvls: Int128 = 10_000_000L
 
   /**
    * Constructs several Operator StakerInitializers.  A Staker is initialized using the concatenation of the timestamp (bytes)
@@ -40,8 +45,10 @@ object PrivateTestnet {
           ByteString.copyFrom(BigInt(timestamp).toByteArray).concat(ByteString.copyFrom(BigInt(index).toByteArray))
         )
       )
-      .map(bytes => StakerInitializers.Operator(Sized.strictUnsafe(bytes), (9, 9)))
+      .map(bytes => StakerInitializers.Operator(bytes, (9, 9), HeightLockOneSpendingAddress))
   }
+
+  def defaultStake(stakerCount: Int): BigInt = Ratio(DefaultTotalStake, stakerCount).round
 
   /**
    * Constructs a BigBang Config containing registrations of the given Stakers.  In addition, a single Poly box is
@@ -54,27 +61,63 @@ object PrivateTestnet {
     protocolVersion: ProtocolVersion
   ): BigBang.Config = {
     require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
-    BigBang.Config(
-      timestamp,
+    val transactions =
       stakers
-        .zip(
-          stakes.getOrElse(
-            List.fill(stakers.length)(
-              Ratio(DefaultTotalStake, stakers.length).round
-            )
+        .zip(stakes.getOrElse(List.fill(stakers.length)(defaultStake(stakers.length))))
+        .map { case (staker, stake) => staker.registrationTransaction(stake) }
+        .appended(
+          IoTransaction(
+            inputs = Nil,
+            outputs = List(
+              UnspentTransactionOutput(
+                HeightLockOneSpendingAddress,
+                Value.defaultInstance.withLvl(Value.LVL(DefaultTotalLvls))
+              )
+            ),
+            datum = Datum.IoTransaction.defaultInstance
           )
         )
-        .flatMap { case (staker, stake) => staker.registrationOutputs(stake) }
-        .appended(
-          UnspentTransactionOutput(
-            HeightLockOneSpendingAddress,
-            Value.defaultInstance.withLvl(Value.LVL(10_000_000L))
-          )
-        ),
+        .map(_.embedId)
+    BigBang.Config(
+      timestamp,
+      transactions,
       Config.DefaultEtaPrefix,
       protocolVersion
     )
   }
+
+  def writeStaker[F[_]: Async: Logger](
+    stakingDir:  Path,
+    initializer: StakerInitializers.Operator,
+    stake:       Int128
+  ): F[Unit] =
+    Files.forAsync[F].createDirectories(stakingDir) >>
+    Files
+      .forAsync[F]
+      .list(stakingDir)
+      .compile
+      .count
+      .flatMap(c =>
+        if (c > 0) Logger[F].info(show"Staker already initialized at $stakingDir")
+        else
+          for {
+            _ <- Logger[F].info(show"Generating a private testnet genesis staker into $stakingDir")
+            registrationTx = initializer.registrationTransaction(stake)
+            writeFile = (name: String, data: Array[Byte]) =>
+              fs2.Stream
+                .chunk(Chunk.array(data))
+                .through(Files.forAsync[F].writeAll(stakingDir / name))
+                .compile
+                .drain
+            _ <- Files.forAsync[F].createDirectories(stakingDir / StakingInit.KesDirectoryName)
+            _ <- writeFile(
+              s"${StakingInit.KesDirectoryName}/0",
+              Persistable[SecretKeyKesProduct].persistedBytes(initializer.kesSK).toByteArray
+            )
+            _ <- writeFile(StakingInit.VrfKeyName, initializer.vrfSK.toByteArray)
+            _ <- writeFile(StakingInit.RegistrationTxName, registrationTx.toByteArray)
+          } yield ()
+      )
 
   val HeightLockOneProposition: Proposition =
     Proposition(

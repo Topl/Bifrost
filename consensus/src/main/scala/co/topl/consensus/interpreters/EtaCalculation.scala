@@ -1,11 +1,11 @@
 package co.topl.consensus.interpreters
 
 import cats.data.NonEmptyChain
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
 import cats.{MonadThrow, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{EtaCalculationArgs, SlotData, SlotId}
@@ -35,8 +35,8 @@ object EtaCalculation {
     fetchSlotData:      BlockId => F[SlotData],
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,
-    blake2b256Resource: UnsafeResource[F, Blake2b256],
-    blake2b512Resource: UnsafeResource[F, Blake2b512]
+    blake2b256Resource: Resource[F, Blake2b256],
+    blake2b512Resource: Resource[F, Blake2b512]
   ): F[EtaCalculationAlgebra[F]] =
     for {
       implicit0(cache: CaffeineCache[F, Bytes, Eta]) <- Sync[F].delay(
@@ -51,8 +51,8 @@ object EtaCalculation {
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,
     slotsPerEpoch:      Long,
-    blake2b256Resource: UnsafeResource[F, Blake2b256],
-    blake2b512Resource: UnsafeResource[F, Blake2b512]
+    blake2b256Resource: Resource[F, Blake2b256],
+    blake2b512Resource: Resource[F, Blake2b512]
   )(implicit cache: CaffeineCache[F, Bytes, Eta])
       extends EtaCalculationAlgebra[F] {
 

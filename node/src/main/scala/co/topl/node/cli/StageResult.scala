@@ -21,15 +21,19 @@ object StageResult {
    */
   case object Exit extends StageResult[Nothing]
 
+  def exit[A]: StageResult[A] = Exit
+
   /**
    * Indicates the program should return to main menu upon completion of the current stage.
    */
   case object Menu extends StageResult[Nothing]
+  def menu[A]: StageResult[A] = Menu
 
   /**
    * Indicates the program has more processing to do using the result value of the current stage.
    */
   case class Success[+A](a: A) extends StageResult[A]
+  def success[A](a: A): StageResult[A] = Success(a)
 
   implicit val catsStdInstancesForStageResult: Monad[StageResult] =
     new Monad[StageResult] {
@@ -74,6 +78,24 @@ final case class StageResultT[F[_], A](value: F[StageResult[A]]) {
       }
     )
 
+  def semiflatMap[B](f: A => F[B])(implicit F: Monad[F]): StageResultT[F, B] =
+    StageResultT(
+      F.flatMap(value) {
+        case StageResult.Success(a) => f(a).map(StageResult.success)
+        case StageResult.Exit       => F.pure(StageResult.Exit)
+        case StageResult.Menu       => F.pure(StageResult.Menu)
+      }
+    )
+
+  def subflatMap[B](f: A => StageResult[B])(implicit F: Monad[F]): StageResultT[F, B] =
+    StageResultT(
+      F.flatMap(value) {
+        case StageResult.Success(a) => f(a).pure[F]
+        case StageResult.Exit       => F.pure(StageResult.Exit)
+        case StageResult.Menu       => F.pure(StageResult.Menu)
+      }
+    )
+
   def flatTap[B](f: A => StageResultT[F, B])(implicit F: Monad[F]): StageResultT[F, A] =
     flatMap(a => f(a).map(_ => a))
 
@@ -88,4 +110,28 @@ object StageResultT {
 
   def liftF[F[_], A](fa: F[A])(implicit F: Functor[F]): StageResultT[F, A] =
     StageResultT(fa.map(StageResult.Success(_)))
+
+  implicit def stageResultTMonadInstance[F[_]: Monad]: Monad[StageResultT[F, *]] =
+    new Monad[StageResultT[F, *]] {
+      def pure[A](x: A): StageResultT[F, A] = StageResultT.liftF(x.pure[F])
+
+      def flatMap[A, B](fa: StageResultT[F, A])(f: A => StageResultT[F, B]): StageResultT[F, B] =
+        StageResultT(
+          Monad[F].flatMap(fa.value) {
+            case StageResult.Success(a) => f(a).value
+            case StageResult.Exit       => Monad[F].pure(StageResult.Exit)
+            case StageResult.Menu       => Monad[F].pure(StageResult.Menu)
+          }
+        )
+
+      def tailRecM[A, B](a: A)(f: A => StageResultT[F, Either[A, B]]): StageResultT[F, B] =
+        StageResultT(
+          f(a).value.flatMap {
+            case StageResult.Success(Left(a))  => tailRecM(a)(f).value
+            case StageResult.Success(Right(b)) => StageResult.success(b).pure[F]
+            case StageResult.Menu              => StageResult.menu[B].pure[F]
+            case StageResult.Exit              => StageResult.exit[B].pure[F]
+          }
+        )
+    }
 }

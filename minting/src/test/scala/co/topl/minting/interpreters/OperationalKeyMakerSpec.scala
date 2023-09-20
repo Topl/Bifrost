@@ -2,16 +2,16 @@ package co.topl.minting.interpreters
 
 import cats.{Applicative, Monad}
 import cats.data.Chain
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.effect.IO.asyncForIO
 import cats.implicits._
 import co.topl.algebras._
+import co.topl.brambl.utils.CatsUnsafeResource
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
-import co.topl.interpreters.CatsUnsafeResource
 import co.topl.minting.algebras.OperationalKeyMakerAlgebra
 import co.topl.minting.algebras.VrfCalculatorAlgebra
 import co.topl.models.ModelGenerators._
@@ -60,6 +60,16 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       val (sk, vk) = kesProduct.createKeyPair(Random.nextBytes(32), (2, 2), 0L)
 
       val ineligibilities = Range.Long(0L, operationalPeriodLength, 2L).toVector
+
+      (() => clock.globalSlot)
+        .expects()
+        .once()
+        .returning(0L.pure[F])
+
+      (() => clock.slotsPerOperationalPeriod)
+        .expects()
+        .anyNumberOfTimes()
+        .returning(operationalPeriodLength.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -123,21 +133,19 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         for {
           kesProductResource <- CatsUnsafeResource.make(new KesProduct, 1).toResource
           ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1).toResource
-          underTest <-
-            OperationalKeyMaker.make[F](
-              operationalPeriodLength,
-              activationOperationalPeriod,
-              address,
-              vrfConfig,
-              secureStore,
-              clock,
-              vrfCalculator,
-              leaderElection,
-              etaCalculation,
-              consensusState,
-              kesProductResource,
-              ed25519Resource
-            )
+          underTest <- OperationalKeyMaker.make[F](
+            activationOperationalPeriod,
+            address,
+            vrfConfig,
+            secureStore,
+            clock,
+            vrfCalculator,
+            leaderElection,
+            etaCalculation,
+            consensusState,
+            kesProductResource,
+            ed25519Resource
+          )
           // The keys are created in a background fiber, so we need to wait for that fiber to complete before
           // verifying mocks
           _ <- underTest.operationalKeyForSlot(operationalPeriodLength - 1, parentSlotId).toResource
@@ -171,6 +179,16 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       val operationalPeriodLength = 30L
       val activationOperationalPeriod = 0L
       val (sk, vk) = kesProduct.createKeyPair(Random.nextBytes(32), (2, 2), 0L)
+
+      (() => clock.globalSlot)
+        .expects()
+        .once()
+        .returning(0L.pure[F])
+
+      (() => clock.slotsPerOperationalPeriod)
+        .expects()
+        .anyNumberOfTimes()
+        .returning(operationalPeriodLength.pure[F])
 
       (() => clock.slotsPerEpoch)
         .expects()
@@ -229,7 +247,6 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         ed25519Resource    <- CatsUnsafeResource.make(new Ed25519, 1).toResource
         underTest <-
           OperationalKeyMaker.make[F](
-            operationalPeriodLength,
             activationOperationalPeriod,
             address,
             vrfConfig,
@@ -261,7 +278,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
     parentVK:     VerificationKeyKesProduct,
     slot:         Slot,
     parentSlotId: SlotId
-  )(kesProductResource: UnsafeResource[F, KesProduct], ed25519Resource: UnsafeResource[F, Ed25519]) =
+  )(kesProductResource: Resource[F, KesProduct], ed25519Resource: Resource[F, Ed25519]) =
     for {
       out <- underTest.operationalKeyForSlot(slot, parentSlotId).map(_.get)
       _ = assert(out.slot == slot)

@@ -12,17 +12,16 @@ import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInt
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
-import co.topl.consensus.algebras._
-import co.topl.consensus.interpreters.ConsensusDataEventSourcedState.ConsensusData
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
-import co.topl.consensus.models.{BlockId, VrfConfig}
+import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
+import co.topl.grpc.HealthCheckGrpc
+import co.topl.healthcheck.HealthCheck
 import co.topl.interpreters._
 import co.topl.ledger.interpreters._
-import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.networking.p2p.{LocalPeer, RemoteAddress}
@@ -30,12 +29,12 @@ import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
-
+import co.topl.node.models.FullBlock
+import co.topl.numerics.implicits._
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import io.grpc.ServerServiceDefinition
 
 import java.time.Instant
@@ -66,73 +65,56 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   private def applicationResource: Resource[F, Unit] =
     for {
-      _ <- Resource.pure[F, Unit](LoggingUtils.initialize(args))
-      _ <- Resource.eval(Logger[F].info(show"Launching node with args=$args"))
-      _ <- Resource.eval(Logger[F].info(show"Node configuration=$appConfig"))
+      _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
+      _ <- Logger[F].info(show"Launching node with args=$args").toResource
+      _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
       localPeer = LocalPeer(
         RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
-      implicit0(networkPrefix: NetworkPrefix) = NetworkPrefix(1: Byte)
-      privateBigBang = appConfig.bifrost.bigBang.asInstanceOf[ApplicationConfig.Bifrost.BigBangs.Private]
-      protocolVersion = ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion
-      testnetStakerInitializers <- Sync[F]
-        .delay(
-          PrivateTestnet.stakerInitializers(
-            privateBigBang.timestamp,
-            privateBigBang.stakerCount
-          )
-        )
+      protocolVersion <- Sync[F]
+        .delay(ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion)
         .toResource
-      implicit0(bigBangConfig: BigBang.Config) <- Sync[F]
-        .delay(
-          PrivateTestnet.config(
-            privateBigBang.timestamp,
-            testnetStakerInitializers,
-            privateBigBang.stakes,
-            protocolVersion
-          )
-        )
+
+      cryptoResources <- CryptoResources.make[F].toResource
+      bigBangBlock    <- initializeBigBang(protocolVersion)
+      bigBangSlotData <- cryptoResources.ed25519VRF
+        .use(implicit r => Sync[F].delay(bigBangBlock.header.slotData))
         .toResource
-      bigBangBlock = BigBang.block
-      bigBangBlockId = bigBangBlock.header.id
-      _ <- Resource.eval(Logger[F].info(show"Big Bang Block id=$bigBangBlockId"))
+      bigBangBlockId = bigBangSlotData.slotId.blockId
+      _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
 
       stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
-      _ <- Resource.eval(Files[F].createDirectories(stakingDir))
-      _ <- Resource.eval(Logger[F].info(show"Using stakingDir=$stakingDir"))
-
-      cryptoResources <- Resource.eval(CryptoResources.make[F])
+      _ <- Files[F].createDirectories(stakingDir).toResource
+      _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
 
       dataStores <- DataStoresInit.init[F](appConfig)(bigBangBlock)
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
 
-      canonicalHeadId       <- Resource.eval(currentEventIdGetterSetters.canonicalHead.get())
-      canonicalHeadSlotData <- Resource.eval(dataStores.slotData.getOrRaise(canonicalHeadId))
-      canonicalHead         <- Resource.eval(dataStores.headers.getOrRaise(canonicalHeadId))
-      _                     <- Resource.eval(Logger[F].info(show"Canonical head id=$canonicalHeadId"))
+      canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get().toResource
+      canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId).toResource
+      canonicalHead         <- dataStores.headers.getOrRaise(canonicalHeadId).toResource
+      _                     <- Logger[F].info(show"Canonical head id=$canonicalHeadId").toResource
 
-      blockIdTree <- Resource.eval(
-        ParentChildTree.FromReadWrite
-          .make[F, BlockId](
-            dataStores.parentChildTree.get,
-            dataStores.parentChildTree.put,
-            bigBangBlock.header.parentHeaderId
-          )
-          .flatTap(_.associate(bigBangBlockId, bigBangBlock.header.parentHeaderId))
-      )
+      blockIdTree <- ParentChildTree.FromReadWrite
+        .make[F, BlockId](
+          dataStores.parentChildTree.get,
+          dataStores.parentChildTree.put,
+          bigBangBlock.header.parentHeaderId
+        )
+        .flatTap(_.associate(bigBangBlockId, bigBangBlock.header.parentHeaderId))
+        .toResource
 
       // Start the supporting interpreters
-      blockHeightTree <- Resource.eval(
-        BlockHeightTree
-          .make[F](
-            dataStores.blockHeightTree,
-            currentEventIdGetterSetters.blockHeightTree.get(),
-            dataStores.slotData,
-            blockIdTree,
-            currentEventIdGetterSetters.blockHeightTree.set
-          )
-      )
+      blockHeightTree <- BlockHeightTree
+        .make[F](
+          dataStores.blockHeightTree,
+          currentEventIdGetterSetters.blockHeightTree.get(),
+          dataStores.slotData,
+          blockIdTree,
+          currentEventIdGetterSetters.blockHeightTree.set
+        )
+        .toResource
       bigBangProtocol = appConfig.bifrost.protocols(0)
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
@@ -150,46 +132,38 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         bigBangProtocol.forwardBiasedSlotWindow,
         ntpClockSkewer
       )
-      _ <- Resource.eval(
-        clock.globalSlot.flatMap(globalSlot =>
-          Logger[F].info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
-        )
-      )
-      etaCalculation <- Resource.eval(
-        EtaCalculation.make(
-          dataStores.slotData.getOrRaise,
-          clock,
-          Sized.strictUnsafe(bigBangBlock.header.eligibilityCertificate.eta),
-          cryptoResources.blake2b256,
-          cryptoResources.blake2b512
-        )
-      )
-      leaderElectionThreshold <- Resource.eval(makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig))
+      globalSlot <- clock.globalSlot.toResource
+      _ <- Logger[F]
+        .info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
+        .toResource
+      etaCalculation <-
+        EtaCalculation
+          .make(
+            dataStores.slotData.getOrRaise,
+            clock,
+            Sized.strictUnsafe(bigBangBlock.header.eligibilityCertificate.eta),
+            cryptoResources.blake2b256,
+            cryptoResources.blake2b512
+          )
+          .toResource
+      leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
 
-      epochBoundariesState <- Resource.eval(
-        makeEpochBoundariesState(
-          clock,
-          dataStores,
-          currentEventIdGetterSetters,
-          blockIdTree
-        )
-      )
-      consensusDataState <- Resource.eval(
+      epochBoundariesState <- makeEpochBoundariesState(
+        clock,
+        dataStores,
+        currentEventIdGetterSetters,
+        blockIdTree
+      ).toResource
+      consensusDataState <-
         makeConsensusDataState(
           dataStores,
           currentEventIdGetterSetters,
           blockIdTree
-        )
-      )
+        ).toResource
 
-      consensusValidationState <- Resource.eval(
-        makeConsensusValidationState(
-          epochBoundariesState,
-          consensusDataState,
-          clock,
-          bigBangBlockId
-        )
-      )
+      consensusValidationState <- ConsensusValidationState
+        .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
+        .toResource
       chainSelectionAlgebra = ChainSelection
         .make[F](
           dataStores.slotData.getOrRaise,
@@ -197,13 +171,13 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           bigBangProtocol.chainSelectionKLookback,
           bigBangProtocol.chainSelectionSWindow
         )
-      localChain <- Resource.eval(
+      localChain <-
         LocalChain.make(
+          bigBangSlotData,
           canonicalHeadSlotData,
           chainSelectionAlgebra,
           currentEventIdGetterSetters.canonicalHead.set
         )
-      )
       mempool <- Mempool.make[F](
         currentEventIdGetterSetters.mempool.get(),
         dataStores.bodies.getOrRaise,
@@ -214,46 +188,43 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots
       )
-      staking <- OptionT
-        .fromOption[Resource[F, *]](privateBigBang.localStakerIndex.flatMap(testnetStakerInitializers.get(_)))
-        .semiflatMap(
-          StakingInit
-            .makeStakingFromGenesis(
-              stakingDir,
-              _,
-              appConfig.bifrost.staking.rewardAddress,
-              clock,
-              etaCalculation,
-              consensusValidationState,
-              leaderElectionThreshold,
-              cryptoResources,
-              bigBangProtocol,
-              vrfConfig,
-              protocolVersion
+      staking =
+        OptionT
+          .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
+          .flatMap(
+            OptionT.whenF(_)(
+              StakingInit
+                .makeStakingFromDisk(
+                  stakingDir,
+                  appConfig.bifrost.staking.rewardAddress,
+                  clock,
+                  etaCalculation,
+                  consensusValidationState,
+                  leaderElectionThreshold,
+                  cryptoResources,
+                  bigBangProtocol,
+                  vrfConfig,
+                  protocolVersion,
+                  BlockFinder
+                    .forTransactionId(dataStores.bodies.getOrRaise)(
+                      fs2.Stream
+                        .eval(localChain.head)
+                        .flatMap(head =>
+                          fs2.Stream.unfoldLoopEval(head)(previous =>
+                            if (previous.height > 1)
+                              dataStores.slotData
+                                .getOrRaise(previous.parentSlotId.blockId)
+                                .map(v => (previous.slotId.blockId, v.some))
+                            else (previous.slotId.blockId, none).pure[F]
+                          )
+                        ),
+                      fs2.Stream.force(localChain.adoptions)
+                    )(_)
+                    .flatMap(dataStores.headers.getOrRaise)
+                )
             )
-        )
-        .orElse(
-          OptionT
-            .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
-            .flatMap(
-              OptionT.whenF(_)(
-                StakingInit
-                  .makeStakingFromDisk(
-                    stakingDir,
-                    appConfig.bifrost.staking.rewardAddress,
-                    clock,
-                    etaCalculation,
-                    consensusValidationState,
-                    leaderElectionThreshold,
-                    cryptoResources,
-                    bigBangProtocol,
-                    vrfConfig,
-                    protocolVersion
-                  )
-              )
-            )
-        )
-        .value
+          )
+          .value
 
       eligibilityCache <-
         EligibilityCache
@@ -278,36 +249,47 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         leaderElectionThreshold,
         clock
       )
-      genusGrpcServices <-
-        if (appConfig.genus.enable) {
-          (
-            for {
-              genus <- Genus
-                .make[F](
-                  appConfig.bifrost.rpc.bindHost,
-                  appConfig.bifrost.rpc.bindPort,
-                  Some(appConfig.genus.orientDbDirectory)
-                    .filterNot(_.isEmpty)
-                    .getOrElse(dataStores.baseDirectory./("orient-db").toString),
-                  appConfig.genus.orientDbPassword
-                )
-              _ <- Replicator.background(genus)
-              definitions <- GenusGrpc.Server.services(
-                genus.blockFetcher,
-                genus.transactionFetcher,
-                genus.vertexFetcher
+      additionalGrpcServices <-
+        for {
+          genusServices <-
+            if (appConfig.genus.enable) {
+              (
+                for {
+                  genus <- Genus
+                    .make[F](
+                      appConfig.bifrost.rpc.bindHost,
+                      appConfig.bifrost.rpc.bindPort,
+                      Some(appConfig.genus.orientDbDirectory)
+                        .filterNot(_.isEmpty)
+                        .getOrElse(dataStores.baseDirectory./("orient-db").toString),
+                      appConfig.genus.orientDbPassword
+                    )
+                  _ <- Replicator.background(genus)
+                  definitions <-
+                    GenusGrpc.Server.services(
+                      genus.blockFetcher,
+                      genus.transactionFetcher,
+                      genus.vertexFetcher,
+                      genus.valueFetcher
+                    )
+                } yield definitions
               )
-            } yield definitions
+                .recoverWith { case e =>
+                  Logger[F]
+                    .warn(e)("Failed to start Genus server, continuing without it")
+                    .void
+                    .as(Nil)
+                    .toResource
+                }
+            } else
+              Resource.pure[F, List[ServerServiceDefinition]](Nil)
+          healthCheck <- HealthCheck
+            .make[F]()
+          healthServices <- HealthCheckGrpc.Server.services(
+            healthCheck.healthChecker
           )
-            .recoverWith { case e =>
-              Logger[F]
-                .warn(e)("Failed to start Genus server, continuing without it")
-                .void
-                .as(Nil)
-                .toResource
-            }
-        } else
-          Resource.pure[F, List[ServerServiceDefinition]](Nil)
+        } yield (genusServices ::: healthServices)
+
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
 
       protocolConfig <- ProtocolConfiguration.make[F](
@@ -352,7 +334,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
-          genusGrpcServices,
+          additionalGrpcServices,
           epochData,
           appConfig.bifrost.p2p.networkProperties
         )
@@ -386,31 +368,56 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         blockIdTree,
         currentEventIdGetterSetters.consensusData.set,
         ConsensusDataEventSourcedState
-          .ConsensusData(
-            dataStores.activeStake,
-            dataStores.inactiveStake,
-            dataStores.registrations
-          )
+          .ConsensusData(dataStores.activeStake, dataStores.inactiveStake, dataStores.registrations)
           .pure[F],
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise
       )
     } yield consensusDataState
 
-  private def makeConsensusValidationState(
-    epochBoundariesState: EventSourcedState[F, EpochBoundaries[F], BlockId],
-    consensusDataState:   EventSourcedState[F, ConsensusData[F], BlockId],
-    clock:                ClockAlgebra[F],
-    bigBangBlockId:       BlockId
-  ): F[ConsensusValidationStateAlgebra[F]] =
-    ConsensusValidationState
-      .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
-
-  private def makeLeaderElectionThreshold(blake2b512Resource: UnsafeResource[F, Blake2b512], vrfConfig: VrfConfig) =
+  private def makeLeaderElectionThreshold(blake2b512Resource: Resource[F, Blake2b512], vrfConfig: VrfConfig) =
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
       leaderElectionThreshold = LeaderElectionValidation
         .make[F](vrfConfig, blake2b512Resource, exp, log1p)
     } yield leaderElectionThreshold
+
+  /**
+   * Based on the application config, determines if the genesis block is a public network or a private testnet, and
+   * initialize it accordingly
+   */
+  private def initializeBigBang(protocolVersion: ProtocolVersion): Resource[F, FullBlock] =
+    appConfig.bifrost.bigBang match {
+      case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
+        for {
+          testnetStakerInitializers <- Sync[F]
+            .delay(PrivateTestnet.stakerInitializers(privateBigBang.timestamp, privateBigBang.stakerCount))
+            .toResource
+          bigBangConfig <- Sync[F]
+            .delay(
+              PrivateTestnet
+                .config(privateBigBang.timestamp, testnetStakerInitializers, privateBigBang.stakes, protocolVersion)
+            )
+            .toResource
+          bigBangBlock = BigBang.fromConfig(bigBangConfig)
+          _ <- privateBigBang.localStakerIndex
+            .filter(_ >= 0)
+            .traverse(index =>
+              PrivateTestnet
+                .writeStaker[F](
+                  Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.staking.directory)),
+                  testnetStakerInitializers(index),
+                  privateBigBang.stakes.fold(PrivateTestnet.defaultStake(privateBigBang.stakerCount))(_.apply(index))
+                )
+                .toResource
+            )
+        } yield bigBangBlock
+      case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
+        for {
+          reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
+          headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
+          bigBangBlock         <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
+        } yield bigBangBlock
+    }
 }

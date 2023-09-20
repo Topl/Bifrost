@@ -1,7 +1,7 @@
 import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
 
-val scala213 = "2.13.11"
+val scala213 = "2.13.12"
 
 inThisBuild(
   List(
@@ -659,7 +659,8 @@ lazy val nodeIt = project
   .settings(
     name := "node-it",
     commonSettings,
-    crossScalaVersions := Seq(scala213)
+    crossScalaVersions := Seq(scala213),
+    libraryDependencies ++= Dependencies.nodeIt
   )
   .dependsOn(
     node,
@@ -681,6 +682,6 @@ lazy val byzantineIt = project
 lazy val integration = (project in file("integration"))
   .aggregate(nodeIt, byzantineIt)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/Test/compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/Test/compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/Test/compile")

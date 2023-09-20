@@ -10,7 +10,6 @@ import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.{Dns, Hostname}
@@ -18,7 +17,6 @@ import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
-import scala.util.Random
 
 package object fsnetwork {
 
@@ -39,6 +37,9 @@ package object fsnetwork {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
 
     def get(key: K): Option[V] = Option(cache.getIfPresent(key))
+
+    def getOrElse[B >: V](key: K, default: => V): V =
+      get(key).getOrElse(default)
   }
 
   implicit class StreamOps[T, F[_]: Async](stream: fs2.Stream[F, T]) {
@@ -212,13 +213,6 @@ package object fsnetwork {
     val warmHostsUpdateInterval: FiniteDuration =
       FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
   }
-
-  trait ColdToWarmSelector {
-    def select(coldHosts: Set[RemoteAddress], countToReceive: Int): Set[RemoteAddress]
-  }
-
-  val RandomColdToWarmSelector: ColdToWarmSelector =
-    (coldHosts: Set[RemoteAddress], countToReceive: Int) => Random.shuffle(coldHosts).take(countToReceive)
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
 

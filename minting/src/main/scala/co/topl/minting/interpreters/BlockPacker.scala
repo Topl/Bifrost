@@ -1,5 +1,6 @@
 package co.topl.minting.interpreters
 
+import cats.Show
 import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
@@ -21,6 +22,7 @@ import scala.collection.immutable.ListSet
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 import co.topl.ledger.interpreters.{QuivrContext, RegistrationAccumulator}
 import cats.data.EitherT
+import co.topl.brambl.validation.TransactionAuthorizationError
 import org.typelevel.log4cats.Logger
 
 import scala.concurrent.duration._
@@ -36,7 +38,8 @@ object BlockPacker {
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:             FiniteDuration = 1.second
   ): Resource[F, BlockPackerAlgebra[F]] =
     Resource.pure(
       new Impl(
@@ -45,7 +48,8 @@ object BlockPacker {
         transactionRewardCalculator,
         transactionCostCalculator,
         transactionAuthorizationValidation,
-        registrationAccumulator
+        registrationAccumulator,
+        emptyMempoolPollPeriod
       )
     )
 
@@ -55,7 +59,8 @@ object BlockPacker {
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:             FiniteDuration
   ) extends BlockPackerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -89,12 +94,12 @@ object BlockPacker {
                     .as(FullBlockBody.defaultInstance)
                 } else {
                   // If the mempool was empty, wait and try again
-                  Logger[F].debug(s"Mempool is empty.  Retrying in 5 seconds") *>
+                  Logger[F].debug(s"Mempool is empty.  Retrying in $emptyMempoolPollPeriod") *>
                   Async[F].delayBy(
                     nextIterationFunction
                       .set(((_: FullBlockBody) => initFromMempool).some)
                       .as(FullBlockBody.defaultInstance),
-                    5.seconds
+                    emptyMempoolPollPeriod
                   )
                 }
               )
@@ -113,8 +118,11 @@ object BlockPacker {
                         .delay(graph.removeSubtree(transaction))
                         .flatMap { case (graph, evicted) =>
                           Logger[F]
-                            .debug(show"Ignoring invalid transaction subgraph.  ids=${evicted.toList.map(_.id)}")
-                            .as(graph)
+                            .debug(
+                              show"Evicting invalid transaction subgraph from mempool.  ids=${evicted.toList.map(_.id)}"
+                            ) >>
+                          evicted.toList.map(_.id).traverse(mempool.remove) >>
+                          graph.pure[F]
                         }
                     )
                 else
@@ -323,11 +331,17 @@ object BlockPacker {
               )
             )
               .leftSemiflatTap(error =>
-                Logger[F].warn(s"Transaction ${transaction.id} failed authorization validation: $error")
+                Logger[F].warn(show"Transaction id=${transaction.id} failed authorization validation. reason=$error")
               )
               .isRight
         }
       } yield iterative
+  }
+
+  implicit val showAuthorizationError: Show[TransactionAuthorizationError] = {
+    case TransactionAuthorizationError.AuthorizationFailed(errors) => errors.mkString("[", ", ", "]")
+    case TransactionAuthorizationError.Contextual(error)           => s"Contextual($error)"
+    case TransactionAuthorizationError.Permanent(error)            => s"Permanent($error)"
   }
 
 }

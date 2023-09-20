@@ -14,15 +14,14 @@ import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, RemoteAddress}
 import co.topl.node.models.{BlockBody, KnownHost}
-import com.comcast.ip4s.Dns
-import fs2.Stream
+import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: Logger: Dns](
+  def make[F[_]: Async: Logger: DnsResolver](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
@@ -40,13 +39,12 @@ object ActorPeerHandlerBridgeAlgebra {
     networkProperties:           NetworkProperties,
     clockAlgebra:                ClockAlgebra[F],
     remotePeers:                 List[DisconnectedPeer],
-    closedPeers:                 Stream[F, ConnectedPeer],
+    peersStatusChangesTopic:     Topic[F, PeerConnectionChange],
     addRemotePeer:               DisconnectedPeer => F[Unit],
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
-    implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
 
-    val networkAlgebra = new NetworkAlgebraImpl[F]()
+    val networkAlgebra = new NetworkAlgebraImpl[F](clockAlgebra)
     val networkManager =
       NetworkManager.startNetwork[F](
         thisHostId,
@@ -68,7 +66,7 @@ object ActorPeerHandlerBridgeAlgebra {
         networkProperties,
         clockAlgebra,
         PeerCreationRequestAlgebra(addRemotePeer),
-        closedPeers,
+        peersStatusChangesTopic,
         hotPeersUpdate
       )
 

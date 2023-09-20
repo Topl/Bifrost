@@ -1,7 +1,7 @@
 package co.topl.consensus.algebras
 
 import cats.data.Validated
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{BlockId, SlotData}
 
 /**
  * Operations involving this node's locally-adopted canonical chain
@@ -42,7 +42,17 @@ trait LocalChainAlgebra[F[_]] {
   def adopt(newHead: Validated.Valid[SlotData]): F[Unit]
 
   /**
+   * Emits a stream of _new_ BlockIds that have been adopted by this node, excluding the current head
+   */
+  def adoptions: F[fs2.Stream[F, BlockId]]
+
+  /**
    * The head of the chain that has been adopted locally by this node.
    */
   def head: F[SlotData]
+
+  /**
+   * The first block (SlotData) in the chain
+   */
+  def genesis: F[SlotData]
 }

@@ -16,7 +16,6 @@ import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, Staki
 import co.topl.minting.models.VrfHit
 import co.topl.models._
 import co.topl.node.models.{BlockBody, FullBlock, FullBlockBody}
-import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2._

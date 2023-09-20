@@ -18,7 +18,6 @@ import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorAct
 import co.topl.networking.fsnetwork.RequestsProxyTest.RequestStatus.{InProgress, NewRequest, ReceivedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.ResponseStatus.{DownloadError, DownloadedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.{F, RequestStatus, ResponseStatus}
-import co.topl.networking.fsnetwork.TestHelper.arbitraryHostBlockId
 import co.topl.node.models.{Block, BlockBody}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -29,7 +28,6 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.collection.immutable.ListMap
-import scala.jdk.CollectionConverters._
 
 object RequestsProxyTest {
   type F[A] = IO[A]
@@ -93,7 +91,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           NonEmptyChain.fromChain(headerWithStatus.collect { case (h, NewRequest) => h.id }).map { req =>
             (peersManager.sendNoWait _)
-              .expects(PeersManager.Message.BlockHeadersRequest(hostId, req))
+              .expects(PeersManager.Message.BlockHeadersRequest(hostId.some, req))
               .returns(().pure[F])
           }
 
@@ -186,10 +184,10 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           response.collect { case (id, Left(_)) =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
+              .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
-              .expects(PeersManager.Message.BlockHeadersRequest(hostId, NonEmptyChain.one(id)))
+              .expects(PeersManager.Message.BlockHeadersRequest(None, NonEmptyChain.one(id)))
               .returns(().pure[F])
           }
 
@@ -237,7 +235,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           NonEmptyChain.fromSeq(idsWithStatus.collect { case (id, NewRequest) => id }).map { blockIds =>
             (peersManager.sendNoWait _)
-              .expects(PeersManager.Message.BlockBodyRequest(hostId, blockIds.map(id => dataMap(id)._1)))
+              .expects(PeersManager.Message.BlockBodyRequest(hostId.some, blockIds.map(id => dataMap(id)._1)))
               .returns(().pure[F])
           }
 
@@ -355,10 +353,10 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           response.collect { case (header, Left(_)) =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
+              .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
-              .expects(PeersManager.Message.BlockBodyRequest(hostId, NonEmptyChain.one(header)))
+              .expects(PeersManager.Message.BlockBodyRequest(None, NonEmptyChain.one(header)))
               .returns(().pure[F])
           }
 
@@ -414,7 +412,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
 
       (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.HostProvideIncorrectBlock(hostId))
+        .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
         .returns(().pure[F])
 
       RequestsProxy
@@ -447,52 +445,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           } yield ()
         }
 
-    }
-  }
-
-  test("Block source shall be sent to reputation aggregator with correct count") {
-    PropF.forAllF(nonEmptyChainArbOfLen(arbitraryHostBlockId, maxChainSize).arbitrary) {
-      inputData: NonEmptyChain[(HostId, BlockId)] =>
-        withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
-          val peersManager = mock[PeersManagerActor[F]]
-          val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val bodyStore = mock[Store[F, BlockId, BlockBody]]
-
-          val blockWithSource: Map[BlockId, Set[HostId]] =
-            inputData.toList
-              .take(10)
-              .map(d => d._2)
-              .zipWithIndex
-              .map { case (block, index) =>
-                val sourcesForBlock = (1 to index).map(i => i.toString).toSet
-                (block, sourcesForBlock)
-              }
-              .toMap
-
-          val initialCash =
-            Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
-          initialCash.putAll(blockWithSource.asJava)
-
-          val expectedData = inputData.map { case (host, blockId) =>
-            (host, blockWithSource.getOrElse(blockId, Set.empty).size.toLong + 1)
-          }
-
-          (reputationAggregator.sendNoWait _)
-            .expects(ReputationAggregator.Message.BlockProvidingReputationUpdate(expectedData))
-            .once()
-            .returns(().pure[F])
-
-          RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore, blockSource = initialCash)
-            .use { actor =>
-              for {
-                _ <- actor.send(RequestsProxy.Message.BlocksSource(inputData))
-                // if we send the same data no message is sent
-                _ <- actor.send(RequestsProxy.Message.BlocksSource(inputData))
-              } yield ()
-            }
-        }
     }
   }
 }

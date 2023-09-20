@@ -7,8 +7,9 @@ import co.topl.brambl.models.LockAddress
 import co.topl.config.ApplicationConfig
 import co.topl.config.ApplicationConfig.Bifrost
 import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
-import co.topl.models.Slot
-import co.topl.models.utility.Ratio
+import co.topl.consensus.models.BlockId
+import co.topl.models._
+import co.topl.models.utility._
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
@@ -16,6 +17,7 @@ import pureconfig._
 import pureconfig.configurable._
 import pureconfig.generic.ProductHint
 import pureconfig.generic.auto._
+import scodec.bits.ByteVector
 
 import scala.util.Try
 
@@ -67,6 +69,7 @@ object ApplicationConfigOps {
               stakerCount = cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
               localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
             )
+          case p => p
         }
       GenLens[ApplicationConfig](_.bifrost.bigBang).replace(bigBangConfig)(simpleArgApplications)
     } else {
@@ -108,6 +111,15 @@ object ApplicationConfigOps {
     ConfigReader[String].emap(str =>
       decodeAddress(str).leftMap(e => error.CannotConvert(str, "LockAddress", e.toString))
     )
+
+  implicit val blockIdReader: ConfigReader[BlockId] =
+    ConfigReader[String]
+      .map(str => if (str.startsWith("b_")) str.substring(2) else str)
+      .emap(str =>
+        ByteVector.fromBase58Descriptive(str).leftMap(_ => error.CannotConvert(str, "BlockId", "Not base58"))
+      )
+      .ensure(_.length == 32, _ => "Not length 32")
+      .map(v => BlockId(v))
 
   implicit def slotMapReader[T: ConfigReader]: ConfigReader[Map[Slot, T]] =
     genericMapReader[Slot, T](v => v.toLongOption.toRight(error.CannotConvert(v, "Slot", "Not a long")))

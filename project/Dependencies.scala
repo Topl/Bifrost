@@ -2,17 +2,18 @@ import sbt._
 
 object Dependencies {
 
-  val circeVersion = "0.14.5"
+  val circeVersion = "0.14.6"
   val kamonVersion = "2.6.3"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.1"
-  val fs2Version = "3.8.0"
+  val fs2Version = "3.9.2"
   val logback = "1.4.11"
-  val orientDbVersion = "3.2.21"
-  val ioGrpcVersion = "1.57.1"
-  val protobufSpecsVersion = "2.0.0-alpha3" // scala-steward:off
-  val bramblScVersion = "2.0.0-alpha4" // scala-steward:off
+  val orientDbVersion = "3.2.22"
+  val ioGrpcVersion = "1.58.0"
+  val http4sVersion = "0.23.23"
+  val protobufSpecsVersion = "2.0.0-alpha5" // scala-steward:off
+  val bramblScVersion = "2.0.0-alpha5" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -21,7 +22,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.7",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.9",
     catsSlf4j
   )
 
@@ -34,7 +35,7 @@ object Dependencies {
   val scalamock = scalamockBase        % Test
 
   val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.16" % "test",
+    "org.scalatest"    %% "scalatest"                     % "3.2.17" % "test",
     "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
     "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
     scalamock
@@ -103,6 +104,8 @@ object Dependencies {
     "com.lihaoyi" %% "mainargs" % "0.5.1"
   )
 
+  val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
+
   val monocle: Seq[ModuleID] = Seq(
     "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
     "com.github.julien-truffaut" %% "monocle-macro" % "3.0.0-M6"
@@ -114,6 +117,15 @@ object Dependencies {
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
   val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
+
+  val http4s = Seq(
+    "org.http4s" %% "http4s-ember-client" % http4sVersion,
+    "org.http4s" %% "http4s-dsl"          % http4sVersion
+  )
+
+  val http4sServer = http4s ++ Seq(
+    "org.http4s" %% "http4s-ember-server" % http4sVersion
+  )
 
   val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
   val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
@@ -144,7 +156,11 @@ object Dependencies {
     monocle ++
     monitoring ++
     mUnitTestBase ++
-    Seq(grpcServices)
+    Seq(grpcServices) ++
+    http4s
+
+  val nodeIt =
+    http4sServer.map(_ % Test)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -274,5 +290,5 @@ object Dependencies {
     mUnitTest
 
   lazy val byzantineIt: Seq[ModuleID] =
-    (mUnitTestBase :+ dockerClient).map(_ % Test)
+    (mUnitTestBase :+ dockerClient :+ fastparse).map(_ % Test)
 }

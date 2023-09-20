@@ -1,7 +1,7 @@
 package co.topl.genusLibrary.orientDb.instances
 
 import cats.implicits._
-import co.topl.genusLibrary.DbFixtureUtilV2
+import co.topl.genusLibrary.DbFixtureUtil
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockBody.Field
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.blockBodySchema
@@ -16,9 +16,9 @@ class SchemaBlockBodyTest
     with ScalaCheckEffectSuite
     with AsyncMockFactory
     with CatsEffectFunFixtures
-    with DbFixtureUtilV2 {
+    with DbFixtureUtil {
 
-  orientDbFixtureV2.test("Block body Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+  orientDbFixture.test("Block body Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
       dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
 
@@ -43,16 +43,13 @@ class SchemaBlockBodyTest
 
   }
 
-  orientDbFixtureV2.test("Block Body Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+  orientDbFixture.test("Block Body Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
 
       dbTx <- oThread.delay(odbFactory.getTx).toResource
 
       vertex <- oThread
-        .delay(
-          dbTx
-            .addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(BlockBody(Seq.empty)).asJava)
-        )
+        .delay(dbTx.addVertex(s"class:${blockBodySchema.name}", blockBodySchema.encode(BlockBody(Seq.empty)).asJava))
         .toResource
 
       _ <- assertIO(

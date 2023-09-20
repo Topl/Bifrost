@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.NodeRpc
-import co.topl.blockchain.{PrivateTestnet, StakerInitializers}
+import co.topl.blockchain.{PrivateTestnet, StakerInitializers, StakingInit}
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
 import co.topl.brambl.models.box.{Attestation, Value}
@@ -23,7 +23,6 @@ import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
 import co.topl.interpreters.NodeRpcOps._
-import co.topl.node.StakingInit
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path, PosixPermission, PosixPermissions}
@@ -103,18 +102,25 @@ class MultiNodeTest extends IntegrationSuite {
           .rpcClient[F](node1.config.rpcPort)
           // Take stake from node0 and transfer it to the delayed node
           .evalMap(registerStaker(genesisTransaction, 0)(_, tmpHostStakingDirectory))
+        _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
+        _ <- delayedNode.startContainer[F].toResource
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
         thirdEpochHeads <- initialNodes
           .parTraverse(node =>
             node
               .rpcClient[F](node.config.rpcPort)
-              .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(9.minutes).compile.lastOrError)
+              .use(
+                _.adoptedHeaders
+                  .takeWhile(_.slot < (epochSlotLength * 3))
+                  // Verify that the delayed node doesn't produce any blocks in the first 2 epochs
+                  .evalTap(h => IO(h.slot >= (epochSlotLength * 2) || h.address != delayedNodeStakingAddress).assert)
+                  .timeout(9.minutes)
+                  .compile
+                  .lastOrError
+              )
           )
           .toResource
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
-        // The delayed node's registration should now be active, so the delayed node can launch and start producing blocks
-        _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
-        _ <- delayedNode.startContainer[F].toResource
         // The delayed node's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
         // by the delayed node's staking address
         _ <- node0
@@ -190,7 +196,6 @@ class MultiNodeTest extends IntegrationSuite {
       )
       spendableTopl = spendableOutput.value.value.topl.get
       spendableQuantity = spendableTopl.quantity: BigInt
-      registrationOutputs = stakerInitializer.registrationOutputs(spendableQuantity / 2)
       changeOutput = UnspentTransactionOutput(
         PrivateTestnet.HeightLockOneSpendingAddress,
         Value.defaultInstance.withTopl(
@@ -200,15 +205,17 @@ class MultiNodeTest extends IntegrationSuite {
           )
         )
       )
-      unprovenTransaction = IoTransaction(datum =
-        Datum.IoTransaction(
-          Event.IoTransaction.defaultInstance.withSchedule(
-            Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+      unprovenTransaction = stakerInitializer
+        .registrationTransaction(spendableQuantity / 2)
+        .withDatum(
+          Datum.IoTransaction(
+            Event.IoTransaction.defaultInstance.withSchedule(
+              Schedule(0L, Long.MaxValue, System.currentTimeMillis())
+            )
           )
         )
-      )
-        .withInputs(List(unprovenInput))
-        .withOutputs(registrationOutputs :+ changeOutput)
+        .addInputs(unprovenInput)
+        .addOutputs(changeOutput)
 
       proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
       provenPredicateAttestation = unprovenPredicateAttestation.copy(responses = List(proof))

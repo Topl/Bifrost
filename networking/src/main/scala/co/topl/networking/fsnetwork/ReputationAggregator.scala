@@ -85,11 +85,11 @@ object ReputationAggregator {
     case class BadKLookbackSlotData(hostId: HostId) extends Message
 
     /**
-     * Remote peer provide to us incorrect, by some resons, block.
+     * Remote peer provide to us incorrect, by some reasons, block or other data like genesis block.
      * For example it could be block with incorrect transaction(s)
      * @param hostId remote peer
      */
-    case class HostProvideIncorrectBlock(hostId: HostId) extends Message
+    case class HostProvideIncorrectData(hostId: HostId) extends Message
 
     /**
      * Tick, which do actual update of time based reputation
@@ -114,8 +114,8 @@ object ReputationAggregator {
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
       case (state, BlockProvidingReputationUpdate(data))      => blockProvidingReputationUpdate(state, data)
 
-      case (state, BadKLookbackSlotData(hostId))      => badKLookbackSlotData(state, hostId)
-      case (state, HostProvideIncorrectBlock(hostId)) => incorrectBlockReceived(state, hostId)
+      case (state, BadKLookbackSlotData(hostId))     => badKLookbackSlotData(state, hostId)
+      case (state, HostProvideIncorrectData(hostId)) => incorrectBlockReceived(state, hostId)
 
       case (state, ReputationUpdateTick) => processReputationUpdateTick(state)
       case (state, UpdateWarmHosts)      => processUpdateWarmHosts(state)
@@ -138,8 +138,8 @@ object ReputationAggregator {
       networkConfig,
       None
     )
-
-    Actor.make[F, State[F], Message, Response[F]](initialState, getFsm[F])
+    val actorName = "Reputation aggregator actor"
+    Actor.make[F, State[F], Message, Response[F]](actorName, initialState, getFsm[F])
   }
 
   private def processReputationUpdateTick[F[_]: Async](state: State[F]): F[(State[F], Response[F])] = {

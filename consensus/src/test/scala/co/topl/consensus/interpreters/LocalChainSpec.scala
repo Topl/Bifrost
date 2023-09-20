@@ -3,36 +3,30 @@ package co.topl.consensus.interpreters
 import cats.Applicative
 import cats.data.Validated
 import cats.effect.IO
-import cats.effect.unsafe.implicits.global
+import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.consensus.algebras.ChainSelectionAlgebra
-import co.topl.models.utility.Lengths
 import co.topl.consensus.models.{BlockId, SlotData, SlotId}
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.EitherValues
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import com.google.protobuf.ByteString
+import co.topl.models.ModelGenerators._
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.generators.consensus.ModelGenerators.etaGen
+import co.topl.models.utility.Lengths
+import com.google.protobuf.ByteString
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalacheck.effect.PropF
+import org.scalamock.munit.AsyncMockFactory
 
-class LocalChainSpec
-    extends AnyFlatSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with MockFactory
-    with EitherValues {
-  behavior of "LocalChain"
+import scala.concurrent.duration._
 
+class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
   private val blockId0 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))
   private val blockId1 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(1)))
   private val blockId2 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(2)))
 
-  it should "store the head of the local canonical tine" in {
-    forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+  test("store the head of the local canonical tine") {
+    PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(
           SlotId.of(1, blockId1),
@@ -44,14 +38,14 @@ class LocalChainSpec
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
-      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
-
-      underTest.head.unsafeRunSync() shouldBe initialHead
+      LocalChain
+        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .use(_.head.assertEquals(initialHead))
     }
   }
 
-  it should "indicate when a new tine is worse than the local chain" in {
-    forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+  test("indicate when a new tine is worse than the local chain") {
+    PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(
           SlotId.of(1, blockId1),
@@ -62,8 +56,6 @@ class LocalChainSpec
         )
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
-
-      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(
@@ -74,12 +66,14 @@ class LocalChainSpec
           1
         )
 
-      underTest.isWorseThan(newHead).unsafeRunSync() shouldBe true
+      LocalChain
+        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .use(_.isWorseThan(newHead).assert)
     }
   }
 
-  it should "adopt a new tine when instructed" in {
-    forAll(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+  test("adopt a new tine when instructed") {
+    PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
         SlotData(
           SlotId.of(1, blockId1),
@@ -90,8 +84,6 @@ class LocalChainSpec
         )
 
       val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
-
-      val underTest = LocalChain.make[F](initialHead, chainSelection, _ => Applicative[F].unit).unsafeRunSync()
 
       val newHead =
         SlotData(
@@ -102,12 +94,51 @@ class LocalChainSpec
           1
         )
 
-      underTest.head.unsafeRunSync() shouldBe initialHead
-
-      underTest.adopt(Validated.Valid(newHead)).unsafeRunSync()
-
-      underTest.head.unsafeRunSync() shouldBe newHead
+      LocalChain
+        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .use(underTest =>
+          underTest.head.assertEquals(initialHead) >>
+          underTest.adopt(Validated.Valid(newHead)) >>
+          underTest.head.assertEquals(newHead)
+        )
 
     }
+  }
+
+  test("Block IDs should be produced in a stream whenever they are adopted locally") {
+    val initialHead =
+      SlotData(
+        SlotId.of(1, blockId1),
+        SlotId.of(0, blockId0),
+        genSizedStrictByteString[Lengths.`64`.type]().first.data,
+        etaGen.first.data,
+        0
+      )
+
+    val newHead =
+      SlotData(
+        SlotId.of(2, blockId2),
+        SlotId.of(1, blockId0),
+        genSizedStrictByteString[Lengths.`64`.type]().first.data,
+        etaGen.first.data,
+        1
+      )
+
+    val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
+
+    LocalChain
+      .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+      .use(underTest =>
+        fs2.Stream
+          .force(underTest.adoptions)
+          .concurrently(
+            fs2.Stream.exec(Async[F].delayBy(Async[F].defer(underTest.adopt(Validated.Valid(newHead))), 1.seconds))
+          )
+          .head
+          .interruptAfter(3.seconds)
+          .compile
+          .lastOrError
+          .assertEquals(newHead.slotId.blockId)
+      )
   }
 }

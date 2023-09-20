@@ -4,11 +4,11 @@ import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.genus.services.{Txo, TxoState}
 import co.topl.genusLibrary.DbFixtureUtil
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.txoSchema
 import co.topl.genusLibrary.orientDb.instances.SchemaTxo.Field
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
+import co.topl.genusLibrary.orientDb.{OrientDBMetadataFactory, OrientThread}
 import co.topl.models.ModelGenerators.GenHelper
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import scala.jdk.CollectionConverters._
@@ -20,12 +20,8 @@ class SchemaTxoTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Txo Schema Metadata") { case (odb, oThread) =>
+  orientDbFixture.test("Txo Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-      _          <- oThread.delay(dbNoTx.makeActive()).toResource
-
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
       schema = SchemaTxo.make()
       _ <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema).toResource
@@ -67,18 +63,9 @@ class SchemaTxoTest
 
   }
 
-  orientDbFixture.test("Txo Schema Add vertex") { case (odb, oThread) =>
+  orientDbFixture.test("Txo Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-
-      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-      _      <- oThread.delay(dbNoTx.makeActive()).toResource
-
-      schema = SchemaTxo.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
-
       dbTx <- oThread.delay(odbFactory.getTx).toResource
-      _    <- oThread.delay(dbTx.makeActive()).toResource
 
       outputAddress <- BramblGens.arbitraryTransactionOutputAddress.arbitrary.first
         .pure[F]
@@ -93,26 +80,26 @@ class SchemaTxoTest
       vertex <- oThread
         .delay(
           dbTx
-            .addVertex(s"class:${schema.name}", schema.encode(txo).asJava)
+            .addVertex(s"class:${Field.SchemaName}", txoSchema.encode(txo).asJava)
         )
         .toResource
 
       _ <- assertIO(
         vertex
-          .getProperty[Array[Byte]](schema.properties.filter(_.name == Field.TransactionOutput).head.name)
+          .getProperty[Array[Byte]](txoSchema.properties.filter(_.name == Field.TransactionOutput).head.name)
           .toSeq
           .pure[F],
         txo.transactionOutput.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.State).head.name).pure[F],
+        vertex.getProperty[Int](txoSchema.properties.filter(_.name == Field.State).head.name).pure[F],
         txo.state.value
       ).toResource
 
       _ <- assertIO(
         vertex
-          .getProperty[Array[Byte]](schema.properties.filter(_.name == Field.OutputAddress).head.name)
+          .getProperty[Array[Byte]](txoSchema.properties.filter(_.name == Field.OutputAddress).head.name)
           .toSeq
           .pure[F],
         txo.outputAddress.toByteArray.toSeq

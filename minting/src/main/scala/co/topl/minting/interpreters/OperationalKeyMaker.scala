@@ -31,14 +31,12 @@ object OperationalKeyMaker {
   /**
    * Constructs an OperationalKeys interpreter using a SecureStore.
    *
-   * @param operationalPeriodLength     The number of slots in an operational period
    * @param activationOperationalPeriod The operational period number in which the staker becomes active
    * @param address                     The staker's address
    * @param etaCalculation An EtaCalculation interpreter is needed to determine the eta to use when determining VRF ineligibilities.
    * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
    */
   def make[F[_]: Async: Logger](
-    operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,
@@ -48,13 +46,19 @@ object OperationalKeyMaker {
     leaderElection:              LeaderElectionValidationAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
-    kesProductResource:          UnsafeResource[F, KesProduct],
-    ed25519Resource:             UnsafeResource[F, Ed25519]
+    kesProductResource:          Resource[F, KesProduct],
+    ed25519Resource:             Resource[F, Ed25519]
   ): Resource[F, OperationalKeyMakerAlgebra[F]] =
     for {
+      // Delay further initialization until the activation period starts
+      currentOperationalPeriod <- clock.globalOperationalPeriod.toResource
+      _ <- Async[F]
+        .whenA(activationOperationalPeriod > currentOperationalPeriod)(
+          clock.operationalPeriodRange(activationOperationalPeriod).map(_.start).flatMap(clock.delayedUntilSlot)
+        )
+        .toResource
       stateRef <- Ref.of(none[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]).toResource
       impl = new Impl[F](
-        operationalPeriodLength,
         activationOperationalPeriod,
         address,
         vrfConfig,
@@ -71,7 +75,6 @@ object OperationalKeyMaker {
     } yield impl
 
   private class Impl[F[_]: Async: Logger](
-    operationalPeriodLength:     Long,
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,
@@ -81,35 +84,37 @@ object OperationalKeyMaker {
     leaderElection:              LeaderElectionValidationAlgebra[F],
     etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
-    kesProductResource:          UnsafeResource[F, KesProduct],
-    ed25519Resource:             UnsafeResource[F, Ed25519],
+    kesProductResource:          Resource[F, KesProduct],
+    ed25519Resource:             Resource[F, Ed25519],
     stateRef:                    Ref[F, Option[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]]
   ) extends OperationalKeyMakerAlgebra[F] {
 
-    def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId): F[Option[OperationalKeyOut]] = {
-      val operationalPeriod = slot / operationalPeriodLength
-      MonadCancelThrow[F].uncancelable(_ =>
-        stateRef.get.flatMap {
-          case Some((`operationalPeriod`, keys)) =>
-            OptionT.fromOption[F](keys.get(slot)).flatMapF(_.get).value
-          case _ =>
-            OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(address))
-              .flatMapF(relativeStake =>
-                consumeEvolvePersist(
-                  (operationalPeriod - activationOperationalPeriod).toInt,
-                  parentSlotId,
-                  slot,
-                  relativeStake
-                )
-              )
-              .semiflatTap(newKeys => stateRef.set((operationalPeriod -> newKeys).some))
-              .flatTapNone(stateRef.set(none))
-              .subflatMap(_.get(slot))
-              .flatMapF(_.get)
-              .value
-        }
-      )
-    }
+    def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId): F[Option[OperationalKeyOut]] =
+      clock
+        .operationalPeriodOf(slot)
+        .flatMap(operationalPeriod =>
+          MonadCancelThrow[F].uncancelable(_ =>
+            stateRef.get.flatMap {
+              case Some((`operationalPeriod`, keys)) =>
+                OptionT.fromOption[F](keys.get(slot)).flatMapF(_.get).value
+              case _ =>
+                OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(address))
+                  .flatMapF(relativeStake =>
+                    consumeEvolvePersist(
+                      (operationalPeriod - activationOperationalPeriod).toInt,
+                      parentSlotId,
+                      slot,
+                      relativeStake
+                    )
+                  )
+                  .semiflatTap(newKeys => stateRef.set((operationalPeriod -> newKeys).some))
+                  .flatTapNone(stateRef.set(none))
+                  .subflatMap(_.get(slot))
+                  .flatMapF(_.get)
+                  .value
+            }
+          )
+        )
 
     /**
      * Consume the current key from disk.  Exactly one key is expected; if 0 or more than is detected, an error is raised.
@@ -177,16 +182,10 @@ object OperationalKeyMaker {
       relativeStake: Ratio
     )(onComplete: => F[Unit]): F[Map[Slot, Deferred[F, Option[OperationalKeyOut]]]] =
       for {
-        epoch <- clock.epochOf(fromSlot)
-        eta   <- etaCalculation.etaToBe(parentSlotId, fromSlot)
-        operationalPeriod = fromSlot / operationalPeriodLength
-        operationalPeriodSlots = Range
-          .Long(
-            operationalPeriod * operationalPeriodLength,
-            (operationalPeriod + 1) * operationalPeriodLength,
-            1L
-          )
-          .toList
+        epoch                  <- clock.epochOf(fromSlot)
+        eta                    <- etaCalculation.etaToBe(parentSlotId, fromSlot)
+        operationalPeriod      <- clock.operationalPeriodOf(fromSlot)
+        operationalPeriodSlots <- clock.operationalPeriodRange(operationalPeriod).map(_.toList)
         _ <- Logger[F].info(
           show"Computing operational keys for" +
           show" epoch=$epoch" +
