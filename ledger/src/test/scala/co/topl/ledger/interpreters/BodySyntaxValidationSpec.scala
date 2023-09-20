@@ -14,7 +14,6 @@ import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.ledger.models.BodySyntaxErrors
 import co.topl.node.models.BlockBody
 import co.topl.models.ModelGenerators._
-import co.topl.numerics.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory

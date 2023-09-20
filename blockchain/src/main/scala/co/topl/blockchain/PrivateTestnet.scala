@@ -15,7 +15,7 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.numerics.implicits._
+import co.topl.numerics.RatioOps.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
