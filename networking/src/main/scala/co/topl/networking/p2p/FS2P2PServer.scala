@@ -143,6 +143,8 @@ object FS2P2PServer {
           Logger[F].info(s"Inbound connection initializing into $localAddress, from remote peer $remotePeer")
         case PeerConnectionChanges.OutboundConnectionInitializing(peer) =>
           Logger[F].info(s"Outbound connection initializing with peer=$peer")
+        case PeerConnectionChanges.RemotePeerApplicationLevel(peer, applicationLevelEnabled) =>
+          Logger[F].info(s"Remote peer $peer application level is $applicationLevelEnabled")
       }
       .compile
       .drain

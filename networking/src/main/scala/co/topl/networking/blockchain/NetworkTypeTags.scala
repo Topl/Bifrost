@@ -88,4 +88,10 @@ object NetworkTypeTags {
 
   implicit val commonMessagesPeerServerPortRes: NetworkTypeTag[TypedProtocol.CommonMessages.Response[Int]] =
     NetworkTypeTag.create("TypedProtocol.CommonMessages.PeerServerPortRes")
+
+  implicit val applicationLevelNotifyReq: NetworkTypeTag[TypedProtocol.CommonMessages.Get[Boolean]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.applicationLevelNotifyReq")
+
+  implicit val applicationLevelNotifyRes: NetworkTypeTag[TypedProtocol.CommonMessages.Response[Unit]] =
+    NetworkTypeTag.create("TypedProtocol.CommonMessages.applicationLevelNotifyRes")
 }

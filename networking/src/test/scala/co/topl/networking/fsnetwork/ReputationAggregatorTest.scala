@@ -45,11 +45,11 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.PeerIsCold(hostToRemove))
+            newState <- actor.send(ReputationAggregator.Message.StopReputationTracking(Set(hostToRemove)))
             _ = assert(!newState.performanceReputation.contains(hostToRemove))
             _ = assert(!newState.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState.noveltyReputation.contains(hostToRemove))
-            newState2 <- actor.send(ReputationAggregator.Message.PeerIsCold(hostToRemove))
+            newState2 <- actor.send(ReputationAggregator.Message.StopReputationTracking(Set(hostToRemove)))
             _ = assert(!newState2.performanceReputation.contains(hostToRemove))
             _ = assert(!newState2.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState2.noveltyReputation.contains(hostToRemove))
