@@ -351,8 +351,8 @@ object PeersManager {
 
   private def getCurrentTips[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(s"Got request to get all available tips") >>
-      state.peers.getHotPeers.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetCurrentTip)) >>
-      (state, state).pure[F]
+    state.peers.getHotPeers.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetCurrentTip)) >>
+    (state, state).pure[F]
 
   private def remotePeerServerPort[F[_]: Async: Logger](
     state:      State[F],
