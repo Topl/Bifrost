@@ -128,6 +128,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
 
       val client =
         mock[BlockchainPeerClient[F]]
+      (client.notifyAboutThisNetworkLevel _).expects(true).returns(Applicative[F].unit)
       (client.getPongMessage _).expects(*).anyNumberOfTimes().onCall { req: PingMessage =>
         Option(PongMessage(req.ping.reverse)).pure[F]
       }
@@ -144,6 +145,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         .expects(*)
         .anyNumberOfTimes()
         .returns(Option(CurrentKnownHostsRes(Seq.empty)).pure[F])
+      (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
+      (client.closeConnection _).expects().returns(Applicative[F].unit)
 
       val peerOpenRequested: AtomicBoolean = new AtomicBoolean(false)
       val addRemotePeer: DisconnectedPeer => F[Unit] = mock[DisconnectedPeer => F[Unit]]

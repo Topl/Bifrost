@@ -38,6 +38,11 @@ object PeerActor {
     case class UpdateState(networkLevel: Boolean, applicationLevel: Boolean) extends Message
 
     /**
+     * Close connection on client side
+     */
+    case object CloseConnection extends Message
+
+    /**
      * Request to download block headers from peer, downloaded headers will be sent to block checker directly
      * @param blockIds headers block id to download
      */
@@ -85,8 +90,9 @@ object PeerActor {
   type Response[F[_]] = State[F]
   type PeerActor[F[_]] = Actor[F, Message, Response[F]]
 
-  def getFsm[F[_]: Concurrent: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
+  def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
     case (state, UpdateState(networkLevel, applicationLevel)) => updateState(state, networkLevel, applicationLevel)
+    case (state, CloseConnection)                             => closeConnection(state)
     case (state, DownloadBlockHeaders(blockIds))              => downloadHeaders(state, blockIds)
     case (state, DownloadBlockBodies(blockHeaders))           => downloadBodies(state, blockHeaders)
     case (state, GetCurrentTip)                               => getCurrentTip(state)
@@ -146,12 +152,11 @@ object PeerActor {
     } yield actor
   }
 
-  private def finalizer[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
+  private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Finishing actor for peer ${state.hostId}") >>
-    stopApplicationLevel(state) >>
-    stopNetworkLevel(state)
+    closeConnection(state).void
 
-  private def updateState[F[_]: Concurrent: Logger](
+  private def updateState[F[_]: Async: Logger](
     state:               State[F],
     newNetworkLevel:     Boolean,
     newApplicationLevel: Boolean
@@ -174,6 +179,13 @@ object PeerActor {
     applicationLevel >> networkLevel >> (newState, newState).pure[F]
   }
 
+  private def closeConnection[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    Logger[F].info(show"Going to close connection ${state.hostId}") >>
+    stopApplicationLevel(state) >>
+    stopNetworkLevel(state) >>
+    state.client.closeConnection() >>
+    (state, state).pure[F]
+
   private def startApplicationLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is enabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StartActor) >>
@@ -184,10 +196,13 @@ object PeerActor {
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StopActor) >>
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
 
-  private def startNetworkLevel[F[_]: Logger](state: State[F]): F[Unit] =
+  private def startNetworkLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
+    getNetworkQuality(state) >>
+    state.client.notifyAboutThisNetworkLevel(networkLevel = true) >>
     Logger[F].info(show"Network level is started for ${state.hostId}")
 
-  private def stopNetworkLevel[F[_]: Logger](state: State[F]): F[Unit] =
+  private def stopNetworkLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
+    state.client.notifyAboutThisNetworkLevel(networkLevel = false) >>
     Logger[F].info(show"Network level is stop for ${state.hostId}")
 
   private def downloadHeaders[F[_]: Concurrent](
@@ -219,7 +234,7 @@ object PeerActor {
         .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
         .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
       _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
-      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownPeers(hotPeers)))
+      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
 

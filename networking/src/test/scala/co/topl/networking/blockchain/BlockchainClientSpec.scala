@@ -56,6 +56,10 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           override def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] = ???
 
           override def getPongMessage(request: PingMessage): F[Option[PongMessage]] = ???
+
+          override def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit] = ???
+
+          override def closeConnection(): F[Unit] = ???
         }
 
         val blockHeights =

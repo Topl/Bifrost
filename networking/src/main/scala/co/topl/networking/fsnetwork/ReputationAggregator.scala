@@ -29,9 +29,9 @@ object ReputationAggregator {
 
     /**
      * Stop tracking reputation for particular host
-     * @param hostId host to stop tracking
+     * @param hostIds host to stop tracking
      */
-    case class PeerIsCold(hostId: HostId) extends Message
+    case class StopReputationTracking(hostIds: Set[HostId]) extends Message
 
     /**
      * PingPong message from remote peer, which allow us to measure performance reputation for remote host
@@ -106,8 +106,8 @@ object ReputationAggregator {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, NewHotPeer(hostIds)) => newHotPeer(state, hostIds)
-      case (state, PeerIsCold(hostId))  => removeReputationForHost(state, hostId)
+      case (state, NewHotPeer(hostIds))             => newHotPeer(state, hostIds)
+      case (state, StopReputationTracking(hostIds)) => removeReputationForHost(state, hostIds)
 
       case (state, PingPongMessagePing(hostId, pongResponse)) => pongMessageProcessing(state, hostId, pongResponse)
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
@@ -173,12 +173,12 @@ object ReputationAggregator {
 
   private def removeReputationForHost[F[_]: Async: Logger](
     state:  State[F],
-    hostId: HostId
+    hostId: Set[HostId]
   ): F[(State[F], Response[F])] = {
     val newState = state.copy(
-      performanceReputation = state.performanceReputation - hostId,
-      blockProvidingReputation = state.blockProvidingReputation - hostId,
-      noveltyReputation = state.noveltyReputation - hostId
+      performanceReputation = state.performanceReputation -- hostId,
+      blockProvidingReputation = state.blockProvidingReputation -- hostId,
+      noveltyReputation = state.noveltyReputation -- hostId
     )
 
     Logger[F].info(show"Remove reputation for host $hostId") >>

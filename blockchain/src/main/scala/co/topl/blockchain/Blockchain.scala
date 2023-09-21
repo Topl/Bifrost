@@ -158,7 +158,8 @@ object Blockchain {
         localChain,
         mempool,
         p2pBlockAdoptionsTopic,
-        transactionAdoptionsTopic
+        transactionAdoptionsTopic,
+        peersStatusChangesTopic
       ) _
       _ <- BlockchainNetwork
         .make[F](

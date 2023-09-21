@@ -33,7 +33,7 @@ object RequestsProxy {
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
-    case class DownloadHeadersRequest(hostId: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
+    case class DownloadHeadersRequest(hostIdTip: HostId, blockIds: NonEmptyChain[BlockId]) extends Message
 
     // response shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
@@ -44,7 +44,7 @@ object RequestsProxy {
 
     // blockIds shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C
-    case class DownloadBodiesRequest(hostId: HostId, blockHeaders: NonEmptyChain[BlockHeader]) extends Message
+    case class DownloadBodiesRequest(hostIdTip: HostId, blockHeaders: NonEmptyChain[BlockHeader]) extends Message
 
     // response shall contains chain of linked blocks, for example if we have chain A -> B -> C
     // then A is parent of B and B is parent of C

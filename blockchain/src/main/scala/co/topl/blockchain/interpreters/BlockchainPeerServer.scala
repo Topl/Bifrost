@@ -13,7 +13,8 @@ import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
 import co.topl.typeclasses.implicits._
 import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
-import co.topl.networking.p2p.{ConnectedPeer, RemoteAddress}
+import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
+import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange, RemoteAddress}
 import fs2.Stream
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -33,6 +34,7 @@ object BlockchainPeerServer {
     mempool:                 MempoolAlgebra[F],
     newBlockIds:             Topic[F, BlockId],
     newTransactionIds:       Topic[F, TransactionId],
+    peerStatus:              Topic[F, PeerConnectionChange],
     blockIdBufferSize:       Int = 8,
     transactionIdBufferSize: Int = 64
   )(peer: ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
@@ -103,6 +105,9 @@ object BlockchainPeerServer {
 
           override def getPong(req: PingMessage): F[Option[PongMessage]] =
             Option(PongMessage(req.ping.reverse)).pure[F]
+
+          override def notifyApplicationLevel(isEnabled: Boolean): F[Option[Unit]] =
+            peerStatus.publish1(RemotePeerApplicationLevel(peer, isEnabled)).map(_ => Option(()))
         }
       )
 }
