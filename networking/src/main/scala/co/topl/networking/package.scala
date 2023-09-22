@@ -4,6 +4,7 @@ import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.KnownHost
 import com.comcast.ip4s.{IpAddress, SocketAddress}
 
+import java.net.InetAddress
 import java.nio.ByteBuffer
 
 package object networking {
@@ -20,6 +21,12 @@ package object networking {
 
   implicit class RemoteAddressOps(remoteAddress: RemoteAddress) {
     def asKnownHost: KnownHost = KnownHost(remoteAddress.host, remoteAddress.port)
+
+    def isSpecialHost: Boolean = {
+      val ip = InetAddress.getByName(remoteAddress.host)
+      ip.isLoopbackAddress || ip.isMCGlobal || ip.isMCLinkLocal || ip.isAnyLocalAddress || ip.isMulticastAddress ||
+      ip.getHostName == "255.255.255.255"
+    }
   }
 
   implicit class SocketAddressOps(address: SocketAddress[IpAddress]) {

@@ -1401,6 +1401,62 @@ class PeersManagerTest
     }
   }
 
+  test("Add known neighbours shall correctly filter out loopback IP addresses") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+
+      val externalIPs = Set("126.0.0.0", "8.8.8.8")
+      val specialIPs =
+        Set("0.0.0.0", "127.127.127.127", "238.255.255.255", "224.0.0.0", "0.0.0.0", "255.255.255.255")
+
+      val remoteAddresses =
+        NonEmptyChain.fromSeq((externalIPs ++ specialIPs).map(ip => RemoteAddress(ip, 0)).toSeq).get
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          headerToBodyValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          Map.empty,
+          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        )
+        .use { actor =>
+          for {
+            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
+            _            <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _            <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            updatedState <- actor.send(PeersManager.Message.AddKnownNeighbors(remoteAddresses))
+            knownPeers1 = updatedState.peers.peers.keySet
+            _ = assert(externalIPs.forall(knownPeers1.contains))
+            _ = assert(specialIPs.forall(!knownPeers1.contains(_)))
+            updateWithAddKnown <- actor.send(PeersManager.Message.AddKnownPeers(remoteAddresses))
+            knownPeers2 = updateWithAddKnown.peers.peers.keySet
+            _ = assert(externalIPs.forall(knownPeers2.contains))
+            _ = assert(specialIPs.forall(knownPeers2.contains))
+          } yield ()
+        }
+    }
+
+  }
+
   test("Request for block header download shall be sent to one of the peers") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]

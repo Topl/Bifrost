@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.Applicative
-import cats.data.NonEmptyChain
+import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
@@ -524,9 +524,23 @@ object PeersManager {
   private def addKnownNeighbors[F[_]: Async: Logger: DnsResolver](
     state:      State[F],
     knownPeers: NonEmptyChain[RemoteAddress]
-  ): F[(State[F], Response[F])] = addKnownPeers(state, knownPeers)
+  ): F[(State[F], Response[F])] = {
+    for {
+      resolvedPeers    <- OptionT(resolveHosts(knownPeers.toList).map(NonEmptyChain.fromSeq))
+      filteredLoopback <- OptionT.fromOption[F](NonEmptyChain.fromChain(resolvedPeers.filterNot(_.isSpecialHost)))
+    } yield addKnownResolvedPeers(state, filteredLoopback)
+  }.getOrElse((state, state).pure[F]).flatten
 
   private def addKnownPeers[F[_]: Async: Logger: DnsResolver](
+    state:      State[F],
+    knownPeers: NonEmptyChain[RemoteAddress]
+  ): F[(State[F], Response[F])] = {
+    for {
+      resolvedPeers <- OptionT(resolveHosts(knownPeers.toList).map(NonEmptyChain.fromSeq))
+    } yield addKnownResolvedPeers(state, resolvedPeers)
+  }.getOrElse((state, state).pure[F]).flatten
+
+  private def addKnownResolvedPeers[F[_]: Async: Logger: DnsResolver](
     state:      State[F],
     knownPeers: NonEmptyChain[RemoteAddress]
   ): F[(State[F], Response[F])] =

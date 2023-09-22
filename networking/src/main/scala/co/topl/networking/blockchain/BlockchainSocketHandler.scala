@@ -135,7 +135,7 @@ object BlockchainSocketHandler {
         22: Byte
       )
 
-    val setRemoteAppLevelF =
+    val notifyRemoteAppLevelF =
       TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Boolean, Unit](
         BlockchainProtocols.ApplicationLevelNotify,
         protocolServer.notifyApplicationLevel,
@@ -158,7 +158,7 @@ object BlockchainSocketHandler {
         (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
         (pingPongHandlers, pingMessageReceivedCallback)            <- pingPongF.ap(connectionLeader.pure[F])
         (peerServerHandlers, peerServerCallback)                   <- remotePeerServerF.ap(connectionLeader.pure[F])
-        (appLevelNotifyHandlers, appNotifyCallback)                <- setRemoteAppLevelF.ap(connectionLeader.pure[F])
+        (appLevelNotifyHandlers, appNotifyCallback)                <- notifyRemoteAppLevelF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerServerPort: F[Option[Int]] = peerServerCallback(())
