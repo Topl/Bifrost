@@ -186,12 +186,12 @@ object PeerActor {
     state.client.closeConnection() >>
     (state, state).pure[F]
 
-  private def startApplicationLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
+  private def startApplicationLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is enabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StartActor) >>
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StartActor)
 
-  private def stopApplicationLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
+  private def stopApplicationLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is disabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StopActor) >>
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
