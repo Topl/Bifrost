@@ -288,6 +288,6 @@ object PeerActor {
       )
       .recoverWith { case exception =>
         Logger[F].error(s"Remote peer provide incorrect genesis information: ${exception.getLocalizedMessage}") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectData(state.hostId))
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.CriticalErrorForHost(state.hostId))
       }
 }

@@ -435,7 +435,7 @@ class PeersManagerTest
           for {
             _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             preTimestamp <- System.currentTimeMillis().pure[F]
-            endState     <- actor.send(PeersManager.Message.MoveToCold(Set(host1, host2)))
+            endState     <- actor.send(PeersManager.Message.MoveToCold(NonEmptyChain(host1, host2)))
             endTimestamp = System.currentTimeMillis()
             _ = assert(endState.peers(host1).actorOpt.isDefined) // actor will be released on close connection message
             _ = assert(endState.peers(host1).state == PeerState.Cold)
@@ -507,7 +507,7 @@ class PeersManagerTest
           for {
             _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             preTimestamp <- System.currentTimeMillis().pure[F]
-            endState     <- actor.send(PeersManager.Message.MoveToCold(Set(hostId)))
+            endState     <- actor.send(PeersManager.Message.MoveToCold(NonEmptyChain(hostId)))
             _ = assert(endState.peers(hostId).state == PeerState.Cold)
             _ = assert(endState.peers(hostId).closedTimestamps.size == 2)
             timestamp = endState.peers(hostId).closedTimestamps.last

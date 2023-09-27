@@ -83,7 +83,7 @@ object PeersManager {
      * Move peer to cold status, close connection ONLY if remote peer is not used it as well
      * @param hostIds peer for moving to cold state
      */
-    case class MoveToCold(hostIds: Set[HostId]) extends Message
+    case class MoveToCold(hostIds: NonEmptyChain[HostId]) extends Message
 
     /**
      * Add known peers to peers list
@@ -385,9 +385,9 @@ object PeersManager {
 
   private def coldPeer[F[_]: Async: Logger](
     state:   State[F],
-    hostIds: Set[HostId]
+    hostIds: NonEmptyChain[HostId]
   ): F[(State[F], Response[F])] =
-    moveToColdStatus(state, hostIds).map { case (_, newState) => (newState, newState) }
+    moveToColdStatus(state, hostIds.toList.toSet).map { case (_, newState) => (newState, newState) }
 
   // Disable application level AND close connection as well for peer
   private def closePeer[F[_]: Async: Logger](
