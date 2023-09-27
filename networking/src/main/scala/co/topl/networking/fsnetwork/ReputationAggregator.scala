@@ -232,8 +232,8 @@ object ReputationAggregator {
 
   private def badKLookbackSlotData[F[_]: Async: Logger](state: State[F], hostId: HostId): F[(State[F], Response[F])] =
     Logger[F].error(show"Got got bad k lookback slot data from host $hostId") >>
-      state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
-      (state, state).pure[F]
+    state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
+    (state, state).pure[F]
 
   private def incorrectBlockReceived[F[_]: Async: Logger](
     state:  State[F],
