@@ -134,7 +134,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
-  test("Block header download response: downloaded prefix sent back, cache is updated") {
+  test("Block header download response: downloaded prefix sent back, cache is updated, critical error") {
     PropF.forAllF(nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize)) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
@@ -182,12 +182,94 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
               .returns(().pure[F])
           }
 
-          response.collect { case (id, Left(_)) =>
+          val errorIds = response.collect { case (id, Left(_)) => id }
+          NonEmptyChain.fromChain(errorIds).map { errors =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
+              .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
-              .expects(PeersManager.Message.BlockHeadersRequest(None, NonEmptyChain.one(id)))
+              .expects(PeersManager.Message.BlockHeadersRequest(None, errors))
+              .returns(().pure[F])
+          }
+
+          RequestsProxy
+            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+            .use { actor =>
+              for {
+                _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
+                state <- actor.send(RequestsProxy.Message.DownloadHeadersResponse(hostId, response))
+                _ = assert(
+                  headerWithStatus
+                    .collect { case (header, DownloadedOk) => header.id }
+                    .forall(state.headerRequests.contains)
+                )
+              } yield ()
+            }
+        }
+    }
+  }
+
+  test("Block header download response: downloaded prefix sent back, cache is updated, non-critical error") {
+    PropF.forAllF(nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize)) {
+      headers: NonEmptyChain[BlockHeader] =>
+        withMock {
+
+          val reputationAggregator = mock[ReputationAggregatorActor[F]]
+          val peersManager = mock[PeersManagerActor[F]]
+          val headerStore = mock[Store[F, BlockId, BlockHeader]]
+          val bodyStore = mock[Store[F, BlockId, BlockBody]]
+          val blockChecker = mock[BlockCheckerActor[F]]
+
+          val headerWithStatus =
+            headers.map(h => (h, ResponseStatus.getFor(h)))
+
+          val response = headerWithStatus.map {
+            case (header, DownloadedOk) =>
+              (header.id, Either.right(UnverifiedBlockHeader(hostId, header, 0)))
+            case (header, DownloadError) =>
+              (
+                header.id,
+                Either.left(BlockHeaderDownloadError.UnknownError(new RuntimeException()): BlockHeaderDownloadError)
+              )
+          }
+
+          def inHeaderStorage(id: BlockId): Boolean = id.hashCode() % 2 == 0
+
+          (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            if (inHeaderStorage(id)) Option(arbitraryHeader.arbitrary.first).pure[F]
+            else Option.empty[BlockHeader].pure[F]
+          }
+          (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            inHeaderStorage(id).pure[F]
+          }
+
+          response
+            .collect { case (id, Right(header)) => (id, header) }
+            .dropWhile_ { case (id, _) => inHeaderStorage(id) }
+            .headOption
+            .map {
+              case (_, header) if inHeaderStorage(header.blockHeader.parentHeaderId) =>
+                (blockChecker.sendNoWait _)
+                  .expects(
+                    BlockChecker.Message.RemoteBlockHeaders(NonEmptyChain.one(header))
+                  )
+                  .returns(().pure[F])
+              case _ =>
+            }
+
+          response.collect { case (_, Right(_)) =>
+            (reputationAggregator.sendNoWait _)
+              .expects(ReputationAggregator.Message.DownloadTimeHeader(hostId, 0))
+              .returns(().pure[F])
+          }
+
+          val errorIds = response.collect { case (id, Left(_)) => id }
+          NonEmptyChain.fromChain(errorIds).map { errors =>
+            (reputationAggregator.sendNoWait _)
+              .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+              .returns(().pure[F])
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.BlockHeadersRequest(None, errors))
               .returns(().pure[F])
           }
 
@@ -283,7 +365,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
-  test("Block body download response: downloaded prefix sent back, cache is updated") {
+  test("Block body download response: downloaded prefix sent back, cache is updated, critical error") {
     PropF.forAllF(TestHelper.arbitraryLinkedSlotDataHeaderBlockNoTx(Gen.choose(1, maxChainSize)).arbitrary) {
       data: NonEmptyChain[(BlockId, SlotData, BlockHeader, BlockBody)] =>
         withMock {
@@ -351,12 +433,114 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 .returns(().pure[F])
             }
 
-          response.collect { case (header, Left(_)) =>
+          val errorHeaders = response.collect { case (header, Left(_)) => header }
+          NonEmptyChain.fromSeq(errorHeaders).map { headers =>
             (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
+              .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
-              .expects(PeersManager.Message.BlockBodyRequest(None, NonEmptyChain.one(header)))
+              .expects(PeersManager.Message.BlockBodyRequest(None, headers))
+              .returns(().pure[F])
+          }
+
+          val messageToSend = response.map { case (header, errorOrBody) =>
+            (header, errorOrBody.map(UnverifiedBlockBody(hostId, _, 0)))
+          }
+          RequestsProxy
+            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+            .use { actor =>
+              for {
+                _ <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
+                state <- actor.send(
+                  RequestsProxy.Message.DownloadBodiesResponse(hostId, NonEmptyChain.fromSeq(messageToSend).get)
+                )
+                _ = assert(
+                  headersWithStatus
+                    .collect { case (header, DownloadedOk) => header.id }
+                    .forall(state.bodyRequests.contains)
+                )
+              } yield ()
+            }
+        }
+    }
+  }
+
+  test("Block body download response: downloaded prefix sent back, cache is updated, non-critical error") {
+    PropF.forAllF(TestHelper.arbitraryLinkedSlotDataHeaderBlockNoTx(Gen.choose(1, maxChainSize)).arbitrary) {
+      data: NonEmptyChain[(BlockId, SlotData, BlockHeader, BlockBody)] =>
+        withMock {
+          val dataMap: ListMap[BlockId, (BlockHeader, BlockBody)] =
+            ListMap.from(data.toList.map(d => (d._1, (d._3, d._4))))
+          val parentOfFirstBlock: BlockId = dataMap.head._2._1.parentHeaderId
+
+          val reputationAggregator = mock[ReputationAggregatorActor[F]]
+          val peersManager = mock[PeersManagerActor[F]]
+          val headerStore = mock[Store[F, BlockId, BlockHeader]]
+          val bodyStore = mock[Store[F, BlockId, BlockBody]]
+          val blockChecker = mock[BlockCheckerActor[F]]
+
+          val headersWithStatus =
+            dataMap.keys.map(id => (dataMap(id)._1, ResponseStatus.getFor(id.value))).toSeq
+
+          val response = headersWithStatus.map {
+            case (header, DownloadedOk) => (header, Either.right(dataMap(header.id)._2))
+            case (header, DownloadError) =>
+              (header, Either.left(BlockBodyDownloadError.UnknownError(new RuntimeException()): BlockBodyDownloadError))
+          }
+
+          def inBodyStorage(id: BlockId): Boolean = id.hashCode() % 2 == 0
+
+          // body of parent block for given request
+          (bodyStore.get _)
+            .expects(parentOfFirstBlock)
+            .anyNumberOfTimes()
+            .returns(
+              if (inBodyStorage(parentOfFirstBlock)) Option(arbitraryNodeBody.arbitrary.first).pure[F] else None.pure[F]
+            )
+
+          (bodyStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            if (inBodyStorage(id)) dataMap.get(id).map(_._2).pure[F]
+            else Option.empty[BlockBody].pure[F]
+          }
+          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            inBodyStorage(id).pure[F]
+          }
+          (bodyStore.contains _).expects(parentOfFirstBlock).anyNumberOfTimes().onCall { id: BlockId =>
+            inBodyStorage(id).pure[F]
+          }
+          (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            dataMap.get(id).map(_._1).pure[F]
+          }
+
+          response
+            .collect { case (header, Right(body)) => (header, body) }
+            .dropWhile_ { case (header, _) => inBodyStorage(header.id) }
+            .headOption
+            .map {
+              case (header, body) if inBodyStorage(header.parentHeaderId) =>
+                (blockChecker.sendNoWait _)
+                  .expects(
+                    BlockChecker.Message
+                      .RemoteBlockBodies(NonEmptyChain.one((header, UnverifiedBlockBody(hostId, body, 0))))
+                  )
+                  .returns(().pure[F])
+              case _ =>
+            }
+
+          response
+            .collect { case (_, Right(_)) =>
+              (reputationAggregator.sendNoWait _)
+                .expects(ReputationAggregator.Message.DownloadTimeBody(hostId, 0, Seq.empty))
+                .returns(().pure[F])
+            }
+
+          val errorHeaders = response.collect { case (header, Left(_)) => header }
+          NonEmptyChain.fromSeq(errorHeaders).map { headers =>
+            (reputationAggregator.sendNoWait _)
+              .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+              .returns(().pure[F])
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.BlockBodyRequest(None, headers))
               .returns(().pure[F])
           }
 
@@ -412,7 +596,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
 
       (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
+        .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
         .returns(().pure[F])
 
       RequestsProxy

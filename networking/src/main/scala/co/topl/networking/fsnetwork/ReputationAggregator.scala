@@ -85,11 +85,17 @@ object ReputationAggregator {
     case class BadKLookbackSlotData(hostId: HostId) extends Message
 
     /**
-     * Remote peer provide to us incorrect, by some reasons, block or other data like genesis block.
+     * Remote peer provide to us incorrect block or any other data like genesis block.
      * For example it could be block with incorrect transaction(s)
      * @param hostId remote peer
      */
-    case class HostProvideIncorrectData(hostId: HostId) extends Message
+    case class CriticalErrorForHost(hostId: HostId) extends Message
+
+    /**
+     * We got unknown error during get data from remote peer. That error could be network error, for example
+     * @param hostId remote peer
+     */
+    case class NonCriticalErrorForHost(hostId: HostId) extends Message
 
     /**
      * Tick, which do actual update of time based reputation
@@ -114,8 +120,9 @@ object ReputationAggregator {
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
       case (state, BlockProvidingReputationUpdate(data))      => blockProvidingReputationUpdate(state, data)
 
-      case (state, BadKLookbackSlotData(hostId))     => badKLookbackSlotData(state, hostId)
-      case (state, HostProvideIncorrectData(hostId)) => incorrectBlockReceived(state, hostId)
+      case (state, BadKLookbackSlotData(hostId))    => badKLookbackSlotData(state, hostId)
+      case (state, CriticalErrorForHost(hostId))    => incorrectBlockReceived(state, hostId)
+      case (state, NonCriticalErrorForHost(hostId)) => unknownErrorFromHost(state, hostId)
 
       case (state, ReputationUpdateTick) => processReputationUpdateTick(state)
       case (state, UpdateWarmHosts)      => processUpdateWarmHosts(state)
@@ -223,12 +230,25 @@ object ReputationAggregator {
         (state, state).pure[F]
     }
 
+  private def badKLookbackSlotData[F[_]: Async: Logger](state: State[F], hostId: HostId): F[(State[F], Response[F])] =
+    Logger[F].error(show"Got got bad k lookback slot data from host $hostId") >>
+      state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
+      (state, state).pure[F]
+
   private def incorrectBlockReceived[F[_]: Async: Logger](
     state:  State[F],
     hostId: HostId
   ): F[(State[F], Response[F])] =
     Logger[F].error(show"Received incorrect block from host $hostId") >>
     state.peerManager.sendNoWait(PeersManager.Message.BanPeer(hostId)) >>
+    (state, state).pure[F]
+
+  private def unknownErrorFromHost[F[_]: Async: Logger](
+    state:  State[F],
+    hostId: HostId
+  ): F[(State[F], Response[F])] =
+    Logger[F].error(show"Got error during receiving data from host $hostId") >>
+    state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
     (state, state).pure[F]
 
   private def headerDownloadTime[F[_]: Async: Logger](
@@ -287,12 +307,6 @@ object ReputationAggregator {
     )
 
     Logger[F].info(s"Start tracking reputation for hosts $hostIds") >>
-    (newState, newState).pure[F]
-  }
-
-  private def badKLookbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
-    val newBlockProvidingMap = state.blockProvidingReputation + (hostId -> 0.0)
-    val newState = state.copy(blockProvidingReputation = newBlockProvidingMap)
     (newState, newState).pure[F]
   }
 

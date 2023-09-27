@@ -622,7 +622,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.closeConnection _).stubs().returns(Applicative[F].unit)
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
       (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.HostProvideIncorrectData(hostId))
+        .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
         .once()
         .returns(Applicative[F].unit)
 
