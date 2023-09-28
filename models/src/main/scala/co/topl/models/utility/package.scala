@@ -20,6 +20,22 @@ package object utility {
 
   implicit def byteArrayToByteString(byteArray: Array[Byte]): ByteString = ByteString.copyFrom(byteArray)
 
+  implicit def scalaDurationToProtoDuration(
+    duration: scala.concurrent.duration.FiniteDuration
+  ): com.google.protobuf.duration.Duration = {
+    import scala.jdk.DurationConverters._
+    val j = duration.toJava
+    com.google.protobuf.duration.Duration(j.toSeconds, j.toNanosPart)
+  }
+
+  implicit def protoDurationToScalaDuration(
+    duration: com.google.protobuf.duration.Duration
+  ): scala.concurrent.duration.FiniteDuration = {
+    import scala.jdk.DurationConverters._
+    val j = java.time.Duration.ofSeconds(duration.seconds, duration.nanos)
+    j.toScala
+  }
+
   implicit class BlockBodyOps(val body: BlockBody) extends AnyVal {
 
     /**

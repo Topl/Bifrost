@@ -5,6 +5,7 @@ import cats.effect.std.Queue
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.models.LockAddress
+import co.topl.brambl.syntax._
 import co.topl.catsutils.Iterative
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, StakingAddress}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
@@ -15,7 +16,6 @@ import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.node.models.{FullBlock, FullBlockBody}
-import co.topl.numerics.implicits._
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF

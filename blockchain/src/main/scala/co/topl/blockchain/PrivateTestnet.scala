@@ -10,17 +10,20 @@ import co.topl.brambl.models.{Datum, LockAddress}
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
 import co.topl.codecs.bytes.typeclasses.Persistable
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.ProtocolVersion
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.numerics.RatioOps.implicits._
+import co.topl.numerics.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import quivr.models.{Int128, Proposition}
+
+import scala.concurrent.duration._
 
 object PrivateTestnet {
 
@@ -58,7 +61,8 @@ object PrivateTestnet {
     timestamp:       Timestamp,
     stakers:         List[StakerInitializers.Operator],
     stakes:          Option[List[BigInt]],
-    protocolVersion: ProtocolVersion
+    protocolVersion: ProtocolVersion,
+    protocol:        ApplicationConfig.Bifrost.Protocol
   ): BigBang.Config = {
     require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
     val transactions =
@@ -72,7 +76,8 @@ object PrivateTestnet {
               UnspentTransactionOutput(
                 HeightLockOneSpendingAddress,
                 Value.defaultInstance.withLvl(Value.LVL(DefaultTotalLvls))
-              )
+              ),
+              UnspentTransactionOutput(HeightLockOneSpendingAddress, BigBang.protocolToUpdateProposal(protocol))
             ),
             datum = Datum.IoTransaction.defaultInstance
           )
@@ -143,5 +148,23 @@ object PrivateTestnet {
     NetworkConstants.PRIVATE_NETWORK_ID,
     NetworkConstants.MAIN_LEDGER_ID
   )
+
+  val DefaultProtocolVersion: ProtocolVersion = ProtocolVersion(2, 0, 0)
+
+  val DefaultProtocol: ApplicationConfig.Bifrost.Protocol =
+    ApplicationConfig.Bifrost.Protocol(
+      minAppVersion = "2.0.0",
+      fEffective = Ratio(15, 100),
+      vrfLddCutoff = 50,
+      vrfPrecision = 40,
+      vrfBaselineDifficulty = Ratio(1, 20),
+      vrfAmplitude = Ratio(1, 2),
+      chainSelectionKLookback = 50,
+      slotDuration = 1.seconds,
+      forwardBiasedSlotWindow = 50,
+      operationalPeriodsPerEpoch = 2,
+      kesKeyHours = 9,
+      kesKeyMinutes = 9
+    )
 
 }
