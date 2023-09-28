@@ -384,6 +384,65 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   }
 
+  test("Ping error shall be processed correctly") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val networkAlgebra = mock[NetworkAlgebra[F]]
+      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
+      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+
+      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
+      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
+      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
+
+      (blockHeaderFetcher.sendNoWait _).expects(PeerBlockHeaderFetcher.Message.StopActor).returns(Applicative[F].unit)
+
+      (blockBodyFetcher.sendNoWait _).expects(PeerBlockBodyFetcher.Message.StopActor).returns(Applicative[F].unit)
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
+        .expects(1L, genesis.slotId.blockId.some)
+        .once()
+        .returning(genesis.slotId.blockId.some.pure[F])
+      (client.getPongMessage _).expects(*).once().onCall { _: PingMessage => throw new RuntimeException() }
+      (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
+      (client.closeConnection _).expects().returns(Applicative[F].unit)
+
+      val reputationAggregation = mock[ReputationAggregatorActor[F]]
+      (reputationAggregation.sendNoWait _)
+        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+        .returns(Applicative[F].unit)
+
+      PeerActor
+        .makeActor(
+          hostId,
+          networkAlgebra,
+          client,
+          requestsProxy,
+          reputationAggregation,
+          peersManager,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          headerToBodyValidation
+        )
+        .use { actor =>
+          actor.send(PeerActor.Message.GetNetworkQuality)
+        }
+    }
+
+  }
+
   test("Request to get current tip shall be forwarded to block header fetcher") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
@@ -543,6 +602,60 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     }
   }
 
+  test("Error of request to get peer neighbours shall be processed") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val client = createDummyClient()
+      val reputationAggregation = mock[ReputationAggregatorActor[F]]
+      val networkAlgebra = mock[NetworkAlgebra[F]]
+      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
+      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+
+      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
+      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
+      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
+
+      (blockHeaderFetcher.sendNoWait _).expects(PeerBlockHeaderFetcher.Message.StopActor).returns(Applicative[F].unit)
+      (blockBodyFetcher.sendNoWait _).expects(PeerBlockBodyFetcher.Message.StopActor).returns(Applicative[F].unit)
+
+      (client.getRemoteKnownHosts _)
+        .expects(CurrentKnownHostsReq(2))
+        .onCall { _: CurrentKnownHostsReq => throw new RuntimeException() }
+
+      (reputationAggregation.sendNoWait _)
+        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+        .returns(Applicative[F].unit)
+
+      PeerActor
+        .makeActor(
+          hostId,
+          networkAlgebra,
+          client,
+          requestsProxy,
+          reputationAggregation,
+          peersManager,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          headerToBodyValidation
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerActor.Message.GetHotPeersFromPeer(2))
+          } yield ()
+        }
+    }
+  }
+
   test("Request to get server port shall be processed") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
@@ -600,7 +713,61 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     }
   }
 
-  test("Mismatched genesis block should result in an exception") {
+  test("Error during requesting of getting server port shall be processed") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val client = createDummyClient()
+      val reputationAggregation = mock[ReputationAggregatorActor[F]]
+      val networkAlgebra = mock[NetworkAlgebra[F]]
+      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
+      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
+      (networkAlgebra.makePeerHeaderFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(blockHeaderFetcher))
+
+      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
+      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
+      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
+
+      (blockHeaderFetcher.sendNoWait _).expects(PeerBlockHeaderFetcher.Message.StopActor).returns(Applicative[F].unit)
+      (blockBodyFetcher.sendNoWait _).expects(PeerBlockBodyFetcher.Message.StopActor).returns(Applicative[F].unit)
+
+      (() => client.remotePeerServerPort)
+        .expects()
+        .onCall(() => throw new RuntimeException())
+
+      (reputationAggregation.sendNoWait _)
+        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+        .returns(Applicative[F].unit)
+
+      PeerActor
+        .makeActor(
+          hostId,
+          networkAlgebra,
+          client,
+          requestsProxy,
+          reputationAggregation,
+          peersManager,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          headerToBodyValidation
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerActor.Message.GetPeerServerAddress)
+          } yield ()
+        }
+    }
+  }
+
+  test("Mismatched genesis block should result non critical error message to reputation aggregator") {
     withMock {
       val localGenesis = arbitrarySlotData.arbitrary.first
       val remoteGenesisId = arbitraryBlockId.arbitrary.first
@@ -622,7 +789,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.closeConnection _).stubs().returns(Applicative[F].unit)
       val reputationAggregation = mock[ReputationAggregatorActor[F]]
       (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
+        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
         .once()
         .returns(Applicative[F].unit)
 

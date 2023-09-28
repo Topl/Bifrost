@@ -34,6 +34,12 @@ case class PeersHandler[F[_]: Async: Logger](peers: Map[HostId, Peer[F]], timeSt
 
   def apply(hostId: HostId): Peer[F] = peers(hostId)
 
+  def haveNoActorForHost(hostId: HostId): Boolean = peers.get(hostId).flatMap(_.actorOpt).isEmpty
+
+  def hostIsBanned(hostId: HostId): Boolean = peers.get(hostId).exists(_.state == PeerState.Banned)
+
+  def hostIsNotBanned(hostId: HostId): Boolean = !hostIsBanned(hostId)
+
   private def getPeers(peerState: PeerState): Map[HostId, Peer[F]] =
     peers.filter { case (_: String, peer) => peer.state == peerState }
 

@@ -237,6 +237,11 @@ object PeerActor {
       _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
+    .handleErrorWith { error =>
+      Logger[F].error(show"Error ${error.getLocalizedMessage} during getting remote peer neighbours") >>
+      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      (state, state).pure[F]
+    }
 
   private def getPeerServerAddress[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] = {
     val peer = state.hostId
@@ -247,17 +252,29 @@ object PeerActor {
       _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
     } yield (state, state)
   }.getOrElse(state, state)
+    .handleErrorWith { error =>
+      Logger[F].error(show"Error ${error.getLocalizedMessage} during getting remote peer server port") >>
+      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      (state, state).pure[F]
+    }
 
   private def getNetworkQuality[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] =
-    getPing(state).value.flatMap { res =>
-      val message =
-        ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
-      Logger[F].info(show"From host ${state.hostId}: $message") >>
-      state.reputationAggregator.sendNoWait(message)
-    } >> (state, state).pure[F]
+    getPing(state).value
+      .flatMap { res =>
+        val message =
+          ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
+        Logger[F].info(show"From host ${state.hostId}: $message") >>
+        state.reputationAggregator.sendNoWait(message)
+      }
+      .handleErrorWith { error =>
+        Logger[F].error(show"Error ${error.getLocalizedMessage} during getting remote peer network quality") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+      } >> (state, state).pure[F]
 
   private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
-  private val pingMessageSize = 1024 // 1024 hardcoded on protobuf level
+
+  // 1024 hardcoded on protobuf level, see co.topl.node.models.PingMessageValidator.validate
+  private val pingMessageSize = 1024
 
   private def getPing[F[_]: Concurrent](state: State[F]): EitherT[F, NetworkQualityError, Long] =
     for {
@@ -287,7 +304,8 @@ object PeerActor {
           )
       )
       .recoverWith { case exception =>
-        Logger[F].error(s"Remote peer provide incorrect genesis information: ${exception.getLocalizedMessage}") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.CriticalErrorForHost(state.hostId))
+        val exceptionMessage = exception.getLocalizedMessage
+        Logger[F].error(s"Remote peer ${state.hostId} provide incorrect genesis information: $exceptionMessage") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
       }
 }
