@@ -464,7 +464,6 @@ object PeersManager {
 
     require(state.requestsProxy.isDefined)
     require(state.reputationAggregator.isDefined)
-    require(state.blocksChecker.isDefined)
 
     def setupPeerActor: F[PeerActor[F]] =
       thisActor
@@ -487,26 +486,22 @@ object PeersManager {
           peerActor.sendNoWait(PeerActor.Message.GetPeerServerAddress)
         }
 
-    if (state.peers.get(hostId).flatMap(_.actorOpt).isDefined) {
-      Logger[F].error(show"Try to redefine actor for remote peer $hostId") >>
-      (state, state).pure[F]
+    if (state.peers.hostIsNotBanned(hostId)) {
+      if (state.peers.haveNoActorForHost(hostId)) {
+        for {
+          _              <- Logger[F].info(show"Going to create actor for handling connection to remote peer $hostId")
+          peerActor      <- setupPeerActor
+          newPeerHandler <- state.peers.copyWithAddedHost(hostId).copyWithNewPeerActor(hostId, peerActor)
+          newState = state.copy(peers = newPeerHandler)
+        } yield (newState, newState)
+      } else {
+        Logger[F].error(show"Try to redefine actor for remote peer $hostId") >>
+        (state, state).pure[F]
+      }
     } else {
-      for {
-        _ <- Logger[F].info(show"New connection to remote peer $hostId had been established")
-        (addedPeers, withWarm) <- state.peers
-          .copyWithAddedHost(hostId)
-          .moveToState(hostId, PeerState.Warm) // TODO shall be cold state
-        withActor <- addedPeers
-          .contains(hostId)
-          .pure[F]
-          .ifM(
-            ifTrue = Logger[F].info(s"Accept remote peer $hostId as new warm connection") >>
-              setupPeerActor.flatMap(peerActor => withWarm.copyWithNewPeerActor(hostId, peerActor)),
-            ifFalse = Logger[F].info(s"Decline remote peer $hostId as new warm connection") >>
-              withWarm.pure[F]
-          )
-        newState = state.copy(peers = withActor)
-      } yield (newState, newState)
+      Logger[F].warn(show"Actor for $hostId was not created because peer is banned. Connection will be closed") >>
+      client.closeConnection() >>
+      (state, state).pure[F]
     }
   }
 
@@ -664,9 +659,9 @@ object PeersManager {
     val coldToWarm: Set[RemoteAddress] = state.coldToWarmSelector.select(addressCouldBeOpen, lackWarmPeersCount)
 
     for {
-      (warmPeers, peersHandler) <- state.peers.moveToState(coldToWarm.map(_.host), PeerState.Warm)
-      newState                  <- state.copy(peers = peersHandler).pure[F]
-      _                         <- checkConnection(newState, warmPeers)
+      (newWarmPeers, peersHandler) <- state.peers.moveToState(coldToWarm.map(_.host), PeerState.Warm)
+      newState                     <- state.copy(peers = peersHandler).pure[F]
+      _                            <- checkConnection(newState, newWarmPeers)
     } yield newState
   }
 
@@ -681,10 +676,11 @@ object PeersManager {
         .toSeq
 
     for {
-      resolved <- resolveHosts(addressesToOpen)
-      filtered <- resolved.filterNot(ra => state.thisHostIds.contains(ra.host)).pure[F]
-      _        <- Logger[F].infoIf(filtered.nonEmpty, s"Going to open connection to next peers: $filtered")
-      _        <- filtered.traverse(state.newPeerCreationAlgebra.requestNewPeerCreation)
+      resolved      <- resolveHosts(addressesToOpen)
+      nonLocalHosts <- resolved.filterNot(ra => state.thisHostIds.contains(ra.host)).pure[F]
+      filtered      <- nonLocalHosts.filter(ra => state.peers.haveNoActorForHost(ra.host)).pure[F]
+      _             <- Logger[F].infoIf(filtered.nonEmpty, s"Going to open connection to next peers: $filtered")
+      _             <- filtered.traverse(state.newPeerCreationAlgebra.requestNewPeerCreation)
     } yield ()
   }
 

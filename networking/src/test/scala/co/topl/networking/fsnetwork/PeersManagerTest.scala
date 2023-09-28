@@ -998,7 +998,7 @@ class PeersManagerTest
     }
   }
 
-  test("Peer moved to warm state after received new opened peer message") {
+  test("Peer processing after received new opened peer message") {
     withMock {
 
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
@@ -1016,7 +1016,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
       (networkAlgebra.makePeer _).expects(host1.host, *, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer1))
       (peer1.sendNoWait _)
-        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.GetPeerServerAddress)
@@ -1026,7 +1026,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
       (networkAlgebra.makePeer _).expects(host2.host, *, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
-        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.GetPeerServerAddress)
@@ -1043,13 +1043,32 @@ class PeersManagerTest
         .returns(Applicative[F].unit)
 
       val host4 = RemoteAddress("4", 4)
+      val client4 = mock[BlockchainPeerClient[F]]
+      (client4.closeConnection _).expects().once().returns(().pure[F])
+
       val host5 = RemoteAddress("5", 5)
+      val peer5 = mockPeerActor[F]()
+      (networkAlgebra.makePeer _).expects(host5.host, *, *, *, *, *, *, *, *, *, *).once().returns(Resource.pure(peer5))
+      (peer5.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
+        .returns(Applicative[F].unit)
+      (peer5.sendNoWait _)
+        .expects(PeerActor.Message.GetPeerServerAddress)
+        .returns(Applicative[F].unit)
+
+      val host6 = RemoteAddress("6", 6)
+      val peer6 = mockPeerActor[F]()
+
+      val host7 = RemoteAddress("7", 7)
+      val peer7 = mockPeerActor[F]()
 
       val initialPeersMap = Map(
-        host1.host -> Peer(PeerState.Warm, None, None, Seq(1), remoteNetworkLevel = true),
+        host1.host -> Peer(PeerState.Cold, None, None, Seq(1), remoteNetworkLevel = false),
         host3.host -> Peer(PeerState.Warm, None, None, Seq(3), remoteNetworkLevel = true),
         host4.host -> Peer(PeerState.Banned, None, None, Seq(4), remoteNetworkLevel = true),
-        host5.host -> Peer(PeerState.Hot, None, None, Seq(5), remoteNetworkLevel = true)
+        host5.host -> Peer(PeerState.Hot, None, None, Seq(5), remoteNetworkLevel = true),
+        host6.host -> Peer(PeerState.Cold, Option(peer6), None, Seq(6), remoteNetworkLevel = true),
+        host7.host -> Peer(PeerState.Warm, Option(peer7), None, Seq(7), remoteNetworkLevel = false)
       )
 
       PeersManager
@@ -1075,20 +1094,26 @@ class PeersManagerTest
             _          <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             stateHost1 <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, mock[BlockchainPeerClient[F]]))
-            _ = assert(stateHost1.peers(host1.host).state == PeerState.Warm)
+            _ = assert(stateHost1.peers(host1.host).state == PeerState.Cold)
             _ = assert(stateHost1.peers(host1.host).closedTimestamps == Seq(1))
             stateHost2 <- actor.send(PeersManager.Message.OpenedPeerConnection(host2, mock[BlockchainPeerClient[F]]))
-            _ = assert(stateHost2.peers(host2.host).state == PeerState.Warm)
+            _ = assert(stateHost2.peers(host2.host).state == PeerState.Cold)
             _ = assert(stateHost2.peers(host2.host).closedTimestamps == Seq.empty)
             stateHost3 <- actor.send(PeersManager.Message.OpenedPeerConnection(host3, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost3.peers(host3.host).state == PeerState.Warm)
             _ = assert(stateHost3.peers(host3.host).closedTimestamps == Seq(3))
-            stateHost4 <- actor.send(PeersManager.Message.OpenedPeerConnection(host4, mock[BlockchainPeerClient[F]]))
+            stateHost4 <- actor.send(PeersManager.Message.OpenedPeerConnection(host4, client4))
             _ = assert(stateHost4.peers(host4.host).state == PeerState.Banned)
             _ = assert(stateHost4.peers(host4.host).closedTimestamps == Seq(4))
             stateHost5 <- actor.send(PeersManager.Message.OpenedPeerConnection(host5, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost5.peers(host5.host).state == PeerState.Hot)
             _ = assert(stateHost5.peers(host5.host).closedTimestamps == Seq(5))
+            stateHost6 <- actor.send(PeersManager.Message.OpenedPeerConnection(host6, mock[BlockchainPeerClient[F]]))
+            _ = assert(stateHost6.peers(host6.host).state == PeerState.Cold)
+            _ = assert(stateHost6.peers(host6.host).closedTimestamps == Seq(6))
+            stateHost7 <- actor.send(PeersManager.Message.OpenedPeerConnection(host7, mock[BlockchainPeerClient[F]]))
+            _ = assert(stateHost7.peers(host7.host).state == PeerState.Warm)
+            _ = assert(stateHost7.peers(host7.host).closedTimestamps == Seq(7))
           } yield ()
         }
     }
