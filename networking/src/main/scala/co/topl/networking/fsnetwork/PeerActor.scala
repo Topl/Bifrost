@@ -118,6 +118,9 @@ object PeerActor {
     val initAppLevel = false
 
     for {
+      actorName <- Resource.pure(s"Peer Actor for peer $hostId")
+      _ <- Resource.onFinalize(Logger[F].info(s"$actorName: is released, close connection") >> client.closeConnection())
+
       header <- networkAlgebra.makePeerHeaderFetcher(
         hostId,
         client,
@@ -146,15 +149,14 @@ object PeerActor {
         initAppLevel,
         genesisSlotData.slotId.blockId
       )
-      _ <- verifyGenesisAgreement(initialState).toResource
-      actorName = s"Peer Actor for peer $hostId"
+      _     <- verifyGenesisAgreement(initialState).toResource
       actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
     } yield actor
   }
 
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Finishing actor for peer ${state.hostId}") >>
-    closeConnection(state).void
+    Logger[F].info(show"Run finalizer for actor for peer ${state.hostId}") >>
+    state.client.notifyAboutThisNetworkLevel(false)
 
   private def updateState[F[_]: Async: Logger](
     state:               State[F],
@@ -223,7 +225,7 @@ object PeerActor {
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.GetCurrentTip) >>
     (state, state).pure[F]
 
-  private def getHotPeersOfCurrentPeer[F[_]: Concurrent: Logger](
+  private def getHotPeersOfCurrentPeer[F[_]: Async: Logger](
     state:    State[F],
     maxHosts: Int
   ): F[(State[F], Response[F])] = {
@@ -238,12 +240,13 @@ object PeerActor {
     } yield (state, state)
   }.getOrElse((state, state))
     .handleErrorWith { error =>
-      Logger[F].error(show"Error ${error.getLocalizedMessage} during getting remote peer neighbours") >>
+      val message = Option(error.getLocalizedMessage).getOrElse("")
+      Logger[F].error(show"Error $message during getting remote peer neighbours") >>
       state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
 
-  private def getPeerServerAddress[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] = {
+  private def getPeerServerAddress[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     val peer = state.hostId
     for {
       _              <- OptionT.liftF(Logger[F].info(s"Request server address from $peer"))
@@ -253,7 +256,8 @@ object PeerActor {
     } yield (state, state)
   }.getOrElse(state, state)
     .handleErrorWith { error =>
-      Logger[F].error(show"Error ${error.getLocalizedMessage} during getting remote peer server port") >>
+      val message = Option(error.getLocalizedMessage).getOrElse("")
+      Logger[F].error(show"Error $message during getting remote peer server port") >>
       state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
@@ -267,7 +271,8 @@ object PeerActor {
         state.reputationAggregator.sendNoWait(message)
       }
       .handleErrorWith { error =>
-        Logger[F].error(show"Error ${error.getLocalizedMessage} during getting remote peer network quality") >>
+        val message = Option(error.getLocalizedMessage).getOrElse("")
+        Logger[F].error(show"Error $message during getting remote peer network quality") >>
         state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 

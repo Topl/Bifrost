@@ -110,7 +110,6 @@ object Actor {
     for {
       actorRef <- Deferred[F, Actor[F, I, O]].toResource
       mailbox  <- Queue.unbounded[F, Option[(I, Deferred[F, O])]].toResource
-      isAlive  <- Resource.make(Ref.of[F, Boolean](true))(_.set(false))
       acquiredActors <-
         Resource.make(Ref.of[F, ListMap[ActorId, F[Unit]]](ListMap.empty))(_.get.flatMap(_.values.toList.sequence).void)
       stateRef <- Resource.make(Ref.of[F, S](initialState))(_.get.flatMap(finalize))
@@ -132,8 +131,8 @@ object Actor {
         .compile
         .drain
         .background
-
-      _ <- Resource.onFinalize(mailbox.offer(none) *> processOutcome.flatMap(_.embed(Applicative[F].unit)))
+      _       <- Resource.onFinalize(mailbox.offer(none) >> processOutcome.flatMap(_.embed(Applicative[F].unit)))
+      isAlive <- Resource.make(Ref.of[F, Boolean](true))(_.set(false))
 
       actor = new Actor[F, I, O] {
         override val name: String = actorName
@@ -167,8 +166,10 @@ object Actor {
         override def moveActor[I2, O2](actor: Actor[F, I2, O2]): F[Unit] = {
           val actorId = actor.id
           for {
-            finalizer <- acquiredActors.get.flatMap(_.getOrElse(actorId, ().pure[F]))
-            _         <- acquiredActors.update(map => map - actorId)
+            finalizer <- acquiredActors.get.flatMap(
+              _.getOrElse(actorId, Logger[F].error(s"$actorName: Failed to find $actorId for releasing it"))
+            )
+            _ <- acquiredActors.update(map => map - actorId)
           } yield finalizer
         }
 
