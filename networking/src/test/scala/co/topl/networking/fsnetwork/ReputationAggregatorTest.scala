@@ -45,11 +45,11 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.StopReputationTracking(Set(hostToRemove)))
+            newState <- actor.send(ReputationAggregator.Message.StopReputationTracking(hostToRemove))
             _ = assert(!newState.performanceReputation.contains(hostToRemove))
             _ = assert(!newState.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState.noveltyReputation.contains(hostToRemove))
-            newState2 <- actor.send(ReputationAggregator.Message.StopReputationTracking(Set(hostToRemove)))
+            newState2 <- actor.send(ReputationAggregator.Message.StopReputationTracking(hostToRemove))
             _ = assert(!newState2.performanceReputation.contains(hostToRemove))
             _ = assert(!newState2.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState2.noveltyReputation.contains(hostToRemove))
@@ -232,7 +232,7 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.NewHotPeer(NonEmptyChain.one(host)))
+            newState <- actor.send(ReputationAggregator.Message.NewHotPeer(host))
             _ = assert(newState.performanceReputation == (initialPerfMap + (host -> 0.0)))
             _ = assert(newState.blockProvidingReputation == (initialBlockMap + (host -> 0.0)))
             _ = assert(newState.noveltyReputation == (initialNewMap + (host -> reputation)))

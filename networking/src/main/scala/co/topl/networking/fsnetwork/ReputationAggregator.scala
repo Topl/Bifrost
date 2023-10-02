@@ -29,9 +29,9 @@ object ReputationAggregator {
 
     /**
      * Stop tracking reputation for particular host
-     * @param hostIds host to stop tracking
+     * @param hostId host to stop tracking
      */
-    case class StopReputationTracking(hostIds: Set[HostId]) extends Message
+    case class StopReputationTracking(hostId: HostId) extends Message
 
     /**
      * PingPong message from remote peer, which allow us to measure performance reputation for remote host
@@ -61,9 +61,9 @@ object ReputationAggregator {
 
     /**
      * Notification about connection to the new remote peer had been established
-     * @param hostIds remote peer
+     * @param hostId remote peer
      */
-    case class NewHotPeer(hostIds: NonEmptyChain[HostId]) extends Message
+    case class NewHotPeer(hostId: HostId) extends Message
 
     /**
      * Block providing update for hosts. We could have mentioned the same host multiply time,
@@ -112,8 +112,8 @@ object ReputationAggregator {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, NewHotPeer(hostIds))             => newHotPeer(state, hostIds)
-      case (state, StopReputationTracking(hostIds)) => removeReputationForHost(state, hostIds)
+      case (state, NewHotPeer(hostId))             => newHotPeer(state, hostId)
+      case (state, StopReputationTracking(hostId)) => removeReputationForHost(state, hostId)
 
       case (state, PingPongMessagePing(hostId, pongResponse)) => pongMessageProcessing(state, hostId, pongResponse)
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
@@ -121,8 +121,8 @@ object ReputationAggregator {
       case (state, BlockProvidingReputationUpdate(data))      => blockProvidingReputationUpdate(state, data)
 
       case (state, BadKLookbackSlotData(hostId))    => badKLookbackSlotData(state, hostId)
-      case (state, CriticalErrorForHost(hostId))    => incorrectBlockReceived(state, hostId)
-      case (state, NonCriticalErrorForHost(hostId)) => unknownErrorFromHost(state, hostId)
+      case (state, CriticalErrorForHost(hostId))    => criticalErrorForHost(state, hostId)
+      case (state, NonCriticalErrorForHost(hostId)) => nonCriticalErrorForHost(state, hostId)
 
       case (state, ReputationUpdateTick) => processReputationUpdateTick(state)
       case (state, UpdateWarmHosts)      => processUpdateWarmHosts(state)
@@ -180,12 +180,12 @@ object ReputationAggregator {
 
   private def removeReputationForHost[F[_]: Async: Logger](
     state:  State[F],
-    hostId: Set[HostId]
+    hostId: HostId
   ): F[(State[F], Response[F])] = {
     val newState = state.copy(
-      performanceReputation = state.performanceReputation -- hostId,
-      blockProvidingReputation = state.blockProvidingReputation -- hostId,
-      noveltyReputation = state.noveltyReputation -- hostId
+      performanceReputation = state.performanceReputation - hostId,
+      blockProvidingReputation = state.blockProvidingReputation - hostId,
+      noveltyReputation = state.noveltyReputation - hostId
     )
 
     Logger[F].info(show"Remove reputation for host $hostId") >>
@@ -235,19 +235,19 @@ object ReputationAggregator {
     state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
     (state, state).pure[F]
 
-  private def incorrectBlockReceived[F[_]: Async: Logger](
+  private def criticalErrorForHost[F[_]: Async: Logger](
     state:  State[F],
     hostId: HostId
   ): F[(State[F], Response[F])] =
-    Logger[F].error(show"Received incorrect block from host $hostId") >>
+    Logger[F].error(show"Received critical error from host $hostId") >>
     state.peerManager.sendNoWait(PeersManager.Message.BanPeer(hostId)) >>
     (state, state).pure[F]
 
-  private def unknownErrorFromHost[F[_]: Async: Logger](
+  private def nonCriticalErrorForHost[F[_]: Async: Logger](
     state:  State[F],
     hostId: HostId
   ): F[(State[F], Response[F])] =
-    Logger[F].error(show"Got error during receiving data from host $hostId") >>
+    Logger[F].error(show"Got non critical error during receiving data from host $hostId") >>
     state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
     (state, state).pure[F]
 
@@ -288,17 +288,17 @@ object ReputationAggregator {
   }
 
   private def newHotPeer[F[_]: Async: Logger](
-    state:   State[F],
-    hostIds: NonEmptyChain[HostId]
+    state:  State[F],
+    hostId: HostId
   ): F[(State[F], Response[F])] = {
     val noveltyInSlots = state.networkConfig.remotePeerNoveltyInSlots
 
     val newNoveltyReputation =
-      state.noveltyReputation ++ hostIds.map(hostId => hostId -> noveltyInSlots).toList.toMap
+      state.noveltyReputation + (hostId -> noveltyInSlots)
     val newBlockProvidingReputation =
-      state.blockProvidingReputation ++ hostIds.map(hostId => hostId -> 0.0).toList.toMap
+      state.blockProvidingReputation + (hostId -> 0.0)
     val newPerformanceReputation =
-      state.performanceReputation ++ hostIds.map(hostId => hostId -> 0.0).toList.toMap
+      state.performanceReputation + (hostId -> 0.0)
 
     val newState = state.copy(
       noveltyReputation = newNoveltyReputation,
@@ -306,7 +306,7 @@ object ReputationAggregator {
       performanceReputation = newPerformanceReputation
     )
 
-    Logger[F].info(s"Start tracking reputation for hosts $hostIds") >>
+    Logger[F].info(s"Start tracking reputation for host $hostId") >>
     (newState, newState).pure[F]
   }
 

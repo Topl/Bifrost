@@ -2,12 +2,12 @@ package co.topl.networking.fsnetwork
 
 import cats.Applicative
 import cats.effect.Async
-import cats.implicits.showInterpolator
+import cats.implicits._
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersHandler.allowedTransition
+import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.p2p.RemoteAddress
 import org.typelevel.log4cats.Logger
-import cats.implicits._
 
 object PeersHandler {
 
@@ -23,7 +23,14 @@ object PeersHandler {
     }
 }
 
-case class PeersHandler[F[_]: Async: Logger](peers: Map[HostId, Peer[F]], timeStampWindow: Long) {
+case class PeersHandler[F[_]: Async: Logger](
+  peers:                Map[HostId, Peer[F]],
+  timeStampWindow:      Long,
+  reputationAggregator: Option[ReputationAggregatorActor[F]]
+) {
+
+  private def sendReputationMessage(message: ReputationAggregator.Message): F[Unit] =
+    reputationAggregator.map(_.sendNoWait(message)).getOrElse(Applicative[F].unit)
 
   private def couldTransit(hostId: HostId, newState: PeerState): Boolean = {
     val currentState: PeerState = peers.get(hostId).map(_.state).getOrElse(PeerState.Unknown)
@@ -36,7 +43,7 @@ case class PeersHandler[F[_]: Async: Logger](peers: Map[HostId, Peer[F]], timeSt
 
   def haveNoActorForHost(hostId: HostId): Boolean = peers.get(hostId).flatMap(_.actorOpt).isEmpty
 
-  def hostIsBanned(hostId: HostId): Boolean = peers.get(hostId).exists(_.state == PeerState.Banned)
+  private def hostIsBanned(hostId: HostId): Boolean = peers.get(hostId).exists(_.state == PeerState.Banned)
 
   def hostIsNotBanned(hostId: HostId): Boolean = !hostIsBanned(hostId)
 
@@ -60,25 +67,28 @@ case class PeersHandler[F[_]: Async: Logger](peers: Map[HostId, Peer[F]], timeSt
       PeerWithHostAndPort(host, state, actor, port, timestamps)
     }.toSet
 
-  def moveToState(forUpdate: HostId, newState: PeerState): F[(Map[HostId, Peer[F]], PeersHandler[F])] =
-    moveToState(Set(forUpdate), newState)
-
-  def moveToState(forUpdate: Set[HostId], newState: PeerState): F[(Map[HostId, Peer[F]], PeersHandler[F])] = {
-    val updateF =
+  def moveToState(
+    forUpdate:                Set[HostId],
+    newState:                 PeerState,
+    peerActorCloseAndRelease: Peer[F] => F[Unit]
+  ): F[PeersHandler[F]] = {
+    val updateF: F[Seq[(HostId, Peer[F])]] =
       forUpdate
         .filter(host => peers.contains(host) && couldTransit(host, newState))
         .map(host => (host, peers(host)))
         .toSeq
         .traverse { case (host, oldPeer) =>
-          val newPeer = updateCloseTimestamps(oldPeer, newState).copy(state = newState)
-
-          updateStateIfChanged(oldPeer, newPeer) >>
-          closePeerIfNecessary(newPeer) >>
-          Logger[F].info(s"Move host $host with peer $oldPeer to new state $newPeer") >>
-          (host -> newPeer).pure[F]
+          for {
+            peerWithClosedTimestamp <- updateCloseTimestamps(oldPeer, newState).copy(state = newState).pure[F]
+            _                       <- updateStateIfChanged(oldPeer, peerWithClosedTimestamp)
+            _                       <- updateReputation(host, oldPeer, peerWithClosedTimestamp)
+            actorOpt                <- closePeerIfNecessary(peerWithClosedTimestamp, peerActorCloseAndRelease)
+            newPeer                 <- peerWithClosedTimestamp.copy(actorOpt = actorOpt).pure[F]
+            _                       <- Logger[F].info(s"Move host $host with peer $oldPeer to new state $newPeer")
+          } yield host -> newPeer
         }
 
-    updateF.map(update => (update.toMap, this.copy(peers = peers ++ update)))
+    updateF.map(update => this.copy(peers = peers ++ update))
   }
 
   private def updateCloseTimestamps(peerToUpdate: Peer[F], newState: PeerState): Peer[F] =
@@ -101,17 +111,32 @@ case class PeersHandler[F[_]: Async: Logger](peers: Map[HostId, Peer[F]], timeSt
       Applicative[F].unit
     }
 
-  private def closePeerIfNecessary(peer: Peer[F]): F[Unit] =
-    if (!peer.remoteNetworkLevel && !peer.state.networkLevel) {
-      peer.sendNoWait(PeerActor.Message.CloseConnection)
+  private def updateReputation(hostId: HostId, oldPeer: Peer[F], newPeer: Peer[F]): F[Unit] = {
+    val stopReputationTracking =
+      if (oldPeer.state.isActive && !newPeer.state.isActive) {
+        sendReputationMessage(ReputationAggregator.Message.StopReputationTracking(hostId))
+      } else { Applicative[F].unit }
+
+    val newHotPeer =
+      if (!oldPeer.state.applicationLevel && newPeer.state.applicationLevel) {
+        sendReputationMessage(ReputationAggregator.Message.NewHotPeer(hostId))
+      } else { Applicative[F].unit }
+
+    stopReputationTracking >> newHotPeer
+  }
+
+  private def closePeerIfNecessary(peer: Peer[F], peerActorRelease: Peer[F] => F[Unit]): F[Option[PeerActor[F]]] =
+    if ((!peer.remoteNetworkLevel && !peer.state.networkLevel) || peer.state == PeerState.Banned) {
+      peerActorRelease(peer) >>
+      Option.empty[PeerActor[F]].pure[F]
     } else {
-      Applicative[F].unit
+      peer.actorOpt.pure[F]
     }
 
   def copyWithAddedRemoteAddresses(newPeers: Set[RemoteAddress]): PeersHandler[F] =
     copyWithAddedHostAndPort(newPeers.map { case RemoteAddress(host, port) => (host, Option(port)) })
 
-  def copyWithAddedHost(host: HostId): PeersHandler[F] = {
+  def copyWithNewActor(host: HostId): PeersHandler[F] = {
     val peerToAdd =
       peers.get(host) match {
         case None              => host -> Peer(PeerState.Cold, None, None, Seq.empty, remoteNetworkLevel = false)
@@ -137,31 +162,33 @@ case class PeersHandler[F[_]: Async: Logger](peers: Map[HostId, Peer[F]], timeSt
       .map(peer => this.copy(peers = peers + (hostId -> peer.copy(remoteServerPort = Option(serverPort)))))
       .getOrElse(this)
 
-  def copyWithUpdatedRemoteNetworkLevel(hostId: HostId, netLevel: Boolean): F[PeersHandler[F]] =
-    peers
-      .get(hostId)
-      .traverse { peer =>
-        val newPeer = peer.copy(remoteNetworkLevel = netLevel)
+  def copyWithUpdatedNetworkLevel(
+    hostIds:          Set[HostId],
+    netLevel:         Boolean,
+    peerActorRelease: Peer[F] => F[Unit]
+  ): F[PeersHandler[F]] = {
+    val updatedPeersF =
+      hostIds.flatMap(hostId => peers.get(hostId).map(peer => (hostId, peer))).toSeq.traverse { case (hostId, peer) =>
+        val peerWithNetworkLevel = peer.copy(remoteNetworkLevel = netLevel)
 
-        closePeerIfNecessary(newPeer) >>
-        this.copy(peers = peers + (hostId -> newPeer)).pure[F]
+        closePeerIfNecessary(peerWithNetworkLevel, peerActorRelease).map { actorOpt =>
+          (hostId, peerWithNetworkLevel.copy(actorOpt = actorOpt))
+        }
       }
-      .flatMap {
-        case Some(updatedPeer) =>
-          updatedPeer.pure[F]
-        case None =>
-          Logger[F].error(s"Try to update remote app level for non exist peer $hostId") >> Applicative[F].pure(this)
-      }
+
+    updatedPeersF.map(peers => this.copy(peers = this.peers ++ peers.toMap))
+  }
 
   def copyWithNewPeerActor(hostId: HostId, peerActor: PeerActor[F]): F[PeersHandler[F]] =
     peers
       .get(hostId)
       .map { peer =>
-        val newPeer = hostId -> peer.copy(actorOpt = Option(peerActor))
-        val state = newPeer._2.state
+        val hostAndPeer = hostId -> peer.copy(actorOpt = Option(peerActor))
+        val state = hostAndPeer._2.state
 
-        newPeer._2.sendNoWait(PeerActor.Message.UpdateState(state.networkLevel, state.applicationLevel)) >>
-        this.copy(peers = peers + newPeer).pure[F]
+        hostAndPeer._2.sendNoWait(PeerActor.Message.GetPeerServerAddress) >>
+        hostAndPeer._2.sendNoWait(PeerActor.Message.UpdateState(state.networkLevel, state.applicationLevel)) >>
+        this.copy(peers = peers + hostAndPeer).pure[F]
       }
       .getOrElse(Applicative[F].pure(this))
 }

@@ -102,28 +102,30 @@ object Blockchain {
         } else {
           implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
 
-          ActorPeerHandlerBridgeAlgebra.make(
-            localPeer.localAddress.host,
-            localChain,
-            chainSelectionAlgebra,
-            validators.header,
-            validators.headerToBody,
-            validators.bodySyntax,
-            validators.bodySemantics,
-            validators.bodyAuthorization,
-            dataStores.slotData,
-            dataStores.headers,
-            dataStores.bodies,
-            dataStores.transactions,
-            dataStores.knownHosts,
-            blockIdTree,
-            networkProperties,
-            clock,
-            initialPeers,
-            peersStatusChangesTopic,
-            remotePeers.offer,
-            currentPeers.set
-          )
+          ActorPeerHandlerBridgeAlgebra
+            .make(
+              localPeer.localAddress.host,
+              localChain,
+              chainSelectionAlgebra,
+              validators.header,
+              validators.headerToBody,
+              validators.bodySyntax,
+              validators.bodySemantics,
+              validators.bodyAuthorization,
+              dataStores.slotData,
+              dataStores.headers,
+              dataStores.bodies,
+              dataStores.transactions,
+              dataStores.knownHosts,
+              blockIdTree,
+              networkProperties,
+              clock,
+              initialPeers,
+              peersStatusChangesTopic,
+              remotePeers.offer,
+              currentPeers.set
+            )
+            .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
         }
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
