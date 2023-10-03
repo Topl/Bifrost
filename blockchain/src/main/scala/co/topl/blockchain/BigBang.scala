@@ -5,10 +5,12 @@ import cats.data.{EitherT, ReaderT}
 import cats.effect.Sync
 import cats.implicits._
 import co.topl.brambl.models._
+import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Transmittable
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models._
 import co.topl.crypto.hash.Blake2b256
@@ -16,6 +18,7 @@ import co.topl.models._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
 import co.topl.node.models._
+import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
@@ -158,4 +161,59 @@ object BigBang {
         fullBlock = FullBlock(header, fullBlockBody)
       } yield fullBlock
     ).leftMap(new IllegalArgumentException(_)).rethrowT
+
+  def extractProtocol(block: FullBlock): Either[String, ApplicationConfig.Bifrost.Protocol] =
+    block.fullBody.transactions.flatMap(_.outputs).map(_.value.value).flatMap(_.updateProposal).toList match {
+      case List(proposal) => updateProposalToProtocol(proposal)
+      case Nil            => Left("Protocol not defined")
+      case _              => Left("Multiple protocols defined")
+    }
+
+  def updateProposalToProtocol(proposal: Value.UpdateProposal): Either[String, ApplicationConfig.Bifrost.Protocol] =
+    for {
+      fEffective              <- proposal.fEffective.toRight("Missing fEffective")
+      vrfLddCutoff            <- proposal.vrfLddCutoff.toRight("Missing vrfLddCutoff")
+      vrfPrecision            <- proposal.vrfPrecision.toRight("Missing vrfPrecision")
+      vrfBaselineDifficulty   <- proposal.vrfBaselineDifficulty.toRight("Missing vrfBaselineDifficulty")
+      vrfAmplitude            <- proposal.vrfAmplitude.toRight("Missing vrfAmplitude")
+      chainSelectionKLookback <- proposal.chainSelectionKLookback.toRight("Missing chainSelectionKLookback")
+      slotDuration            <- proposal.slotDuration.toRight("Missing slotDuration")
+      forwardBiasedSlotWindow <- proposal.forwardBiasedSlotWindow.toRight("Missing forwardBiasedSlotWindow")
+      operationalPeriodsPerEpoch <- proposal.operationalPeriodsPerEpoch.toRight(
+        "Missing operationalPeriodsPerEpoch"
+      )
+      kesKeyHours   <- proposal.kesKeyHours.toRight("Missing kesKeyHours")
+      kesKeyMinutes <- proposal.kesKeyMinutes.toRight("Missing kesKeyMinutes")
+    } yield ApplicationConfig.Bifrost.Protocol(
+      "2.0.0",
+      fEffective,
+      vrfLddCutoff,
+      vrfPrecision,
+      vrfBaselineDifficulty,
+      vrfAmplitude,
+      chainSelectionKLookback,
+      slotDuration,
+      forwardBiasedSlotWindow,
+      operationalPeriodsPerEpoch,
+      kesKeyHours,
+      kesKeyMinutes
+    )
+
+  def protocolToUpdateProposal(protocol: ApplicationConfig.Bifrost.Protocol): Value =
+    Value.defaultInstance.withUpdateProposal(
+      Value.UpdateProposal(
+        label = "genesis",
+        fEffective = (protocol.fEffective: co.topl.node.models.Ratio).some,
+        vrfLddCutoff = protocol.vrfLddCutoff.some,
+        vrfPrecision = protocol.vrfPrecision.some,
+        vrfBaselineDifficulty = (protocol.vrfBaselineDifficulty: co.topl.node.models.Ratio).some,
+        vrfAmplitude = (protocol.vrfAmplitude: co.topl.node.models.Ratio).some,
+        chainSelectionKLookback = protocol.chainSelectionKLookback.some,
+        slotDuration = (protocol.slotDuration: com.google.protobuf.duration.Duration).some,
+        forwardBiasedSlotWindow = protocol.forwardBiasedSlotWindow.some,
+        operationalPeriodsPerEpoch = protocol.operationalPeriodsPerEpoch.some,
+        kesKeyHours = protocol.kesKeyHours.some,
+        kesKeyMinutes = protocol.kesKeyMinutes.some
+      )
+    )
 }

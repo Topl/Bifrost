@@ -14,6 +14,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
+import co.topl.models.utility.Ratio
 import co.topl.node.ProtocolVersioner
 import co.topl.node.models.{BlockBody, FullBlock}
 import co.topl.typeclasses.implicits._
@@ -22,11 +23,34 @@ import fs2.io.file.{Files, Path}
 import quivr.models.{Int128, SmallData}
 
 import java.nio.charset.StandardCharsets
+import scala.concurrent.duration._
 
 object InitTestnetCommand {
 
   def apply[F[_]: Async: Console](appConfig: ApplicationConfig): StageResultT[F, Unit] =
     new InitTestnetCommandImpl[F](appConfig).command
+
+  private[cli] val DefaultProtocolUtxo =
+    UnspentTransactionOutput(
+      PrivateTestnet.HeightLockOneSpendingAddress,
+      BigBang.protocolToUpdateProposal(
+        ApplicationConfig.Bifrost.Protocol(
+          minAppVersion = "2.0.0",
+          fEffective = Ratio(15, 100),
+          vrfLddCutoff = 50,
+          vrfPrecision = 40,
+          vrfBaselineDifficulty = Ratio(1, 20),
+          vrfAmplitude = Ratio(1, 2),
+          // 10x private testnet default, resulting in ~50 minute epochs
+          chainSelectionKLookback = 500,
+          slotDuration = 1.seconds,
+          forwardBiasedSlotWindow = 50,
+          operationalPeriodsPerEpoch = 24,
+          kesKeyHours = 9,
+          kesKeyMinutes = 9
+        )
+      )
+    )
 
 }
 
@@ -267,17 +291,16 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       lvls          <- readLvls
       timestamp     <- readTimestamp
       tokenTransaction =
-        Option.when(unstakedTopls.nonEmpty || lvls.nonEmpty)(
-          IoTransaction(
-            outputs = unstakedTopls ++ lvls,
-            datum = Datum.IoTransaction(
-              Event.IoTransaction(Schedule(timestamp = timestamp), metadata = SmallData.defaultInstance)
-            )
+        IoTransaction(
+          // TODO: Allow user to customize the protocol instead of assuming a default
+          outputs = InitTestnetCommand.DefaultProtocolUtxo :: unstakedTopls ++ lvls,
+          datum = Datum.IoTransaction(
+            Event.IoTransaction(Schedule(timestamp = timestamp), metadata = SmallData.defaultInstance)
           )
         )
       genesisConfig = BigBang.Config(
         timestamp,
-        stakers.map(_.transaction) ++ tokenTransaction,
+        stakers.map(_.transaction) :+ tokenTransaction,
         protocolVersion = ProtocolVersioner(appConfig.bifrost.protocols).appVersion.asProtocolVersion
       )
       genesisBlock = BigBang.fromConfig(genesisConfig)

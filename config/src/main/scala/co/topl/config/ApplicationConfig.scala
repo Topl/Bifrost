@@ -4,7 +4,7 @@ import co.topl.brambl.models.LockAddress
 import co.topl.consensus.models.BlockId
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
-import co.topl.numerics.implicits.Ops
+import co.topl.numerics.implicits._
 import co.topl.proto.node.NodeConfig
 import monocle.macros.Lenses
 

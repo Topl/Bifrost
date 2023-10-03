@@ -9,11 +9,10 @@ import co.topl.brambl.builders.locks.PropositionTemplate
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax.{ioTransactionAsTransactionSyntaxOps, transactionIdAsIdSyntaxOps}
+import co.topl.brambl.syntax._
 import co.topl.byzantine.transactions.{Locks, TransactionFactory, Wallet}
 import co.topl.byzantine.util._
 import co.topl.interpreters.NodeRpcOps._
-import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import com.spotify.docker.client.DockerClient
 import fs2.Stream
@@ -498,7 +497,7 @@ class TransactionTest extends IntegrationSuite {
         _ = assert(syntacticallyInvalid.contains(iotx_I.id.show))
         _ = assert(syntacticallyInvalid.contains(iotx_J.id.show))
         _ = assert(syntacticallyInvalid.contains(iotx_K.id.show))
-         _ = assert(syntacticallyInvalid.contains(iotx_U_Fail_1.id.show))
+        _ = assert(syntacticallyInvalid.contains(iotx_U_Fail_1.id.show))
         // rule was deactivated on bramblSc. Test them whem implemented
         // _ = assert(syntacticallyInvalid.contains(iotx_V_Fail_1.id.show))
         // _ = assert(syntacticallyInvalid.contains(iotx_W_Fail_1.id.show))

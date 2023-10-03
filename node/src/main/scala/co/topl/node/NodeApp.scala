@@ -9,11 +9,12 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
-import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
+import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
@@ -30,7 +31,6 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.FullBlock
-import co.topl.numerics.implicits._
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -72,12 +72,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
-      protocolVersion <- Sync[F]
-        .delay(ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion)
-        .toResource
 
       cryptoResources <- CryptoResources.make[F].toResource
-      bigBangBlock    <- initializeBigBang(protocolVersion)
+      bigBangBlock    <- initializeBigBang
       bigBangSlotData <- cryptoResources.ed25519VRF
         .use(implicit r => Sync[F].delay(bigBangBlock.header.slotData))
         .toResource
@@ -115,7 +112,15 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           currentEventIdGetterSetters.blockHeightTree.set
         )
         .toResource
-      bigBangProtocol = appConfig.bifrost.protocols(0)
+      bigBangProtocol <-
+        BigBang
+          .extractProtocol(bigBangBlock)
+          .leftMap(error =>
+            new IllegalArgumentException(s"Genesis block contained invalid protocol settings. reason=$error")
+          )
+          .pure[F]
+          .rethrow
+          .toResource
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
         bigBangProtocol.vrfPrecision,
@@ -204,7 +209,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   cryptoResources,
                   bigBangProtocol,
                   vrfConfig,
-                  protocolVersion,
+                  bigBangBlock.header.version,
                   BlockFinder
                     .forTransactionId(dataStores.bodies.getOrRaise)(
                       fs2.Stream
@@ -387,7 +392,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
    * Based on the application config, determines if the genesis block is a public network or a private testnet, and
    * initialize it accordingly
    */
-  private def initializeBigBang(protocolVersion: ProtocolVersion): Resource[F, FullBlock] =
+  private def initializeBigBang: Resource[F, FullBlock] =
     appConfig.bifrost.bigBang match {
       case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
         for {
@@ -397,7 +402,13 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           bigBangConfig <- Sync[F]
             .delay(
               PrivateTestnet
-                .config(privateBigBang.timestamp, testnetStakerInitializers, privateBigBang.stakes, protocolVersion)
+                .config(
+                  privateBigBang.timestamp,
+                  testnetStakerInitializers,
+                  privateBigBang.stakes,
+                  PrivateTestnet.DefaultProtocolVersion,
+                  appConfig.bifrost.protocols(0)
+                )
             )
             .toResource
           bigBangBlock = BigBang.fromConfig(bigBangConfig)

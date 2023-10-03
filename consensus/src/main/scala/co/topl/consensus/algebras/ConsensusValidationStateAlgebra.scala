@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.consensus.models.{ActiveStaker, BlockId, StakingAddress}
 import co.topl.models._
 import co.topl.models.utility.Ratio
-import co.topl.numerics.implicits._
+import co.topl.brambl.syntax._
 
 trait ConsensusValidationStateAlgebra[F[_]] {
 
