@@ -12,7 +12,7 @@ import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
 import co.topl.brambl.models.box.{Attestation, Value}
 import co.topl.brambl.models.{Datum, Event, TransactionOutputAddress}
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, SpentTransactionOutput, UnspentTransactionOutput}
-import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.brambl.syntax._
 import co.topl.byzantine.util._
 import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
 import co.topl.codecs.bytes.typeclasses.Persistable
@@ -26,7 +26,6 @@ import co.topl.interpreters.NodeRpcOps._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path, PosixPermission, PosixPermissions}
-import co.topl.numerics.implicits._
 import co.topl.quivr.api.Prover
 
 import java.security.SecureRandom

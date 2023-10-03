@@ -7,6 +7,7 @@ import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.Store
 import co.topl.brambl.utils.CatsUnsafeResource
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._

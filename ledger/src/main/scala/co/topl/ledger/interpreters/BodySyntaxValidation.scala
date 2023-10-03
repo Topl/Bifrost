@@ -11,7 +11,7 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
-import co.topl.numerics.implicits._
+import co.topl.brambl.syntax._
 import com.google.protobuf.ByteString
 
 import scala.collection.immutable.SortedSet
