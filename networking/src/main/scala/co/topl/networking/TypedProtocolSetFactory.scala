@@ -322,22 +322,25 @@ object TypedProtocolSetFactory {
         queue <- Queue.bounded[F, OutboundMessage](1)
         stream = Stream.fromQueueUnterminated(queue)
         clientCallback = (query: Query) =>
-          requestPermit.use(_ =>
-            for {
-              deferred <- Deferred[F, Option[T]]
-              _        <- responsePromisesQueue.offer(deferred)
-              _        <- queue.offer(OutboundMessage(TypedProtocol.CommonMessages.Get(query)))
-              result <- EitherT(
-                Async[F].race(
-                  Async[F].delayBy(
-                    Async[F].delay(new TimeoutException(s"RequestResponse failed for query=$query")),
-                    5.seconds
-                  ),
-                  deferred.get
-                )
-              ).rethrowT
-            } yield result
-          )
+          requestPermit.use { _ =>
+            val response =
+              for {
+                deferred <- Deferred[F, Option[T]]
+                _        <- responsePromisesQueue.offer(deferred)
+                _        <- queue.offer(OutboundMessage(TypedProtocol.CommonMessages.Get(query)))
+                result   <- deferred.get
+              } yield result
+
+            EitherT(
+              Async[F].race(
+                Async[F].delayBy(
+                  Async[F].delay(new TimeoutException(s"RequestResponse failed for query=$query")),
+                  10.seconds
+                ),
+                response
+              )
+            ).rethrowT
+          }
         multiplexerCodec = MultiplexerCodecBuilder()
           .withCodec[TypedProtocol.CommonMessages.Start.type](1: Byte)
           .withCodec[TypedProtocol.CommonMessages.Done.type](2: Byte)

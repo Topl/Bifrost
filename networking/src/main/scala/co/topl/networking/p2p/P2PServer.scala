@@ -24,4 +24,7 @@ object PeerConnectionChanges {
       extends PeerConnectionChange
 
   case class ConnectionClosed(connectedPeer: ConnectedPeer, reason: Option[Throwable]) extends PeerConnectionChange
+
+  case class RemotePeerApplicationLevel(connectedPeer: ConnectedPeer, applicationLevelEnabled: Boolean)
+      extends PeerConnectionChange
 }

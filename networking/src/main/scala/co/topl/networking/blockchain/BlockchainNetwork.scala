@@ -1,5 +1,7 @@
 package co.topl.networking.blockchain
 
+import cats.Applicative
+import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
 import cats.effect.std.Random
@@ -47,7 +49,13 @@ object BlockchainNetwork {
             .toResource
             .flatMap(connectionLeader =>
               BlockchainSocketHandler
-                .make[F](serverF, clientHandler.usePeer)(peer, connectionLeader, socket.reads, socket.writes)
+                .make[F](serverF, clientHandler.usePeer)(
+                  peer,
+                  connectionLeader,
+                  socket.reads,
+                  socket.writes,
+                  socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
+                )
             ),
         peersStatusChangesTopic
       )

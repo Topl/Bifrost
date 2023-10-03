@@ -113,10 +113,13 @@ object NetworkManager {
         case PeerConnectionChanges.InboundConnectionInitializing(_, _) => Applicative[F].unit
         case PeerConnectionChanges.OutboundConnectionInitializing(_)   => Applicative[F].unit
         case PeerConnectionChanges.ConnectionEstablished(_, localAddress) =>
-          peersManager.sendNoWait(PeersManager.Message.updateThisPeerAddress(localAddress))
+          peersManager.sendNoWait(PeersManager.Message.UpdateThisPeerAddress(localAddress))
         case PeerConnectionChanges.ConnectionClosed(connectedPeer, _) =>
           Logger[F].info(s"Remote peer ${connectedPeer.remoteAddress} closing had been detected") >>
           peersManager.sendNoWait(PeersManager.Message.ClosePeer(connectedPeer.remoteAddress.host))
+        case PeerConnectionChanges.RemotePeerApplicationLevel(connectedPeer, appLevel) =>
+          val host = connectedPeer.remoteAddress.host
+          peersManager.sendNoWait(PeersManager.Message.RemotePeerNetworkLevel(host, appLevel))
       }
       .compile
       .drain

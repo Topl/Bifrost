@@ -20,7 +20,8 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.ledger.models.MempoolGraph
 import co.topl.networking.NetworkGen._
-import co.topl.networking.p2p.RemoteAddress
+import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
+import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange, RemoteAddress}
 
 import scala.concurrent.duration._
 
@@ -109,6 +110,20 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     }
   }
 
+  test("application level notifier") {
+    PropF.forAllF { hotPeers: Set[RemoteAddress] =>
+      withMock {
+        val f = mockFunction[F[Set[RemoteAddress]]]
+        f.expects().once().returning(hotPeers.pure[F])
+        val expected = CurrentKnownHostsRes(hotPeers.toSeq.map(ra => KnownHost(ra.host, ra.port)))
+        for {
+          _ <- makeServer(currentHotPeers = f)
+            .use(underTest => underTest.getKnownHosts(CurrentKnownHostsReq(hotPeers.size)).assertEquals(expected.some))
+        } yield ()
+      }
+    }
+  }
+
   test("serve hot peers, we have more than requested") {
     withMock {
       val host1 = RemoteAddress("1.1.1.1", 1)
@@ -156,10 +171,41 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         for {
           topic <- Topic[F, BlockId]
           publisher = Stream(adoptionA, adoptionB, adoptionC).through(topic.publish)
-          result <- makeServer(localChain = localChain, newBlockIds = topic.pure[F])
+          result <- makeServer(localChain = localChain, newBlockIdsF = topic.pure[F])
             .use(server => Stream.force(server.localBlockAdoptions).concurrently(publisher).compile.toList)
           _ <- IO(result).assertEquals(List(head.slotId.blockId, adoptionA, adoptionB, adoptionC))
         } yield ()
+      }
+    }
+  }
+
+  test("serve changed connection") {
+    PropF.forAllF { (enable1: Boolean, enable2: Boolean) =>
+      withMock {
+        val underTest =
+          for {
+            topic        <- Resource.liftK(Topic[F, PeerConnectionChange])
+            peer         <- Resource.pure(arbitraryConnectedPeer.arbitrary.first)
+            changeStream <- topic.subscribeAwaitUnbounded
+            server       <- makeServer(connectionStatusF = topic.pure[F], peer = peer)
+          } yield (server, peer, changeStream, topic)
+
+        underTest.use { case (server, peer, stream, topic) =>
+          for {
+            _   <- server.notifyApplicationLevel(enable1)
+            _   <- server.notifyApplicationLevel(enable2)
+            _   <- topic.close
+            res <- stream.compile.toList
+            _ = assert(res.head match {
+              case RemotePeerApplicationLevel(`peer`, `enable1`) => true
+              case _                                             => false
+            })
+            _ = assert(res.last match {
+              case RemotePeerApplicationLevel(`peer`, `enable2`) => true
+              case _                                             => false
+            })
+          } yield ()
+        }
       }
     }
   }
@@ -192,7 +238,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           for {
             topic <- Topic[F, TransactionId]
             publisher = Stream(adoptionA, adoptionB, adoptionC).through(topic.publish)
-            result <- makeServer(localChain = localChain, mempool = mempool, newTransactionIds = topic.pure[F])
+            result <- makeServer(localChain = localChain, mempool = mempool, newTransactionIdsF = topic.pure[F])
               .use(server => Stream.force(server.localTransactionNotifications).concurrently(publisher).compile.toList)
             _ <- IO(result).assertEquals(List(mempoolTxA, mempoolTxB, mempoolTxC, adoptionA, adoptionB, adoptionC))
           } yield ()
@@ -201,21 +247,23 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   }
 
   private def makeServer(
-    fetchSlotData:    BlockId => F[Option[SlotData]] = _ => ???,
-    fetchHeader:      BlockId => F[Option[BlockHeader]] = _ => ???,
-    fetchBody:        BlockId => F[Option[BlockBody]] = _ => ???,
-    fetchTransaction: TransactionId => F[Option[IoTransaction]] = _ => ???,
-    serverPort:       () => Option[Int] = () => ???,
-    currentHotPeers:  () => F[Set[RemoteAddress]] = () => Set.empty[RemoteAddress].pure[F],
+    fetchSlotData:     BlockId => F[Option[SlotData]] = _ => ???,
+    fetchHeader:       BlockId => F[Option[BlockHeader]] = _ => ???,
+    fetchBody:         BlockId => F[Option[BlockBody]] = _ => ???,
+    fetchTransaction:  TransactionId => F[Option[IoTransaction]] = _ => ???,
+    serverPort:        () => Option[Int] = () => ???,
+    connectionStatusF: F[Topic[F, PeerConnectionChange]] = Topic[F, PeerConnectionChange],
+    currentHotPeers:   () => F[Set[RemoteAddress]] = () => Set.empty[RemoteAddress].pure[F],
     blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
       mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
-    localChain:        LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
-    mempool:           MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
-    newBlockIds:       F[Topic[F, BlockId]] = Topic[F, BlockId],
-    newTransactionIds: F[Topic[F, TransactionId]] = Topic[F, TransactionId]
+    localChain:         LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
+    mempool:            MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
+    newBlockIdsF:       F[Topic[F, BlockId]] = Topic[F, BlockId],
+    newTransactionIdsF: F[Topic[F, TransactionId]] = Topic[F, TransactionId],
+    peer:               ConnectedPeer = arbitraryConnectedPeer.arbitrary.first
   ) =
-    (Resource.eval(newBlockIds), Resource.eval(newTransactionIds)).tupled
-      .flatMap { case (newBlockIds, newTransactionIds) =>
+    (Resource.eval(newBlockIdsF), Resource.eval(newTransactionIdsF), Resource.eval(connectionStatusF)).tupled
+      .flatMap { case (newBlockIds, newTransactionIds, connectionStatus) =>
         BlockchainPeerServer
           .make(
             fetchSlotData,
@@ -228,7 +276,8 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             localChain,
             mempool,
             newBlockIds,
-            newTransactionIds
-          )(arbitraryConnectedPeer.arbitrary.first)
+            newTransactionIds,
+            connectionStatus
+          )(peer)
       }
 }

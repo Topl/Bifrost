@@ -6,7 +6,9 @@ import co.topl.consensus.models.BlockId
 import co.topl.models.TxRoot
 import co.topl.typeclasses.implicits._
 
-sealed abstract class BlockDownloadError extends Exception
+sealed abstract class BlockDownloadError extends Exception {
+  def notCritical: Boolean
+}
 
 object BlockDownloadError {
   sealed trait BlockHeaderDownloadError extends BlockDownloadError
@@ -15,10 +17,12 @@ object BlockDownloadError {
 
     case object HeaderNotFoundInPeer extends BlockHeaderDownloadError {
       override def toString: String = "Block body has not found in peer"
+      override val notCritical: Boolean = false
     }
 
     case class HeaderHaveIncorrectId(expected: BlockId, actual: BlockId) extends BlockHeaderDownloadError {
       override def toString: String = show"Peer returns header with bad id: expected $expected, actual $actual"
+      override val notCritical: Boolean = false
     }
 
     case class UnknownError(ex: Throwable) extends BlockHeaderDownloadError {
@@ -29,6 +33,7 @@ object BlockDownloadError {
         val message = Option(ex.getLocalizedMessage).getOrElse("")
         show"Unknown error during getting header from peer due next throwable $name : $message"
       }
+      override val notCritical: Boolean = true
     }
   }
 
@@ -38,19 +43,23 @@ object BlockDownloadError {
 
     case object BodyNotFoundInPeer extends BlockBodyDownloadError {
       override def toString: String = "Block body has not found in peer"
+      override val notCritical: Boolean = false
     }
 
     case class BodyHaveIncorrectTxRoot(headerTxRoot: TxRoot, bodyTxRoot: TxRoot) extends BlockBodyDownloadError {
       override def toString: String = show"Peer returns body with bad txRoot: expected $headerTxRoot, got $bodyTxRoot"
+      override val notCritical: Boolean = false
     }
 
     case class TransactionNotFoundInPeer(transactionId: TransactionId) extends BlockBodyDownloadError {
       override def toString: String = show"Peer have no transaction $transactionId despite having appropriate block"
+      override val notCritical: Boolean = false
     }
 
     case class TransactionHaveIncorrectId(expected: TransactionId, actual: TransactionId)
         extends BlockBodyDownloadError {
       override def toString: String = show"Peer returns transaction with bad id: expected $expected, actual $actual"
+      override val notCritical: Boolean = false
     }
 
     case class UnknownError(ex: Throwable) extends BlockBodyDownloadError {
@@ -61,6 +70,8 @@ object BlockDownloadError {
         val message = Option(ex.getLocalizedMessage).getOrElse("")
         show"Unknown error during getting block from peer due next throwable $name : $message"
       }
+
+      override val notCritical: Boolean = true
     }
   }
 }

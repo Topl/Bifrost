@@ -31,7 +31,7 @@ object ReputationAggregator {
      * Stop tracking reputation for particular host
      * @param hostId host to stop tracking
      */
-    case class PeerIsCold(hostId: HostId) extends Message
+    case class StopReputationTracking(hostId: HostId) extends Message
 
     /**
      * PingPong message from remote peer, which allow us to measure performance reputation for remote host
@@ -61,9 +61,9 @@ object ReputationAggregator {
 
     /**
      * Notification about connection to the new remote peer had been established
-     * @param hostIds remote peer
+     * @param hostId remote peer
      */
-    case class NewHotPeer(hostIds: NonEmptyChain[HostId]) extends Message
+    case class NewHotPeer(hostId: HostId) extends Message
 
     /**
      * Block providing update for hosts. We could have mentioned the same host multiply time,
@@ -85,11 +85,17 @@ object ReputationAggregator {
     case class BadKLookbackSlotData(hostId: HostId) extends Message
 
     /**
-     * Remote peer provide to us incorrect, by some reasons, block or other data like genesis block.
+     * Remote peer provide to us incorrect block or any other data like genesis block.
      * For example it could be block with incorrect transaction(s)
      * @param hostId remote peer
      */
-    case class HostProvideIncorrectData(hostId: HostId) extends Message
+    case class CriticalErrorForHost(hostId: HostId) extends Message
+
+    /**
+     * We got unknown error during get data from remote peer. That error could be network error, for example
+     * @param hostId remote peer
+     */
+    case class NonCriticalErrorForHost(hostId: HostId) extends Message
 
     /**
      * Tick, which do actual update of time based reputation
@@ -106,16 +112,17 @@ object ReputationAggregator {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
-      case (state, NewHotPeer(hostIds)) => newHotPeer(state, hostIds)
-      case (state, PeerIsCold(hostId))  => removeReputationForHost(state, hostId)
+      case (state, NewHotPeer(hostId))             => newHotPeer(state, hostId)
+      case (state, StopReputationTracking(hostId)) => removeReputationForHost(state, hostId)
 
       case (state, PingPongMessagePing(hostId, pongResponse)) => pongMessageProcessing(state, hostId, pongResponse)
       case (state, DownloadTimeHeader(hostId, delay))         => headerDownloadTime(state, hostId, delay)
       case (state, DownloadTimeBody(hostId, delay, txDelays)) => blockDownloadTime(state, hostId, delay, txDelays)
       case (state, BlockProvidingReputationUpdate(data))      => blockProvidingReputationUpdate(state, data)
 
-      case (state, BadKLookbackSlotData(hostId))     => badKLookbackSlotData(state, hostId)
-      case (state, HostProvideIncorrectData(hostId)) => incorrectBlockReceived(state, hostId)
+      case (state, BadKLookbackSlotData(hostId))    => badKLookbackSlotData(state, hostId)
+      case (state, CriticalErrorForHost(hostId))    => criticalErrorForHost(state, hostId)
+      case (state, NonCriticalErrorForHost(hostId)) => nonCriticalErrorForHost(state, hostId)
 
       case (state, ReputationUpdateTick) => processReputationUpdateTick(state)
       case (state, UpdateWarmHosts)      => processUpdateWarmHosts(state)
@@ -223,12 +230,25 @@ object ReputationAggregator {
         (state, state).pure[F]
     }
 
-  private def incorrectBlockReceived[F[_]: Async: Logger](
+  private def badKLookbackSlotData[F[_]: Async: Logger](state: State[F], hostId: HostId): F[(State[F], Response[F])] =
+    Logger[F].error(show"Got got bad k lookback slot data from host $hostId") >>
+    state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
+    (state, state).pure[F]
+
+  private def criticalErrorForHost[F[_]: Async: Logger](
     state:  State[F],
     hostId: HostId
   ): F[(State[F], Response[F])] =
-    Logger[F].error(show"Received incorrect block from host $hostId") >>
+    Logger[F].error(show"Received critical error from host $hostId") >>
     state.peerManager.sendNoWait(PeersManager.Message.BanPeer(hostId)) >>
+    (state, state).pure[F]
+
+  private def nonCriticalErrorForHost[F[_]: Async: Logger](
+    state:  State[F],
+    hostId: HostId
+  ): F[(State[F], Response[F])] =
+    Logger[F].error(show"Got non critical error during receiving data from host $hostId") >>
+    state.peerManager.sendNoWait(PeersManager.Message.MoveToCold(NonEmptyChain.one(hostId))) >>
     (state, state).pure[F]
 
   private def headerDownloadTime[F[_]: Async: Logger](
@@ -268,17 +288,17 @@ object ReputationAggregator {
   }
 
   private def newHotPeer[F[_]: Async: Logger](
-    state:   State[F],
-    hostIds: NonEmptyChain[HostId]
+    state:  State[F],
+    hostId: HostId
   ): F[(State[F], Response[F])] = {
     val noveltyInSlots = state.networkConfig.remotePeerNoveltyInSlots
 
     val newNoveltyReputation =
-      state.noveltyReputation ++ hostIds.map(hostId => hostId -> noveltyInSlots).toList.toMap
+      state.noveltyReputation + (hostId -> noveltyInSlots)
     val newBlockProvidingReputation =
-      state.blockProvidingReputation ++ hostIds.map(hostId => hostId -> 0.0).toList.toMap
+      state.blockProvidingReputation + (hostId -> 0.0)
     val newPerformanceReputation =
-      state.performanceReputation ++ hostIds.map(hostId => hostId -> 0.0).toList.toMap
+      state.performanceReputation + (hostId -> 0.0)
 
     val newState = state.copy(
       noveltyReputation = newNoveltyReputation,
@@ -286,13 +306,7 @@ object ReputationAggregator {
       performanceReputation = newPerformanceReputation
     )
 
-    Logger[F].info(s"Start tracking reputation for hosts $hostIds") >>
-    (newState, newState).pure[F]
-  }
-
-  private def badKLookbackSlotData[F[_]: Async](state: State[F], hostId: HostId): F[(State[F], Response[F])] = {
-    val newBlockProvidingMap = state.blockProvidingReputation + (hostId -> 0.0)
-    val newState = state.copy(blockProvidingReputation = newBlockProvidingMap)
+    Logger[F].info(s"Start tracking reputation for host $hostId") >>
     (newState, newState).pure[F]
   }
 

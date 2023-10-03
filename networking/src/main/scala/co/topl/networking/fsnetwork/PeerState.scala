@@ -3,6 +3,8 @@ package co.topl.networking.fsnetwork
 sealed trait PeerState {
   def networkLevel: Boolean
   def applicationLevel: Boolean
+
+  def isActive: Boolean = networkLevel || applicationLevel
 }
 
 object PeerState {
@@ -19,11 +21,6 @@ object PeerState {
   }
 
   case object Cold extends PeerState {
-    override def networkLevel: Boolean = false
-    override def applicationLevel: Boolean = false
-  }
-
-  case object PreWarm extends PeerState {
     override def networkLevel: Boolean = false
     override def applicationLevel: Boolean = false
   }

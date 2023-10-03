@@ -239,7 +239,7 @@ package object fsnetwork {
       val res =
         for {
           host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
-          resolved <- OptionT.liftF(resolver.resolve(host))
+          resolved <- OptionT(resolver.resolveOption(host))
         } yield resolved.toUriString
       res.value
     }
