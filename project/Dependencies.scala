@@ -101,7 +101,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.5.1"
+    "com.lihaoyi" %% "mainargs" % "0.5.4"
   )
 
   val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
@@ -177,7 +177,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.26.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.27.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
