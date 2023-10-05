@@ -335,7 +335,7 @@ object TypedProtocolSetFactory {
               Async[F].race(
                 Async[F].delayBy(
                   Async[F].delay(new TimeoutException(s"RequestResponse failed for query=$query")),
-                  10.seconds
+                  3.seconds
                 ),
                 response
               )
