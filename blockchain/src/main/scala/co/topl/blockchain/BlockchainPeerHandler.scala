@@ -477,9 +477,9 @@ object BlockchainPeerHandler {
             )
         )
         .void
-        .handleErrorWith(
-          Logger[F].error(_)("Common ancestor trace failed")
-        )
+        .onError { case e =>
+          Logger[F].error(e)("Common ancestor trace failed")
+        }
   }
 
   implicit class OptionTOps[F[_], T](val optionT: OptionT[F, T]) extends AnyVal {
