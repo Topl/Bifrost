@@ -2,68 +2,55 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.effect.{Deferred, IO}
-import cats.effect.unsafe.implicits.global
 import co.topl.networking.{NetworkTypeTag, Parties}
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalamock.munit.AsyncMockFactory
 
-class NotificationProtocolSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with MockFactory
-    with Matchers
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks
-    with EitherValues
-    with OptionValues {
+class NotificationProtocolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
-
-  behavior of "NotificationProtocol"
   import NotificationProtocolSpec._
 
-  it should "run messages" in {
-    val handlerF = mockFunction[String, F[Unit]]
-    val instance = {
-      val transitions = {
-        val protocol = new NotificationProtocol[String] {}
-        new protocol.StateTransitionsClient[F](handlerF)
-      }
-      import transitions._
+  test("run messages") {
+    withMock {
+      val handlerF = mockFunction[String, F[Unit]]
+      val instance = {
+        val transitions = {
+          val protocol = new NotificationProtocol[String] {}
+          new protocol.StateTransitionsClient[F](handlerF)
+        }
+        import transitions._
 
-      TypedProtocolInstance(Parties.B)
-        .withTransition(startNoneBusy)
-        .withTransition(pushBusyBusy)
-        .withTransition(doneBusyDone)
+        TypedProtocolInstance(Parties.B)
+          .withTransition(startNoneBusy)
+          .withTransition(pushBusyBusy)
+          .withTransition(doneBusyDone)
+      }
+      instance
+        .applier(TypedProtocol.CommonStates.None)(_ => Applicative[F].unit)
+        .use { applier =>
+          for {
+            _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B)
+
+            d1 <- Deferred[F, Unit]
+            _ = handlerF.expects(*).once().returning(d1.complete(()).void)
+            _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
+            _ <- d1.get
+
+            d2 <- Deferred[F, Unit]
+            _ = handlerF.expects(*).once().returning(d2.complete(()).void)
+            _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
+            _ <- d2.get
+
+            d3 <- Deferred[F, Unit]
+            _ = handlerF.expects(*).once().returning(d3.complete(()).void)
+            _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
+            _ <- d3.get
+
+            _ <- applier(TypedProtocol.CommonMessages.Done, Parties.A)
+          } yield ()
+        }
     }
-    instance
-      .applier(TypedProtocol.CommonStates.None)(_ => Applicative[F].unit)
-      .use { applier =>
-        for {
-          _ <- applier(TypedProtocol.CommonMessages.Start, Parties.B)
-
-          d1 <- Deferred[F, Unit]
-          _ = handlerF.expects(*).once().returning(d1.complete(()).void)
-          _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
-          _ <- d1.get
-
-          d2 <- Deferred[F, Unit]
-          _ = handlerF.expects(*).once().returning(d2.complete(()).void)
-          _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
-          _ <- d2.get
-
-          d3 <- Deferred[F, Unit]
-          _ = handlerF.expects(*).once().returning(d3.complete(()).void)
-          _ <- applier(TypedProtocol.CommonMessages.Push("foo"), Parties.A)
-          _ <- d3.get
-
-          _ <- applier(TypedProtocol.CommonMessages.Done, Parties.A)
-        } yield ()
-      }
-      .unsafeRunSync()
   }
 
 }
