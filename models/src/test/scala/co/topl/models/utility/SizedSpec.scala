@@ -1,67 +1,85 @@
 package co.topl.models.utility
 
+import cats.effect.IO
+import cats.implicits._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Lengths._
 import com.google.protobuf.ByteString
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.EitherValues
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalamock.munit.AsyncMockFactory
 
-class SizedSpec
-    extends AnyFlatSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with MockFactory
-    with EitherValues {
+class SizedSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
-  behavior of "Sized"
+  type F[A] = IO[A]
 
-  it should "enforce a strict size limit on correctly sized data" in {
+  test("enforce a strict size limit on correctly sized data") {
     val data = ByteString.copyFrom(Array.fill[Byte](4)(0))
 
-    val sized = Sized.strict[ByteString, Lengths.`4`.type](data).value
-
-    sized.data shouldBe data
+    Sized
+      .strict[ByteString, Lengths.`4`.type](data)
+      .map(_.data)
+      .leftMap(e => new IllegalArgumentException(e.toString))
+      .pure[F]
+      .rethrow
+      .assertEquals(data)
   }
 
-  it should "enforce a max size limit on correctly sized data" in {
+  test("enforce a max size limit on correctly sized data") {
     val data = ByteString.copyFrom(Array.fill[Byte](3)(0))
 
-    val sized = Sized.max[ByteString, Lengths.`4`.type](data).value
-
-    sized.data shouldBe data
+    Sized
+      .max[ByteString, Lengths.`4`.type](data)
+      .map(_.data)
+      .leftMap(e => new IllegalArgumentException(e.toString))
+      .pure[F]
+      .rethrow
+      .assertEquals(data)
   }
 
-  it should "reject strict incorrectly sized data" in {
+  test("reject strict incorrectly sized data") {
     val data = ByteString.copyFrom(Array.fill[Byte](5)(0))
 
-    val error = Sized.strict[ByteString, Lengths.`4`.type](data).left.value
-
-    error shouldBe Sized.InvalidLength(5)
+    Sized
+      .strict[ByteString, Lengths.`4`.type](data)
+      .as(new IllegalArgumentException("Unexpected success"))
+      .swap
+      .pure[F]
+      .rethrow
+      .assertEquals(Sized.InvalidLength(5))
   }
 
-  it should "reject max incorrectly sized data" in {
+  test("reject max incorrectly sized data") {
     val data = ByteString.copyFrom(Array.fill[Byte](5)(0))
 
-    val error = Sized.max[ByteString, Lengths.`4`.type](data).left.value
-
-    error shouldBe Sized.InvalidLength(5)
+    Sized
+      .max[ByteString, Lengths.`4`.type](data)
+      .as(new IllegalArgumentException("Unexpected success"))
+      .swap
+      .pure[F]
+      .rethrow
+      .assertEquals(Sized.InvalidLength(5))
   }
 
-  it should "accept correctly sized Int128" in {
+  test("accept correctly sized Int128") {
     val bigInt = BigInt(Int.MaxValue)
-    val sized = Sized.max[BigInt, Lengths.`64`.type](bigInt).value
-
-    sized.data shouldBe bigInt
+    Sized
+      .max[BigInt, Lengths.`64`.type](bigInt)
+      .map(_.data)
+      .leftMap(e => new IllegalArgumentException(e.toString))
+      .pure[F]
+      .rethrow
+      .assertEquals(bigInt)
   }
 
-  it should "reject incorrectly sized Int128" in {
+  test("reject incorrectly sized Int128") {
     val bigInt = BigInt(Long.MaxValue)
-    val error = Sized.max[BigInt, Lengths.`32`.type](bigInt).left.value
-
-    error shouldBe Sized.InvalidLength(bigInt.bitLength)
+    Sized
+      .max[BigInt, Lengths.`32`.type](bigInt)
+      .as(new IllegalArgumentException("Unexpected success"))
+      .swap
+      .pure[F]
+      .rethrow
+      .assertEquals(Sized.InvalidLength(bigInt.bitLength))
   }
 
 }

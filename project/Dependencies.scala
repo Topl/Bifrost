@@ -26,20 +26,8 @@ object Dependencies {
     catsSlf4j
   )
 
-  val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
-    "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % "test"
-  )
-
   val scalamockBase = "org.scalamock" %% "scalamock" % "5.2.0"
   val scalamock = scalamockBase        % Test
-
-  val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.17" % "test",
-    "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
-    "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
-    scalamock
-  ) ++ scalacheck
 
   private val mUnitTestBase: Seq[ModuleID] = Seq(
     "org.scalameta" %% "munit"                   % "0.7.29",
@@ -185,7 +173,7 @@ object Dependencies {
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
     protobufSpecs ++
-    test ++
+    munitScalamock ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
 
@@ -201,7 +189,7 @@ object Dependencies {
     scodec ++
     externalCrypto ++
     cats ++
-    test ++
+    mUnitTest ++
     Seq(bramblScCrypto, bramblScCrypto.classifier("tests") % Test) ++
     circe.map(_ % Test)
 
@@ -220,10 +208,10 @@ object Dependencies {
     Dependencies.mUnitTest ++ externalCrypto ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
@@ -246,7 +234,7 @@ object Dependencies {
     )
 
   lazy val byteCodecs: Seq[sbt.ModuleID] =
-    test ++
+    munitScalamock ++
     simulacrum ++
     scodec ++
     cats

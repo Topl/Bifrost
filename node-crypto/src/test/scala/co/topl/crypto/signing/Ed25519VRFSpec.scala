@@ -1,14 +1,15 @@
 package co.topl.crypto.signing
 
+import cats.effect.IO
+import cats.implicits._
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.utils.EntropySupport._
 import co.topl.crypto.utils._
 import io.circe.Decoder
 import io.circe.HCursor
 import io.circe.generic.semiauto.deriveDecoder
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.propspec.AnyPropSpec
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalacheck.effect.PropF
 import scodec.bits.ByteVector
 
 import java.nio.charset.StandardCharsets
@@ -23,37 +24,43 @@ import java.nio.charset.StandardCharsets
  *
  * All values below are Hex encoded byte representations unless otherwise specified.
  */
-class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks with Matchers {
+class Ed25519VRFSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
-  property("with Ed25519VRF, signed message should be verifiable with appropriate public key") {
-    forAll { (entropy1: Entropy, entropy2: Entropy, message1: Array[Byte], message2: Array[Byte]) =>
-      whenever((entropy1 != entropy2) && !(message1 sameElements message2)) {
+  type F[A] = IO[A]
+
+  test("with Ed25519VRF, signed message should be verifiable with appropriate public key") {
+    PropF.forAllF { (entropy1: Entropy, entropy2: Entropy, message1: Array[Byte], message2: Array[Byte]) =>
+      if ((entropy1 != entropy2) && !(message1 sameElements message2)) {
         val ed25519vrf = new Ed25519VRF
         val (sk1, vk1) = ed25519vrf.deriveKeyPairFromEntropy(entropy1, None)
         val (_, vk2) = ed25519vrf.deriveKeyPairFromEntropy(entropy2, None)
         val sig = ed25519vrf.sign(sk1, message1)
 
-        ed25519vrf.verify(sig, message1, vk1) shouldBe true
-        ed25519vrf.verify(sig, message1, vk2) shouldBe false
-        ed25519vrf.verify(sig, message2, vk1) shouldBe false
-      }
+        (
+          ed25519vrf.verify(sig, message1, vk1) &&
+          !ed25519vrf.verify(sig, message1, vk2) &&
+          !ed25519vrf.verify(sig, message2, vk1)
+        ).pure[F].assert
+      } else ().pure[F]
     }
   }
 
-  property("with Ed25519VRF, keyPairs generated with the same seed should be the same") {
-    forAll { seedByteVector: Entropy =>
-      whenever(seedByteVector.value.length != 0) {
+  test("with Ed25519VRF, keyPairs generated with the same seed should be the same") {
+    PropF.forAllF { seedByteVector: Entropy =>
+      if (seedByteVector.value.length != 0) {
         val ed25519vrf = new Ed25519VRF
         val keyPair1 = ed25519vrf.deriveKeyPairFromEntropy(seedByteVector, None)
         val keyPair2 = ed25519vrf.deriveKeyPairFromEntropy(seedByteVector, None)
 
-        ByteVector(keyPair1._1) shouldBe ByteVector(keyPair2._1)
-        ByteVector(keyPair1._2) shouldBe ByteVector(keyPair2._2)
-      }
+        (
+          ByteVector(keyPair1._1) == ByteVector(keyPair2._1) &&
+          ByteVector(keyPair1._2) == ByteVector(keyPair2._2)
+        ).pure[F].assert
+      } else ().pure[F]
     }
   }
 
-  property("Topl specific seed generation mechanism should generate a fixed secret key given an entropy and password") {
+  test("Topl specific seed generation mechanism should generate a fixed secret key given an entropy and password") {
     val e = Entropy("topl".getBytes(StandardCharsets.UTF_8))
     val p = "topl"
     val specOutSK =
@@ -63,26 +70,32 @@ class Ed25519VRFSpec extends AnyPropSpec with ScalaCheckDrivenPropertyChecks wit
 
     val underTest = new Ed25519VRF
     val (sk, vk) = underTest.deriveKeyPairFromEntropy(e, Some(p))
-    ByteVector(sk) shouldBe specOutSK
-    ByteVector(vk) shouldBe specOutVK
+    (
+      ByteVector(sk) == specOutSK &&
+      ByteVector(vk) == specOutVK
+    ).pure[F].assert
   }
 
   VrfEd25519SpecHelper.testVectors.foreach { underTest =>
-    property(s"${underTest.description}") {
+    test(s"${underTest.description}") {
       val ed25519vrf = new Ed25519VRF
 
       val vk = ed25519vrf.getVerificationKey(underTest.inputs.secretKey.toArray)
       val pi = ed25519vrf.sign(underTest.inputs.secretKey.toArray, underTest.inputs.message.toArray)
 
-      ed25519vrf.verify(pi, underTest.inputs.message.toArray, vk) shouldBe true
-      ed25519vrf.verify(pi, underTest.inputs.message.toArray, underTest.outputs.verificationKey.toArray) shouldBe true
-      ed25519vrf.verify(underTest.outputs.pi.toArray, underTest.inputs.message.toArray, vk) shouldBe true
-      ed25519vrf.verify(
-        underTest.outputs.pi.toArray,
-        underTest.inputs.message.toArray,
-        underTest.outputs.verificationKey.toArray
-      ) shouldBe true
-      ByteVector(ed25519vrf.proofToHash(pi)) shouldBe underTest.outputs.beta
+      (
+        ed25519vrf.verify(pi, underTest.inputs.message.toArray, vk) &&
+        ed25519vrf
+          .verify(pi, underTest.inputs.message.toArray, underTest.outputs.verificationKey.toArray) &&
+        ed25519vrf.verify(underTest.outputs.pi.toArray, underTest.inputs.message.toArray, vk) &&
+        ed25519vrf
+          .verify(
+            underTest.outputs.pi.toArray,
+            underTest.inputs.message.toArray,
+            underTest.outputs.verificationKey.toArray
+          ) &&
+        ByteVector(ed25519vrf.proofToHash(pi)) == underTest.outputs.beta
+      ).pure[F].assert
     }
   }
 

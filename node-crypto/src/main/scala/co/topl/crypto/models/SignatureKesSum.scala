@@ -1,17 +1,18 @@
 package co.topl.crypto.models
 
-import java.util.Arrays
-
 case class SignatureKesSum(
   verificationKey: Array[Byte],
   signature:       Array[Byte],
   witness:         Seq[Array[Byte]]
 ) {
 
-  override def hashCode(): Int =
-    Arrays.hashCode(verificationKey) +
-    Arrays.hashCode(signature) +
-    witness.map(Arrays.hashCode).sum
+  override def hashCode(): Int = {
+    var r = 1
+    r = 31 * r + java.util.Arrays.hashCode(verificationKey)
+    r = 31 * r + java.util.Arrays.hashCode(signature)
+    witness.foreach(w => r = 31 * r + java.util.Arrays.hashCode(w))
+    r
+  }
 
   override def equals(other: Any): Boolean = other match {
     case kesSum: SignatureKesSum =>
