@@ -36,10 +36,6 @@ lazy val commonSettings = Seq(
     }
   },
   crossScalaVersions := Seq(scala213),
-  Test / testOptions ++= Seq(
-    Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
-    Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDGG", "-u", "target/test-reports")
-  ),
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
@@ -293,8 +289,9 @@ lazy val models = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(
-    libraryDependencies ++= Dependencies.models ++ Dependencies.test
+    libraryDependencies ++= Dependencies.models ++ Dependencies.mUnitTest
   )
+  .dependsOn(munitScalamock % "test->test")
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -306,7 +303,7 @@ lazy val numerics = project
     buildInfoPackage := "co.topl.buildinfo.numerics"
   )
   .settings(scalamacrosParadiseSettings)
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
+  .settings(libraryDependencies ++= Dependencies.mUnitTest ++ Dependencies.scalacache)
   .dependsOn(models)
 
 lazy val eventTree = project
@@ -336,6 +333,7 @@ lazy val byteCodecs = project
     libraryDependencies ++= Dependencies.byteCodecs ++ Dependencies.protobufSpecs
   )
   .settings(scalamacrosParadiseSettings)
+  .dependsOn(munitScalamock % "test->test")
 
 lazy val tetraByteCodecs = project
   .in(file("tetra-byte-codecs"))
@@ -346,7 +344,7 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.protobufSpecs)
+  .settings(libraryDependencies ++= Dependencies.munitScalamock ++ Dependencies.protobufSpecs)
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", nodeCrypto % "compile->compile;test->test")
 
@@ -360,7 +358,7 @@ lazy val typeclasses: Project = project
     buildInfoPackage := "co.topl.buildinfo.typeclasses"
   )
   .settings(
-    libraryDependencies ++= Dependencies.test ++ Dependencies.logging
+    libraryDependencies ++= Dependencies.mUnitTest ++ Dependencies.logging
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", nodeCrypto, tetraByteCodecs)
@@ -376,7 +374,7 @@ lazy val algebras = project
   )
   .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, nodeCrypto, tetraByteCodecs)
+  .dependsOn(models, nodeCrypto, tetraByteCodecs, munitScalamock % "test->test")
 
 lazy val actor = project
   .in(file("actor"))
@@ -425,7 +423,7 @@ lazy val consensus = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.consensus"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.mUnitTest)
   .settings(
     libraryDependencies ++= Dependencies.consensus
   )

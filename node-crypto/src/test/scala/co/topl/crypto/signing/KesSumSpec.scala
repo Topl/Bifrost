@@ -1,47 +1,58 @@
 package co.topl.crypto.signing
 
+import cats.effect.IO
+import cats.implicits._
 import co.topl.crypto.models._
 import co.topl.crypto.utils.NodeCryptoGenerators._
 import co.topl.crypto.utils.Hex.implicits._
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalacheck.effect.PropF
 
-class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaCheckDrivenPropertyChecks with Matchers {
+class KesSumSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
-  "KesSum" should "verify a message signed with the appropriate public key" in {
-    forAll(
+  type F[A] = IO[A]
+
+  override def scalaCheckTestParameters =
+    super.scalaCheckTestParameters
+      .withMinSuccessfulTests(10)
+
+  test("verify a message signed with the appropriate public key") {
+    PropF.forAllF(
       genRandomlySizedByteArray,
       genRandomlySizedByteArray,
       genRandomlySizedByteArray,
       genRandomlySizedByteArray,
       Gen.choose(1, 12)
     ) { (seed1, seed2, message1, message2, height: Int) =>
-      whenever(!(seed1 sameElements seed2) && !(message1 sameElements message2)) {
+      if (!(seed1 sameElements seed2) && !(message1 sameElements message2)) {
         val kesSum = new KesSum
         val (sk1, vk1) = kesSum.createKeyPair(seed1, height, 0)
         val (_, vk2) = kesSum.createKeyPair(seed2, height, 0)
         val sig = kesSum.sign(sk1, message1)
 
-        kesSum.verify(sig, message1, vk1) shouldBe true
-        kesSum.verify(sig, message1, vk2) shouldBe false
-        kesSum.verify(sig, message2, vk1) shouldBe false
-      }
+        (
+          kesSum.verify(sig, message1, vk1) &&
+          !kesSum.verify(sig, message1, vk2) &&
+          !kesSum.verify(sig, message2, vk1)
+        ).pure[F].assert
+      } else ().pure[F]
     }
   }
 
-  it should "generate identical keypairs given the same seed" in {
-    forAll(genByteArrayWithBoundedSize(0, 1024), Gen.choose(1, 12)) { (seedBytes, height: Int) =>
+  test("generate identical keypairs given the same seed") {
+    PropF.forAllF(genByteArrayWithBoundedSize(0, 1024), Gen.choose(1, 12)) { (seedBytes, height: Int) =>
       val kesSum = new KesSum
       val (_, vk1) = kesSum.createKeyPair(seedBytes, height, 0)
       val (_, vk2) = kesSum.createKeyPair(seedBytes, height, 0)
 
-      vk1 shouldBe vk2
+      (vk1 == vk2).pure[F].assert
     }
   }
 
-  it should "Test Vector - 1.0: Generate and verify a specified sum composition signature at t = 0 using a provided seed, message, and height" in {
+  test(
+    "Test Vector - 1.0: Generate and verify a specified sum composition signature at t = 0 using a provided seed, message, and height"
+  ) {
     val kesSum = new KesSum()
     val specIn_seed = "5b74fae39b7a367da736490fa4a2bac992d011bcfb1d39b4dfdb4cf3a6dd1def".hexStringToBytes.toArray
     val specIn_height = 1
@@ -63,12 +74,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
 
     val (sk, vk) = kesSum.createKeyPair(specIn_seed, specIn_height, 0)
     val sig_0 = kesSum.sign(sk, specIn_msg)
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    kesSum.verify(sig_0, specIn_msg, vk) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      kesSum.verify(sig_0, specIn_msg, vk)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 1.1 : Generate and verify a specified sum composition signature at t = 1 using a provided seed, message, and height" in {
+  test(
+    "Test Vector - 1.1 : Generate and verify a specified sum composition signature at t = 1 using a provided seed, message, and height"
+  ) {
     val kesSum = new KesSum()
     val specIn_seed = "5b74fae39b7a367da736490fa4a2bac992d011bcfb1d39b4dfdb4cf3a6dd1def".hexStringToBytes.toArray
     val specIn_height = 1
@@ -92,12 +107,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     val sk_1 = kesSum.update(sk, 1)
     val sig_1 = kesSum.sign(sk_1, specIn_msg)
     val vk_1 = kesSum.getVerificationKey(sk_1)
-    vk shouldBe specOut_vk
-    sig_1 shouldBe specOut_sig_1
-    kesSum.verify(sig_1, specIn_msg, vk_1) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_1 == specOut_sig_1 &&
+      kesSum.verify(sig_1, specIn_msg, vk_1)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 2 : Generate and verify a specified sum composition signature at t = [0, 1, 2, 3] using a provided seed, message, and height" in {
+  test(
+    "Test Vector - 2 : Generate and verify a specified sum composition signature at t = [0, 1, 2, 3] using a provided seed, message, and height"
+  ) {
     val kesSum = new KesSum()
     val specIn_seed = "cd6fbfd1305556ca26b98077c7b1b0df79559c09f693fe0fc920f9f53fb0959f".hexStringToBytes.toArray
     val specIn_height = 2
@@ -161,18 +180,22 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     val sk_3 = kesSum.update(sk_2, 3)
     val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesSum.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesSum.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesSum.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesSum.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesSum.verify(sig_0, specIn_msg, vk) &&
+      kesSum.verify(sig_1, specIn_msg, vk_1) &&
+      kesSum.verify(sig_2, specIn_msg, vk_2) &&
+      kesSum.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 3 : Generate and verify a specified sum composition signature at t = [0, 2, 5, 7] using a provided seed, message, and height" in {
+  test(
+    "Test Vector - 3 : Generate and verify a specified sum composition signature at t = [0, 2, 5, 7] using a provided seed, message, and height"
+  ) {
     val kesSum = new KesSum()
     val specIn_seed = "36d37def07d10f7acb1570cca5b56237b3d5700fd4f5e5b5c44d6af09f2c2ffb".hexStringToBytes.toArray
     val specIn_height = 3
@@ -240,18 +263,22 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     val sk_3 = kesSum.update(sk_2, 7)
     val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesSum.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesSum.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesSum.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesSum.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesSum.verify(sig_0, specIn_msg, vk) &&
+      kesSum.verify(sig_1, specIn_msg, vk_1) &&
+      kesSum.verify(sig_2, specIn_msg, vk_2) &&
+      kesSum.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 4 : Generate and verify a specified sum composition signature at t = [0, 5, 10, 15] using a provided seed, message, and height" in {
+  test(
+    "Test Vector - 4 : Generate and verify a specified sum composition signature at t = [0, 5, 10, 15] using a provided seed, message, and height"
+  ) {
     val kesSum = new KesSum()
     val specIn_seed = "351f09534baf61171893903ab6f122b82ff21dd775f3d853fcd52ee91cb40178".hexStringToBytes.toArray
     val specIn_height = 4
@@ -323,18 +350,22 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     val sk_3 = kesSum.update(sk_2, 15)
     val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesSum.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesSum.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesSum.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesSum.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesSum.verify(sig_0, specIn_msg, vk) &&
+      kesSum.verify(sig_1, specIn_msg, vk_1) &&
+      kesSum.verify(sig_2, specIn_msg, vk_2) &&
+      kesSum.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 5 : Generate and verify a specified sum composition signature at t = [0, 10, 21, 31] using a provided seed, message, and height" in {
+  test(
+    "Test Vector - 5 : Generate and verify a specified sum composition signature at t = [0, 10, 21, 31] using a provided seed, message, and height"
+  ) {
     val kesSum = new KesSum()
     val specIn_seed = "c77bbf01a20dea8cfbd9acce52134a845c67bfd9b2cfa5c115f3a9c8597dcd03".hexStringToBytes.toArray
     val specIn_height = 5
@@ -410,14 +441,16 @@ class KesSumSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with ScalaChe
     val sk_3 = kesSum.update(sk_2, 31)
     val sig_3 = kesSum.sign(sk_3, specIn_msg)
     val vk_3 = kesSum.getVerificationKey(sk_3)
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesSum.verify(sig_0, specIn_msg, vk) shouldBe true
-    kesSum.verify(sig_1, specIn_msg, vk_1) shouldBe true
-    kesSum.verify(sig_2, specIn_msg, vk_2) shouldBe true
-    kesSum.verify(sig_3, specIn_msg, vk_3) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesSum.verify(sig_0, specIn_msg, vk) &&
+      kesSum.verify(sig_1, specIn_msg, vk_1) &&
+      kesSum.verify(sig_2, specIn_msg, vk_2) &&
+      kesSum.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 }
