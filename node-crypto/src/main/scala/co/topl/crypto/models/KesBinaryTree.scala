@@ -45,6 +45,8 @@ object KesBinaryTree {
         case s: SigningLeaf =>
           java.util.Arrays.equals(sk, s.sk) &&
           java.util.Arrays.equals(vk, s.vk)
+        case _ =>
+          false
       }
 
     override def hashCode(): Int = {
