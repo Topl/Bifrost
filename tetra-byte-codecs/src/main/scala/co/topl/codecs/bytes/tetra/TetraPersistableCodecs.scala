@@ -58,6 +58,8 @@ trait TetraPersistableCodecs {
 
   implicit val persistableKesProductSecretKey: Persistable[SecretKeyKesProduct] =
     Persistable.instanceFromCodec
+
+  implicit def persistableFromCodec[T: Codec]: Persistable[T] = Persistable.instanceFromCodec
 }
 
 object TetraPersistableCodecs extends TetraPersistableCodecs
