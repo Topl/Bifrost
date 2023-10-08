@@ -502,7 +502,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
       (peersManager.sendNoWait _)
         .expects(
-          PeersManager.Message.AddKnownNeighbors(NonEmptyChain.fromSeq(hosts.map(_.asRemoteAddress)).get)
+          PeersManager.Message.AddKnownNeighbors(hostId, NonEmptyChain.fromSeq(hosts.map(_.asRemoteAddress)).get)
         )
         .returns(Applicative[F].unit)
 

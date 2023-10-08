@@ -1,6 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.Applicative
+import cats.data.NonEmptyChain
 import cats.effect.Async
 import cats.implicits._
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -54,18 +55,15 @@ case class PeersHandler[F[_]: Async: Logger](
 
   def getWarmPeers: Map[HostId, Peer[F]] = getPeers(PeerState.Warm)
 
-  def getAvailableToConnectAddresses: Set[RemoteAddress] =
+  def getColdPeers: Map[HostId, Peer[F]] = getPeers(PeerState.Cold)
+
+  def getRemotePeers: Set[RemotePeer] =
     peers
       .filterNot(_._2.state == PeerState.Banned)
-      .collect { case (hostId, Peer(_, _, Some(serverPort), _, _)) =>
-        RemoteAddress(hostId, serverPort)
+      .collect { case (hostId, Peer(_, _, _, Some(serverPort), _, _, blockProvidingRep, performanceRep)) =>
+        RemotePeer(RemoteAddress(hostId, serverPort), blockProvidingRep, performanceRep)
       }
       .toSet
-
-  def getPeersWithPort(state: PeerState): Set[PeerWithHostAndPort[F]] =
-    peers.collect { case (host, Peer(`state`, actor, Some(port), timestamps, _)) =>
-      PeerWithHostAndPort(host, state, actor, port, timestamps)
-    }.toSet
 
   def moveToState(
     forUpdate:                Set[HostId],
@@ -133,25 +131,35 @@ case class PeersHandler[F[_]: Async: Logger](
       peer.actorOpt.pure[F]
     }
 
-  def copyWithAddedRemoteAddresses(newPeers: Set[RemoteAddress]): PeersHandler[F] =
-    copyWithAddedHostAndPort(newPeers.map { case RemoteAddress(host, port) => (host, Option(port)) })
-
   def copyWithNewActor(host: HostId): PeersHandler[F] = {
     val peerToAdd =
       peers.get(host) match {
-        case None              => host -> Peer(PeerState.Cold, None, None, Seq.empty, remoteNetworkLevel = false)
-        case Some(currentPeer) => host -> currentPeer
+        case None       => host -> Peer(PeerState.Cold, None, host, None, Seq.empty, remoteNetworkLevel = false, 0.0, 0)
+        case Some(peer) => host -> peer
       }
     this.copy(peers = peers + peerToAdd)
   }
 
-  private def copyWithAddedHostAndPort(newPeers: Set[(HostId, Option[Int])]): PeersHandler[F] = {
-    val peersToAdd = newPeers.map { case (host, port) =>
-      peers.get(host) match {
-        case None       => host -> Peer(PeerState.Cold, None, port, Seq.empty, remoteNetworkLevel = false)
-        case Some(peer) => host -> peer.copy(remoteServerPort = port)
-      }
-    }.toMap
+  def copyWithAddedPeers(
+    newPeers: NonEmptyChain[RemotePeer]
+  ): PeersHandler[F] = {
+    val peersToAdd: Map[HostId, Peer[F]] =
+      newPeers.toList.map { case RemotePeer(RemoteAddress(host, port), initialBlockReputation, initialPerfReputation) =>
+        peers.get(host) match {
+          case None =>
+            host -> Peer(
+              PeerState.Cold,
+              None,
+              host,
+              port.some,
+              Seq.empty,
+              remoteNetworkLevel = false,
+              initialBlockReputation,
+              initialPerfReputation
+            )
+          case Some(peer) => host -> peer.copy(remoteServerPort = port.some)
+        }
+      }.toMap
 
     this.copy(peers = peers ++ peersToAdd)
   }
@@ -191,14 +199,54 @@ case class PeersHandler[F[_]: Async: Logger](
         this.copy(peers = peers + hostAndPeer).pure[F]
       }
       .getOrElse(Applicative[F].pure(this))
+
+  def copyWithUpdatedBlockProviding(reputationMap: Map[HostId, HostReputationValue]): PeersHandler[F] = {
+    val newPeers =
+      reputationMap
+        .flatMap { case (hostId, reputation) =>
+          peers.get(hostId).flatMap { peer =>
+            if (peer.state.applicationLevel) {
+              val newPeer = peer.copy(lastKnownBlockProvidingReputation = reputation)
+              Option(hostId -> newPeer)
+            } else {
+              none
+            }
+          }
+        }
+
+    this.copy(peers = this.peers ++ newPeers)
+  }
+
+  def copyWithUpdatedPerformanceProviding(reputationMap: Map[HostId, HostReputationValue]): PeersHandler[F] = {
+    val newPeers =
+      reputationMap
+        .flatMap { case (hostId, reputation) =>
+          peers.get(hostId).flatMap { peer =>
+            if (peer.state.networkLevel) {
+              val newPeer = peer.copy(lastKnownPerformanceReputation = reputation)
+              Option(hostId -> newPeer)
+            } else {
+              none
+            }
+          }
+        }
+
+    this.copy(peers = this.peers ++ newPeers)
+  }
 }
 
 case class Peer[F[_]: Logger](
   state:              PeerState,
   actorOpt:           Option[PeerActor[F]],
+  ip:                 String,
   remoteServerPort:   Option[Int],
   closedTimestamps:   Seq[Long],
-  remoteNetworkLevel: Boolean
+  remoteNetworkLevel: Boolean,
+
+  // last known reputation could take actual reputation from peer
+  // or it could been inherited from peer which provide that peer
+  lastKnownBlockProvidingReputation: Double,
+  lastKnownPerformanceReputation:    Double
 ) {
   def haveNoConnection: Boolean = actorOpt.isEmpty
 
@@ -207,14 +255,8 @@ case class Peer[F[_]: Logger](
       case Some(actor) => actor.sendNoWait(message)
       case None        => Logger[F].debug(show"Send message to peer with no running client")
     }
-}
 
-case class PeerWithHostAndPort[F[_]](
-  host:            HostId,
-  state:           PeerState,
-  actorOpt:        Option[PeerActor[F]],
-  serverPort:      Int,
-  closeTimestamps: Seq[Long]
-) {
-  val asRemoteAddress: RemoteAddress = RemoteAddress(host, serverPort)
+  def asRemoteAddress: Option[RemoteAddress] = remoteServerPort.map(RemoteAddress(ip, _))
+
+  val overallReputation: Double = getTotalReputation(lastKnownBlockProvidingReputation, lastKnownPerformanceReputation)
 }

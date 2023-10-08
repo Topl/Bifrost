@@ -17,12 +17,12 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
 import co.topl.models.utility._
+import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
-import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 
 object DataStoresInit {
 
@@ -107,7 +107,7 @@ object DataStoresInit {
         identity
       )
 
-      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownHost]](dataDir)("known-remote-peers")
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[RemotePeer]](dataDir)("known-remote-peers")
 
       dataStores = DataStores(
         dataDir,

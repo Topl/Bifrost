@@ -77,8 +77,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
   def createTransactionStore: F[TestStore[F, TransactionId, IoTransaction]] =
     TestStore.make[F, TransactionId, IoTransaction]
 
-  def createKnownHostsStore: F[TestStore[F, Unit, Seq[KnownHost]]] =
-    TestStore.make[F, Unit, Seq[KnownHost]]
+  def createKnownHostsStore: F[TestStore[F, Unit, Seq[RemotePeer]]] =
+    TestStore.make[F, Unit, Seq[RemotePeer]]
 
   def createBlockIdTree: F[ParentChildTree[F, BlockId]] =
     ParentChildTree.FromRef.make[F, BlockId]
@@ -213,8 +213,10 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         _ <- peerFinalizer
         _ <- algebraFinalizer
         _ = assert(hotPeers.contains(remotePeerAddress))
-        peerSaved <- knownHostsStore.get(()).map(_.get.contains(remotePeerAddress.asKnownHost))
-        _ = assert(peerSaved)
+        savedPeers <- knownHostsStore.get(()).map(_.get)
+        _ = assert(savedPeers.map(_.address).contains(remotePeerAddress))
+        savedPeer = savedPeers.find(_.address == remotePeerAddress).get
+        _ = assert(savedPeer.perfReputation != 0)
       } yield ()
     }
 
