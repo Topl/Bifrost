@@ -121,7 +121,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
     val coldToWarm: SelectorColdToWarm[F] =
       new SemiRandomSelectorColdToWarm[F](p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs)
 
-    val warmToHot: SelectorWarmToHot[F] = new ReputationBasedSelectorWarmToHot[F]()
+    val warmToHot: SelectorWarmToHot[F] = new ReputationRandomBasedSelectorWarmToHot[F]()
 
     PeersManager.makeActor(
       thisHostId,

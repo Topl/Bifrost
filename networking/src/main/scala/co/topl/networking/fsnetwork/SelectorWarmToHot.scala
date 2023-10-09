@@ -7,7 +7,7 @@ abstract class SelectorWarmToHot[F[_]] {
   def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress]
 }
 
-class ReputationBasedSelectorWarmToHot[F[_]] extends SelectorWarmToHot[F] {
+class ReputationRandomBasedSelectorWarmToHot[F[_]] extends SelectorWarmToHot[F] {
 
   def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
     val random: Set[RemoteAddress] =
