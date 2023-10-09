@@ -55,7 +55,12 @@ class PeersManagerTest
     (coldHosts: Set[Peer[F]], countToReceive: Int) =>
       coldHosts.toSeq.sortBy(_.remoteServerPort).take(countToReceive).flatMap(_.asRemoteAddress).toSet
 
-  val defaultWarmToHotSelector: ReputationBasedSelectorWarmToHot[F] = new ReputationBasedSelectorWarmToHot[F]()
+  val defaultWarmToHotSelector: SelectorWarmToHot[F] =
+    new SelectorWarmToHot[F]() {
+
+      override def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] =
+        hosts.toSeq.sortBy(_.overallReputation).takeRight(countToReceive).flatMap(_.asRemoteAddress).toSet
+    }
 
   val defaultHotPeerUpdater: Set[RemoteAddress] => F[Unit] = _ => Applicative[F].unit
   val defaultPeersSaver: Set[RemotePeer] => F[Unit] = _ => Applicative[F].unit

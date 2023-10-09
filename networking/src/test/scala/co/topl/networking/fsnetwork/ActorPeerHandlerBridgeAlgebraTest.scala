@@ -122,7 +122,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       val remotePeerAddress = RemoteAddress("2.2.2.2", remotePeerPort)
       val remotePeer = DisconnectedPeer(remotePeerAddress, (0, 0))
       val remotePeers: List[DisconnectedPeer] = List(remotePeer)
-      val finishTestFlag: AtomicBoolean = new AtomicBoolean(false)
+      val hotPeersUpdatedFlag: AtomicBoolean = new AtomicBoolean(false)
+      val pingProcessedFlag: AtomicBoolean = new AtomicBoolean(false)
 
       val localChainMock = createEmptyLocalChain
 
@@ -130,6 +131,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         mock[BlockchainPeerClient[F]]
       (client.notifyAboutThisNetworkLevel _).expects(true).returns(Applicative[F].unit)
       (client.getPongMessage _).expects(*).anyNumberOfTimes().onCall { req: PingMessage =>
+        Sync[F].delay(pingProcessedFlag.set(true)) >>
         Option(PongMessage(req.ping.reverse)).pure[F]
       }
       (client.getRemoteBlockIdAtHeight _)
@@ -157,7 +159,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       var hotPeers: Set[RemoteAddress] = Set.empty
       val hotPeersUpdate: Set[RemoteAddress] => F[Unit] = mock[Set[RemoteAddress] => F[Unit]]
       (hotPeersUpdate.apply _).expects(*).anyNumberOfTimes().onCall { peers: Set[RemoteAddress] =>
-        (if (peers.nonEmpty) Sync[F].delay(finishTestFlag.set(true)) else Applicative[F].unit) *>
+        (if (peers.nonEmpty) Sync[F].delay(hotPeersUpdatedFlag.set(true)) else Applicative[F].unit) *>
         (hotPeers = peers).pure[F]
       }
 
@@ -209,14 +211,15 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         ((algebra, remotePeersStore), algebraFinalizer) <- execResource.allocated
         _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(peerOpenRequested.get()))
         (_, peerFinalizer) <- algebra.usePeer(client).allocated
-        _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(finishTestFlag.get()))
+        _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(pingProcessedFlag.get()))
+        _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(hotPeersUpdatedFlag.get()))
         _ <- peerFinalizer
         _ <- algebraFinalizer
         _ = assert(hotPeers.contains(remotePeerAddress))
         savedPeers <- remotePeersStore.get(()).map(_.get)
         _ = assert(savedPeers.map(_.address).contains(remotePeerAddress))
         savedPeer = savedPeers.find(_.address == remotePeerAddress).get
-        _ = assert(savedPeer.perfReputation != 0)
+        _ = assert(savedPeer.perfReputation != 0.0)
       } yield ()
     }
 
