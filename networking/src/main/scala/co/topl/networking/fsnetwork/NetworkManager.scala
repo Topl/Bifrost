@@ -35,7 +35,7 @@ object NetworkManager {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    knownHostsStore:             Store[F, Unit, Seq[RemotePeer]],
+    remotePeerStore:             Store[F, Unit, Seq[RemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                Seq[RemoteAddress],
@@ -50,7 +50,7 @@ object NetworkManager {
       slotDuration <- Resource.liftK(clock.slotLength)
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
-      peersFromStorage <- Resource.liftK(knownHostsStore.get(()).map(_.getOrElse(Seq.empty)))
+      peersFromStorage <- Resource.liftK(remotePeerStore.get(()).map(_.getOrElse(Seq.empty)))
       _                <- Resource.liftK(Logger[F].info(s"Loaded from storage next known hosts: $peersFromStorage"))
       peerManager <- networkAlgebra.makePeerManger(
         thisHostId,
@@ -63,7 +63,7 @@ object NetworkManager {
         addRemotePeerAlgebra,
         p2pNetworkConfig,
         hotPeersUpdate,
-        buildSaveRemotePeersFunction(knownHostsStore)
+        buildSaveRemotePeersFunction(remotePeerStore)
       )
 
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager, p2pNetworkConfig)
@@ -125,10 +125,10 @@ object NetworkManager {
       .background
 
   private def buildSaveRemotePeersFunction[F[_]: Async: Logger](
-    knownHostsStore: Store[F, Unit, Seq[RemotePeer]]
+    remotePeersStore: Store[F, Unit, Seq[RemotePeer]]
   ): Set[RemotePeer] => F[Unit] = { peers: Set[RemotePeer] =>
     Logger[F].info(s"Going to save known hosts $peers to local data storage") >>
-    knownHostsStore.put((), peers.toList)
+    remotePeersStore.put((), peers.toList)
   }
 
   // peers represented as Remote address could be present in remote peers as well with some reputation

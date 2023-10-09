@@ -77,7 +77,7 @@ object ActorPeerHandlerBridgeAlgebraTest {
   def createTransactionStore: F[TestStore[F, TransactionId, IoTransaction]] =
     TestStore.make[F, TransactionId, IoTransaction]
 
-  def createKnownHostsStore: F[TestStore[F, Unit, Seq[RemotePeer]]] =
+  def createRemotePeerStore: F[TestStore[F, Unit, Seq[RemotePeer]]] =
     TestStore.make[F, Unit, Seq[RemotePeer]]
 
   def createBlockIdTree: F[ParentChildTree[F, BlockId]] =
@@ -166,7 +166,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         headerStore      <- Resource.liftK(createHeaderStore)
         bodyStore        <- Resource.liftK(createBodyStore)
         transactionStore <- Resource.liftK(createTransactionStore)
-        knownHostsStore  <- Resource.liftK(createKnownHostsStore)
+        remotePeersStore <- Resource.liftK(createRemotePeerStore)
         blockIdTree      <- Resource.liftK(createBlockIdTree)
         localChain       <- Resource.pure(localChainMock)
         clockAlgebra <- SchedulerClock.make(
@@ -194,7 +194,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             headerStore,
             bodyStore,
             transactionStore,
-            knownHostsStore,
+            remotePeersStore,
             blockIdTree,
             networkProperties,
             clockAlgebra,
@@ -203,17 +203,17 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             addRemotePeer,
             hotPeersUpdate
           )
-      } yield (algebra, knownHostsStore)
+      } yield (algebra, remotePeersStore)
 
       for {
-        ((algebra, knownHostsStore), algebraFinalizer) <- execResource.allocated
+        ((algebra, remotePeersStore), algebraFinalizer) <- execResource.allocated
         _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(peerOpenRequested.get()))
         (_, peerFinalizer) <- algebra.usePeer(client).allocated
         _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(finishTestFlag.get()))
         _ <- peerFinalizer
         _ <- algebraFinalizer
         _ = assert(hotPeers.contains(remotePeerAddress))
-        savedPeers <- knownHostsStore.get(()).map(_.get)
+        savedPeers <- remotePeersStore.get(()).map(_.get)
         _ = assert(savedPeers.map(_.address).contains(remotePeerAddress))
         savedPeer = savedPeers.find(_.address == remotePeerAddress).get
         _ = assert(savedPeer.perfReputation != 0)
