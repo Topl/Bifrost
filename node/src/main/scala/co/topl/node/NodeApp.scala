@@ -30,7 +30,7 @@ import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
-import co.topl.node.models.FullBlock
+import co.topl.node.models.{FullBlock, FullBlockBody}
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -73,8 +73,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         (0, 0)
       )
 
-      cryptoResources <- CryptoResources.make[F].toResource
-      bigBangBlock    <- initializeBigBang
+      cryptoResources            <- CryptoResources.make[F].toResource
+      (bigBangBlock, dataStores) <- initializeData
       bigBangSlotData <- cryptoResources.ed25519VRF
         .use(implicit r => Sync[F].delay(bigBangBlock.header.slotData))
         .toResource
@@ -85,7 +85,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Files[F].createDirectories(stakingDir).toResource
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
 
-      dataStores <- DataStoresInit.init[F](appConfig)(bigBangBlock)
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
 
       canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get().toResource
@@ -390,9 +389,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   /**
    * Based on the application config, determines if the genesis block is a public network or a private testnet, and
-   * initialize it accordingly
+   * initialize it accordingly.  In addition, creates the underlying `DataStores` instance and verifies the stored
+   * data against the configured data (if applicable).
    */
-  private def initializeBigBang: Resource[F, FullBlock] =
+  private def initializeData: Resource[F, (FullBlock, DataStores[F])] =
     appConfig.bifrost.bigBang match {
       case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
         for {
@@ -412,6 +412,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             )
             .toResource
           bigBangBlock = BigBang.fromConfig(bigBangConfig)
+          dataStores <- DataStoresInit.create[F](appConfig)(bigBangBlock.header.id)
+          _ <- OptionT(DataStoresInit.verifiedGenesisId(dataStores)(bigBangBlock.header.id).toResource)
+            .flatTapNone(DataStoresInit.initialize(dataStores, bigBangBlock).toResource)
+            .value
           _ <- privateBigBang.localStakerIndex
             .filter(_ >= 0)
             .traverse(index =>
@@ -423,12 +427,28 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                 )
                 .toResource
             )
-        } yield bigBangBlock
+        } yield (bigBangBlock, dataStores)
       case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
-        for {
-          reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
-          headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
-          bigBangBlock         <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
-        } yield bigBangBlock
+        DataStoresInit
+          .create[F](appConfig)(publicBigBang.genesisId)
+          .flatMap(dataStores =>
+            OptionT(DataStoresInit.verifiedGenesisId(dataStores)(publicBigBang.genesisId).toResource)
+              .foldF(
+                for {
+                  reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
+                  headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
+                  bigBangBlock <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
+                  _            <- DataStoresInit.initialize(dataStores, bigBangBlock).toResource
+                } yield bigBangBlock
+              )(storedGenesisId =>
+                for {
+                  header       <- dataStores.headers.getOrRaise(storedGenesisId).toResource
+                  body         <- dataStores.bodies.getOrRaise(storedGenesisId).toResource
+                  transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
+                } yield FullBlock(header, FullBlockBody(transactions))
+              )
+              .tupleRight(dataStores)
+          )
+
     }
 }
