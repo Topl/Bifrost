@@ -1,12 +1,12 @@
 package co.topl.node
 
 import cats._
-import cats.data.{NonEmptySet, OptionT}
+import cats.data.NonEmptySet
 import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.blockchain.{BigBang, CurrentEventIdGetterSetters, DataStores}
+import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -20,7 +20,6 @@ import co.topl.interpreters.CacheStore
 import co.topl.models.utility._
 import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.node.models._
-import co.topl.typeclasses.implicits._
 import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
@@ -157,21 +156,17 @@ object DataStoresInit {
       )
 
   /**
-   * Reads the genesis block ID from the data stores.  If found, it is compared with the provided expectedGenesisId
-   * and errors if not equal.  If not found, returns None.
+   * Determines if the given DataStores have already been initialized (i.e. node re-launch)
    */
-  def verifiedGenesisId[F[_]: MonadThrow: Logger](
+  def isInitialized[F[_]: MonadThrow: Logger](
     dataStores: DataStores[F]
-  )(expectedGenesisId: BlockId): F[Option[BlockId]] =
-    OptionT(dataStores.blockHeightTree.get(BigBang.Height))
-      .semiflatTap(
-        _.pure[F]
-          .ensure(new IllegalStateException("The configured genesis block does not match the stored genesis block."))(
-            expectedGenesisId.eqv
-          )
-          .flatTap(id => Logger[F].info(show"Data stores already initialized with genesis blockId=$id"))
+  ): F[Boolean] =
+    dataStores.currentEventIds
+      .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
+      .flatTap(result =>
+        if (result) Logger[F].info("Data stores already initialized")
+        else Logger[F].info("Data stores not initialized")
       )
-      .value
 
   /**
    * Initializes the given (empty) DataStores with the provided genesis block
@@ -206,6 +201,10 @@ object DataStoresInit {
       _ <- dataStores.activeStake.contains(()).ifM(Applicative[F].unit, dataStores.activeStake.put((), 0))
       _ <- dataStores.inactiveStake.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStake.put((), 0))
       _ <- dataStores.epochData.put(0, EpochData.defaultInstance)
+      _ <- dataStores.parentChildTree.put(
+        bigBangBlock.header.id,
+        (bigBangBlock.header.height, bigBangBlock.header.parentHeaderId)
+      )
     } yield ()
 
 }
