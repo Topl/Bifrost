@@ -1,11 +1,12 @@
 package co.topl.node
 
 import cats._
-import cats.data.NonEmptySet
-import cats.effect.{Async, Resource}
+import cats.data.{NonEmptySet, OptionT}
+import cats.effect._
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
+import co.topl.blockchain.{BigBang, CurrentEventIdGetterSetters, DataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -19,6 +20,7 @@ import co.topl.interpreters.CacheStore
 import co.topl.models.utility._
 import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.node.models._
+import co.topl.typeclasses.implicits._
 import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
@@ -26,13 +28,17 @@ import org.typelevel.log4cats.Logger
 
 object DataStoresInit {
 
-  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
+  /**
+   * Creates an instance of DataStores which may-or-may-not be initialized.  It is the responsibility of the caller to
+   * call `initialize`.
+   * @param appConfig the application's config
+   * @param genesisId The (expected) genesis block ID, for path interpolation
+   */
+  def create[F[_]: Async: Logger](appConfig: ApplicationConfig)(genesisId: BlockId): Resource[F, DataStores[F]] =
     for {
-      dataDir <- Resource.pure[F, Path](
-        Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.data.directory))
-      )
-      _ <- Resource.eval(Files.forAsync[F].createDirectories(dataDir))
-      _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
+      dataDir <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
+      _       <- Files.forAsync[F].createDirectories(dataDir).toResource
+      _       <- Logger[F].info(show"Using dataDir=$dataDir").toResource
       parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir)(
         "parent-child-tree",
         appConfig.bifrost.cache.parentChildTree,
@@ -128,7 +134,6 @@ object DataStoresInit {
         registrationAccumulatorStore,
         knownRemotePeersStore
       )
-      _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
 
   private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path)(
@@ -151,25 +156,40 @@ object DataStoresInit {
         )
       )
 
-  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: FullBlock): F[Unit] =
+  /**
+   * Reads the genesis block ID from the data stores.  If found, it is compared with the provided expectedGenesisId
+   * and errors if not equal.  If not found, returns None.
+   */
+  def verifiedGenesisId[F[_]: MonadThrow: Logger](
+    dataStores: DataStores[F]
+  )(expectedGenesisId: BlockId): F[Option[BlockId]] =
+    OptionT(dataStores.blockHeightTree.get(BigBang.Height))
+      .semiflatTap(
+        _.pure[F]
+          .ensure(new IllegalStateException("The configured genesis block does not match the stored genesis block."))(
+            expectedGenesisId.eqv
+          )
+          .flatTap(id => Logger[F].info(show"Data stores already initialized with genesis blockId=$id"))
+      )
+      .value
+
+  /**
+   * Initializes the given (empty) DataStores with the provided genesis block
+   */
+  def initialize[F[_]: Sync: Logger](dataStores: DataStores[F], bigBangBlock: FullBlock): F[Unit] =
     for {
       // Store the big bang data
-      _ <- dataStores.currentEventIds
-        .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
-        .ifM(
-          Logger[F].info("Data stores are already initialized") >> Applicative[F].unit,
-          Logger[F].info("Initializing data stores") >>
-          dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.header.id) >>
-          List(
-            CurrentEventIdGetterSetters.Indices.ConsensusData,
-            CurrentEventIdGetterSetters.Indices.EpochBoundaries,
-            CurrentEventIdGetterSetters.Indices.BlockHeightTree,
-            CurrentEventIdGetterSetters.Indices.BoxState,
-            CurrentEventIdGetterSetters.Indices.Mempool,
-            CurrentEventIdGetterSetters.Indices.EpochData,
-            CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
-          ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
-        )
+      _ <- Logger[F].info("Initializing data stores")
+      _ <- dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.header.id)
+      _ <- List(
+        CurrentEventIdGetterSetters.Indices.ConsensusData,
+        CurrentEventIdGetterSetters.Indices.EpochBoundaries,
+        CurrentEventIdGetterSetters.Indices.BlockHeightTree,
+        CurrentEventIdGetterSetters.Indices.BoxState,
+        CurrentEventIdGetterSetters.Indices.Mempool,
+        CurrentEventIdGetterSetters.Indices.EpochData,
+        CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
+      ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId))
       _ <- dataStores.slotData.put(
         bigBangBlock.header.id,
         bigBangBlock.header.slotData(Ed25519VRF.precomputed())
