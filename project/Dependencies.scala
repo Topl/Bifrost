@@ -3,13 +3,13 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.6"
-  val kamonVersion = "2.6.3"
+  val kamonVersion = "2.6.4"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
-  val catsEffectVersion = "3.5.1"
+  val catsEffectVersion = "3.5.2"
   val fs2Version = "3.9.2"
   val logback = "1.4.11"
-  val orientDbVersion = "3.2.22"
+  val orientDbVersion = "3.2.23"
   val ioGrpcVersion = "1.58.0"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha5" // scala-steward:off
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.27.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.27.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
