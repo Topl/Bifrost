@@ -288,9 +288,9 @@ class NodeAppTest extends CatsEffectSuite {
 
   private def launch(configFile: Path): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     for {
-      app1               <- Sync[F].delay(new AbstractNodeApp {}).toResource
-      _                  <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
-      backgroundOutcomeF <- app1.run.background
+      app1                      <- Sync[F].delay(new AbstractNodeApp {}).toResource
+      (args, config, appConfig) <- app1.initialize(Array("--config", configFile.toString)).toResource
+      backgroundOutcomeF        <- app1.run(args, config, appConfig).background
     } yield backgroundOutcomeF
 
   private def confirmTransactions(

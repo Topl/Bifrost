@@ -179,7 +179,7 @@ object Dependencies {
 
   val commonApplication: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
-    simulacrum ++ Seq(
+    simulacrum ++ http4s ++ Seq(
       catsSlf4j,
       pureConfig,
       circeYaml
