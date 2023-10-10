@@ -2,7 +2,8 @@ package co.topl.node
 
 import cats._
 import cats.data.NonEmptySet
-import cats.effect.{Async, Resource}
+import cats.effect._
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
@@ -17,22 +18,26 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
 import co.topl.models.utility._
+import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
-import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 
 object DataStoresInit {
 
-  def init[F[_]: Async: Logger](appConfig: ApplicationConfig)(bigBangBlock: FullBlock): Resource[F, DataStores[F]] =
+  /**
+   * Creates an instance of DataStores which may-or-may-not be initialized.  It is the responsibility of the caller to
+   * call `initialize`.
+   * @param appConfig the application's config
+   * @param genesisId The (expected) genesis block ID, for path interpolation
+   */
+  def create[F[_]: Async: Logger](appConfig: ApplicationConfig)(genesisId: BlockId): Resource[F, DataStores[F]] =
     for {
-      dataDir <- Resource.pure[F, Path](
-        Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.data.directory))
-      )
-      _ <- Resource.eval(Files.forAsync[F].createDirectories(dataDir))
-      _ <- Resource.eval(Logger[F].info(show"Using dataDir=$dataDir"))
+      dataDir <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
+      _       <- Files.forAsync[F].createDirectories(dataDir).toResource
+      _       <- Logger[F].info(show"Using dataDir=$dataDir").toResource
       parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir)(
         "parent-child-tree",
         appConfig.bifrost.cache.parentChildTree,
@@ -107,7 +112,7 @@ object DataStoresInit {
         identity
       )
 
-      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownHost]](dataDir)("known-remote-peers")
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[RemotePeer]](dataDir)("known-remote-peers")
 
       dataStores = DataStores(
         dataDir,
@@ -128,7 +133,6 @@ object DataStoresInit {
         registrationAccumulatorStore,
         knownRemotePeersStore
       )
-      _ <- Resource.eval(initialize(dataStores, bigBangBlock))
     } yield dataStores
 
   private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path)(
@@ -151,25 +155,36 @@ object DataStoresInit {
         )
       )
 
-  private def initialize[F[_]: Monad: Logger](dataStores: DataStores[F], bigBangBlock: FullBlock): F[Unit] =
+  /**
+   * Determines if the given DataStores have already been initialized (i.e. node re-launch)
+   */
+  def isInitialized[F[_]: MonadThrow: Logger](
+    dataStores: DataStores[F]
+  ): F[Boolean] =
+    dataStores.currentEventIds
+      .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
+      .flatTap(result =>
+        if (result) Logger[F].info("Data stores already initialized")
+        else Logger[F].info("Data stores not initialized")
+      )
+
+  /**
+   * Initializes the given (empty) DataStores with the provided genesis block
+   */
+  def initialize[F[_]: Sync: Logger](dataStores: DataStores[F], bigBangBlock: FullBlock): F[Unit] =
     for {
       // Store the big bang data
-      _ <- dataStores.currentEventIds
-        .contains(CurrentEventIdGetterSetters.Indices.CanonicalHead)
-        .ifM(
-          Logger[F].info("Data stores are already initialized") >> Applicative[F].unit,
-          Logger[F].info("Initializing data stores") >>
-          dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.header.id) >>
-          List(
-            CurrentEventIdGetterSetters.Indices.ConsensusData,
-            CurrentEventIdGetterSetters.Indices.EpochBoundaries,
-            CurrentEventIdGetterSetters.Indices.BlockHeightTree,
-            CurrentEventIdGetterSetters.Indices.BoxState,
-            CurrentEventIdGetterSetters.Indices.Mempool,
-            CurrentEventIdGetterSetters.Indices.EpochData,
-            CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
-          ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId)).void
-        )
+      _ <- Logger[F].info("Initializing data stores")
+      _ <- dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.header.id)
+      _ <- List(
+        CurrentEventIdGetterSetters.Indices.ConsensusData,
+        CurrentEventIdGetterSetters.Indices.EpochBoundaries,
+        CurrentEventIdGetterSetters.Indices.BlockHeightTree,
+        CurrentEventIdGetterSetters.Indices.BoxState,
+        CurrentEventIdGetterSetters.Indices.Mempool,
+        CurrentEventIdGetterSetters.Indices.EpochData,
+        CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
+      ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId))
       _ <- dataStores.slotData.put(
         bigBangBlock.header.id,
         bigBangBlock.header.slotData(Ed25519VRF.precomputed())
@@ -186,6 +201,10 @@ object DataStoresInit {
       _ <- dataStores.activeStake.contains(()).ifM(Applicative[F].unit, dataStores.activeStake.put((), 0))
       _ <- dataStores.inactiveStake.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStake.put((), 0))
       _ <- dataStores.epochData.put(0, EpochData.defaultInstance)
+      _ <- dataStores.parentChildTree.put(
+        bigBangBlock.header.id,
+        (bigBangBlock.header.height, bigBangBlock.header.parentHeaderId)
+      )
     } yield ()
 
 }
