@@ -31,6 +31,7 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.{FullBlock, FullBlockBody}
+import com.typesafe.config.Config
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -43,15 +44,15 @@ object NodeApp extends AbstractNodeApp
 
 abstract class AbstractNodeApp
     extends IOBaseApp[Args, ApplicationConfig](
-      createArgs = Args.parse,
+      createArgs = a => IO.delay(Args.parse(a)),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (args, conf) => ApplicationConfigOps.unsafe(args, conf),
-      preInitFunction = config => if (config.kamon.enable) Kamon.init()
+      parseConfig = (args, conf) => IO.delay(ApplicationConfigOps.unsafe(args, conf)),
+      preInitFunction = config => IO.delay(if (config.kamon.enable) Kamon.init())
     ) {
 
-  def run: IO[Unit] =
-    if (args.startup.cli) new ConfiguredCliApp(appConfig).run
-    else new ConfiguredNodeApp(args, appConfig).run
+  def run(cmdArgs: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
+    if (cmdArgs.startup.cli) new ConfiguredCliApp(appConfig).run
+    else new ConfiguredNodeApp(cmdArgs, appConfig).run
 }
 
 class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {

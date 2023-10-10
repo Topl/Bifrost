@@ -97,7 +97,7 @@ class NodeAppTest extends CatsEffectSuite {
         testnetConfig     <- createTestnetConfig.toResource
         genesisServerPort <- serveGenesisBlock(testnetConfig.genesis)
         genesisSourcePath = s"http://localhost:$genesisServerPort/${testnetConfig.genesis.header.id.show}"
-        configFileA <- (
+        configALocation <- (
           Files.forAsync[F].tempDirectory,
           Files
             .forAsync[F]
@@ -108,7 +108,8 @@ class NodeAppTest extends CatsEffectSuite {
             configNodeA(dataDir, stakingDir, testnetConfig.genesis.header.id, genesisSourcePath)
           }
           .flatMap(saveLocalConfig(_, "nodeA"))
-        configFileB <- (
+          .map(_.toString)
+        configBLocation <- (
           Files.forAsync[F].tempDirectory,
           Files
             .forAsync[F]
@@ -118,10 +119,10 @@ class NodeAppTest extends CatsEffectSuite {
           .map { case (dataDir, stakingDir) =>
             configNodeB(dataDir, stakingDir, testnetConfig.genesis.header.id, genesisSourcePath)
           }
-          .flatMap(saveLocalConfig(_, "nodeB"))
+          .flatMap(serveConfig(_, "nodeB.yaml"))
         // Run the nodes in separate fibers, but use the fibers' outcomes as an error signal to
         // the test by racing the computation
-        _ <- (launch(configFileA), launch(configFileB))
+        _ <- (launch(configALocation), launch(configBLocation))
           .mapN(_.race(_).map(_.merge).flatMap(_.embedNever))
           .flatMap(nodeCompletion =>
             nodeCompletion.toResource.race(for {
@@ -265,6 +266,20 @@ class NodeAppTest extends CatsEffectSuite {
     saveFile(StakingInit.RegistrationTxName, staker.registrationTransaction(quantity).toByteArray)
   }
 
+  /**
+   * Serve a config file on a random port.  Returns the URL to access the file
+   * @param config the contents to serve
+   * @param name the file name
+   * @return a URL to the file
+   */
+  private def serveConfig(config: String, name: String): Resource[F, String] =
+    EmberServerBuilder
+      .default[F]
+      .withPort(Port.fromInt(0).get)
+      .withHttpApp(Router("/" -> HttpRoutes.of[F] { case GET -> Root / `name` => Ok(config) }).orNotFound)
+      .build
+      .map(server => s"http://localhost:${server.address.getPort}/$name")
+
   private def saveLocalConfig(config: String, name: String) =
     for {
       file <- Files[F].tempFile(None, name, ".yaml", None)
@@ -286,11 +301,11 @@ class NodeAppTest extends CatsEffectSuite {
       .compile
       .drain
 
-  private def launch(configFile: Path): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+  private def launch(configLocation: String): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     for {
-      app1               <- Sync[F].delay(new AbstractNodeApp {}).toResource
-      _                  <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
-      backgroundOutcomeF <- app1.run.background
+      app1                      <- Sync[F].delay(new AbstractNodeApp {}).toResource
+      (args, config, appConfig) <- app1.initialize(Array("--config", configLocation)).toResource
+      backgroundOutcomeF        <- app1.run(args, config, appConfig).background
     } yield backgroundOutcomeF
 
   private def confirmTransactions(

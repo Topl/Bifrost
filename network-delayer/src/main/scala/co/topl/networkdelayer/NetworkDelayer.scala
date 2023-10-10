@@ -7,6 +7,7 @@ import cats.implicits._
 import cats.effect.implicits._
 import co.topl.common.application.IOBaseApp
 import com.comcast.ip4s._
+import com.typesafe.config.Config
 import fs2._
 import fs2.io.net.{Network, Socket}
 import org.typelevel.log4cats.Logger
@@ -19,15 +20,15 @@ import scala.concurrent.duration._
  */
 object NetworkDelayer
     extends IOBaseApp[Args, ApplicationConfig](
-      createArgs = args => Args.parserArgs.constructOrThrow(args),
+      createArgs = args => IO.delay(Args.parserArgs.constructOrThrow(args)),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (_: Args, conf) => ApplicationConfig.unsafe(conf)
+      parseConfig = (_: Args, conf) => IO.delay(ApplicationConfig.unsafe(conf))
     ) {
 
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  def run: IO[Unit] =
+  def run(args: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     for {
       _ <- Logger[F].info("Launching NetworkDelayer")
       _ <- Logger[F].info(show"args=$args")
