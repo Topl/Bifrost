@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
+import co.topl.blockchain.{BigBang, CurrentEventIdGetterSetters, DataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -163,7 +163,7 @@ object DataStoresInit {
   def verifiedGenesisId[F[_]: MonadThrow: Logger](
     dataStores: DataStores[F]
   )(expectedGenesisId: BlockId): F[Option[BlockId]] =
-    OptionT(dataStores.blockHeightTree.get(1))
+    OptionT(dataStores.blockHeightTree.get(BigBang.Height))
       .semiflatTap(
         _.pure[F]
           .ensure(new IllegalStateException("The configured genesis block does not match the stored genesis block."))(
