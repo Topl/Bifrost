@@ -98,8 +98,23 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]]
 
   /**
+   * Simple ping-pong message for measure network quality
+   * @param request ping message
+   * @return pong message, pong message body expected to contains reversed string message from ping message
    */
   def getPongMessage(request: PingMessage): F[Option[PongMessage]]
+
+  /**
+   * Notify remote peer about THIS peer application level, i.e.
+   * do we track remote peer from blocks, download blocks data etc.
+   * @param networkLevel this peer network level
+   */
+  def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit]
+
+  /**
+   * Close connection on underlying level
+   */
+  def closeConnection(): F[Unit]
 
   /**
    * Find the common ancestor block ID between the local node and the remote peer.

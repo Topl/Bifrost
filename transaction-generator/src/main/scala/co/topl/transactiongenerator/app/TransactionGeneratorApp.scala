@@ -15,6 +15,7 @@ import co.topl.grpc.NodeGrpc
 import co.topl.interpreters._
 import co.topl.transactiongenerator.interpreters._
 import co.topl.typeclasses.implicits._
+import com.typesafe.config.Config
 import fs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -23,20 +24,20 @@ import scala.concurrent.duration._
 
 object TransactionGeneratorApp
     extends IOBaseApp[Args, ApplicationConfig](
-      createArgs = args => Args.parserArgs.constructOrThrow(args),
+      createArgs = args => IO.delay(Args.parserArgs.constructOrThrow(args)),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (_, conf) => ApplicationConfig.unsafe(conf)
+      parseConfig = (_, conf) => IO.delay(ApplicationConfig.unsafe(conf))
     ) {
 
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  override def run: IO[Unit] =
+  override def run(args: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     for {
       _                            <- Logger[F].info(show"Launching Transaction Generator with appConfig=$appConfig")
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       // Initialize gRPC Clients
-      clientAddresses <- parseClientAddresses
+      clientAddresses <- parseClientAddresses(appConfig)
       _               <- Logger[F].info(show"Initializing clients=$clientAddresses")
       clients = clientAddresses.traverse { case (host, port, useTls) =>
         NodeGrpc.Client.make[F](host, port, tls = useTls)
@@ -81,7 +82,7 @@ object TransactionGeneratorApp
    * If the address starts with "http://", TLS will be disabled on the connection.
    * If the address starts with neither, TLS will be enabled on the connection.
    */
-  private def parseClientAddresses: F[NonEmptyChain[(String, Int, Boolean)]] =
+  private def parseClientAddresses(appConfig: ApplicationConfig): F[NonEmptyChain[(String, Int, Boolean)]] =
     IO.fromEither(
       NonEmptyChain
         .fromSeq(appConfig.transactionGenerator.rpc.clients)

@@ -38,6 +38,11 @@ object PeerActor {
     case class UpdateState(networkLevel: Boolean, applicationLevel: Boolean) extends Message
 
     /**
+     * Close connection on client side
+     */
+    case object CloseConnection extends Message
+
+    /**
      * Request to download block headers from peer, downloaded headers will be sent to block checker directly
      * @param blockIds headers block id to download
      */
@@ -85,8 +90,9 @@ object PeerActor {
   type Response[F[_]] = State[F]
   type PeerActor[F[_]] = Actor[F, Message, Response[F]]
 
-  def getFsm[F[_]: Concurrent: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
+  def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
     case (state, UpdateState(networkLevel, applicationLevel)) => updateState(state, networkLevel, applicationLevel)
+    case (state, CloseConnection)                             => closeConnection(state)
     case (state, DownloadBlockHeaders(blockIds))              => downloadHeaders(state, blockIds)
     case (state, DownloadBlockBodies(blockHeaders))           => downloadBodies(state, blockHeaders)
     case (state, GetCurrentTip)                               => getCurrentTip(state)
@@ -112,6 +118,9 @@ object PeerActor {
     val initAppLevel = false
 
     for {
+      actorName <- Resource.pure(s"Peer Actor for peer $hostId")
+      _ <- Resource.onFinalize(Logger[F].info(s"$actorName: is released, close connection") >> client.closeConnection())
+
       header <- networkAlgebra.makePeerHeaderFetcher(
         hostId,
         client,
@@ -140,18 +149,16 @@ object PeerActor {
         initAppLevel,
         genesisSlotData.slotId.blockId
       )
-      _ <- verifyGenesisAgreement(initialState).toResource
-      actorName = s"Peer Actor for peer $hostId"
+      _     <- verifyGenesisAgreement(initialState).toResource
       actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
     } yield actor
   }
 
-  private def finalizer[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
-    Logger[F].info(show"Finishing actor for peer ${state.hostId}") >>
-    stopApplicationLevel(state) >>
-    stopNetworkLevel(state)
+  private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
+    Logger[F].info(show"Run finalizer for actor for peer ${state.hostId}") >>
+    state.client.notifyAboutThisNetworkLevel(false)
 
-  private def updateState[F[_]: Concurrent: Logger](
+  private def updateState[F[_]: Async: Logger](
     state:               State[F],
     newNetworkLevel:     Boolean,
     newApplicationLevel: Boolean
@@ -174,20 +181,30 @@ object PeerActor {
     applicationLevel >> networkLevel >> (newState, newState).pure[F]
   }
 
-  private def startApplicationLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
+  private def closeConnection[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    Logger[F].info(show"Going to close connection ${state.hostId}") >>
+    stopApplicationLevel(state) >>
+    stopNetworkLevel(state) >>
+    state.client.closeConnection() >>
+    (state, state).pure[F]
+
+  private def startApplicationLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is enabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StartActor) >>
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StartActor)
 
-  private def stopApplicationLevel[F[_]: Concurrent: Logger](state: State[F]): F[Unit] =
+  private def stopApplicationLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is disabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StopActor) >>
     state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
 
-  private def startNetworkLevel[F[_]: Logger](state: State[F]): F[Unit] =
+  private def startNetworkLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
+    getNetworkQuality(state) >>
+    state.client.notifyAboutThisNetworkLevel(networkLevel = true) >>
     Logger[F].info(show"Network level is started for ${state.hostId}")
 
-  private def stopNetworkLevel[F[_]: Logger](state: State[F]): F[Unit] =
+  private def stopNetworkLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
+    state.client.notifyAboutThisNetworkLevel(networkLevel = false) >>
     Logger[F].info(show"Network level is stop for ${state.hostId}")
 
   private def downloadHeaders[F[_]: Concurrent](
@@ -208,7 +225,7 @@ object PeerActor {
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.GetCurrentTip) >>
     (state, state).pure[F]
 
-  private def getHotPeersOfCurrentPeer[F[_]: Concurrent: Logger](
+  private def getHotPeersOfCurrentPeer[F[_]: Async: Logger](
     state:    State[F],
     maxHosts: Int
   ): F[(State[F], Response[F])] = {
@@ -219,11 +236,17 @@ object PeerActor {
         .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
         .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
       _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
-      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownPeers(hotPeers)))
+      _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(state.hostId, hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
+    .handleErrorWith { error =>
+      val message = Option(error.getLocalizedMessage).getOrElse("")
+      Logger[F].error(show"Error $message during getting remote peer neighbours") >>
+      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      (state, state).pure[F]
+    }
 
-  private def getPeerServerAddress[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] = {
+  private def getPeerServerAddress[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     val peer = state.hostId
     for {
       _              <- OptionT.liftF(Logger[F].info(s"Request server address from $peer"))
@@ -232,17 +255,31 @@ object PeerActor {
       _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
     } yield (state, state)
   }.getOrElse(state, state)
+    .handleErrorWith { error =>
+      val message = Option(error.getLocalizedMessage).getOrElse("")
+      Logger[F].error(show"Error $message during getting remote peer server port") >>
+      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      (state, state).pure[F]
+    }
 
   private def getNetworkQuality[F[_]: Concurrent: Logger](state: State[F]): F[(State[F], Response[F])] =
-    getPing(state).value.flatMap { res =>
-      val message =
-        ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
-      Logger[F].info(show"From host ${state.hostId}: $message") >>
-      state.reputationAggregator.sendNoWait(message)
-    } >> (state, state).pure[F]
+    getPing(state).value
+      .flatMap { res =>
+        val message =
+          ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
+        Logger[F].info(show"From host ${state.hostId}: $message") >>
+        state.reputationAggregator.sendNoWait(message)
+      }
+      .handleErrorWith { error =>
+        val message = Option(error.getLocalizedMessage).getOrElse("")
+        Logger[F].error(show"Error $message during getting remote peer network quality") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+      } >> (state, state).pure[F]
 
   private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
-  private val pingMessageSize = 1024 // 1024 hardcoded on protobuf level
+
+  // 1024 hardcoded on protobuf level, see co.topl.node.models.PingMessageValidator.validate
+  private val pingMessageSize = 1024
 
   private def getPing[F[_]: Concurrent](state: State[F]): EitherT[F, NetworkQualityError, Long] =
     for {
@@ -272,7 +309,8 @@ object PeerActor {
           )
       )
       .recoverWith { case exception =>
-        Logger[F].error(s"Remote peer provide incorrect genesis information: ${exception.getLocalizedMessage}") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.HostProvideIncorrectData(state.hostId))
+        val exceptionMessage = exception.getLocalizedMessage
+        Logger[F].error(s"Remote peer ${state.hostId} provide incorrect genesis information: $exceptionMessage") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
       }
 }

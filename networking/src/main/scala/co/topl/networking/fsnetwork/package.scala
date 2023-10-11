@@ -10,11 +10,14 @@ import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
+import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
+import scodec.Codec
+import scodec.codecs.{cstring, double, int32}
 
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
@@ -164,6 +167,18 @@ package object fsnetwork {
     downloadTimeTxMs: Seq[Long] = Seq.empty
   )
 
+  case class RemotePeer(
+    address:         RemoteAddress,
+    blockReputation: HostReputationValue,
+    perfReputation:  HostReputationValue
+  )
+
+  private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
+  implicit val peerToAddCodec: Codec[RemotePeer] = (remoteAddressCodec :: double :: double).as[RemotePeer]
+
+  def getTotalReputation(blockProvidingRep: HostReputationValue, performanceRep: HostReputationValue) =
+    (blockProvidingRep + performanceRep) / 2
+
   case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: FiniteDuration) {
 
     /**
@@ -224,11 +239,7 @@ package object fsnetwork {
   }
 
   trait DnsResolver[F[_]] {
-    def resolving(host: String): F[Option[String]]
-  }
-
-  implicit class DnsResolverOps[F[_]: DnsResolver](host: String) {
-    def resolveHost: F[Option[String]] = implicitly[DnsResolver[F]].resolving(host)
+    def resolving(host: HostId): F[Option[HostId]]
   }
 
   object DnsResolverInstances {
@@ -239,9 +250,36 @@ package object fsnetwork {
       val res =
         for {
           host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
-          resolved <- OptionT.liftF(resolver.resolve(host))
+          resolved <- OptionT(resolver.resolveOption(host))
         } yield resolved.toUriString
       res.value
+    }
+  }
+
+  trait DnsResolverHT[T, F[_]] {
+    def resolving(host: T): F[Option[T]]
+  }
+
+  object DnsResolverHTInstances {
+
+    implicit def remoteAddressResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemoteAddress, F] =
+      (unresolvedHost: RemoteAddress) => {
+        val resolver = implicitly[DnsResolver[F]]
+        resolver.resolving(unresolvedHost.host).map(_.map(resolved => unresolvedHost.copy(host = resolved)))
+      }
+
+    implicit def peerToAddResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemotePeer, F] =
+      (unresolvedHost: RemotePeer) => {
+        val resolver = implicitly[DnsResolverHT[RemoteAddress, F]]
+        resolver.resolving(unresolvedHost.address).map(_.map(resolved => unresolvedHost.copy(address = resolved)))
+      }
+  }
+
+  implicit class DnsResolverHTSyntax[F[_], T](host: T)(implicit res: DnsResolverHT[T, F]) {
+
+    def resolve(): F[Option[T]] = {
+      val resolver: DnsResolverHT[T, F] = implicitly[DnsResolverHT[T, F]]
+      resolver.resolving(host)
     }
   }
 }

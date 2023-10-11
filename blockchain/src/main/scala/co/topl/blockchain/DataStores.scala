@@ -8,6 +8,7 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
 import co.topl.models.Epoch
+import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import fs2.io.file.Path
@@ -29,7 +30,7 @@ case class DataStores[F[_]](
   blockHeightTree:         Store[F, Long, BlockId],
   epochData:               Store[F, Epoch, EpochData],
   registrationAccumulator: Store[F, StakingAddress, Unit],
-  knownHosts:              Store[F, Unit, Seq[KnownHost]]
+  knownHosts:              Store[F, Unit, Seq[RemotePeer]]
 )
 
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {

@@ -23,13 +23,15 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.consensus.models.BlockId
 import co.topl.grpc.NodeGrpc
 import co.topl.typeclasses.implicits._
+import com.typesafe.config.Config
+
 import scala.concurrent.duration._
 
 object Orchestrator
     extends IOBaseApp[Args, ApplicationConfig](
-      createArgs = args => Args.parserArgs.constructOrThrow(args),
+      createArgs = args => IO.delay(Args.parserArgs.constructOrThrow(args)),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (_, conf) => ApplicationConfig.unsafe(conf)
+      parseConfig = (_, conf) => IO.delay(ApplicationConfig.unsafe(conf))
     ) {
 
   private type NodeName = String
@@ -41,18 +43,18 @@ object Orchestrator
   implicit private val logger: Logger[F] =
     Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  def run: IO[Unit] =
+  def run(args: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     for {
       _ <- Logger[F].info("Launching Testnet Simulation Orchestrator")
       _ <- Logger[F].info(show"args=$args")
       _ <- Logger[F].info(show"config=$appConfig")
-      _ <- runSimulation
+      _ <- runSimulation(appConfig)
     } yield ()
 
   /**
    * Resources required to run this simulation and cleanup
    */
-  private def resources: Resource[F, (Publisher, NodeRpcs)] =
+  private def resources(appConfig: ApplicationConfig): Resource[F, (Publisher, NodeRpcs)] =
     // Allocate the K8sSimulationController resource first
     K8sSimulationController
       .resource[F](appConfig.simulationOrchestrator.kubernetes.namespace)
@@ -101,13 +103,13 @@ object Orchestrator
       .drain >>
     Logger[F].info(show"Node node=$name is ready")
 
-  private def runSimulation: F[Unit] =
-    resources.use { case (publisher, nodes) =>
+  private def runSimulation(appConfig: ApplicationConfig): F[Unit] =
+    resources(appConfig).use { case (publisher, nodes) =>
       for {
         // Launch the background fiber which broadcasts Transactions to all nodes
-        transactionBroadcasterFiber <- transactionBroadcaster(nodes)
+        transactionBroadcasterFiber <- transactionBroadcaster(appConfig)(nodes)
         // Listen to the block adoptions of all nodes.
-        nodeHeaderAdoptions <- fetchHeaderAdoptions(nodes)
+        nodeHeaderAdoptions <- fetchHeaderAdoptions(appConfig)(nodes)
         // Now that the chain has reached the target height, we can stop broadcasting the transactions
         _ <- transactionBroadcasterFiber.cancel
 
@@ -146,7 +148,7 @@ object Orchestrator
    * Listen to the streams of block ID adoptions from all nodes in parallel.  Simultaneously, fetch each corresponding
    * header to determine its height, which is then used to determine when to stop.
    */
-  private def fetchHeaderAdoptions(
+  private def fetchHeaderAdoptions(appConfig: ApplicationConfig)(
     nodes: NodeRpcs
   ): F[List[(NodeName, Vector[(BlockId, Long, BlockHeader)])]] =
     nodes.toList.parTraverse { case (name, client) =>
@@ -221,7 +223,7 @@ object Orchestrator
   /**
    * Creates a background-running Fiber which generates and broadcasts transactions to the nodes until the Fiber is canceled.
    */
-  private def transactionBroadcaster(nodes: NodeRpcs): IO[Fiber[IO, Throwable, Unit]] =
+  private def transactionBroadcaster(appConfig: ApplicationConfig)(nodes: NodeRpcs): IO[Fiber[IO, Throwable, Unit]] =
     for {
       // Assemble a base wallet of available UTxOs
       _                            <- Logger[F].info(show"Initializing wallet")

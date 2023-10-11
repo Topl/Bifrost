@@ -35,7 +35,7 @@ trait NetworkAlgebra[F[_]] {
     newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:       P2PNetworkConfig,
     hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
-    savePeersFunction:      Set[RemoteAddress] => F[Unit]
+    savePeersFunction:      Set[RemotePeer] => F[Unit]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeReputationAggregation(
@@ -116,10 +116,12 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
     newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:       P2PNetworkConfig,
     hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
-    savePeersFunction:      Set[RemoteAddress] => F[Unit]
+    savePeersFunction:      Set[RemotePeer] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] = {
-    val peerSelector: ColdToWarmSelector[F] =
-      new RandomColdToWarmSelector[F](p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs)
+    val coldToWarm: SelectorColdToWarm[F] =
+      new SemiRandomSelectorColdToWarm[F](p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs)
+
+    val warmToHot: SelectorWarmToHot[F] = new ReputationRandomBasedSelectorWarmToHot[F]()
 
     PeersManager.makeActor(
       thisHostId,
@@ -133,7 +135,8 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
       p2pNetworkConfig,
       hotPeersUpdate,
       savePeersFunction,
-      peerSelector,
+      coldToWarm,
+      warmToHot,
       initialPeers = Map.empty[HostId, Peer[F]],
       blockSource = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
     )

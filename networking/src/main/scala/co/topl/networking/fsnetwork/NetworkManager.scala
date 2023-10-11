@@ -14,10 +14,9 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
-import co.topl.networking.KnownHostOps
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{PeerConnectionChange, PeerConnectionChanges, RemoteAddress}
-import co.topl.node.models.{BlockBody, KnownHost}
+import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 
@@ -36,10 +35,10 @@ object NetworkManager {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    knownHostsStore:             Store[F, Unit, Seq[KnownHost]],
+    remotePeerStore:             Store[F, Unit, Seq[RemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkAlgebra:              NetworkAlgebra[F],
-    initialHosts:                List[RemoteAddress],
+    initialHosts:                Seq[RemoteAddress],
     networkProperties:           NetworkProperties,
     clock:                       ClockAlgebra[F],
     addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F],
@@ -51,7 +50,7 @@ object NetworkManager {
       slotDuration <- Resource.liftK(clock.slotLength)
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
-      peersFromStorage <- Resource.liftK(knownHostsStore.get(()).map(_.getOrElse(Seq.empty).map(_.asRemoteAddress)))
+      peersFromStorage <- Resource.liftK(remotePeerStore.get(()).map(_.getOrElse(Seq.empty)))
       _                <- Resource.liftK(Logger[F].info(s"Loaded from storage next known hosts: $peersFromStorage"))
       peerManager <- networkAlgebra.makePeerManger(
         thisHostId,
@@ -64,7 +63,7 @@ object NetworkManager {
         addRemotePeerAlgebra,
         p2pNetworkConfig,
         hotPeersUpdate,
-        buildSaveRemotePeersFunction(knownHostsStore)
+        buildSaveRemotePeersFunction(remotePeerStore)
       )
 
       reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager, p2pNetworkConfig)
@@ -91,7 +90,7 @@ object NetworkManager {
 
       _ <- Resource.liftK(
         NonEmptyChain
-          .fromSeq(initialHosts ++ peersFromStorage)
+          .fromSeq(mergeRemotePeersAndRemoteAddress(peersFromStorage, initialHosts))
           .map { initialPeers =>
             peerManager.sendNoWait(PeersManager.Message.AddKnownPeers(initialPeers))
           }
@@ -113,19 +112,33 @@ object NetworkManager {
         case PeerConnectionChanges.InboundConnectionInitializing(_, _) => Applicative[F].unit
         case PeerConnectionChanges.OutboundConnectionInitializing(_)   => Applicative[F].unit
         case PeerConnectionChanges.ConnectionEstablished(_, localAddress) =>
-          peersManager.sendNoWait(PeersManager.Message.updateThisPeerAddress(localAddress))
+          peersManager.sendNoWait(PeersManager.Message.UpdateThisPeerAddress(localAddress))
         case PeerConnectionChanges.ConnectionClosed(connectedPeer, _) =>
           Logger[F].info(s"Remote peer ${connectedPeer.remoteAddress} closing had been detected") >>
           peersManager.sendNoWait(PeersManager.Message.ClosePeer(connectedPeer.remoteAddress.host))
+        case PeerConnectionChanges.RemotePeerApplicationLevel(connectedPeer, appLevel) =>
+          val host = connectedPeer.remoteAddress.host
+          peersManager.sendNoWait(PeersManager.Message.RemotePeerNetworkLevel(host, appLevel))
       }
       .compile
       .drain
       .background
 
   private def buildSaveRemotePeersFunction[F[_]: Async: Logger](
-    knownHostsStore: Store[F, Unit, Seq[KnownHost]]
-  ): Set[RemoteAddress] => F[Unit] = { peers: Set[RemoteAddress] =>
+    remotePeersStore: Store[F, Unit, Seq[RemotePeer]]
+  ): Set[RemotePeer] => F[Unit] = { peers: Set[RemotePeer] =>
     Logger[F].info(s"Going to save known hosts $peers to local data storage") >>
-    knownHostsStore.put((), peers.map(_.asKnownHost).toList)
+    remotePeersStore.put((), peers.toList)
+  }
+
+  // peers represented as Remote address could be present in remote peers as well with some reputation
+  private def mergeRemotePeersAndRemoteAddress(
+    remotePeers:   Seq[RemotePeer],
+    remoteAddress: Seq[RemoteAddress]
+  ): Seq[RemotePeer] = {
+    val remoteAddressMap = remoteAddress.map(ra => ra -> RemotePeer(ra, 0.0, 0.0)).toMap
+    val remotePeersMap = remotePeers.map(p => p.address -> p).toMap
+
+    (remoteAddressMap ++ remotePeersMap).values.toSeq
   }
 }

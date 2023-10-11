@@ -9,11 +9,12 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
-import co.topl.consensus.models.{BlockId, ProtocolVersion, VrfConfig}
+import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
@@ -29,8 +30,8 @@ import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
-import co.topl.node.models.FullBlock
-import co.topl.numerics.implicits._
+import co.topl.node.models.{FullBlock, FullBlockBody}
+import com.typesafe.config.Config
 import fs2.io.file.{Files, Path}
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
@@ -43,15 +44,15 @@ object NodeApp extends AbstractNodeApp
 
 abstract class AbstractNodeApp
     extends IOBaseApp[Args, ApplicationConfig](
-      createArgs = Args.parse,
+      createArgs = a => IO.delay(Args.parse(a)),
       createConfig = IOBaseApp.createTypesafeConfig,
-      parseConfig = (args, conf) => ApplicationConfigOps.unsafe(args, conf),
-      preInitFunction = config => if (config.kamon.enable) Kamon.init()
+      parseConfig = (args, conf) => IO.delay(ApplicationConfigOps.unsafe(args, conf)),
+      preInitFunction = config => IO.delay(if (config.kamon.enable) Kamon.init())
     ) {
 
-  def run: IO[Unit] =
-    if (args.startup.cli) new ConfiguredCliApp(appConfig).run
-    else new ConfiguredNodeApp(args, appConfig).run
+  def run(cmdArgs: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
+    if (cmdArgs.startup.cli) new ConfiguredCliApp(appConfig).run
+    else new ConfiguredNodeApp(cmdArgs, appConfig).run
 }
 
 class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
@@ -72,23 +73,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
         (0, 0)
       )
-      protocolVersion <- Sync[F]
-        .delay(ProtocolVersioner.apply(appConfig.bifrost.protocols).appVersion.asProtocolVersion)
-        .toResource
 
-      cryptoResources <- CryptoResources.make[F].toResource
-      bigBangBlock    <- initializeBigBang(protocolVersion)
-      bigBangSlotData <- cryptoResources.ed25519VRF
-        .use(implicit r => Sync[F].delay(bigBangBlock.header.slotData))
-        .toResource
-      bigBangBlockId = bigBangSlotData.slotId.blockId
-      _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
+      cryptoResources            <- CryptoResources.make[F].toResource
+      (bigBangBlock, dataStores) <- initializeData
+      bigBangBlockId = bigBangBlock.header.id
+      bigBangSlotData <- dataStores.slotData.getOrRaise(bigBangBlockId).toResource
+      _               <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
 
       stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
       _ <- Files[F].createDirectories(stakingDir).toResource
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
 
-      dataStores <- DataStoresInit.init[F](appConfig)(bigBangBlock)
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
 
       canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get().toResource
@@ -102,7 +97,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           dataStores.parentChildTree.put,
           bigBangBlock.header.parentHeaderId
         )
-        .flatTap(_.associate(bigBangBlockId, bigBangBlock.header.parentHeaderId))
         .toResource
 
       // Start the supporting interpreters
@@ -115,7 +109,21 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           currentEventIdGetterSetters.blockHeightTree.set
         )
         .toResource
-      bigBangProtocol = appConfig.bifrost.protocols(0)
+      _ <- OptionT(blockHeightTree.useStateAt(canonicalHeadId)(_.apply(BigBang.Height)))
+        .ensure(new IllegalStateException("The configured genesis block does not match the stored genesis block."))(
+          _ === bigBangBlockId
+        )
+        .value
+        .toResource
+      bigBangProtocol <-
+        BigBang
+          .extractProtocol(bigBangBlock)
+          .leftMap(error =>
+            new IllegalArgumentException(s"Genesis block contained invalid protocol settings. reason=$error")
+          )
+          .pure[F]
+          .rethrow
+          .toResource
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
         bigBangProtocol.vrfPrecision,
@@ -204,7 +212,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   cryptoResources,
                   bigBangProtocol,
                   vrfConfig,
-                  protocolVersion,
+                  bigBangBlock.header.version,
                   BlockFinder
                     .forTransactionId(dataStores.bodies.getOrRaise)(
                       fs2.Stream
@@ -385,9 +393,10 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   /**
    * Based on the application config, determines if the genesis block is a public network or a private testnet, and
-   * initialize it accordingly
+   * initialize it accordingly.  In addition, creates the underlying `DataStores` instance and verifies the stored
+   * data against the configured data (if applicable).
    */
-  private def initializeBigBang(protocolVersion: ProtocolVersion): Resource[F, FullBlock] =
+  private def initializeData: Resource[F, (FullBlock, DataStores[F])] =
     appConfig.bifrost.bigBang match {
       case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
         for {
@@ -397,10 +406,21 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           bigBangConfig <- Sync[F]
             .delay(
               PrivateTestnet
-                .config(privateBigBang.timestamp, testnetStakerInitializers, privateBigBang.stakes, protocolVersion)
+                .config(
+                  privateBigBang.timestamp,
+                  testnetStakerInitializers,
+                  privateBigBang.stakes,
+                  PrivateTestnet.DefaultProtocolVersion,
+                  appConfig.bifrost.protocols(0)
+                )
             )
             .toResource
           bigBangBlock = BigBang.fromConfig(bigBangConfig)
+          dataStores <- DataStoresInit.create[F](appConfig)(bigBangBlock.header.id)
+          _ <- DataStoresInit
+            .isInitialized(dataStores)
+            .ifM(().pure[F], DataStoresInit.initialize(dataStores, bigBangBlock))
+            .toResource
           _ <- privateBigBang.localStakerIndex
             .filter(_ >= 0)
             .traverse(index =>
@@ -412,12 +432,29 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                 )
                 .toResource
             )
-        } yield bigBangBlock
+        } yield (bigBangBlock, dataStores)
       case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
-        for {
-          reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
-          headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
-          bigBangBlock         <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
-        } yield bigBangBlock
+        DataStoresInit
+          .create[F](appConfig)(publicBigBang.genesisId)
+          .flatMap(dataStores =>
+            DataStoresInit
+              .isInitialized(dataStores)
+              .toResource
+              .ifM(
+                for {
+                  header       <- dataStores.headers.getOrRaise(publicBigBang.genesisId).toResource
+                  body         <- dataStores.bodies.getOrRaise(publicBigBang.genesisId).toResource
+                  transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
+                } yield FullBlock(header, FullBlockBody(transactions)),
+                for {
+                  reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
+                  headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
+                  bigBangBlock <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
+                  _            <- DataStoresInit.initialize(dataStores, bigBangBlock).toResource
+                } yield bigBangBlock
+              )
+              .tupleRight(dataStores)
+          )
+
     }
 }

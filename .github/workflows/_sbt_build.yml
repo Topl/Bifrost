@@ -81,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: Test Results (Java ${{ matrix.java }})
-          path: target/test-reports/*.xml
+          path: "**/test-reports/*.xml"
       
       - name: Cleanup before cache
         shell: bash

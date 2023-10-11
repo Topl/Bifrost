@@ -12,7 +12,7 @@ import co.topl.brambl.models.box._
 import co.topl.brambl.common.ContainsSignable._
 import co.topl.brambl.common.ContainsSignable.instances._
 import co.topl.brambl.models.transaction._
-import co.topl.numerics.implicits._
+import co.topl.brambl.syntax._
 import co.topl.quivr.api.Prover
 import co.topl.transactiongenerator.algebras.TransactionGenerator
 import co.topl.transactiongenerator.models.Wallet

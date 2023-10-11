@@ -15,7 +15,7 @@ import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, RemoteAddress}
-import co.topl.node.models.{BlockBody, KnownHost}
+import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 
@@ -34,11 +34,11 @@ object ActorPeerHandlerBridgeAlgebra {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    knownHostsStore:             Store[F, Unit, Seq[KnownHost]],
+    remotePeerStore:             Store[F, Unit, Seq[RemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
     networkProperties:           NetworkProperties,
     clockAlgebra:                ClockAlgebra[F],
-    remotePeers:                 List[DisconnectedPeer],
+    remotePeers:                 Seq[DisconnectedPeer],
     peersStatusChangesTopic:     Topic[F, PeerConnectionChange],
     addRemotePeer:               DisconnectedPeer => F[Unit],
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
@@ -59,7 +59,7 @@ object ActorPeerHandlerBridgeAlgebra {
         headerStore,
         bodyStore,
         transactionStore,
-        knownHostsStore,
+        remotePeerStore,
         blockIdTree,
         networkAlgebra,
         remotePeers.map(_.remoteAddress),

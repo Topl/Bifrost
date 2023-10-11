@@ -13,12 +13,11 @@ import co.topl.brambl.models.transaction.{IoTransaction, UnspentTransactionOutpu
 import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, ProtocolVersion}
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.models.utility._
 import co.topl.node.models.{BlockBody, FullBlock}
-import co.topl.node.ApplicationConfigOps._
 import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.Port
@@ -31,8 +30,6 @@ import org.http4s.ember.server._
 import org.http4s.server.Router
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import pureconfig.ConfigSource
-import pureconfig.generic.auto._
 import quivr.models.Int128
 
 import java.nio.charset.StandardCharsets
@@ -69,9 +66,6 @@ class NodeAppTest extends CatsEffectSuite {
          |    type: public
          |    genesis-id: ${genesisBlockId.show}
          |    source-path: $genesisSourcePath
-         |  protocols:
-         |    0:
-         |      slot-duration: 500 milli
          |genus:
          |  enable: true
          |""".stripMargin
@@ -94,9 +88,6 @@ class NodeAppTest extends CatsEffectSuite {
          |    type: public
          |    genesis-id: ${genesisBlockId.show}
          |    source-path: $genesisSourcePath
-         |  protocols:
-         |    0:
-         |      slot-duration: 500 milli
          |genus:
          |  enable: false
          |""".stripMargin
@@ -106,7 +97,7 @@ class NodeAppTest extends CatsEffectSuite {
         testnetConfig     <- createTestnetConfig.toResource
         genesisServerPort <- serveGenesisBlock(testnetConfig.genesis)
         genesisSourcePath = s"http://localhost:$genesisServerPort/${testnetConfig.genesis.header.id.show}"
-        configFileA <- (
+        configALocation <- (
           Files.forAsync[F].tempDirectory,
           Files
             .forAsync[F]
@@ -117,7 +108,8 @@ class NodeAppTest extends CatsEffectSuite {
             configNodeA(dataDir, stakingDir, testnetConfig.genesis.header.id, genesisSourcePath)
           }
           .flatMap(saveLocalConfig(_, "nodeA"))
-        configFileB <- (
+          .map(_.toString)
+        configBLocation <- (
           Files.forAsync[F].tempDirectory,
           Files
             .forAsync[F]
@@ -127,61 +119,77 @@ class NodeAppTest extends CatsEffectSuite {
           .map { case (dataDir, stakingDir) =>
             configNodeB(dataDir, stakingDir, testnetConfig.genesis.header.id, genesisSourcePath)
           }
-          .flatMap(saveLocalConfig(_, "nodeB"))
-        _          <- launch(configFileA)
-        _          <- launch(configFileB)
-        rpcClientA <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
-        rpcClientB <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
-        rpcClients = List(rpcClientA, rpcClientB)
-        implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
-        _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
-        walletInitializer            <- ToplRpcWalletInitializer.make[F](rpcClientA, 1, 1).toResource
-        wallet                       <- walletInitializer.initialize.toResource
-        implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
-        // Construct two competing graphs of transactions.
-        // Graph 1 has higher fees and should be included in the chain
-        transactionGenerator1 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 1000).toResource
-        transactionGraph1 <- Stream.force(transactionGenerator1.generateTransactions).take(10).compile.toList.toResource
-        // Graph 2 has lower fees, so the Block Packer should never choose them
-        transactionGenerator2 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 10).toResource
-        transactionGraph2 <- Stream.force(transactionGenerator2.generateTransactions).take(10).compile.toList.toResource
-        _                 <- rpcClients.parTraverse(fetchUntilHeight(_, 2)).toResource
-        // Broadcast _all_ of the good transactions to the nodes randomly
-        _ <-
-          Stream
-            .repeatEval(random.elementOf(rpcClients))
-            .zip(Stream.evalSeq(random.shuffleList(transactionGraph1)))
-            .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
-            .compile
-            .drain
-            .toResource
-        // Verify that the good transactions were confirmed by both nodes
-        _ <- rpcClients
-          .parTraverse(client =>
-            Async[F].timeout(confirmTransactions(client)(transactionGraph1.map(_.id).toSet), 60.seconds)
+          .flatMap(serveConfig(_, "nodeB.yaml"))
+        // Run the nodes in separate fibers, but use the fibers' outcomes as an error signal to
+        // the test by racing the computation
+        _ <- (launch(configALocation), launch(configBLocation))
+          .mapN(_.race(_).map(_.merge).flatMap(_.embedNever))
+          .flatMap(nodeCompletion =>
+            nodeCompletion.toResource.race(for {
+              rpcClientA <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
+              rpcClientB <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
+              rpcClients = List(rpcClientA, rpcClientB)
+              implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
+              _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
+              walletInitializer            <- ToplRpcWalletInitializer.make[F](rpcClientA, 1, 1).toResource
+              wallet                       <- walletInitializer.initialize.toResource
+              implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
+              // Construct two competing graphs of transactions.
+              // Graph 1 has higher fees and should be included in the chain
+              transactionGenerator1 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 1000).toResource
+              transactionGraph1 <- Stream
+                .force(transactionGenerator1.generateTransactions)
+                .take(10)
+                .compile
+                .toList
+                .toResource
+              // Graph 2 has lower fees, so the Block Packer should never choose them
+              transactionGenerator2 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 10).toResource
+              transactionGraph2 <- Stream
+                .force(transactionGenerator2.generateTransactions)
+                .take(10)
+                .compile
+                .toList
+                .toResource
+              _ <- rpcClients.parTraverse(fetchUntilHeight(_, 2)).toResource
+              // Broadcast _all_ of the good transactions to the nodes randomly
+              _ <-
+                Stream
+                  .repeatEval(random.elementOf(rpcClients))
+                  .zip(Stream.evalSeq(random.shuffleList(transactionGraph1)))
+                  .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
+                  .compile
+                  .drain
+                  .toResource
+              // Verify that the good transactions were confirmed by both nodes
+              _ <- rpcClients
+                .parTraverse(client =>
+                  Async[F].timeout(confirmTransactions(client)(transactionGraph1.map(_.id).toSet), 60.seconds)
+                )
+                .toResource
+              // Submit the bad transactions
+              _ <- Stream
+                .repeatEval(random.elementOf(rpcClients))
+                .zip(Stream.evalSeq(random.shuffleList(transactionGraph2)))
+                .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
+                .compile
+                .drain
+                .toResource
+              // Verify that the nodes are still making blocks properly
+              _ <- rpcClients.parTraverse(fetchUntilHeight(_, targetProductionHeight)).toResource
+              // Verify that the "bad" transactions did not make it onto the chain
+              _ <- rpcClients
+                .parTraverse(verifyNotConfirmed(_)(transactionGraph2.map(_.id).toSet))
+                .toResource
+              // Now check consensus
+              idsAtTargetHeight <- rpcClients
+                .traverse(client =>
+                  OptionT(client.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException)
+                )
+                .toResource
+              _ <- IO(idsAtTargetHeight.toSet.size == 1).assert.toResource
+            } yield ())
           )
-          .toResource
-        // Submit the bad transactions
-        _ <- Stream
-          .repeatEval(random.elementOf(rpcClients))
-          .zip(Stream.evalSeq(random.shuffleList(transactionGraph2)))
-          .evalMap { case (client, tx) => client.broadcastTransaction(tx) }
-          .compile
-          .drain
-          .toResource
-        // Verify that the nodes are still making blocks properly
-        _ <- rpcClients.parTraverse(fetchUntilHeight(_, targetProductionHeight)).toResource
-        // Verify that the "bad" transactions did not make it onto the chain
-        _ <- rpcClients
-          .parTraverse(verifyNotConfirmed(_)(transactionGraph2.map(_.id).toSet))
-          .toResource
-        // Now check consensus
-        idsAtTargetHeight <- rpcClients
-          .traverse(client =>
-            OptionT(client.blockIdAtHeight(targetConsensusHeight)).getOrRaise(new IllegalStateException)
-          )
-          .toResource
-        _ <- IO(idsAtTargetHeight.toSet.size == 1).assert.toResource
       } yield ()
     resource.use_
   }
@@ -189,9 +197,13 @@ class NodeAppTest extends CatsEffectSuite {
   private def createTestnetConfig: F[TestnetConfig] =
     for {
       random <- SecureRandom.javaSecuritySecureRandom[F]
+      protocol = PrivateTestnet.DefaultProtocol.copy(slotDuration = 500.milli)
       createStaker = random
         .nextBytes(32)
-        .map(seed => StakerInitializers.Operator(seed, (9, 9), PrivateTestnet.HeightLockOneSpendingAddress))
+        .map(seed =>
+          StakerInitializers
+            .Operator(seed, (protocol.kesKeyHours, protocol.kesKeyHours), PrivateTestnet.HeightLockOneSpendingAddress)
+        )
       staker0 <- createStaker
       staker1 <- createStaker
       unstakedTopl = UnspentTransactionOutput(
@@ -203,7 +215,13 @@ class NodeAppTest extends CatsEffectSuite {
         Value.defaultInstance.withLvl(Value.LVL(1_000_000L))
       )
       timestamp <- Async[F].realTime.map(_.plus(20.seconds).toMillis)
-    } yield TestnetConfig(timestamp, List(staker0 -> 500_000L, staker1 -> 500_000L), List(unstakedTopl), List(lvl))
+    } yield TestnetConfig(
+      timestamp,
+      List(staker0 -> 500_000L, staker1 -> 500_000L),
+      List(unstakedTopl),
+      List(lvl),
+      protocol
+    )
 
   /**
    * Launches an HTTP server which mimics the behavior of serving a genesis block from GitHub
@@ -248,6 +266,20 @@ class NodeAppTest extends CatsEffectSuite {
     saveFile(StakingInit.RegistrationTxName, staker.registrationTransaction(quantity).toByteArray)
   }
 
+  /**
+   * Serve a config file on a random port.  Returns the URL to access the file
+   * @param config the contents to serve
+   * @param name the file name
+   * @return a URL to the file
+   */
+  private def serveConfig(config: String, name: String): Resource[F, String] =
+    EmberServerBuilder
+      .default[F]
+      .withPort(Port.fromInt(0).get)
+      .withHttpApp(Router("/" -> HttpRoutes.of[F] { case GET -> Root / `name` => Ok(config) }).orNotFound)
+      .build
+      .map(server => s"http://localhost:${server.address.getPort}/$name")
+
   private def saveLocalConfig(config: String, name: String) =
     for {
       file <- Files[F].tempFile(None, name, ".yaml", None)
@@ -269,13 +301,12 @@ class NodeAppTest extends CatsEffectSuite {
       .compile
       .drain
 
-  private def launch(configFile: Path): Resource[F, Unit] =
+  private def launch(configLocation: String): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     for {
-      app1 <- Sync[F].delay(new AbstractNodeApp {}).toResource
-      _    <- Sync[F].delay(app1.initialize(Array("--config", configFile.toString))).toResource
-      bg   <- app1.run.start.toResource
-      _    <- Resource.onFinalize(bg.cancel)
-    } yield ()
+      app1                      <- Sync[F].delay(new AbstractNodeApp {}).toResource
+      (args, config, appConfig) <- app1.initialize(Array("--config", configLocation)).toResource
+      backgroundOutcomeF        <- app1.run(args, config, appConfig).background
+    } yield backgroundOutcomeF
 
   private def confirmTransactions(
     client: RpcClient
@@ -328,26 +359,23 @@ case class TestnetConfig(
   timestamp:     Long,
   stakers:       List[(StakerInitializers.Operator, Int128)],
   unstakedTopls: List[UnspentTransactionOutput],
-  lvls:          List[UnspentTransactionOutput]
+  lvls:          List[UnspentTransactionOutput],
+  protocol:      ApplicationConfig.Bifrost.Protocol
 ) {
 
-  val genesisTransactions =
-    stakers.map { case (init, quantity) => init.registrationTransaction(quantity) } :+ IoTransaction.defaultInstance
-      .withOutputs(unstakedTopls ++ lvls)
+  val protocolUtxo: UnspentTransactionOutput =
+    UnspentTransactionOutput(PrivateTestnet.HeightLockOneSpendingAddress, BigBang.protocolToUpdateProposal(protocol))
 
-  val genesis = BigBang.fromConfig(
-    BigBang.Config(
-      timestamp,
-      genesisTransactions,
-      protocolVersion = ProtocolVersioner(
-        ConfigSource.default
-          .loadOrThrow[ApplicationConfig]
-          .bifrost
-          .protocols
-          .view
-          .mapValues(_.copy(slotDuration = 500.milli))
-          .toMap
-      ).appVersion.asProtocolVersion
+  val genesisTransactions: List[IoTransaction] =
+    stakers.map { case (init, quantity) => init.registrationTransaction(quantity) } :+ IoTransaction.defaultInstance
+      .withOutputs(unstakedTopls ++ lvls :+ protocolUtxo)
+
+  val genesis: FullBlock =
+    BigBang.fromConfig(
+      BigBang.Config(
+        timestamp,
+        genesisTransactions,
+        protocolVersion = ProtocolVersion(2, 0, 0)
+      )
     )
-  )
 }

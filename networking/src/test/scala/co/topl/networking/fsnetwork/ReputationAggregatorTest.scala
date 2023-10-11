@@ -45,11 +45,11 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.PeerIsCold(hostToRemove))
+            newState <- actor.send(ReputationAggregator.Message.StopReputationTracking(hostToRemove))
             _ = assert(!newState.performanceReputation.contains(hostToRemove))
             _ = assert(!newState.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState.noveltyReputation.contains(hostToRemove))
-            newState2 <- actor.send(ReputationAggregator.Message.PeerIsCold(hostToRemove))
+            newState2 <- actor.send(ReputationAggregator.Message.StopReputationTracking(hostToRemove))
             _ = assert(!newState2.performanceReputation.contains(hostToRemove))
             _ = assert(!newState2.blockProvidingReputation.contains(hostToRemove))
             _ = assert(!newState2.noveltyReputation.contains(hostToRemove))
@@ -149,7 +149,7 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.HostProvideIncorrectData(host))
+            newState <- actor.send(ReputationAggregator.Message.CriticalErrorForHost(host))
             _ = assert(newState.performanceReputation == initialPerfMap)
             _ = assert(newState.blockProvidingReputation == initialBlockMap)
             _ = assert(newState.noveltyReputation == initialNewMap)
@@ -232,7 +232,7 @@ class ReputationAggregatorTest
         .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
-            newState <- actor.send(ReputationAggregator.Message.NewHotPeer(NonEmptyChain.one(host)))
+            newState <- actor.send(ReputationAggregator.Message.NewHotPeer(host))
             _ = assert(newState.performanceReputation == (initialPerfMap + (host -> 0.0)))
             _ = assert(newState.blockProvidingReputation == (initialBlockMap + (host -> 0.0)))
             _ = assert(newState.noveltyReputation == (initialNewMap + (host -> reputation)))
@@ -294,26 +294,27 @@ class ReputationAggregatorTest
     }
   }
 
-  test("Reputation shall be set to zero if remote host provide bad k lookback slot data") {
+  test("Move remote peer to cold if remote host provide bad k lookback slot data") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
       val host = arbitraryHost.arbitrary.first
 
-      val initialReputation = 0.5
-      val initialPerfMap =
-        Map(arbitraryHost.arbitrary.first -> initialReputation, arbitraryHost.arbitrary.first -> 0.1)
-      val initialBlockMap =
-        Map(arbitraryHost.arbitrary.first -> 0.1, arbitraryHost.arbitrary.first -> 0.7)
-      val initialNewMap =
-        Map(arbitraryHost.arbitrary.first -> 1L)
+      val initialPerfMap: Map[HostId, HostReputationValue] = Map.empty
+      val initialBlockMap: Map[HostId, HostReputationValue] = Map.empty
+      val initialNewMap: Map[HostId, Long] = Map.empty
+
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.MoveToCold(NonEmptyChain.one(host)))
+        .once()
+        .returns(().pure[F])
 
       ReputationAggregator
-        .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap + (host -> 1.0), initialNewMap)
+        .makeActor(peersManager, defaultP2PConfig, initialPerfMap, initialBlockMap, initialNewMap)
         .use { actor =>
           for {
             newState <- actor.send(ReputationAggregator.Message.BadKLookbackSlotData(host))
             _ = assert(newState.performanceReputation == initialPerfMap)
-            _ = assert(newState.blockProvidingReputation == initialBlockMap + (host -> 0.0))
+            _ = assert(newState.blockProvidingReputation == initialBlockMap)
             _ = assert(newState.noveltyReputation == initialNewMap)
           } yield ()
         }

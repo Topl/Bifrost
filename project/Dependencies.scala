@@ -3,17 +3,17 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.6"
-  val kamonVersion = "2.6.3"
+  val kamonVersion = "2.6.4"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
-  val catsEffectVersion = "3.5.1"
+  val catsEffectVersion = "3.5.2"
   val fs2Version = "3.9.2"
   val logback = "1.4.11"
-  val orientDbVersion = "3.2.22"
+  val orientDbVersion = "3.2.23"
   val ioGrpcVersion = "1.58.0"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha5" // scala-steward:off
-  val bramblScVersion = "2.0.0-alpha5" // scala-steward:off
+  val bramblScVersion = "2.0.0-alpha6" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -26,20 +26,8 @@ object Dependencies {
     catsSlf4j
   )
 
-  val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
-    "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % "test"
-  )
-
   val scalamockBase = "org.scalamock" %% "scalamock" % "5.2.0"
   val scalamock = scalamockBase        % Test
-
-  val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.17" % "test",
-    "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
-    "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
-    scalamock
-  ) ++ scalacheck
 
   private val mUnitTestBase: Seq[ModuleID] = Seq(
     "org.scalameta" %% "munit"                   % "0.7.29",
@@ -101,7 +89,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.5.1"
+    "com.lihaoyi" %% "mainargs" % "0.5.4"
   )
 
   val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
@@ -177,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.26.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.27.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -185,13 +173,13 @@ object Dependencies {
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
     protobufSpecs ++
-    test ++
+    munitScalamock ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
 
   val commonApplication: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
-    simulacrum ++ Seq(
+    simulacrum ++ http4s ++ Seq(
       catsSlf4j,
       pureConfig,
       circeYaml
@@ -201,7 +189,7 @@ object Dependencies {
     scodec ++
     externalCrypto ++
     cats ++
-    test ++
+    mUnitTest ++
     Seq(bramblScCrypto, bramblScCrypto.classifier("tests") % Test) ++
     circe.map(_ % Test)
 
@@ -220,10 +208,10 @@ object Dependencies {
     Dependencies.mUnitTest ++ externalCrypto ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
@@ -246,7 +234,7 @@ object Dependencies {
     )
 
   lazy val byteCodecs: Seq[sbt.ModuleID] =
-    test ++
+    munitScalamock ++
     simulacrum ++
     scodec ++
     cats

@@ -34,14 +34,16 @@ object BlockchainSocketHandler {
     peer:   ConnectedPeer,
     leader: ConnectionLeader,
     reads:  Stream[F, Byte],
-    writes: Pipe[F, Byte, Nothing]
+    writes: Pipe[F, Byte, Nothing],
+    close:  F[Unit]
   ): Resource[F, Unit] =
     peerServerF(peer)
-      .map(server => createFactory(server))
+      .map(server => createFactory(server, close))
       .flatMap(_.multiplexed(useClient)(peer, leader, reads, writes))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
-    protocolServer: BlockchainPeerServerAlgebra[F]
+    protocolServer: BlockchainPeerServerAlgebra[F],
+    close:          F[Unit]
   ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
     val blockAdoptionRecipF =
       TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
@@ -133,6 +135,14 @@ object BlockchainSocketHandler {
         22: Byte
       )
 
+    val notifyRemoteAppLevelF =
+      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Boolean, Unit](
+        BlockchainProtocols.ApplicationLevelNotify,
+        protocolServer.notifyApplicationLevel,
+        23: Byte,
+        24: Byte
+      )
+
     (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
       for {
         (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
@@ -148,6 +158,7 @@ object BlockchainSocketHandler {
         (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
         (pingPongHandlers, pingMessageReceivedCallback)            <- pingPongF.ap(connectionLeader.pure[F])
         (peerServerHandlers, peerServerCallback)                   <- remotePeerServerF.ap(connectionLeader.pure[F])
+        (appLevelNotifyHandlers, appNotifyCallback)                <- notifyRemoteAppLevelF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerServerPort: F[Option[Int]] = peerServerCallback(())
@@ -177,6 +188,11 @@ object BlockchainSocketHandler {
             knownHostsReceivedCallback(req)
 
           def getPongMessage(req: PingMessage): F[Option[PongMessage]] = pingMessageReceivedCallback(req)
+
+          def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit] =
+            appNotifyCallback(networkLevel).void
+
+          def closeConnection(): F[Unit] = close
         }
 
         subHandlers =
@@ -190,7 +206,8 @@ object BlockchainSocketHandler {
             idAtDepthTypedSubHandlers ++
             knownHostsTypedSubHandlers ++
             pingPongHandlers ++
-            peerServerHandlers
+            peerServerHandlers ++
+            appLevelNotifyHandlers
       } yield subHandlers -> blockchainProtocolClient
   }
 
