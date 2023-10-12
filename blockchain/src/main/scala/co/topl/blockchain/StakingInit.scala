@@ -7,6 +7,7 @@ import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.ClockAlgebra.implicits.ClockOps
+import co.topl.blockchain.algebras.NodeMetadataAlgebra
 import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -66,7 +67,9 @@ object StakingInit {
     protocol:                 ApplicationConfig.Bifrost.Protocol,
     vrfConfig:                VrfConfig,
     protocolVersion:          ProtocolVersion,
-    blockFinder:              TransactionId => F[BlockHeader]
+    blockFinder:              TransactionId => F[BlockHeader],
+    metadata:                 NodeMetadataAlgebra[F],
+    fetchHeader:              BlockId => F[Option[BlockHeader]]
   ): Resource[F, StakingAlgebra[F]] =
     for {
       _       <- Logger[F].info(show"Loading registered staker from disk at path=$stakingDir").toResource
@@ -106,7 +109,9 @@ object StakingInit {
         protocol,
         vrfConfig,
         protocolVersion,
-        blockFinder
+        blockFinder,
+        metadata,
+        fetchHeader
       )
     } yield staking
 
@@ -128,10 +133,29 @@ object StakingInit {
     protocol:                 ApplicationConfig.Bifrost.Protocol,
     vrfConfig:                VrfConfig,
     protocolVersion:          ProtocolVersion,
-    blockFinder:              TransactionId => F[BlockHeader]
+    blockFinder:              TransactionId => F[BlockHeader],
+    metadata:                 NodeMetadataAlgebra[F],
+    fetchHeader:              BlockId => F[Option[BlockHeader]]
   ): Resource[F, StakingAlgebra[F]] =
     for {
-      registrationHeader <- blockFinder(registrationTransaction.id).toResource
+      registrationHeader <-
+        // Check the metadata store to see if there already exists a cached entry.  First, double-check that the cached
+        // entry is associated with the expected transaction ID
+        OptionT(metadata.readStakingRegistrationTransactionId)
+          .filter(_ == registrationTransaction.id)
+          // If the transaction ID matches, also fetch the corresponding Block ID
+          .flatMap(_ => OptionT(metadata.readStakingRegistrationBlockId))
+          .flatMapF(fetchHeader)
+          // If the metadata store did not contain an entry, go and find the header on the chain
+          .getOrElseF(
+            blockFinder(registrationTransaction.id)
+              // Once the header has been found, cache its ID in the metadata store
+              .flatTap(header =>
+                metadata.setStakingRegistrationTransactionId(registrationTransaction.id) *>
+                metadata.setStakingRegistrationBlockId(header.id)
+              )
+          )
+          .toResource
       _ <- Logger[F]
         .info(
           s"Registration transactionId=${registrationTransaction.id.show} found in blockId=${registrationHeader.id.show}"

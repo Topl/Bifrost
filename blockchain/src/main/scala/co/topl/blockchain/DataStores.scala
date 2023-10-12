@@ -30,7 +30,8 @@ case class DataStores[F[_]](
   blockHeightTree:         Store[F, Long, BlockId],
   epochData:               Store[F, Epoch, EpochData],
   registrationAccumulator: Store[F, StakingAddress, Unit],
-  knownHosts:              Store[F, Unit, Seq[RemotePeer]]
+  knownHosts:              Store[F, Unit, Seq[RemotePeer]],
+  metadata:                Store[F, Array[Byte], Array[Byte]]
 )
 
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {

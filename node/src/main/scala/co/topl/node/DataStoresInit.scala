@@ -111,8 +111,8 @@ object DataStoresInit {
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
-
       knownRemotePeersStore <- makeDb[F, Unit, Seq[RemotePeer]](dataDir)("known-remote-peers")
+      metadataStore         <- makeDb[F, Array[Byte], Array[Byte]](dataDir)("metadata")
 
       dataStores = DataStores(
         dataDir,
@@ -131,7 +131,8 @@ object DataStoresInit {
         blockHeightTreeStore,
         epochDataStore,
         registrationAccumulatorStore,
-        knownRemotePeersStore
+        knownRemotePeersStore,
+        metadataStore
       )
     } yield dataStores
 
