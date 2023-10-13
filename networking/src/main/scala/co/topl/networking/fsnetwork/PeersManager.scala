@@ -8,10 +8,12 @@ import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
+import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -156,23 +158,25 @@ object PeersManager {
   }
 
   case class State[F[_]: Applicative](
-    thisHostIds:            Set[HostId],
-    networkAlgebra:         NetworkAlgebra[F],
-    reputationAggregator:   Option[ReputationAggregatorActor[F]],
-    blocksChecker:          Option[BlockCheckerActor[F]], // TODO remove it
-    requestsProxy:          Option[RequestsProxyActor[F]],
-    peersHandler:           PeersHandler[F],
-    localChain:             LocalChainAlgebra[F],
-    slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, TransactionId, IoTransaction],
-    blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
-    p2pNetworkConfig:       P2PNetworkConfig,
-    coldToWarmSelector:     SelectorColdToWarm[F],
-    warmToHotSelector:      SelectorWarmToHot[F],
-    hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
-    blockSource:            Cache[BlockId, Set[HostId]]
+    thisHostIds:                 Set[HostId],
+    networkAlgebra:              NetworkAlgebra[F],
+    reputationAggregator:        Option[ReputationAggregatorActor[F]],
+    blocksChecker:               Option[BlockCheckerActor[F]], // TODO remove it
+    requestsProxy:               Option[RequestsProxyActor[F]],
+    peersHandler:                PeersHandler[F],
+    localChain:                  LocalChainAlgebra[F],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    transactionStore:            Store[F, TransactionId, IoTransaction],
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    mempool:                     MempoolAlgebra[F],
+    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
+    newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
+    p2pNetworkConfig:            P2PNetworkConfig,
+    coldToWarmSelector:          SelectorColdToWarm[F],
+    warmToHotSelector:           SelectorWarmToHot[F],
+    hotPeersUpdate:              Set[RemoteAddress] => F[Unit],
+    blockSource:                 Cache[BlockId, Set[HostId]]
   ) {
 
     def sendReputationMessage(message: ReputationAggregator.Message): F[Unit] =
@@ -207,21 +211,23 @@ object PeersManager {
       }
 
   def makeActor[F[_]: Async: Logger: DnsResolver](
-    thisHostId:             HostId,
-    networkAlgebra:         NetworkAlgebra[F],
-    localChain:             LocalChainAlgebra[F],
-    slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, TransactionId, IoTransaction],
-    blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F],
-    newPeerCreationAlgebra: PeerCreationRequestAlgebra[F],
-    p2pConfig:              P2PNetworkConfig,
-    hotPeersUpdate:         Set[RemoteAddress] => F[Unit],
-    savePeersFunction:      Set[RemotePeer] => F[Unit],
-    coldToWarmSelector:     SelectorColdToWarm[F],
-    warmToHotSelector:      SelectorWarmToHot[F],
-    initialPeers:           Map[HostId, Peer[F]],
-    blockSource:            Cache[BlockId, Set[HostId]]
+    thisHostId:                  HostId,
+    networkAlgebra:              NetworkAlgebra[F],
+    localChain:                  LocalChainAlgebra[F],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    transactionStore:            Store[F, TransactionId, IoTransaction],
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    mempool:                     MempoolAlgebra[F],
+    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
+    newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
+    p2pConfig:                   P2PNetworkConfig,
+    hotPeersUpdate:              Set[RemoteAddress] => F[Unit],
+    savePeersFunction:           Set[RemotePeer] => F[Unit],
+    coldToWarmSelector:          SelectorColdToWarm[F],
+    warmToHotSelector:           SelectorWarmToHot[F],
+    initialPeers:                Map[HostId, Peer[F]],
+    blockSource:                 Cache[BlockId, Set[HostId]]
   ): Resource[F, PeersManagerActor[F]] = {
     val initialState =
       PeersManager.State[F](
@@ -235,7 +241,9 @@ object PeersManager {
         slotDataStore,
         transactionStore,
         blockIdTree,
+        mempool,
         headerToBodyValidation,
+        transactionSyntaxValidation,
         newPeerCreationAlgebra,
         p2pConfig,
         coldToWarmSelector,
@@ -488,7 +496,9 @@ object PeersManager {
             state.slotDataStore,
             state.transactionStore,
             state.blockIdTree,
-            state.headerToBodyValidation
+            state.headerToBodyValidation,
+            state.transactionSyntaxValidation,
+            state.mempool
           )
         )
 

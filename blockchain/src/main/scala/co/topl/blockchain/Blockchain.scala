@@ -109,6 +109,7 @@ object Blockchain {
               chainSelectionAlgebra,
               validators.header,
               validators.headerToBody,
+              validators.transactionSyntax,
               validators.bodySyntax,
               validators.bodySemantics,
               validators.bodyAuthorization,
@@ -118,6 +119,7 @@ object Blockchain {
               dataStores.transactions,
               dataStores.knownHosts,
               blockIdTree,
+              mempool,
               networkProperties,
               clock,
               initialPeers,
@@ -130,11 +132,6 @@ object Blockchain {
       clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
         List(
           synchronizationHandler,
-          BlockchainPeerHandler.FetchMempool.make(
-            validators.transactionSyntax,
-            dataStores.transactions,
-            mempool
-          ),
           BlockchainPeerHandler.CommonAncestorSearch.make(
             id =>
               OptionT(

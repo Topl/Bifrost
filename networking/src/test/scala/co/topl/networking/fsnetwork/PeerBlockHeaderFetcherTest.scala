@@ -379,7 +379,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
             _     <- state.fetchingFiber.get.join
           } yield ()
         }
-
     }
   }
 

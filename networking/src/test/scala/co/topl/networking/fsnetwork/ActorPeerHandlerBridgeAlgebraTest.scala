@@ -1,24 +1,35 @@
 package co.topl.networking.fsnetwork
 
-import cats.Applicative
+import cats.{Applicative, MonadThrow}
 import cats.data.{Validated, ValidatedNec}
 import cats.effect.kernel.Sync
 import cats.effect.{IO, Resource}
 import cats.implicits._
 import co.topl.algebras.testInterpreters.TestStore
+import co.topl.brambl.generators.ModelGenerators.arbitraryIoTransaction
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{Datum, TransactionId}
+import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.interpreters.SchedulerClock
 import co.topl.ledger.algebras._
-import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationContext}
+import co.topl.ledger.models.{
+  BodyAuthorizationError,
+  BodySemanticError,
+  BodySyntaxError,
+  BodyValidationContext,
+  MempoolGraph
+}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebraTest._
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
+import co.topl.networking.fsnetwork.TestHelper.BlockBodyOrTransactionErrorByName
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange, RemoteAddress}
 import co.topl.node.models._
 import co.topl.quivr.runtime.DynamicContext
@@ -32,6 +43,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
+import scala.collection.mutable
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 object ActorPeerHandlerBridgeAlgebraTest {
@@ -47,6 +59,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
     (block: Block) => Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
+
+  val defaultTxSyntaxValidator: TransactionSyntaxVerifier[F] = (t: IoTransaction) => Either.right(t).pure[F]
 
   val bodySyntaxValidation: BodySyntaxValidationAlgebra[F] =
     (blockBody: BlockBody) => Validated.validNec[BodySyntaxError, BlockBody](blockBody).pure[F]
@@ -105,6 +119,20 @@ object ActorPeerHandlerBridgeAlgebraTest {
     override def adoptions: F[Stream[F, BlockId]] = Stream.empty.covaryAll[F, BlockId].pure[F]
   }
 
+  class MempoolExt[F[_]: Applicative] extends MempoolAlgebra[F] {
+    val transactions = mutable.Set.empty[TransactionId]
+
+    override def read(blockId: BlockId): F[MempoolGraph] = ???
+
+    override def add(transactionId: TransactionId): F[Unit] = transactions.add(transactionId).pure[F].void
+
+    override def remove(transactionId: TransactionId): F[Unit] = transactions.remove(transactionId).pure[F].void
+
+    override def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] = ???
+
+    def contains(transactionId: TransactionId): Boolean = transactions.contains(transactionId)
+  }
+
   val slotLength: FiniteDuration = FiniteDuration(200, MILLISECONDS)
   val forwardBiasedSlotWindow = 10L
   val slotsPerEpoch: Long = 100L
@@ -142,6 +170,24 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
       }
+
+      val totalTransactions = 10
+      val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
+      (() => client.remoteTransactionNotifications).expects().once().onCall { () =>
+        Stream.emits(transactions.map(_.id)).covary[F].pure[F]
+      }
+      val transactionsMap = transactions.map(tx => tx.id -> tx).toMap
+      transactions.map { _ =>
+        (client
+          .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+          .expects(*, *, *)
+          .once()
+          .onCall {
+            case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+              transactionsMap(id).pure[F]
+          }
+      }
+
       (() => client.remotePeerServerPort).expects().returns(Option(remotePeerPort).pure[F])
       (client.getRemoteKnownHosts _)
         .expects(*)
@@ -162,6 +208,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         (if (peers.nonEmpty) Sync[F].delay(hotPeersUpdatedFlag.set(true)) else Applicative[F].unit) *>
         (hotPeers = peers).pure[F]
       }
+
+      val mempoolAlgebra = new MempoolExt[F]
 
       val execResource = for {
         slotDataStore    <- Resource.liftK(createSlotDataStore)
@@ -189,6 +237,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             chainSelectionAlgebra,
             headerValidation,
             headerToBodyValidation,
+            defaultTxSyntaxValidator,
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
@@ -198,6 +247,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             transactionStore,
             remotePeersStore,
             blockIdTree,
+            mempoolAlgebra,
             networkProperties,
             clockAlgebra,
             remotePeers,
@@ -220,6 +270,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         _ = assert(savedPeers.map(_.address).contains(remotePeerAddress))
         savedPeer = savedPeers.find(_.address == remotePeerAddress).get
         _ = assert(savedPeer.perfReputation != 0.0)
+        _ = assert(transactions.map(_.id).forall(mempoolAlgebra.contains))
       } yield ()
     }
 

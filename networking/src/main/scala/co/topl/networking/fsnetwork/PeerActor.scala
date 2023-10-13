@@ -8,14 +8,17 @@ import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
+import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
+import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransactionSyncActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
@@ -81,6 +84,7 @@ object PeerActor {
     reputationAggregator: ReputationAggregatorActor[F],
     blockHeaderActor:     PeerBlockHeaderFetcherActor[F],
     blockBodyActor:       PeerBlockBodyFetcherActor[F],
+    mempoolSync:          PeerMempoolTransactionSyncActor[F],
     peersManager:         PeersManagerActor[F],
     networkLevel:         Boolean,
     applicationLevel:     Boolean,
@@ -102,17 +106,19 @@ object PeerActor {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:                 HostId,
-    networkAlgebra:         NetworkAlgebra[F],
-    client:                 BlockchainPeerClient[F],
-    requestsProxy:          RequestsProxyActor[F],
-    reputationAggregator:   ReputationAggregatorActor[F],
-    peersManager:           PeersManagerActor[F],
-    localChain:             LocalChainAlgebra[F],
-    slotDataStore:          Store[F, BlockId, SlotData],
-    transactionStore:       Store[F, TransactionId, IoTransaction],
-    blockIdTree:            ParentChildTree[F, BlockId],
-    headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
+    hostId:                      HostId,
+    networkAlgebra:              NetworkAlgebra[F],
+    client:                      BlockchainPeerClient[F],
+    requestsProxy:               RequestsProxyActor[F],
+    reputationAggregator:        ReputationAggregatorActor[F],
+    peersManager:                PeersManagerActor[F],
+    localChain:                  LocalChainAlgebra[F],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    transactionStore:            Store[F, TransactionId, IoTransaction],
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
+    mempool:                     MempoolAlgebra[F]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
     val initAppLevel = false
@@ -135,8 +141,19 @@ object PeerActor {
         client,
         requestsProxy,
         transactionStore,
-        headerToBodyValidation
+        headerToBodyValidation,
+        transactionSyntaxValidation
       )
+
+      mempoolSync <- networkAlgebra.makeMempoolSyncFetcher(
+        hostId,
+        client,
+        transactionSyntaxValidation,
+        transactionStore,
+        mempool,
+        reputationAggregator
+      )
+
       genesisSlotData <- localChain.genesis.toResource
       initialState = State(
         hostId,
@@ -144,6 +161,7 @@ object PeerActor {
         reputationAggregator,
         header,
         body,
+        mempoolSync,
         peersManager,
         initNetworkLevel,
         initAppLevel,
@@ -191,12 +209,14 @@ object PeerActor {
   private def startApplicationLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is enabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StartActor) >>
-    state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StartActor)
+    state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StartActor) >>
+    state.mempoolSync.sendNoWait(PeerMempoolTransactionSync.Message.StartActor)
 
   private def stopApplicationLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Application level is disabled for ${state.hostId}") >>
     state.blockHeaderActor.sendNoWait(PeerBlockHeaderFetcher.Message.StopActor) >>
-    state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor)
+    state.blockBodyActor.sendNoWait(PeerBlockBodyFetcher.Message.StopActor) >>
+    state.mempoolSync.sendNoWait(PeerMempoolTransactionSync.Message.StopActor)
 
   private def startNetworkLevel[F[_]: Async: Logger](state: State[F]): F[Unit] =
     getNetworkQuality(state) >>

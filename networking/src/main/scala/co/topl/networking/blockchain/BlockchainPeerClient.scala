@@ -83,6 +83,14 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]]
 
   /**
+   * A lookup to retrieve a remote transaction by ID, or throw specified Error
+   */
+  def getRemoteTransactionOrError[E <: Throwable](id: TransactionId, error: => E)(implicit
+    MonadThrow: MonadThrow[F]
+  ): F[IoTransaction] =
+    OptionT(getRemoteTransaction(id)).getOrRaise(error)
+
+  /**
    * A lookup to retrieve the remote node's block ID associated with the given height.
    * @param height The height to lookup
    * @param localBlockId The block ID of the local node at the requested height (the remote peer can cache this to avoid
