@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
+import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
@@ -73,6 +74,9 @@ package object fsnetwork {
   }
 
   // TODO move Show instances to separate file
+  implicit val showTransactionSyntaxError: Show[TransactionSyntaxError] =
+    Show.fromToString
+
   implicit val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
     Show.fromToString
 

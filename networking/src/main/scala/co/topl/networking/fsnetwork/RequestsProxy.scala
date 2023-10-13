@@ -8,7 +8,7 @@ import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
-import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyDownloadError, BlockHeaderDownloadError}
+import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyOrTransactionError, BlockHeaderDownloadError}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.Message._
@@ -50,7 +50,7 @@ object RequestsProxy {
     // then A is parent of B and B is parent of C
     case class DownloadBodiesResponse(
       source:   HostId,
-      response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
+      response: NonEmptyChain[(BlockHeader, Either[BlockBodyOrTransactionError, UnverifiedBlockBody])]
     ) extends Message
 
     // If verification of block is failed then we shall no longer process that particular blockId
@@ -316,7 +316,7 @@ object RequestsProxy {
   private def downloadBodiesResponse[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
-    response: NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
+    response: NonEmptyChain[(BlockHeader, Either[BlockBodyOrTransactionError, UnverifiedBlockBody])]
   ): F[(State[F], Response[F])] = {
     val responseLog =
       response.map { case (header, res) => show"${header.id} with res ${res.isRight}" }.mkString_(", ")
@@ -336,7 +336,7 @@ object RequestsProxy {
 
   private def processBodyDownloadPerformance[F[_]: Async](
     reputationAggregator: ReputationAggregatorActor[F],
-    response:             NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
+    response:             NonEmptyChain[(BlockHeader, Either[BlockBodyOrTransactionError, UnverifiedBlockBody])]
   ): F[Unit] =
     response
       .collect { case (_, Right(body)) => body }
@@ -351,7 +351,7 @@ object RequestsProxy {
     reputationAggregator: ReputationAggregatorActor[F],
     peersManager:         PeersManagerActor[F],
     source:               HostId,
-    response:             NonEmptyChain[(BlockHeader, Either[BlockBodyDownloadError, UnverifiedBlockBody])]
+    response:             NonEmptyChain[(BlockHeader, Either[BlockBodyOrTransactionError, UnverifiedBlockBody])]
   ): F[Unit] = {
     val errorsOpt =
       NonEmptyChain.fromChain(response.collect { case (id, Left(error)) => (id, error) })

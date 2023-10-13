@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.MonadThrow
 import cats.data.NonEmptyChain
 import cats.effect.{Async, IO}
 import cats.implicits._
@@ -8,6 +9,7 @@ import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
@@ -18,7 +20,7 @@ import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
 import co.topl.models.utility._
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
@@ -47,6 +49,8 @@ class PeerBlockBodyFetcherTest
 
   val maxChainSize = 99
 
+  val defaultTxSyntaxValidator: TransactionSyntaxVerifier[F] = (t: IoTransaction) => Either.right(t).pure[F]
+
   test("Block bodies shall return error if block is not present on client") {
     withMock {
       val client = mock[BlockchainPeerClient[F]]
@@ -66,13 +70,13 @@ class PeerBlockBodyFetcherTest
 
       def blockIsMissed(id: BlockId): Boolean = id.hashCode() % 2 == 0
 
-      val (presentBlockIdAndBodies, _) =
+      val (_, presentBlocks) =
         blockIdsAndBodies.toList.partition { case (id, _) => blockIsMissed(id) }
 
       val txIdsAndTxs = txs.toList.flatten.map(tx => (tx.id, tx))
       val (missedTxs, presentTxs) = txIdsAndTxs.partition { case (id, _) => id.hashCode() % 2 == 0 }
 
-      val clientBodiesData = presentBlockIdAndBodies.toMap
+      val clientBodiesData = presentBlocks.toMap
       (client.getRemoteBody _).expects(*).rep(blockIdsAndBodies.size.toInt).onCall { id: BlockId =>
         clientBodiesData.get(id).pure[F]
       }
@@ -83,9 +87,14 @@ class PeerBlockBodyFetcherTest
       }
 
       val clientTxsData = missedTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
-        clientTxsData.get(id).pure[F]
-      }
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            clientTxsData(id).pure[F]
+        }
 
       val downloadedTxs =
         mutable.Map.empty[TransactionId, IoTransaction]
@@ -93,18 +102,23 @@ class PeerBlockBodyFetcherTest
         downloadedTxs.put(id, tx).pure[F].void
       }
 
-      (headerToBodyValidation.validate _).expects(*).rep(presentBlockIdAndBodies.size).onCall { block: Block =>
+      (headerToBodyValidation.validate _).expects(*).rep(presentBlocks.size).onCall { block: Block =>
         Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
       }
 
       val wrappedBodies =
         blockHeadersAndBodies.map { case (header, body) =>
           if (clientBodiesData.contains(header.id)) {
-            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
+            (
+              header,
+              Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0))
+            )
           } else {
             (
               header,
-              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](BlockBodyDownloadError.BodyNotFoundInPeer)
+              Either.left[BlockBodyOrTransactionError, UnverifiedBlockBody](
+                BlockBodyOrTransactionError.BodyNotFoundInPeer
+              )
             )
           }
         }
@@ -116,7 +130,7 @@ class PeerBlockBodyFetcherTest
         .returning(().pure[F])
 
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, defaultTxSyntaxValidator)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(blockHeadersAndBodies.map(_._1)))
@@ -164,9 +178,14 @@ class PeerBlockBodyFetcherTest
       }
 
       val clientTxsData = missedTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
-        clientTxsData.get(id).pure[F]
-      }
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            clientTxsData(id).pure[F]
+        }
 
       val downloadedTxs =
         mutable.Map.empty[TransactionId, IoTransaction]
@@ -190,12 +209,15 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         blockIdsBodiesHeaders.map { case (id, body, header) =>
           if (correctTxRootBlockIds.contains(id)) {
-            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
+            (
+              header,
+              Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0))
+            )
           } else {
             (
               header,
-              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
-                BlockBodyDownloadError.BodyHaveIncorrectTxRoot(body.merkleTreeRootHash, incorrectTxRoot)
+              Either.left[BlockBodyOrTransactionError, UnverifiedBlockBody](
+                BlockBodyOrTransactionError.BodyHaveIncorrectTxRoot(body.merkleTreeRootHash, incorrectTxRoot)
               )
             )
           }
@@ -209,7 +231,7 @@ class PeerBlockBodyFetcherTest
 
       val sendMessage = blockIdsBodiesHeaders.map(_._3)
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, defaultTxSyntaxValidator)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(sendMessage))
@@ -259,13 +281,18 @@ class PeerBlockBodyFetcherTest
       (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(false.pure[F])
 
       val clientTxsData = txIdsAndTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
-        if (transactionIsMissed(id)) {
-          Option.empty[IoTransaction].pure[F]
-        } else {
-          clientTxsData.get(id).pure[F]
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, error: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            if (transactionIsMissed(id)) {
+              throw error()
+            } else {
+              clientTxsData(id).pure[F]
+            }
         }
-      }
 
       (transactionStore.put _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
 
@@ -276,13 +303,16 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         headerBodyTxIdTx.map { case (header, body, _) =>
           if (!blockIsMissed(body)) {
-            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
+            (
+              header,
+              Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0))
+            )
           } else {
             val missedId = body.allTransactionIds.find(transactionIsMissed).get
             (
               header,
-              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
-                BlockBodyDownloadError.TransactionNotFoundInPeer(missedId)
+              Either.left[BlockBodyOrTransactionError, UnverifiedBlockBody](
+                BlockBodyOrTransactionError.TransactionNotFoundInPeer(missedId)
               )
             )
           }
@@ -296,7 +326,7 @@ class PeerBlockBodyFetcherTest
         .returning(().pure[F])
 
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, defaultTxSyntaxValidator)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBodyTxIdTx.map(_._1)))
@@ -350,13 +380,18 @@ class PeerBlockBodyFetcherTest
       (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(false.pure[F])
 
       val clientTxsData = txIdsAndTxs.toMap
-      (client.getRemoteTransaction _).expects(*).anyNumberOfTimes().onCall { id: TransactionId =>
-        if (transactionHaveIncorrectId(id)) {
-          Option(incorrectTransaction).pure[F]
-        } else {
-          clientTxsData.get(id).pure[F]
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            if (transactionHaveIncorrectId(id)) {
+              incorrectTransaction.pure[F]
+            } else {
+              clientTxsData(id).pure[F]
+            }
         }
-      }
 
       (transactionStore.put _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
 
@@ -367,13 +402,16 @@ class PeerBlockBodyFetcherTest
       val wrappedBodies =
         headerBodyTxIdTx.map { case (header, body, _) =>
           if (!blockIsMissed(body)) {
-            (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
+            (
+              header,
+              Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0))
+            )
           } else {
             val expectedId = body.allTransactionIds.find(transactionHaveIncorrectId).get
             (
               header,
-              Either.left[BlockBodyDownloadError, UnverifiedBlockBody](
-                BlockBodyDownloadError.TransactionHaveIncorrectId(expectedId, incorrectTransactionId)
+              Either.left[BlockBodyOrTransactionError, UnverifiedBlockBody](
+                BlockBodyOrTransactionError.TransactionHaveIncorrectId(expectedId, incorrectTransactionId)
               )
             )
           }
@@ -387,7 +425,7 @@ class PeerBlockBodyFetcherTest
         .returning(().pure[F])
 
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, defaultTxSyntaxValidator)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBodyTxIdTx.map(_._1)))
@@ -434,9 +472,14 @@ class PeerBlockBodyFetcherTest
       }
 
       val clientTxsData = missedTxs.toMap
-      (client.getRemoteTransaction _).expects(*).rep(missedTxs.size).onCall { id: TransactionId =>
-        clientTxsData.get(id).pure[F]
-      }
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            clientTxsData(id).pure[F]
+        }
 
       val downloadedTxs =
         mutable.Map.empty[TransactionId, IoTransaction]
@@ -450,7 +493,7 @@ class PeerBlockBodyFetcherTest
 
       val wrappedBodies =
         headerBody.map { case (header, body) =>
-          (header, Either.right[BlockBodyDownloadError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
+          (header, Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0)))
         }
       val expectedMessage = RequestsProxy.Message.DownloadBodiesResponse(hostId, wrappedBodies)
       (requestsProxy.sendNoWait _)
@@ -459,7 +502,7 @@ class PeerBlockBodyFetcherTest
         .returning(().pure[F])
 
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, defaultTxSyntaxValidator)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBody.map(_._1)))
@@ -496,9 +539,14 @@ class PeerBlockBodyFetcherTest
       (transactionStore.contains _).expects(*).once().returns(true.pure[F])
       (transactionStore.contains _).expects(*).rep(txIdsAndTxs.size - 1).returns(false.pure[F])
 
-      (client.getRemoteTransaction _).expects(*).rep(txIdsAndTxs.size - 1).onCall { id: TransactionId =>
-        Async[F].delayBy(txIdsAndTxs.get(id).pure[F], FiniteDuration(txDelay, MILLISECONDS))
-      }
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            Async[F].delayBy(txIdsAndTxs(id).pure[F], FiniteDuration(txDelay, MILLISECONDS))
+        }
 
       val downloadedTxs =
         mutable.Map.empty[TransactionId, IoTransaction]
@@ -532,7 +580,7 @@ class PeerBlockBodyFetcherTest
       }
 
       PeerBlockBodyFetcher
-        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation)
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, defaultTxSyntaxValidator)
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(NonEmptyChain.one(header)))

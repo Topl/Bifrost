@@ -9,6 +9,7 @@ import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
@@ -28,6 +29,7 @@ object NetworkManager {
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
@@ -37,6 +39,7 @@ object NetworkManager {
     transactionStore:            Store[F, TransactionId, IoTransaction],
     remotePeerStore:             Store[F, Unit, Seq[RemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    mempool:                     MempoolAlgebra[F],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                Seq[RemoteAddress],
     networkProperties:           NetworkProperties,
@@ -59,7 +62,9 @@ object NetworkManager {
         slotDataStore,
         transactionStore,
         blockIdTree,
+        mempool,
         headerToBodyValidation,
+        transactionSyntaxValidation,
         addRemotePeerAlgebra,
         p2pNetworkConfig,
         hotPeersUpdate,
