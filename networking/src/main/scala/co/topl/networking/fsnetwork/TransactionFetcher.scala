@@ -19,7 +19,8 @@ class TransactionFetcher[F[_]: Async: Logger](
   hostId:                      HostId,
   transactionSyntaxValidation: TransactionSyntaxVerifier[F],
   transactionStore:            Store[F, TransactionId, IoTransaction],
-  client:                      BlockchainPeerClient[F]
+  client:                      BlockchainPeerClient[F],
+  runSyntaxCheck:              Boolean
 ) {
 
   def downloadCheckSaveTransaction(transactionId: TransactionId): F[(TransactionId, Option[Long])] =
@@ -42,9 +43,13 @@ class TransactionFetcher[F[_]: Async: Logger](
     if (downloadedTransactionId =!= transactionId) {
       MonadThrow[F].raiseError(TransactionHaveIncorrectId(transactionId, downloadedTransactionId))
     } else {
-      EitherT(transactionSyntaxValidation.validate(downloadedTransaction))
-        .leftMap(errors => TransactionHaveIncorrectSyntax(transactionId, errors))
-        .rethrowT
+      if (runSyntaxCheck) {
+        EitherT(transactionSyntaxValidation.validate(downloadedTransaction))
+          .leftMap(errors => TransactionHaveIncorrectSyntax(transactionId, errors))
+          .rethrowT
+      } else {
+        downloadedTransaction.pure[F]
+      }
     }
   }
 
