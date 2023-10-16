@@ -19,25 +19,26 @@ class TransactionFetcher[F[_]: Async: Logger](
   hostId:                      HostId,
   transactionSyntaxValidation: TransactionSyntaxVerifier[F],
   transactionStore:            Store[F, TransactionId, IoTransaction],
-  client:                      BlockchainPeerClient[F],
-  runSyntaxCheck:              Boolean
+  client:                      BlockchainPeerClient[F]
 ) {
 
-  def downloadCheckSaveTransaction(transactionId: TransactionId): F[(TransactionId, Option[Long])] =
+  def downloadCheckSaveTransaction(
+    transactionId:  TransactionId,
+    runSyntaxCheck: Boolean
+  ): F[(TransactionId, Option[Long])] =
     for {
-      _                     <- Logger[F].debug(show"Fetching transaction id=$transactionId from peer $hostId")
-      transactionStart      <- System.currentTimeMillis().pure[F]
-      downloadedTransaction <- downloadTransaction(transactionId)
-      transactionEnd        <- System.currentTimeMillis().pure[F]
-      _                     <- checkTransaction(transactionId, downloadedTransaction, transactionSyntaxValidation)
-      _                     <- Logger[F].debug(show"Saving transaction id=$transactionId")
-      _                     <- transactionStore.put(transactionId, downloadedTransaction)
-    } yield (transactionId, Option(transactionEnd - transactionStart))
+      _ <- Logger[F].debug(show"Fetching transaction id=$transactionId from peer $hostId")
+      (downloadTime, downloadedTransaction) <- Async[F].timed(downloadTransaction(transactionId))
+      _ <- checkTransaction(transactionId, downloadedTransaction, transactionSyntaxValidation, runSyntaxCheck)
+      _ <- Logger[F].debug(show"Saving transaction id=$transactionId")
+      _ <- transactionStore.put(transactionId, downloadedTransaction)
+    } yield (transactionId, Option(downloadTime.toMillis))
 
   private def checkTransaction(
     transactionId:               TransactionId,
     downloadedTransaction:       IoTransaction,
-    transactionSyntaxValidation: TransactionSyntaxVerifier[F]
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
+    runSyntaxCheck:              Boolean
   ): F[IoTransaction] = {
     val downloadedTransactionId = downloadedTransaction.id
     if (downloadedTransactionId =!= transactionId) {

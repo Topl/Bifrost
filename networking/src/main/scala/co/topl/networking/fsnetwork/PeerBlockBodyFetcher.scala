@@ -18,7 +18,6 @@ import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionErr
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.{Block, BlockBody}
-import co.topl.models.utility._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -65,11 +64,11 @@ object PeerBlockBodyFetcher {
     transactionSyntaxValidation: TransactionSyntaxVerifier[F]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
     val transactionFetcher =
-      new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client, false)
+      new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
     val initialState =
       State(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, transactionFetcher)
 
-    val actorName = s"Body fetcher actor for peer $hostId"
+    val actorName = show"Body fetcher actor for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
 
@@ -90,15 +89,13 @@ object PeerBlockBodyFetcher {
 
     val body: F[UnverifiedBlockBody] =
       for {
-        _                 <- Logger[F].info(show"Fetching remote body id=$blockId from peer ${state.hostId}")
-        bodyStart         <- System.currentTimeMillis().pure[F]
-        body              <- downloadBlockBody(state, blockId)
-        bodyEnd           <- System.currentTimeMillis().pure[F]
-        _                 <- Logger[F].info(show"Fetched remote body id=$blockId from peer ${state.hostId}")
-        _                 <- checkBody(state, Block(blockHeader, body))
-        txAndDownloadTime <- downloadingMissingTransactions(state, body)
+        _                    <- Logger[F].info(show"Fetching remote body id=$blockId from peer ${state.hostId}")
+        (downloadTime, body) <- Async[F].timed(downloadBlockBody(state, blockId))
+        _                    <- Logger[F].info(show"Fetched remote body id=$blockId from peer ${state.hostId}")
+        _                    <- checkBody(state, Block(blockHeader, body))
+        txAndDownloadTime    <- downloadingMissingTransactions(state, body)
         allTxDownloadTime = txAndDownloadTime.collect { case (_, Some(time)) => time }
-      } yield UnverifiedBlockBody(state.hostId, body, bodyEnd - bodyStart, allTxDownloadTime)
+      } yield UnverifiedBlockBody(state.hostId, body, downloadTime.toMillis, allTxDownloadTime)
 
     body
       .map(blockBody => Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](blockBody))
@@ -130,18 +127,23 @@ object PeerBlockBodyFetcher {
     state:     State[F],
     blockBody: BlockBody
   ): F[List[(TransactionId, Option[Long])]] =
-    Stream
-      .iterable[F, TransactionId](blockBody.allTransactionIds)
-      .evalMap(transactionId =>
-        state.transactionStore
-          .contains(transactionId)
-          .flatMap {
-            case true  => (transactionId, Option.empty[Long]).pure[F]
-            case false => state.transactionFetcher.downloadCheckSaveTransaction(transactionId)
-          }
-      )
-      .compile
-      .toList
+    (Stream
+      .iterable[F, TransactionId](blockBody.transactionIds)
+      .evalMap(downloadCheckSaveTransaction(state, checkSyntax = true)) ++
+      Stream
+        .iterable[F, TransactionId](blockBody.rewardTransactionId)
+        .evalMap(downloadCheckSaveTransaction(state, checkSyntax = false))).compile.toList
+
+  private def downloadCheckSaveTransaction[F[_]: Async](
+    state:       State[F],
+    checkSyntax: Boolean
+  )(id: TransactionId): F[(TransactionId, Option[Long])] =
+    state.transactionStore
+      .contains(id)
+      .flatMap {
+        case true  => (id, Option.empty[Long]).pure[F]
+        case false => state.transactionFetcher.downloadCheckSaveTransaction(id, checkSyntax)
+      }
 
   private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(show"Start body fetcher actor for peer ${state.hostId}") >>
