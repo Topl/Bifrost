@@ -9,11 +9,12 @@ import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.TransactionSyntaxError.EmptyInputs
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.BlockHeaderToBodyValidationAlgebra
 import co.topl.consensus.models.BlockHeaderToBodyValidationFailure.IncorrectTxRoot
-import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockId}
+import co.topl.consensus.models.{BlockHeader, BlockHeaderToBodyValidationFailure, BlockId}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.TxRoot
 import co.topl.models.generators.consensus.ModelGenerators
@@ -21,6 +22,7 @@ import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
 import co.topl.models.utility._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError.TransactionHaveIncorrectSyntax
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcherTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
@@ -429,6 +431,130 @@ class PeerBlockBodyFetcherTest
         .use { actor =>
           for {
             _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(headerBodyTxIdTx.map(_._1)))
+          } yield ()
+        }
+    }
+  }
+
+  test("Block bodies shall return error if usual transaction have no inputs") {
+    withMock {
+      val client = mock[BlockchainPeerClient[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+
+      val (transaction, body) = arbitraryTxAndBlock.arbitrary.first
+
+      val header: BlockHeader =
+        ModelGenerators.arbitraryHeader.arbitrary.first.copy(txRoot = body.merkleTreeRootHash.data).embedId
+
+      (client.getRemoteBody _).expects(header.id).anyNumberOfTimes().returns(body.some.pure[F])
+
+      (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(false.pure[F])
+
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(transaction.id, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (_: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            transaction.pure[F]
+        }
+
+      (transactionStore.put _).expects(*, *).never().returning(().pure[F])
+
+      (headerToBodyValidation.validate _).expects(*).once().onCall { block: Block =>
+        Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
+      }
+
+      val txError = NonEmptyChain.one(EmptyInputs)
+      val txSyntaxValidator: TransactionSyntaxVerifier[F] =
+        (_: IoTransaction) => Either.left(txError).pure[F]
+
+      val expectedMessage =
+        RequestsProxy.Message.DownloadBodiesResponse(
+          hostId,
+          NonEmptyChain.one(
+            (
+              header,
+              Either.left[BlockBodyOrTransactionError, UnverifiedBlockBody](
+                TransactionHaveIncorrectSyntax(transaction.id, txError)
+              )
+            )
+          )
+        )
+      (requestsProxy.sendNoWait _)
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
+
+      PeerBlockBodyFetcher
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, txSyntaxValidator)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(NonEmptyChain.one(header)))
+          } yield ()
+        }
+    }
+  }
+
+  test("Block bodies shall not return error if reward transaction have no inputs") {
+    withMock {
+      val client = mock[BlockchainPeerClient[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+
+      val rewardTransaction = arbitraryIoTransaction.arbitrary.map(_.embedId).first
+      val (transaction, bodyNoReward) = arbitraryTxAndBlock.arbitrary.first
+      val body = bodyNoReward.copy(rewardTransactionId = rewardTransaction.id.some)
+
+      val header: BlockHeader =
+        ModelGenerators.arbitraryHeader.arbitrary.first.copy(txRoot = body.merkleTreeRootHash.data).embedId
+
+      (client.getRemoteBody _).expects(header.id).anyNumberOfTimes().returns(body.some.pure[F])
+
+      (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(false.pure[F])
+
+      val allTx = Seq(transaction, rewardTransaction).map(tx => tx.id -> tx).toMap
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            allTx(id).pure[F]
+        }
+
+      (transactionStore.put _).expects(*, *).twice().returning(().pure[F])
+
+      (headerToBodyValidation.validate _).expects(*).once().onCall { block: Block =>
+        Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
+      }
+
+      val txSyntaxValidator = mock[TransactionSyntaxVerifier[F]]
+      (txSyntaxValidator.validate _).expects(transaction).returns(Either.right(transaction).pure[F])
+
+      val expectedMessage =
+        RequestsProxy.Message.DownloadBodiesResponse(
+          hostId,
+          NonEmptyChain.one(
+            (
+              header,
+              Either.right[BlockBodyOrTransactionError, UnverifiedBlockBody](UnverifiedBlockBody(hostId, body, 0))
+            )
+          )
+        )
+      (requestsProxy.sendNoWait _)
+        .expects(compareDownloadedBodiesWithoutDownloadTimeMatcher(expectedMessage))
+        .once()
+        .returning(().pure[F])
+
+      PeerBlockBodyFetcher
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, txSyntaxValidator)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(NonEmptyChain.one(header)))
           } yield ()
         }
     }

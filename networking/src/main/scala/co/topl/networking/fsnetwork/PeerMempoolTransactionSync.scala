@@ -53,8 +53,7 @@ object PeerMempoolTransactionSync {
     mempool:                     MempoolAlgebra[F],
     reputationAggregator:        ReputationAggregatorActor[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]] = {
-    val transactionFetcher =
-      new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client, true)
+    val transactionFetcher = new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
     val initialState =
       State(hostId, client, transactionStore, transactionFetcher, mempool, reputationAggregator, None)
     val actorName = s"Mempool transaction sync for peer $hostId"
@@ -104,7 +103,7 @@ object PeerMempoolTransactionSync {
       for {
         // tx download time could be used for performance measure,
         // but reputation aggregator will be overwhelmed by messages
-        (id, _) <- state.transactionFetcher.downloadCheckSaveTransaction(id)
+        (id, _) <- state.transactionFetcher.downloadCheckSaveTransaction(id, runSyntaxCheck = true)
         _       <- state.mempool.add(id)
       } yield id
 

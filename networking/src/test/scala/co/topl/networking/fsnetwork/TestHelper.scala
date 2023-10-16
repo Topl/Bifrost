@@ -75,6 +75,14 @@ object TestHelper extends TransactionGenerator {
       } yield (txs, BlockBody(txs.map(tx => tx.id)))
     )
 
+  implicit val arbitraryTxAndBlock: Arbitrary[(IoTransaction, BlockBody)] =
+    Arbitrary(
+      for {
+        tx <- arbitraryIoTransaction.arbitrary.map(_.embedId)
+        // TODO: Reward
+      } yield (tx, BlockBody(Seq(tx.id)))
+    )
+
   def headerToSlotData(header: BlockHeader): SlotData = {
     val sampleSlotData = ModelGenerators.arbitrarySlotData.arbitrary.first
     val slotId = sampleSlotData.slotId.copy(blockId = header.id)
