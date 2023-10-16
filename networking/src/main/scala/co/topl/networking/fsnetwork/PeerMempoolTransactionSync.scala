@@ -53,7 +53,8 @@ object PeerMempoolTransactionSync {
     mempool:                     MempoolAlgebra[F],
     reputationAggregator:        ReputationAggregatorActor[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]] = {
-    val transactionFetcher = new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
+    val transactionFetcher =
+      new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client, true)
     val initialState =
       State(hostId, client, transactionStore, transactionFetcher, mempool, reputationAggregator, None)
     val actorName = s"Mempool transaction sync for peer $hostId"

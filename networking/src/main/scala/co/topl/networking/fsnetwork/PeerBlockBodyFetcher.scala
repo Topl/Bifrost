@@ -64,7 +64,8 @@ object PeerBlockBodyFetcher {
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F]
   ): Resource[F, PeerBlockBodyFetcherActor[F]] = {
-    val transactionFetcher = new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
+    val transactionFetcher =
+      new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client, false)
     val initialState =
       State(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, transactionFetcher)
 
