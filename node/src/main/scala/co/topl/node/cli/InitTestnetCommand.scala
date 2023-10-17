@@ -1,12 +1,13 @@
 package co.topl.node.cli
 
-import cats.MonadThrow
+import cats.{MonadThrow, Show}
 import cats.data.{EitherT, OptionT}
 import cats.effect.std.{Console, SecureRandom}
 import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.blockchain.{BigBang, PrivateTestnet, StakerInitializers, StakingInit}
 import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.box.Value.UpdateProposal
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, UnspentTransactionOutput}
 import co.topl.brambl.models.{Datum, Event}
 import co.topl.brambl.syntax._
@@ -14,13 +15,15 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
-import co.topl.models.utility.Ratio
 import co.topl.node.ProtocolVersioner
-import co.topl.node.models.{BlockBody, FullBlock}
+import co.topl.node.cli.InitTestnetCommand.{DefaultProtocol, DefaultUpdateProposal}
+import co.topl.node.models.{BlockBody, FullBlock, Ratio}
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
+import com.google.protobuf.duration.Duration
 import fs2.io.file.{Files, Path}
 import quivr.models.{Int128, SmallData}
+import co.topl.numerics.implicits._
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
@@ -30,27 +33,24 @@ object InitTestnetCommand {
   def apply[F[_]: Async: Console](appConfig: ApplicationConfig): StageResultT[F, Unit] =
     new InitTestnetCommandImpl[F](appConfig).command
 
-  private[cli] val DefaultProtocolUtxo =
-    UnspentTransactionOutput(
-      PrivateTestnet.HeightLockOneSpendingAddress,
-      BigBang.protocolToUpdateProposal(
-        ApplicationConfig.Bifrost.Protocol(
-          minAppVersion = "2.0.0",
-          fEffective = Ratio(15, 100),
-          vrfLddCutoff = 50,
-          vrfPrecision = 40,
-          vrfBaselineDifficulty = Ratio(1, 20),
-          vrfAmplitude = Ratio(1, 2),
-          // 10x private testnet default, resulting in ~50 minute epochs
-          chainSelectionKLookback = 500,
-          slotDuration = 1.seconds,
-          forwardBiasedSlotWindow = 50,
-          operationalPeriodsPerEpoch = 24,
-          kesKeyHours = 9,
-          kesKeyMinutes = 9
-        )
-      )
+  private[cli] val DefaultProtocol =
+    ApplicationConfig.Bifrost.Protocol(
+      minAppVersion = "2.0.0",
+      fEffective = Ratio(15, 100),
+      vrfLddCutoff = 50,
+      vrfPrecision = 40,
+      vrfBaselineDifficulty = Ratio(1, 20),
+      vrfAmplitude = Ratio(1, 2),
+      // 10x private testnet default, resulting in ~50 minute epochs
+      chainSelectionKLookback = 500,
+      slotDuration = 1.seconds,
+      forwardBiasedSlotWindow = 50,
+      operationalPeriodsPerEpoch = 24,
+      kesKeyHours = 9,
+      kesKeyMinutes = 9
     )
+
+  private[cli] val DefaultUpdateProposal = BigBang.protocolToUpdateProposal(DefaultProtocol)
 
 }
 
@@ -211,6 +211,72 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
             .value
       }).untilDefinedM
 
+  private val readProtocolSettings = {
+    implicit val showRatio: Show[co.topl.models.utility.Ratio] = r => s"${r.numerator}/${r.denominator}"
+    readLowercasedChoice("Do you want to customize the protocol settings?")(List("y", "n"), "n".some).flatMap {
+      case "n" => StageResultT.liftF(DefaultUpdateProposal.pure[F])
+      case "y" =>
+        for {
+          fEffective <- readDefaultedOptional[F, Ratio](
+            "f-effective",
+            List("1/5", "15/100", "1"),
+            DefaultProtocol.fEffective.show
+          )
+          vrfLddCutoff <- readDefaultedOptional[F, Int]("vrf-ldd-cutoff", List("50"), DefaultProtocol.vrfLddCutoff.show)
+          vrfPrecision <- readDefaultedOptional[F, Int]("vrf-precision", List("40"), DefaultProtocol.vrfPrecision.show)
+          vrfBaselineDifficulty <- readDefaultedOptional[F, Ratio](
+            "vrf-baseline-difficulty",
+            List("1/20", "1/50"),
+            DefaultProtocol.vrfBaselineDifficulty.show
+          )
+          vrfAmplitude <- readDefaultedOptional[F, Ratio](
+            "vrf-amplitude",
+            List("1/2"),
+            DefaultProtocol.vrfAmplitude.show
+          )
+          chainSelectionKLookback <- readDefaultedOptional[F, Long](
+            "chain-selection-k-lookback",
+            List("500"),
+            DefaultProtocol.chainSelectionKLookback.show
+          )
+          slotDuration <- readDefaultedOptional[F, Duration](
+            "slot-duration",
+            List("1000 milli"),
+            DefaultProtocol.slotDuration.show
+          )
+          forwardBiasedSlotWindow <- readDefaultedOptional[F, Long](
+            "forward-biased-slot-window",
+            List("50"),
+            DefaultProtocol.forwardBiasedSlotWindow.show
+          )
+          operationalPeriodsPerEpoch <- readDefaultedOptional[F, Long](
+            "operational-periods-per-epoch",
+            List("2"),
+            DefaultProtocol.operationalPeriodsPerEpoch.show
+          )
+          kesKeyHours <- readDefaultedOptional[F, Int]("kes-key-hours", List("9"), DefaultProtocol.kesKeyHours.show)
+          kesKeyMinutes <- readDefaultedOptional[F, Int](
+            "kes-key-minutes",
+            List("9"),
+            DefaultProtocol.kesKeyMinutes.show
+          )
+        } yield UpdateProposal(
+          "genesis",
+          fEffective.some,
+          vrfLddCutoff.some,
+          vrfPrecision.some,
+          vrfBaselineDifficulty.some,
+          vrfAmplitude.some,
+          chainSelectionKLookback.some,
+          slotDuration.some,
+          forwardBiasedSlotWindow.some,
+          operationalPeriodsPerEpoch.some,
+          kesKeyHours.some,
+          kesKeyMinutes.some
+        )
+    }
+  }
+
   private def readOutputDirectory(genesisBlock: FullBlock) =
     writeMessage[F]("Enter a save directory.  Leave blank to use a temporary directory.") >>
     readInput[F].semiflatMap {
@@ -275,25 +341,29 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
     writeMessage[F](s"The testnet has been initialized.") >> writeMessage[F](
       s"Each of the stakers in ${dir / "stakers"} should be copied to the corresponding node/machine."
     ) >> writeMessage[F](
-      s"The node should also be reconfigured such that by adding the following lines to your YAML config:"
+      s"The node should also be reconfigured by adding the following lines to your YAML config:"
     ) >>
     writeMessage[F]("bifrost:") >>
     writeMessage[F]("  big-bang:") >>
     writeMessage[F]("    type: public") >>
-    writeMessage[F](s"   genesis-id: ${genesisId.show}") >>
-    writeMessage[F](s"   source-path: ${dir / "genesis"}")
+    writeMessage[F](s"    genesis-id: ${genesisId.show}") >>
+    writeMessage[F](s"    source-path: ${dir / "genesis"}")
 
   val command: StageResultT[F, Unit] =
     for {
-      _             <- intro
-      stakers       <- readStakers
-      unstakedTopls <- readUnstakedTopls
-      lvls          <- readLvls
-      timestamp     <- readTimestamp
+      _                <- intro
+      stakers          <- readStakers
+      unstakedTopls    <- readUnstakedTopls
+      lvls             <- readLvls
+      protocolSettings <- readProtocolSettings
+      timestamp        <- readTimestamp
+      protocolUtxo = UnspentTransactionOutput(
+        PrivateTestnet.HeightLockOneSpendingAddress,
+        Value.defaultInstance.withUpdateProposal(protocolSettings)
+      )
       tokenTransaction =
         IoTransaction(
-          // TODO: Allow user to customize the protocol instead of assuming a default
-          outputs = InitTestnetCommand.DefaultProtocolUtxo :: unstakedTopls ++ lvls,
+          outputs = protocolUtxo :: unstakedTopls ++ lvls,
           datum = Datum.IoTransaction(
             Event.IoTransaction(Schedule(timestamp = timestamp), metadata = SmallData.defaultInstance)
           )
