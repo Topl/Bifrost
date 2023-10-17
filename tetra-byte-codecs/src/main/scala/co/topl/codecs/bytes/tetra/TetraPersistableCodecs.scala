@@ -53,6 +53,9 @@ trait TetraPersistableCodecs {
   implicit val persistableByte: Persistable[Byte] =
     Persistable.instanceFromCodec
 
+  implicit val persistableByteArray: Persistable[Array[Byte]] =
+    Persistable.instanceFromCodec
+
   implicit val persistableByteString: Persistable[ByteString] =
     Persistable.instanceFromCodec
 
