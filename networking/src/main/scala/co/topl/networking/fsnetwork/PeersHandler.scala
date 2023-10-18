@@ -42,6 +42,9 @@ case class PeersHandler[F[_]: Async: Logger](
 
   def apply(hostId: HostId): Peer[F] = peers(hostId)
 
+  def forPeersWithActor[R](f: Peer[F] => R): Seq[R] =
+    peers.values.filter(_.actorOpt.isDefined).map(f).toSeq
+
   def haveNoActorForHost(hostId: HostId): Boolean = peers.get(hostId).flatMap(_.actorOpt).isEmpty
 
   private def hostIsBanned(hostId: HostId): Boolean = peers.get(hostId).exists(_.state == PeerState.Banned)
@@ -253,7 +256,7 @@ case class Peer[F[_]: Logger](
   def sendNoWait(message: PeerActor.Message): F[Unit] =
     actorOpt match {
       case Some(actor) => actor.sendNoWait(message)
-      case None        => Logger[F].debug(show"Send message to peer with no running client")
+      case None        => Logger[F].trace(show"Send message to peer with no running client")
     }
 
   def asRemoteAddress: Option[RemoteAddress] = remoteServerPort.map(RemoteAddress(ip, _))

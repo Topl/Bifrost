@@ -13,7 +13,7 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{PeerConnectionChange, PeerConnectionChanges, RemoteAddress}
@@ -39,6 +39,7 @@ object NetworkManager {
     transactionStore:            Store[F, TransactionId, IoTransaction],
     remotePeerStore:             Store[F, Unit, Seq[RemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     networkAlgebra:              NetworkAlgebra[F],
     initialHosts:                Seq[RemoteAddress],
@@ -62,6 +63,7 @@ object NetworkManager {
         slotDataStore,
         transactionStore,
         blockIdTree,
+        blockHeights,
         mempool,
         headerToBodyValidation,
         transactionSyntaxValidation,
