@@ -11,7 +11,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
@@ -68,6 +68,11 @@ object PeerActor {
     case object GetNetworkQuality extends Message
 
     /**
+     * Find and print common ancestor for remote peer
+     */
+    case object PrintCommonAncestor extends Message
+
+    /**
      * Request to get remote host's hot connections
      */
     case class GetHotPeersFromPeer(maxHosts: Int) extends Message
@@ -86,6 +91,9 @@ object PeerActor {
     blockBodyActor:       PeerBlockBodyFetcherActor[F],
     mempoolSync:          PeerMempoolTransactionSyncActor[F],
     peersManager:         PeersManagerActor[F],
+    localChain:           LocalChainAlgebra[F],
+    slotDataStore:        Store[F, BlockId, SlotData],
+    blockHeights:         EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     networkLevel:         Boolean,
     applicationLevel:     Boolean,
     genesisBlockId:       BlockId
@@ -101,6 +109,7 @@ object PeerActor {
     case (state, DownloadBlockBodies(blockHeaders))           => downloadBodies(state, blockHeaders)
     case (state, GetCurrentTip)                               => getCurrentTip(state)
     case (state, GetNetworkQuality)                           => getNetworkQuality(state)
+    case (state, PrintCommonAncestor)                         => printCommonAncestor(state)
     case (state, GetHotPeersFromPeer(maxHosts))               => getHotPeersOfCurrentPeer(state, maxHosts)
     case (state, GetPeerServerAddress)                        => getPeerServerAddress(state)
   }
@@ -116,6 +125,7 @@ object PeerActor {
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F]
@@ -163,6 +173,9 @@ object PeerActor {
         body,
         mempoolSync,
         peersManager,
+        localChain,
+        slotDataStore,
+        blockHeights,
         initNetworkLevel,
         initAppLevel,
         genesisSlotData.slotId.blockId
@@ -333,4 +346,38 @@ object PeerActor {
         Logger[F].error(s"Remote peer ${state.hostId} provide incorrect genesis information: $exceptionMessage") >>
         state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
       }
+
+  private def printCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    state.client
+      .findCommonAncestor(
+        getLocalBlockIdAtHeight(state.localChain, state.blockHeights),
+        () => state.localChain.head.map(_.height)
+      )
+      .flatTap(ancestor =>
+        state.slotDataStore
+          .getOrRaise(ancestor)
+          .flatMap(slotData =>
+            Logger[F].info(
+              show"Traced common ancestor to" +
+              show" id=$ancestor" +
+              show" height=${slotData.height}" +
+              show" slot=${slotData.slotId.slot}"
+            )
+          )
+      )
+      .void
+      .handleErrorWith { e =>
+        Logger[F].error(e)("Common ancestor trace failed") >>
+        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+      } >> (state, state).pure[F]
+
+  private def getLocalBlockIdAtHeight[F[_]: Async](
+    localChain:   LocalChainAlgebra[F],
+    blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
+  )(height: Long) =
+    OptionT(
+      localChain.head
+        .map(_.slotId.blockId)
+        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
+    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
 }

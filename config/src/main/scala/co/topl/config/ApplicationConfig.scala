@@ -52,7 +52,6 @@ object ApplicationConfig {
     )
 
     case class NetworkProperties(
-      legacyNetwork:                        Boolean = false,
       pingPongInterval:                     FiniteDuration = FiniteDuration(90, SECONDS),
       expectedSlotsPerBlock:                Double = 5.0, // TODO shall be calculated?
       maxPerformanceDelayInSlots:           Double = 2.0,
@@ -64,6 +63,7 @@ object ApplicationConfig {
       minimumWarmConnections:               Int = 6,
       maximumWarmConnections:               Int = 12,
       warmHostsUpdateEveryNBlock:           Double = 4.0,
+      commonAncestorTrackInterval:          FiniteDuration = FiniteDuration(10, SECONDS),
       // we could try to connect to remote peer again after
       // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
       closeTimeoutFirstDelayInMs: Long = 1000,

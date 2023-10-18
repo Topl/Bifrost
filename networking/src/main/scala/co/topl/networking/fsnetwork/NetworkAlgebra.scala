@@ -7,7 +7,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
+import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
@@ -33,6 +33,7 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -85,6 +86,7 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F]
@@ -128,6 +130,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -148,6 +151,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
       slotDataStore,
       transactionStore,
       blockIdTree,
+      blockHeights,
       mempool,
       headerToBodyValidation,
       transactionSyntaxValidation,
@@ -221,6 +225,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F]
@@ -236,6 +241,7 @@ class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F
       slotDataStore,
       transactionStore,
       blockIdTree,
+      blockHeights,
       headerToBodyValidation,
       transactionSyntaxValidation,
       mempool

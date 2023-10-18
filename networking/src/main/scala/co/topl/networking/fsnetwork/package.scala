@@ -180,7 +180,10 @@ package object fsnetwork {
   private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
   implicit val peerToAddCodec: Codec[RemotePeer] = (remoteAddressCodec :: double :: double).as[RemotePeer]
 
-  def getTotalReputation(blockProvidingRep: HostReputationValue, performanceRep: HostReputationValue) =
+  def getTotalReputation(
+    blockProvidingRep: HostReputationValue,
+    performanceRep:    HostReputationValue
+  ): HostReputationValue =
     (blockProvidingRep + performanceRep) / 2
 
   case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: FiniteDuration) {
@@ -230,7 +233,10 @@ package object fsnetwork {
      * How often we update our list of warm hosts
      */
     val warmHostsUpdateInterval: FiniteDuration =
-      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
+      FiniteDuration(
+        Math.ceil(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis).toInt,
+        MILLISECONDS
+      )
   }
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
