@@ -1,88 +1,19 @@
 package co.topl.node.cli
 
-import cats.data.{EitherT, OptionT}
-import cats.effect.{Async, Sync}
+import cats.effect.Async
 import cats.effect.std.Console
-import cats.implicits._
 import co.topl.brambl.models.box.Value
-import co.topl.brambl.models.{Datum, Event, LockAddress}
 import co.topl.brambl.models.box.Value.UpdateProposal
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, UnspentTransactionOutput}
-import co.topl.numerics.implicits._
-
-import scala.util.Try
+import co.topl.brambl.models.{Datum, Event, LockAddress}
+import co.topl.node.cli.ProposalCommand.Messages
 import co.topl.node.models.Ratio
 import com.google.protobuf.duration.Duration
 import fs2.io.file.Path
-import co.topl.node.cli.ProposalCommand.Messages
-import co.topl.node.cli.ProposalCommand.Implicits._
-import co.topl.node.cli.ProposalCommand.util._
 
 object ProposalCommand {
 
   def apply[F[_]: Async: Console]: StageResultT[F, Unit] = new ProposalCommandImpl[F].command
-
-  /**
-   * If this approach is approved, this util should be moved to a common place, and use it on CliApp
-   */
-  object util {
-
-    def read[F[_]: Sync, T](param: String, example: String)(implicit
-      c: Console[F],
-      f: String => Try[T]
-    ): StageResultT[F, T] =
-      (writeMessage[F](s"Please enter $param parameter. $example") >>
-        readInput[F].semiflatMap(input =>
-          EitherT
-            .fromEither[F](f(input).toEither)
-            .leftSemiflatTap(error => c.println(s"Invalid $param. Reason=$error input=$input"))
-            .toOption
-            .value
-        )).untilDefinedM
-
-    def readOptional[F[_]: Sync, T](param: String, example: String)(implicit
-      c: Console[F],
-      f: String => Try[T]
-    ): StageResultT[F, Option[T]] =
-      (writeMessage[F](s"Please enter $param parameter. $example") >>
-        readInput[F].semiflatMap(input =>
-          OptionT
-            .fromOption[F](Option.when(input.isEmpty)(Option.empty[T]))
-            .orElse(
-              EitherT
-                .fromEither[F](f(input).toEither.map(_.some))
-                .leftSemiflatTap(error => c.println(s"Invalid $param. Reason=$error input=$input"))
-                .toOption
-            )
-            .value
-        )).untilDefinedM
-
-  }
-
-  object Implicits {
-    implicit private[cli] val parseInt: String => Try[Int] = (s: String) => Try(s.toInt)
-    implicit private[cli] val parseLong: String => Try[Long] = (s: String) => Try(s.toLong)
-
-    implicit private[cli] val parseString: String => Try[String] = (s: String) =>
-      Either.cond(s.nonEmpty, s, new IllegalArgumentException("Empty Input")).toTry
-
-    implicit private[cli] val parseRatio: String => Try[Ratio] =
-      (s: String) =>
-        Try {
-          s.split("/") match {
-            case Array(numerator)              => Ratio(numerator.toInt, 1)
-            case Array(numerator, denominator) => Ratio(numerator.toInt, denominator.toInt)
-            case _                             => throw new IllegalArgumentException("Ratio parse error")
-          }
-        }
-
-    implicit private[cli] val parseDuration: String => Try[Duration] = (s: String) =>
-      Try(com.google.protobuf.duration.Duration(scala.concurrent.duration.Duration(s).toSeconds, 0))
-
-    implicit private[cli] val parseLockAddress: String => Try[LockAddress] = (s: String) =>
-      co.topl.brambl.codecs.AddressCodecs.decodeAddress(s).toTry
-
-  }
 
   object Messages {
 
@@ -107,18 +38,18 @@ private class ProposalCommandImpl[F[_]: Async](implicit c: Console[F]) {
     for {
       _ <- writeMessage[F](Messages.intro)
 
-      label                      <- read[F, String]("label <required>", "Ex: Update Slot duration")
-      fEffective                 <- readOptional[F, Ratio]("f-effective", "Ex:18/2, 9/1, 9")
-      vrfLddCutoff               <- readOptional[F, Int]("vrf-ldd-cutoff", "Ex:50")
-      vrfPrecision               <- readOptional[F, Int]("vrf-precision", "Ex:40")
-      vrfBaselineDifficulty      <- readOptional[F, Ratio]("vrf-baseline-difficulty", "Ex:1/20")
-      vrfAmplitude               <- readOptional[F, Ratio]("vrf-amplitude", "Ex:1/2")
-      chainSelectionKLookback    <- readOptional[F, Long]("chain-selection-k-lookback", "Ex:50")
-      slotDuration               <- readOptional[F, Duration]("slot-duration", "Ex: 1000 milli")
-      forwardBiasedSlotWindow    <- readOptional[F, Long]("forward-biased-slot-window", "Ex:50")
-      operationalPeriodsPerEpoch <- readOptional[F, Long]("operational-periods-per-epoch", "Ex:2")
-      kesKeyHours                <- readOptional[F, Int]("kes-key-hours", "Ex:2")
-      kesKeyMinutes              <- readOptional[F, Int]("kes-key-minutes", "Ex:9")
+      label                      <- read[F, String]("label <required>", List("Update Slot duration"))
+      fEffective                 <- readOptional[F, Ratio]("f-effective", List("15/100"))
+      vrfLddCutoff               <- readOptional[F, Int]("vrf-ldd-cutoff", List("50"))
+      vrfPrecision               <- readOptional[F, Int]("vrf-precision", List("40"))
+      vrfBaselineDifficulty      <- readOptional[F, Ratio]("vrf-baseline-difficulty", List("1/20"))
+      vrfAmplitude               <- readOptional[F, Ratio]("vrf-amplitude", List("1/2"))
+      chainSelectionKLookback    <- readOptional[F, Long]("chain-selection-k-lookback", List("50"))
+      slotDuration               <- readOptional[F, Duration]("slot-duration", List("1000 milli"))
+      forwardBiasedSlotWindow    <- readOptional[F, Long]("forward-biased-slot-window", List("50"))
+      operationalPeriodsPerEpoch <- readOptional[F, Long]("operational-periods-per-epoch", List("2"))
+      kesKeyHours                <- readOptional[F, Int]("kes-key-hours", List("2"))
+      kesKeyMinutes              <- readOptional[F, Int]("kes-key-minutes", List("9"))
 
       proposal = UpdateProposal(
         label,
@@ -135,7 +66,10 @@ private class ProposalCommandImpl[F[_]: Async](implicit c: Console[F]) {
         kesKeyMinutes
       )
 
-      lockAddress <- read[F, LockAddress]("Address", "Ex: ptetP7jshHVrEKqDRdKAZtuybPZoMWTKKM2ngaJ7L5iZnxP5BprDB3hGJEFr")
+      lockAddress <- read[F, LockAddress](
+        "Address",
+        List("ptetP7jshHVrEKqDRdKAZtuybPZoMWTKKM2ngaJ7L5iZnxP5BprDB3hGJEFr")
+      )
 
       _ <- writeMessage[F](Messages.lockAddress)
       //      _ <- requiresBramblCli // TODO refactor this method and print this message for BramblCLI

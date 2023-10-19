@@ -77,7 +77,10 @@ object PrivateTestnet {
                 HeightLockOneSpendingAddress,
                 Value.defaultInstance.withLvl(Value.LVL(DefaultTotalLvls))
               ),
-              UnspentTransactionOutput(HeightLockOneSpendingAddress, BigBang.protocolToUpdateProposal(protocol))
+              UnspentTransactionOutput(
+                HeightLockOneSpendingAddress,
+                Value.defaultInstance.withUpdateProposal(BigBang.protocolToUpdateProposal(protocol))
+              )
             ),
             datum = Datum.IoTransaction.defaultInstance
           )
