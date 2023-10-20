@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.6"
-  val kamonVersion = "2.6.4"
+  val kamonVersion = "2.6.5"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.2"
@@ -124,7 +124,7 @@ object Dependencies {
   )
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.9.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.10.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.27.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.28.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
