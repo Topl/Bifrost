@@ -26,7 +26,10 @@ import quivr.models.{Int128, SmallData}
 import co.topl.numerics.implicits._
 
 import java.nio.charset.StandardCharsets
+import java.time.{Instant, LocalDateTime}
+import java.time.format.DateTimeFormatter
 import scala.concurrent.duration._
+import scala.util.Try
 
 object InitTestnetCommand {
 
@@ -196,20 +199,49 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
         StageResultT.liftF(List.empty[UnspentTransactionOutput].pure[F])
       )
 
-  private val readTimestamp =
+  private val readTimestamp = {
+    import scala.concurrent.duration._
     (writeMessage[F](
-      "Enter a genesis timestamp (milliseconds since UNIX epoch).  Leave blank to use \"now() + 20 seconds\"."
+      "Enter a genesis timestamp (milliseconds since UNIX epoch) or a relative duration (i.e. 4 hours).  Leave blank to start in 20 seconds."
     ) >>
-      readInput[F].flatMap {
-        case "" =>
-          import scala.concurrent.duration._
-          StageResultT.liftF(Async[F].realTime.map(_ + 20.seconds).map(_.toMillis.some))
-        case str =>
-          OptionT
-            .fromOption[StageResultT[F, *]](str.toLongOption)
-            .flatTapNone(writeMessage[F]("Invalid timestamp"))
-            .value
-      }).untilDefinedM
+    readInput[F].flatMap {
+      case "" =>
+        StageResultT.liftF(Async[F].realTime.map(_ + 20.seconds).map(_.some))
+      case str =>
+        OptionT
+          .fromOption[StageResultT[F, *]](Try(scala.concurrent.duration.Duration(str)).toOption)
+          .semiflatMap(duration => StageResultT.liftF(Async[F].realTime.map(_ + duration)))
+          .orElse(
+            OptionT
+              .fromOption[StageResultT[F, *]](str.toLongOption)
+              .flatTapNone(writeMessage[F]("Invalid timestamp"))
+              .map(_.milli)
+          )
+          .collect { case fd: scala.concurrent.duration.FiniteDuration => fd }
+          // Double-check with the user that the genesis date/time is correct
+          .filterF(duration =>
+            StageResultT
+              .liftF(
+                Sync[F].delay(
+                  DateTimeFormatter
+                    .ofPattern("MM/dd/yyy HH:mm:ss")
+                    .format(
+                      LocalDateTime
+                        .ofInstant(Instant.ofEpochMilli(duration.toMillis), java.time.Clock.systemDefaultZone().getZone)
+                    )
+                )
+              )
+              .flatMap(formattedDateTime =>
+                readLowercasedChoice(s"The blockchain will begin on $formattedDateTime. Continue?")(
+                  List("y", "n"),
+                  "y".some
+                )
+                  .map(_ == "y")
+              )
+          )
+          .value
+    }).untilDefinedM
+  }
 
   private val readProtocolSettings = {
     implicit val showRatio: Show[co.topl.models.utility.Ratio] = r => s"${r.numerator}/${r.denominator}"
@@ -339,7 +371,7 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
 
   private def outro(dir: Path, genesisId: BlockId): StageResultT[F, Unit] =
     writeMessage[F](s"The testnet has been initialized.") >> writeMessage[F](
-      s"Each of the stakers in ${dir / "stakers"} should be copied to the corresponding node/machine."
+      s"Each of the stakers in ${dir / "stakers"} should be moved to the corresponding node/machine."
     ) >> writeMessage[F](
       s"The node should also be reconfigured by adding the following lines to your YAML config:"
     ) >>
@@ -356,7 +388,7 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       unstakedTopls    <- readUnstakedTopls
       lvls             <- readLvls
       protocolSettings <- readProtocolSettings
-      timestamp        <- readTimestamp
+      timestamp        <- readTimestamp.map(_.toMillis)
       protocolUtxo = UnspentTransactionOutput(
         PrivateTestnet.HeightLockOneSpendingAddress,
         Value.defaultInstance.withUpdateProposal(protocolSettings)
