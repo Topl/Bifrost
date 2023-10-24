@@ -369,17 +369,22 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
       )
     } yield ()
 
-  private def outro(dir: Path, genesisId: BlockId): StageResultT[F, Unit] =
-    writeMessage[F](s"The testnet has been initialized.") >> writeMessage[F](
-      s"Each of the stakers in ${dir / "stakers"} should be moved to the corresponding node/machine."
-    ) >> writeMessage[F](
-      s"The node should also be reconfigured by adding the following lines to your YAML config:"
-    ) >>
-    writeMessage[F]("bifrost:") >>
-    writeMessage[F]("  big-bang:") >>
-    writeMessage[F]("    type: public") >>
-    writeMessage[F](s"    genesis-id: ${genesisId.show}") >>
-    writeMessage[F](s"    source-path: ${dir / "genesis"}")
+  private def saveConfig(dir: Path, genesisId: BlockId): StageResultT[F, Unit] =
+    for {
+      configContents <-
+        show"""bifrost:
+          |  big-bang:
+          |    type: public
+          |    genesis-id: $genesisId
+          |    source-path: $dir/genesis
+          |""".stripMargin.pure[StageResultT[F, *]]
+      _ <- writeFile(dir)(configContents.getBytes(StandardCharsets.UTF_8))("Config File", "config.yaml")
+    } yield ()
+
+  private def outro(dir: Path): StageResultT[F, Unit] =
+    writeMessage[F](s"The testnet has been initialized.") >>
+    writeMessage[F](s"Each of the stakers in ${dir / "stakers"} should be moved to the corresponding node/machine.") >>
+    writeMessage[F](s"The node can be launched by passing the following argument at launch: --config $dir/config.yaml")
 
   val command: StageResultT[F, Unit] =
     for {
@@ -412,7 +417,8 @@ class InitTestnetCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implicit
         val name = staker.initializer.stakingAddress.show
         saveStaker(outputDirectory / "stakers", name)(staker)
       }
-      _ <- outro(outputDirectory, genesisBlock.header.id)
+      _ <- saveConfig(outputDirectory, genesisBlock.header.id)
+      _ <- outro(outputDirectory)
     } yield ()
 }
 
