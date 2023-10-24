@@ -1,7 +1,7 @@
 package co.topl.networking
 
 import cats.data.{NonEmptyChain, OptionT}
-import cats.effect.Async
+import cats.effect._
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
@@ -11,14 +11,14 @@ import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
+import co.topl.networking.p2p.RemoteAddress
 import scodec.Codec
-import scodec.codecs.{cstring, double, int32}
+import scodec.codecs.{bool, cstring, double, int32}
 
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
@@ -177,7 +177,7 @@ package object fsnetwork {
     perfReputation:  HostReputationValue
   )
 
-  private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
+  private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32 :: bool).as[RemoteAddress]
   implicit val peerToAddCodec: Codec[RemotePeer] = (remoteAddressCodec :: double :: double).as[RemotePeer]
 
   def getTotalReputation(
@@ -275,13 +275,17 @@ package object fsnetwork {
     implicit def remoteAddressResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemoteAddress, F] =
       (unresolvedHost: RemoteAddress) => {
         val resolver = implicitly[DnsResolver[F]]
-        resolver.resolving(unresolvedHost.host).map(_.map(resolved => unresolvedHost.copy(host = resolved)))
+        if (unresolvedHost.resolveDns)
+          resolver.resolving(unresolvedHost.host).map(_.map(resolved => unresolvedHost.copy(host = resolved)))
+        else Applicative[F].pure(Option(unresolvedHost))
       }
 
     implicit def peerToAddResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemotePeer, F] =
       (unresolvedHost: RemotePeer) => {
         val resolver = implicitly[DnsResolverHT[RemoteAddress, F]]
-        resolver.resolving(unresolvedHost.address).map(_.map(resolved => unresolvedHost.copy(address = resolved)))
+        if (unresolvedHost.address.resolveDns)
+          resolver.resolving(unresolvedHost.address).map(_.map(resolved => unresolvedHost.copy(address = resolved)))
+        else Applicative[F].pure(Option(unresolvedHost))
       }
   }
 

@@ -63,8 +63,8 @@ case class PeersHandler[F[_]: Async: Logger](
   def getRemotePeers: Set[RemotePeer] =
     peers
       .filterNot(_._2.state == PeerState.Banned)
-      .collect { case (hostId, Peer(_, _, _, Some(serverPort), _, _, blockProvidingRep, performanceRep)) =>
-        RemotePeer(RemoteAddress(hostId, serverPort), blockProvidingRep, performanceRep)
+      .collect { case (hostId, Peer(_, _, _, Some(serverPort), resolveDns, _, _, blockProvidingRep, performanceRep)) =>
+        RemotePeer(RemoteAddress(hostId, serverPort, resolveDns), blockProvidingRep, performanceRep)
       }
       .toSet
 
@@ -137,7 +137,7 @@ case class PeersHandler[F[_]: Async: Logger](
   def copyWithNewActor(host: HostId): PeersHandler[F] = {
     val peerToAdd =
       peers.get(host) match {
-        case None       => host -> Peer(PeerState.Cold, None, host, None, Seq.empty, remoteNetworkLevel = false, 0.0, 0)
+        case None => host -> Peer(PeerState.Cold, None, host, None, true, Seq.empty, remoteNetworkLevel = false, 0.0, 0)
         case Some(peer) => host -> peer
       }
     this.copy(peers = peers + peerToAdd)
@@ -147,21 +147,23 @@ case class PeersHandler[F[_]: Async: Logger](
     newPeers: NonEmptyChain[RemotePeer]
   ): PeersHandler[F] = {
     val peersToAdd: Map[HostId, Peer[F]] =
-      newPeers.toList.map { case RemotePeer(RemoteAddress(host, port), initialBlockReputation, initialPerfReputation) =>
-        peers.get(host) match {
-          case None =>
-            host -> Peer(
-              PeerState.Cold,
-              None,
-              host,
-              port.some,
-              Seq.empty,
-              remoteNetworkLevel = false,
-              initialBlockReputation,
-              initialPerfReputation
-            )
-          case Some(peer) => host -> peer.copy(remoteServerPort = port.some)
-        }
+      newPeers.toList.map {
+        case RemotePeer(RemoteAddress(host, port, resolveDns), initialBlockReputation, initialPerfReputation) =>
+          peers.get(host) match {
+            case None =>
+              host -> Peer(
+                PeerState.Cold,
+                None,
+                host,
+                port.some,
+                resolveDns,
+                Seq.empty,
+                remoteNetworkLevel = false,
+                initialBlockReputation,
+                initialPerfReputation
+              )
+            case Some(peer) => host -> peer.copy(remoteServerPort = port.some)
+          }
       }.toMap
 
     this.copy(peers = peers ++ peersToAdd)
@@ -243,6 +245,7 @@ case class Peer[F[_]: Logger](
   actorOpt:           Option[PeerActor[F]],
   ip:                 String,
   remoteServerPort:   Option[Int],
+  resolveDns:         Boolean = true,
   closedTimestamps:   Seq[Long],
   remoteNetworkLevel: Boolean,
 
@@ -259,7 +262,7 @@ case class Peer[F[_]: Logger](
       case None        => Logger[F].trace(show"Send message to peer with no running client")
     }
 
-  def asRemoteAddress: Option[RemoteAddress] = remoteServerPort.map(RemoteAddress(ip, _))
+  def asRemoteAddress: Option[RemoteAddress] = remoteServerPort.map(RemoteAddress(ip, _, resolveDns))
 
   val overallReputation: Double = getTotalReputation(lastKnownBlockProvidingReputation, lastKnownPerformanceReputation)
 }

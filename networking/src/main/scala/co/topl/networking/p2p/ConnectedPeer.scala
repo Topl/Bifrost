@@ -8,7 +8,7 @@ case class DisconnectedPeer(remoteAddress: RemoteAddress, coordinate: (Double, D
 
 case class LocalPeer(localAddress: RemoteAddress, coordinate: (Double, Double))
 
-case class RemoteAddress(host: String, port: Int)
+case class RemoteAddress(host: String, port: Int, resolveDns: Boolean = true)
 
 object RemoteAddress {
   implicit val showRemoteAddress: Show[RemoteAddress] = a => s"${a.host}:${a.port}"

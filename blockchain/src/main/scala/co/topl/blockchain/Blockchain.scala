@@ -54,6 +54,7 @@ object Blockchain {
     ed25519VrfResource:        Resource[F, Ed25519VRF],
     localPeer:                 LocalPeer,
     knownPeers:                List[KnownPeer],
+    knownPeersUnresolvedDns:   List[KnownPeer],
     rpcHost:                   String,
     rpcPort:                   Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
@@ -69,7 +70,10 @@ object Blockchain {
       peersStatusChangesTopic <- Resource.make(Topic[F, PeerConnectionChange])(_.close.void)
       _                       <- Logger[F].info(s"Received known peers from config: $knownPeers").toResource
       currentPeers            <- Ref.of[F, Set[RemoteAddress]](Set.empty[RemoteAddress]).toResource
-      initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
+      initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port, kp.resolveDns), (0, 0)))
+      initialPeersNoDns = knownPeersUnresolvedDns.map(kp =>
+        DisconnectedPeer(RemoteAddress(kp.host, kp.port, kp.resolveDns), (0, 0))
+      )
       remotePeersStream <- Resource.pure(Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers))
       (mempool, transactionAdoptionsTopic) <- MempoolBroadcaster.make(_mempool)
       // Whenever a block is adopted locally, broadcast all of its corresponding (non-reward) _transactions_ to eagerly notify peers
@@ -103,7 +107,7 @@ object Blockchain {
           mempool,
           networkProperties,
           clock,
-          initialPeers,
+          initialPeers ::: initialPeersNoDns,
           peersStatusChangesTopic,
           remotePeers.offer,
           currentPeers.set

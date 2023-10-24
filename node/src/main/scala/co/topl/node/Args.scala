@@ -60,11 +60,16 @@ object Args {
     )
     p2pBindPort: Option[Int] = None,
     @arg(
-      doc = "A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)"
+      doc = "A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9085,5.6.7.8:9085)"
     )
-    knownPeers:  Option[String] = None,
-    testnetArgs: PrivateTestnetArgs,
-    genusArgs:   GenusArgs
+    knownPeers: Option[String] = None,
+    @arg(
+      doc =
+        "A comma-delimited list of host:port values to connect to at launch. These hostnames will not be resolved to an IP and will allow DNS to be resolved normally (i.e. mainnet.topl.co:9085)"
+    )
+    knownPeersUnresolvedDns: Option[String] = None,
+    testnetArgs:             PrivateTestnetArgs,
+    genusArgs:               GenusArgs
   )
 
   @main @Lenses

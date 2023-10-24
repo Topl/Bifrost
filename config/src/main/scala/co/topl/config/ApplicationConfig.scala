@@ -43,12 +43,13 @@ object ApplicationConfig {
 
     @Lenses
     case class P2P(
-      bindHost:          String,
-      bindPort:          Int,
-      publicHost:        String,
-      publicPort:        Int,
-      knownPeers:        List[KnownPeer],
-      networkProperties: NetworkProperties
+      bindHost:                String,
+      bindPort:                Int,
+      publicHost:              String,
+      publicPort:              Int,
+      knownPeers:              List[KnownPeer],
+      knownPeersUnresolvedDns: List[KnownPeer],
+      networkProperties:       NetworkProperties
     )
 
     case class NetworkProperties(
@@ -70,7 +71,7 @@ object ApplicationConfig {
       closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24 // 1 day
     )
 
-    case class KnownPeer(host: String, port: Int)
+    case class KnownPeer(host: String, port: Int, resolveDns: Boolean = true)
 
     @Lenses
     case class RPC(bindHost: String, bindPort: Int)

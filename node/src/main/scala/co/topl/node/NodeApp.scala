@@ -352,6 +352,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           cryptoResources.ed25519VRF,
           localPeer,
           appConfig.bifrost.p2p.knownPeers,
+          appConfig.bifrost.p2p.knownPeersUnresolvedDns,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,

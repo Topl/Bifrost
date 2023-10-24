@@ -45,8 +45,11 @@ object ApplicationConfigOps {
         cmdArgs.runtime.p2pBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindHost))),
         cmdArgs.runtime.p2pBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindPort))),
         cmdArgs.runtime.knownPeers
-          .map(parseKnownPeers)
+          .map(x => parseKnownPeers(x, true))
           .map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.knownPeers))),
+        cmdArgs.runtime.knownPeersUnresolvedDns
+          .map(x => parseKnownPeers(x, false))
+          .map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.knownPeersUnresolvedDns))),
         cmdArgs.runtime.genusArgs.orientDbDir.map(createF(GenLens[ApplicationConfig](_.genus.orientDbDirectory))),
         cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(GenLens[ApplicationConfig](_.genus.orientDbPassword)))
       ).flatten
@@ -94,18 +97,25 @@ object ApplicationConfigOps {
    * Parses the given comma-delimited string of host:port combinations
    * i.e. "1.2.3.4:9095,5.6.7.8:9095"
    */
-  private def parseKnownPeers(str: String): List[KnownPeer] =
+  private def parseKnownPeers(str: String, resolveDns: Boolean): List[KnownPeer] =
     str.split(',').toList.filterNot(_.isEmpty).map { addr =>
       val Array(host, portStr) = addr.split(':')
-      KnownPeer(host, portStr.toInt)
+      KnownPeer(host, portStr.toInt, resolveDns)
     }
 
   implicit val knownPeersReader: ConfigReader[List[KnownPeer]] =
     ConfigReader[String].emap(str =>
       Try(
-        parseKnownPeers(str)
+        parseKnownPeers(str, false)
       ).toEither.leftMap(e => error.CannotConvert(str, "InetAddressList", e.getMessage))
     )
+
+  // implicit val knownPeersUnresolvedDnsReader: ConfigReader[List[KnownPeer]] =
+  //   ConfigReader[String].emap(str =>
+  //     Try(
+  //       parseKnownPeers(str, true)
+  //     ).toEither.leftMap(e => error.CannotConvert(str, "InetAddressList", e.getMessage))
+  //   )
 
   implicit val lockAddressReader: ConfigReader[LockAddress] =
     ConfigReader[String].emap(str =>

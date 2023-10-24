@@ -718,7 +718,7 @@ object PeersManager {
     val addressesToOpen =
       peersToCheck
         .filter { case (_, peer) => peer.haveNoConnection }
-        .map(d => RemoteAddress(d._1, d._2.remoteServerPort.get))
+        .map(d => RemoteAddress(d._1, d._2.remoteServerPort.get, d._2.resolveDns))
         .toSeq
 
     for {
