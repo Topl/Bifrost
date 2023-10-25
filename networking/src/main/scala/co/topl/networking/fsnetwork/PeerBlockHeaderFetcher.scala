@@ -317,14 +317,12 @@ object PeerBlockHeaderFetcher {
   ): F[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])] = {
     val headerEither =
       for {
-        _               <- Logger[F].info(show"Fetching remote header id=$blockId from peer $hostId")
-        startHeaderTime <- System.currentTimeMillis().pure[F]
-        headerWithNoId  <- client.getHeaderOrError(blockId, HeaderNotFoundInPeer)
-        endHeaderTime   <- System.currentTimeMillis().pure[F]
-        header          <- headerWithNoId.embedId.pure[F]
-        _               <- Logger[F].info(show"Fetched remote header id=$blockId  from peer $hostId")
-        _               <- MonadThrow[F].raiseWhen(header.id =!= blockId)(HeaderHaveIncorrectId(blockId, header.id))
-      } yield UnverifiedBlockHeader(hostId, header, endHeaderTime - startHeaderTime)
+        _                              <- Logger[F].info(show"Fetching remote header id=$blockId from peer $hostId")
+        (downloadTime, headerWithNoId) <- Async[F].timed(client.getHeaderOrError(blockId, HeaderNotFoundInPeer))
+        header                         <- headerWithNoId.embedId.pure[F]
+        _                              <- Logger[F].info(show"Fetched remote header id=$blockId  from peer $hostId")
+        _ <- MonadThrow[F].raiseWhen(header.id =!= blockId)(HeaderHaveIncorrectId(blockId, header.id))
+      } yield UnverifiedBlockHeader(hostId, header, downloadTime.toMillis)
 
     headerEither
       .map(blockHeader => Either.right[BlockHeaderDownloadError, UnverifiedBlockHeader](blockHeader))

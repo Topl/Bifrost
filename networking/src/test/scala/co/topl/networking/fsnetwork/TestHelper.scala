@@ -10,6 +10,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import org.scalacheck.{Arbitrary, Gen}
@@ -46,6 +47,7 @@ object TestHelper extends TransactionGenerator {
     }
 
   val arbitraryHost: Arbitrary[HostId] = Arbitrary(Gen.identifier)
+  type BlockBodyOrTransactionErrorByName = () => BlockBodyOrTransactionError
 
   val arbitraryHostBlockId: Arbitrary[(HostId, BlockId)] = Arbitrary(
     for {
@@ -71,6 +73,14 @@ object TestHelper extends TransactionGenerator {
         txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary.map(_.embedId))
         // TODO: Reward
       } yield (txs, BlockBody(txs.map(tx => tx.id)))
+    )
+
+  implicit val arbitraryTxAndBlock: Arbitrary[(IoTransaction, BlockBody)] =
+    Arbitrary(
+      for {
+        tx <- arbitraryIoTransaction.arbitrary.map(_.embedId)
+        // TODO: Reward
+      } yield (tx, BlockBody(Seq(tx.id)))
     )
 
   def headerToSlotData(header: BlockHeader): SlotData = {

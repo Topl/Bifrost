@@ -1,6 +1,6 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.IO
+import cats.effect.{IO, Sync}
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
@@ -19,7 +19,14 @@ object NotifierTest {
   val defaultSlotDuration: FiniteDuration = FiniteDuration(10, MILLISECONDS)
 
   val defaultP2PConfig: P2PNetworkConfig =
-    P2PNetworkConfig(NetworkProperties(pingPongInterval = FiniteDuration(50, MILLISECONDS)), defaultSlotDuration)
+    P2PNetworkConfig(
+      NetworkProperties(
+        pingPongInterval = FiniteDuration(20, MILLISECONDS),
+        commonAncestorTrackInterval = FiniteDuration(20, MILLISECONDS),
+        warmHostsUpdateEveryNBlock = 0.01
+      ),
+      defaultSlotDuration
+    )
 }
 
 class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -30,6 +37,10 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       val peersManager = mock[PeersManagerActor[F]]
       (peersManager.sendNoWait _)
         .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.PrintCommonAncestor)
         .atLeastOnce()
         .returns(().pure[F])
 
@@ -44,10 +55,12 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .returns(().pure[F])
 
       val delay =
-        Math.max(
-          Math.max(defaultP2PConfig.slotDuration.toMillis, defaultP2PConfig.warmHostsUpdateInterval.toMillis),
-          defaultP2PConfig.networkProperties.pingPongInterval.toMillis
-        )
+        Seq(
+          defaultP2PConfig.slotDuration.toMillis,
+          defaultP2PConfig.warmHostsUpdateInterval.toMillis,
+          defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
+          defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis
+        ).max
 
       Notifier
         .makeActor(peersManager, reputationAggregator, defaultP2PConfig)
@@ -57,6 +70,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
             _ = assert(state.warmHostsUpdateFiber.isDefined)
             _ = assert(state.networkQualityFiber.isDefined)
             _ = assert(state.slotNotificationFiber.isDefined)
+            _ = assert(state.commonAncestorFiber.isDefined)
             _ <- Async[F].delayBy(().pure[F], FiniteDuration(delay, MILLISECONDS))
           } yield ()
         }
@@ -68,36 +82,44 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       val peersManager = mock[PeersManagerActor[F]]
       (peersManager.sendNoWait _)
         .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
-        .anyNumberOfTimes()
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.PrintCommonAncestor)
+        .atLeastOnce()
         .returns(().pure[F])
 
       val reputationAggregator = mock[ReputationAggregatorActor[F]]
       (reputationAggregator.sendNoWait _)
         .expects(ReputationAggregator.Message.ReputationUpdateTick)
-        .anyNumberOfTimes()
+        .atLeastOnce()
         .returns(().pure[F])
       (reputationAggregator.sendNoWait _)
         .expects(ReputationAggregator.Message.UpdateWarmHosts)
-        .anyNumberOfTimes()
+        .atLeastOnce()
         .returns(().pure[F])
 
       var warmFlag = false
       var networkQualityFlag = false
       var slotNotificationFlag = false
+      var commonAncestorFlag = false
+
       Notifier
         .makeActor(peersManager, reputationAggregator, defaultP2PConfig)
         .use { actor =>
           for {
-            state <- actor.send(Notifier.Message.StartNotifications)
+            state <- Sync[F].andWait(actor.send(Notifier.Message.StartNotifications), FiniteDuration(100, MILLISECONDS))
             _ = state.warmHostsUpdateFiber.get.joinWith({ warmFlag = true }.pure[F])
             _ = state.networkQualityFiber.get.joinWith({ networkQualityFlag = true }.pure[F])
             _ = state.slotNotificationFiber.get.joinWith({ slotNotificationFlag = true }.pure[F])
+            _ = state.commonAncestorFiber.get.joinWith({ commonAncestorFlag = true }.pure[F])
           } yield ()
         }
         .flatMap { _ =>
           assert(warmFlag).pure[F] >>
           assert(networkQualityFlag).pure[F] >>
-          assert(slotNotificationFlag).pure[F]
+          assert(slotNotificationFlag).pure[F] >>
+          assert(commonAncestorFlag).pure[F]
         }
     }
   }

@@ -10,6 +10,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.net.InetAddress
 import scala.concurrent.duration._
+import scala.jdk.DurationConverters._
 
 object NtpClockSkewer {
 
@@ -26,7 +27,7 @@ object NtpClockSkewer {
   ): Resource[F, () => F[Long]] =
     for {
       ntpClient <- Resource.make(Sync[F].blocking(new NTPUDPClient()))(client => Sync[F].blocking(client.close()))
-      _ = ntpClient.setDefaultTimeout(timeout.toMillis.toInt)
+      _ = ntpClient.setDefaultTimeout(timeout.toJava)
       _ <- Sync[F].blocking(ntpClient.open()).toResource
       implicit0(logger: Logger[F]) = Slf4jLogger.getLoggerFromName("Bifrost.NTP")
       skewRef <- Ref.of[F, Long](0L).toResource

@@ -364,7 +364,7 @@ case class TestnetConfig(
 ) {
 
   val protocolUtxo: UnspentTransactionOutput =
-    UnspentTransactionOutput(PrivateTestnet.HeightLockOneSpendingAddress, BigBang.protocolToUpdateProposal(protocol))
+    UnspentTransactionOutput(PrivateTestnet.HeightLockOneSpendingAddress, BigBang.protocolToValue(protocol))
 
   val genesisTransactions: List[IoTransaction] =
     stakers.map { case (init, quantity) => init.registrationTransaction(quantity) } :+ IoTransaction.defaultInstance

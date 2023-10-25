@@ -1,10 +1,20 @@
 package co.topl.node
 
-import cats.effect.{Async, Sync}
+import cats.data.EitherT
 import cats.effect.std.Console
+import cats.effect.{Async, Sync}
 import cats.implicits._
+import co.topl.brambl.models.LockAddress
+import co.topl.brambl.syntax._
+import co.topl.models.utility._
+import co.topl.node.models.Ratio
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
+import quivr.models.Int128
+import simulacrum.typeclass
+
+import scala.concurrent.duration.FiniteDuration
+import scala.util.Try
 
 package object cli {
 
@@ -66,4 +76,79 @@ package object cli {
         .compile
         .drain
     }
+
+  def read[F[_]: Sync: Console, T: UserInputParser](param: String, examples: List[String]): StageResultT[F, T] =
+    readOptional[F, T](param, examples).untilDefinedM
+
+  def readOptional[F[_]: Sync: Console, T: UserInputParser](
+    param:    String,
+    examples: List[String]
+  ): StageResultT[F, Option[T]] =
+    (writeMessage[F](s"Please enter $param parameter. Ex: ${examples.mkString(", ")}") >>
+      readInput[F]
+        .flatMap {
+          case "" => none[T].some.pure[StageResultT[F, *]]
+          case input =>
+            EitherT
+              .fromEither[StageResultT[F, *]](UserInputParser[T].parse(input))
+              .leftSemiflatTap(error => writeMessage(s"Invalid $param. Reason=$error input=$input"))
+              .map(_.some)
+              .toOption
+              .value
+        }).untilDefinedM
+
+  def readDefaultedOptional[F[_]: Sync: Console, T: UserInputParser](
+    param:    String,
+    examples: List[String],
+    default:  String
+  ): StageResultT[F, T] =
+    (writeMessage[F](show"Please enter $param parameter. Ex: ${examples.mkString(", ")}. Default: $default.") >>
+      readInput[F]
+        .map {
+          case "" => default
+          case t  => t
+        }
+        .flatMap(input =>
+          EitherT
+            .fromEither[StageResultT[F, *]](UserInputParser[T].parse(input))
+            .leftSemiflatTap(error => writeMessage(s"Invalid $param. Reason=$error input=$input"))
+            .toOption
+            .value
+        )).untilDefinedM
+
+  implicit private[cli] val parseInt: UserInputParser[Int] = (s: String) => s.toIntOption.toRight("Not an Int")
+
+  implicit private[cli] val parseLong: UserInputParser[Long] = (s: String) => s.toLongOption.toRight("Not a Long")
+
+  implicit private[cli] val parseBigInt: UserInputParser[BigInt] = (s: String) =>
+    Try(BigInt(s)).toEither.leftMap(_ => "Not a BigInt")
+
+  implicit private[cli] val parseInt128: UserInputParser[Int128] = (s: String) =>
+    parseBigInt.parse(s).map(bigInt => bigInt: Int128)
+
+  implicit private[cli] val parseString: UserInputParser[String] = (s: String) =>
+    Either.cond(s.nonEmpty, s, "Empty Input")
+
+  implicit private[cli] val parseRatio: UserInputParser[Ratio] =
+    (s: String) =>
+      s.split("/") match {
+        case Array(numerator) => parseInt128.parse(numerator).map(Ratio(_, BigInt(1)))
+        case Array(numerator, denominator) =>
+          (parseInt128.parse(numerator), parseInt128.parse(denominator)).mapN(Ratio(_, _))
+        case _ => Left("Not a Ratio")
+      }
+
+  implicit private[cli] val parseDuration: UserInputParser[com.google.protobuf.duration.Duration] =
+    (s: String) =>
+      Try(scala.concurrent.duration.Duration(s).asInstanceOf[FiniteDuration]).toEither
+        .leftMap(_ => "Not a Duration")
+        .map(d => d: com.google.protobuf.duration.Duration)
+
+  implicit private[cli] val parseLockAddress: UserInputParser[LockAddress] =
+    (s: String) => co.topl.brambl.codecs.AddressCodecs.decodeAddress(s).leftMap(_.toString)
+}
+
+@typeclass
+trait UserInputParser[T] {
+  def parse(input: String): Either[String, T]
 }

@@ -5,6 +5,7 @@ import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
+import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
@@ -73,6 +74,9 @@ package object fsnetwork {
   }
 
   // TODO move Show instances to separate file
+  implicit val showTransactionSyntaxError: Show[TransactionSyntaxError] =
+    Show.fromToString
+
   implicit val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
     Show.fromToString
 
@@ -176,7 +180,10 @@ package object fsnetwork {
   private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
   implicit val peerToAddCodec: Codec[RemotePeer] = (remoteAddressCodec :: double :: double).as[RemotePeer]
 
-  def getTotalReputation(blockProvidingRep: HostReputationValue, performanceRep: HostReputationValue) =
+  def getTotalReputation(
+    blockProvidingRep: HostReputationValue,
+    performanceRep:    HostReputationValue
+  ): HostReputationValue =
     (blockProvidingRep + performanceRep) / 2
 
   case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: FiniteDuration) {
@@ -226,7 +233,10 @@ package object fsnetwork {
      * How often we update our list of warm hosts
      */
     val warmHostsUpdateInterval: FiniteDuration =
-      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
+      FiniteDuration(
+        Math.ceil(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis).toInt,
+        MILLISECONDS
+      )
   }
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {

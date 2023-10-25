@@ -28,7 +28,8 @@ object Notifier {
     networkConfig:         P2PNetworkConfig,
     slotNotificationFiber: Option[Fiber[F, Throwable, Unit]] = None,
     networkQualityFiber:   Option[Fiber[F, Throwable, Unit]] = None,
-    warmHostsUpdateFiber:  Option[Fiber[F, Throwable, Unit]] = None
+    warmHostsUpdateFiber:  Option[Fiber[F, Throwable, Unit]] = None,
+    commonAncestorFiber:   Option[Fiber[F, Throwable, Unit]] = None
   )
 
   type Response[F[_]] = State[F]
@@ -53,6 +54,7 @@ object Notifier {
     startSlotNotification[F](state)
       .flatMap(startNetworkQualityFiber[F])
       .flatMap(startWarmHostsUpdateFiber[F])
+      .flatMap(startCommonAncestorFiber[F])
       .map(newState => (newState, newState))
 
   private def startSlotNotification[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
@@ -115,10 +117,31 @@ object Notifier {
     }
   }
 
+  private def startCommonAncestorFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
+    val commonAncestorInterval = state.networkConfig.networkProperties.commonAncestorTrackInterval
+
+    val commonAncestorTrackStream =
+      Stream.awakeEvery(commonAncestorInterval).evalMap { _ =>
+        state.peersManager.sendNoWait(PeersManager.Message.PrintCommonAncestor)
+      }
+
+    if (state.commonAncestorFiber.isEmpty && commonAncestorInterval.toMillis > 0) {
+      for {
+        _     <- Logger[F].info(show"Start common ancestor tracking fiber")
+        fiber <- Spawn[F].start(commonAncestorTrackStream.compile.drain)
+        newState = state.copy(commonAncestorFiber = Option(fiber))
+      } yield newState
+    } else {
+      Logger[F].info(show"Ignoring common ancestor tracking with interval $commonAncestorInterval") >>
+      state.pure[F]
+    }
+  }
+
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info("Stopping notification sending from Notifier actor") >>
     state.slotNotificationFiber.map(_.cancel).getOrElse(().pure[F]) >>
     state.networkQualityFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.warmHostsUpdateFiber.map(_.cancel).getOrElse(().pure[F])
+    state.warmHostsUpdateFiber.map(_.cancel).getOrElse(().pure[F]) >>
+    state.commonAncestorFiber.map(_.cancel).getOrElse(().pure[F])
 
 }

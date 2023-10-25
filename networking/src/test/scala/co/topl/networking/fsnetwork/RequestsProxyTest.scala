@@ -10,9 +10,9 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
-import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyDownloadError.BodyNotFoundInPeer
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError.BodyNotFoundInPeer
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError.HeaderNotFoundInPeer
-import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyDownloadError, BlockHeaderDownloadError}
+import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyOrTransactionError, BlockHeaderDownloadError}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxyTest.RequestStatus.{InProgress, NewRequest, ReceivedOk}
@@ -384,7 +384,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           val response = headersWithStatus.map {
             case (header, DownloadedOk)  => (header, Either.right(dataMap(header.id)._2))
-            case (header, DownloadError) => (header, Either.left(BodyNotFoundInPeer: BlockBodyDownloadError))
+            case (header, DownloadError) => (header, Either.left(BodyNotFoundInPeer: BlockBodyOrTransactionError))
           }
 
           def inBodyStorage(id: BlockId): Boolean = id.hashCode() % 2 == 0
@@ -485,7 +485,12 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           val response = headersWithStatus.map {
             case (header, DownloadedOk) => (header, Either.right(dataMap(header.id)._2))
             case (header, DownloadError) =>
-              (header, Either.left(BlockBodyDownloadError.UnknownError(new RuntimeException()): BlockBodyDownloadError))
+              (
+                header,
+                Either.left(
+                  BlockBodyOrTransactionError.UnknownError(new RuntimeException()): BlockBodyOrTransactionError
+                )
+              )
           }
 
           def inBodyStorage(id: BlockId): Boolean = id.hashCode() % 2 == 0

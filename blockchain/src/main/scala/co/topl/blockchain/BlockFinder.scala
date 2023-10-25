@@ -22,7 +22,7 @@ object BlockFinder {
   )(blockHistory: Stream[F, BlockId], newBlocks: Stream[F, BlockId])(id: TransactionId): F[BlockId] =
     blockHistory
       .merge(newBlocks)
-      .evalFilter(
+      .evalFilterAsync(10)(
         fetchBlockBody(_).map(body => body.transactionIds.contains(id) || body.rewardTransactionId.contains(id))
       )
       .head

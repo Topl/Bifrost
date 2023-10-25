@@ -1,6 +1,5 @@
 package co.topl.blockchain
 
-import BlockchainPeerHandler.monoidBlockchainPeerHandler
 import cats.data._
 import cats.effect._
 import cats.effect.std.{Queue, Random}
@@ -63,6 +62,8 @@ object Blockchain {
     networkProperties:         NetworkProperties
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
+    implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
+
     for {
       remotePeers             <- Queue.unbounded[F, DisconnectedPeer].toResource
       peersStatusChangesTopic <- Resource.make(Topic[F, PeerConnectionChange])(_.close.void)
@@ -81,72 +82,34 @@ object Blockchain {
           .compile
           .drain
       )
-      synchronizationHandler <-
-        if (networkProperties.legacyNetwork) {
-          Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
-            BlockchainPeerHandler.ChainSynchronizer.make[F](
-              clock,
-              localChain,
-              validators.header,
-              validators.headerToBody,
-              validators.bodySyntax,
-              validators.bodySemantics,
-              validators.bodyAuthorization,
-              dataStores.slotData,
-              dataStores.headers,
-              dataStores.bodies,
-              dataStores.transactions,
-              blockIdTree
-            )
-          )
-        } else {
-          implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
+      synchronizationHandler <- ActorPeerHandlerBridgeAlgebra
+        .make(
+          localPeer.localAddress.host,
+          localChain,
+          chainSelectionAlgebra,
+          validators.header,
+          validators.headerToBody,
+          validators.transactionSyntax,
+          validators.bodySyntax,
+          validators.bodySemantics,
+          validators.bodyAuthorization,
+          dataStores.slotData,
+          dataStores.headers,
+          dataStores.bodies,
+          dataStores.transactions,
+          dataStores.knownHosts,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          networkProperties,
+          clock,
+          initialPeers,
+          peersStatusChangesTopic,
+          remotePeers.offer,
+          currentPeers.set
+        )
+        .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
 
-          ActorPeerHandlerBridgeAlgebra
-            .make(
-              localPeer.localAddress.host,
-              localChain,
-              chainSelectionAlgebra,
-              validators.header,
-              validators.headerToBody,
-              validators.bodySyntax,
-              validators.bodySemantics,
-              validators.bodyAuthorization,
-              dataStores.slotData,
-              dataStores.headers,
-              dataStores.bodies,
-              dataStores.transactions,
-              dataStores.knownHosts,
-              blockIdTree,
-              networkProperties,
-              clock,
-              initialPeers,
-              peersStatusChangesTopic,
-              remotePeers.offer,
-              currentPeers.set
-            )
-            .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
-        }
-      clientHandler <- Resource.pure[F, BlockchainPeerHandlerAlgebra[F]](
-        List(
-          synchronizationHandler,
-          BlockchainPeerHandler.FetchMempool.make(
-            validators.transactionSyntax,
-            dataStores.transactions,
-            mempool
-          ),
-          BlockchainPeerHandler.CommonAncestorSearch.make(
-            id =>
-              OptionT(
-                localChain.head
-                  .map(_.slotId.blockId)
-                  .flatMap(blockHeights.useStateAt(_)(_.apply(id)))
-              ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT,
-            () => localChain.head.map(_.height),
-            dataStores.slotData
-          )
-        ).combineAll
-      )
       p2pBlockAdoptionsTopic <- Resource.make(Topic[F, BlockId])(_.close.void)
       _ <- Stream.force(localChain.adoptions).through(p2pBlockAdoptionsTopic.publish).compile.drain.background
       peerServerF = BlockchainPeerServer.make(
@@ -169,7 +132,7 @@ object Blockchain {
           localPeer.localAddress.port,
           localPeer,
           remotePeersStream,
-          clientHandler,
+          synchronizationHandler,
           peerServerF,
           peersStatusChangesTopic
         )

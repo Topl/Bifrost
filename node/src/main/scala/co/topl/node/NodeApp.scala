@@ -8,8 +8,10 @@ import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
-import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter}
+import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter, NodeMetadata}
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
+import co.topl.buildinfo.node.BuildInfo
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
@@ -76,6 +78,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- initializeData
+
+      metadata <- NodeMetadata.make(dataStores.metadata)
+      _        <- metadata.setAppVersion(BuildInfo.version).toResource
+      _ <- OptionT(metadata.readInitTime)
+        .flatTapNone(IO.realTime.map(_.toMillis).flatMap(metadata.setInitTime))
+        .value
+        .toResource
+
       bigBangBlockId = bigBangBlock.header.id
       bigBangSlotData <- dataStores.slotData.getOrRaise(bigBangBlockId).toResource
       _               <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
@@ -199,39 +209,42 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       staking =
         OptionT
           .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
-          .flatMap(
-            OptionT.whenF(_)(
-              StakingInit
-                .makeStakingFromDisk(
-                  stakingDir,
-                  appConfig.bifrost.staking.rewardAddress,
-                  clock,
-                  etaCalculation,
-                  consensusValidationState,
-                  leaderElectionThreshold,
-                  cryptoResources,
-                  bigBangProtocol,
-                  vrfConfig,
-                  bigBangBlock.header.version,
-                  BlockFinder
-                    .forTransactionId(dataStores.bodies.getOrRaise)(
-                      fs2.Stream
-                        .eval(localChain.head)
-                        .flatMap(head =>
-                          fs2.Stream.unfoldLoopEval(head)(previous =>
-                            if (previous.height > 1)
-                              dataStores.slotData
-                                .getOrRaise(previous.parentSlotId.blockId)
-                                .map(v => (previous.slotId.blockId, v.some))
-                            else (previous.slotId.blockId, none).pure[F]
-                          )
-                        ),
-                      fs2.Stream.force(localChain.adoptions)
-                    )(_)
-                    .flatMap(dataStores.headers.getOrRaise)
-                )
-            )
-          )
+          .filter(identity)
+          .semiflatMap { _ =>
+            val blockFinder = (transactionId: TransactionId) =>
+              BlockFinder
+                .forTransactionId(dataStores.bodies.getOrRaise)(
+                  fs2.Stream
+                    .eval(localChain.head)
+                    .flatMap(head =>
+                      fs2.Stream.unfoldLoopEval(head)(previous =>
+                        if (previous.height > 1)
+                          dataStores.slotData
+                            .getOrRaise(previous.parentSlotId.blockId)
+                            .map(v => (previous.slotId.blockId, v.some))
+                        else (previous.slotId.blockId, none).pure[F]
+                      )
+                    ),
+                  fs2.Stream.force(localChain.adoptions)
+                )(transactionId)
+                .flatMap(dataStores.headers.getOrRaise)
+            StakingInit
+              .makeStakingFromDisk(
+                stakingDir,
+                appConfig.bifrost.staking.rewardAddress,
+                clock,
+                etaCalculation,
+                consensusValidationState,
+                leaderElectionThreshold,
+                cryptoResources,
+                bigBangProtocol,
+                vrfConfig,
+                bigBangBlock.header.version,
+                blockFinder,
+                metadata,
+                dataStores.headers.get
+              )
+          }
           .value
 
       eligibilityCache <-

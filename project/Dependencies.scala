@@ -3,17 +3,17 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.6"
-  val kamonVersion = "2.6.4"
+  val kamonVersion = "2.6.5"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.2"
   val fs2Version = "3.9.2"
   val logback = "1.4.11"
   val orientDbVersion = "3.2.23"
-  val ioGrpcVersion = "1.58.0"
+  val ioGrpcVersion = "1.59.0"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha5" // scala-steward:off
-  val bramblScVersion = "2.0.0-alpha6" // scala-steward:off
+  val bramblScVersion = "2.0.0-alpha7" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -104,7 +104,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
 
   val http4s = Seq(
     "org.http4s" %% "http4s-ember-client" % http4sVersion,
@@ -124,7 +124,7 @@ object Dependencies {
   )
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.9.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.10.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.27.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.28.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
