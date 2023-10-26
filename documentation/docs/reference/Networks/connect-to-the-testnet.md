@@ -19,7 +19,7 @@ A full example of connecting to the node:
 
 ```
 docker run -p 9085:9085 -p 9084:9084 toplprotocol/bifrost-node:2.0.0-alpha10 \
-    --knownPeersUnresolvedDns testnet.topl.co:9085 \
+    --knownPeers testnet.topl.co:9085 \
     --config https://raw.githubusercontent.com/Topl/Genesis_Testnets/main/testnet1/config.yaml
 ```
 
