@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkbifrost_documentation=self.webpackChunkbifrost_documentation||[]).push([[265],{5745:e=>{e.exports=JSON.parse('{"name":"docusaurus-plugin-content-pages","id":"default"}')}}]);
