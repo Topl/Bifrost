@@ -95,4 +95,43 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
       }
     }
   }
+
+  test("validation should fail if a reward is provided for an empty block") {
+    withMock {
+      val lock: Lock = Lock().withPredicate(Lock.Predicate())
+
+      val lockAddress: LockAddress =
+        lock.lockAddress(NetworkConstants.PRIVATE_NETWORK_ID, NetworkConstants.MAIN_LEDGER_ID)
+      val rewardTx = IoTransaction.defaultInstance
+        .withInputs(
+          List(
+            SpentTransactionOutput(
+              arbitraryTransactionOutputAddress.arbitrary.first,
+              arbitraryAttestation.arbitrary.first,
+              Value().withLvl(Value.LVL(100L))
+            )
+          )
+        )
+        .withOutputs(
+          List(
+            UnspentTransactionOutput(
+              lockAddress,
+              Value().withLvl(Value.LVL(100L))
+            )
+          )
+        )
+        .embedId
+      val body = BlockBody(Nil, rewardTx.id.some)
+      for {
+        fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
+        _ = fetchTransaction.expects(rewardTx.id).once().returning(rewardTx.pure[F])
+        transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
+        rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+        underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation, rewardCalculator)
+        result    <- underTest.validate(body)
+        _         <- IO(result.isInvalid).assert
+        _         <- IO(result.swap.toOption.get.toList == List(BodySyntaxErrors.InvalidReward(rewardTx))).assert
+      } yield ()
+    }
+  }
 }
