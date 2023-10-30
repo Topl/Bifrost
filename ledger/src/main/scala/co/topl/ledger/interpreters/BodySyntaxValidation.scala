@@ -47,9 +47,7 @@ object BodySyntaxValidation {
               List(
                 Sync[F].delay(validateDistinctInputs(transactions)),
                 transactions.parFoldMapA(validateTransaction),
-                body.rewardTransactionId.foldMapM(
-                  fetchTransaction(_).flatMap(validateRewardTransaction(transactions, _))
-                )
+                body.rewardTransactionId.traverse(fetchTransaction).flatMap(validateRewardTransaction(transactions, _))
               ).parSequence
                 .map(_.combineAll)
                 .map(_.as(body))
@@ -92,27 +90,35 @@ object BodySyntaxValidation {
          */
         private def validateRewardTransaction[G[_]: Foldable](
           transactions:      G[IoTransaction],
-          rewardTransaction: IoTransaction
+          rewardTransaction: Option[IoTransaction]
         ): F[ValidatedNec[BodySyntaxError, Unit]] =
-          EitherT
-            .cond[F](
-              rewardTransaction.inputs.length == 1 &&
-              rewardTransaction.outputs.length == 1 &&
-              rewardTransaction.outputs.head.value.value.isLvl,
-              rewardTransaction.outputs.head.value.value.lvl,
-              BodySyntaxErrors.InvalidReward(rewardTransaction)
-            )
-            .subflatMap(_.toRight(BodySyntaxErrors.InvalidReward(rewardTransaction)))
-            .map(_.quantity: BigInt)
-            .flatMapF(definedQuantity =>
-              transactions
-                .parFoldMapA(rewardCalculator.rewardOf)
-                .map(maxReward =>
-                  Either.cond(definedQuantity <= maxReward, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
+          rewardTransaction.fold(().validNec[BodySyntaxError].pure[F])(rewardTransaction =>
+            if (transactions.isEmpty)
+              (BodySyntaxErrors.InvalidReward(rewardTransaction): BodySyntaxError).invalidNec[Unit].pure[F]
+            else
+              EitherT
+                .cond[F](
+                  rewardTransaction.inputs.length == 1 &&
+                  rewardTransaction.outputs.length == 1 &&
+                  rewardTransaction.outputs.head.value.value.isLvl,
+                  rewardTransaction.outputs.head.value.value.lvl,
+                  BodySyntaxErrors.InvalidReward(rewardTransaction)
                 )
-            )
-            .leftWiden[BodySyntaxError]
-            .toValidatedNec
+                .subflatMap(_.toRight(BodySyntaxErrors.InvalidReward(rewardTransaction)))
+                .map(_.quantity: BigInt)
+                .flatMapF(definedQuantity =>
+                  if (definedQuantity <= 0)
+                    BodySyntaxErrors.InvalidReward(rewardTransaction).asLeft[Unit].pure[F]
+                  else
+                    transactions
+                      .parFoldMapA(rewardCalculator.rewardOf)
+                      .map(maxReward =>
+                        Either.cond(definedQuantity <= maxReward, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
+                      )
+                )
+                .leftWiden[BodySyntaxError]
+                .toValidatedNec
+          )
       }
     }
 }
