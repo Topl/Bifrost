@@ -1,6 +1,6 @@
 package co.topl.common.application
 
-import cats.data.{Chain, Nested}
+import cats.data.{Chain, Nested, OptionT}
 import cats.effect._
 import cats.implicits._
 import cats.kernel.Monoid
@@ -9,7 +9,7 @@ import fs2.io.file.Files
 import fs2.io.net.Network
 import org.http4s.client.middleware.FollowRedirect
 import org.http4s.ember.client.EmberClientBuilder
-import pureconfig.{ConfigObjectSource, ConfigSource}
+import pureconfig._
 
 /**
  * Assists with constructing applications which use cats-effect  Initializes the runtime and configurations.
@@ -51,20 +51,36 @@ abstract class IOBaseApp[CmdArgs, AppConfig](
 
 object IOBaseApp {
 
-  implicit private val monoidConfig: Monoid[Config] =
+  implicit val monoidConfig: Monoid[Config] =
     Monoid.instance(ConfigFactory.empty(), _ withFallback _)
 
-  def createTypesafeConfig[Args: ContainsUserConfigs: ContainsDebugFlag](cmdArgs: Args): IO[Config] =
+  def createTypesafeConfig[Args: ContainsUserConfigs: ContainsDebugFlag](
+    cmdArgs:                       Args,
+    configFileEnvironmentVariable: Option[String] = None
+  ): IO[Config] =
     for {
       debugConfigs <- Nested(argsToDebugConfigs(cmdArgs)).map(_.config()).value
       environmentConfigs = Chain.fromOption(ConfigSource.resources("environment.conf").config().toOption).map(_.asRight)
       userConfigs <- Nested(argsToUserConfigs(cmdArgs)).map(_.config()).value
+      configFromEnvironment <- OptionT
+        .fromOption[IO](configFileEnvironmentVariable)
+        .flatMapF(createTypesafeConfigFromEnvironmentFile)
+        .value
+        .map(Chain.fromOption)
       defaultConfigs = Chain(ConfigSource.default).map(_.config())
-      allConfigs = debugConfigs ++ environmentConfigs ++ userConfigs ++ defaultConfigs
+      allConfigs = debugConfigs ++ environmentConfigs ++ userConfigs ++ configFromEnvironment ++ defaultConfigs
       merged <- IO.fromEither(
         (allConfigs.combineAll).map(_.resolve).leftMap(e => new IllegalArgumentException(e.toString))
       )
     } yield merged
+
+  private def createTypesafeConfigFromEnvironmentFile(
+    environmentVariableName: String
+  ): IO[Option[ConfigReader.Result[Config]]] =
+    OptionT(IO.envForIO.get(environmentVariableName))
+      .semiflatMap(fileName => readData(fileName).map(parseData(fileName)))
+      .map(_.config())
+      .value
 
   /**
    * Allow the --debug argument to enable the `CONFIG_FORCE_` environment variable syntax from Typesafe Config
@@ -81,34 +97,33 @@ object IOBaseApp {
   /**
    * Load user-defined configuration files from disk/resources
    */
-  private def argsToUserConfigs[Args: ContainsUserConfigs](args: Args): IO[Chain[ConfigObjectSource]] = {
-    def readData(name: String) =
-      if (name.startsWith("resource://")) IO.blocking {
-        val source = scala.io.Source.fromResource(name)
-        try source.mkString
-        finally source.close()
-      }
-      else if (name.startsWith("http://") || name.startsWith("https://")) {
-        implicit val networkF: Network[IO] = Network.forIO
-        EmberClientBuilder
-          .default[IO]
-          .build
-          .map(FollowRedirect(10))
-          .use(_.expect[String](name))
-      } else {
-        Files.forIO.readUtf8(fs2.io.file.Path(name)).compile.foldMonoid
-      }
-
-    def parseData(name: String)(data: String) =
-      if (name.endsWith(".yaml") || name.endsWith(".yml"))
-        ConfigSource.fromConfig(YamlConfig.parse(data))
-      else
-        ConfigSource.string(data)
-
+  private def argsToUserConfigs[Args: ContainsUserConfigs](args: Args): IO[Chain[ConfigObjectSource]] =
     Chain
       .fromSeq(ContainsUserConfigs[Args].userConfigsOf(args).reverse)
       .traverse(name => readData(name).map(parseData(name)))
-  }
+
+  private def readData(name: String) =
+    if (name.startsWith("resource://")) IO.blocking {
+      val source = scala.io.Source.fromResource(name)
+      try source.mkString
+      finally source.close()
+    }
+    else if (name.startsWith("http://") || name.startsWith("https://")) {
+      implicit val networkF: Network[IO] = Network.forIO
+      EmberClientBuilder
+        .default[IO]
+        .build
+        .map(FollowRedirect(10))
+        .use(_.expect[String](name))
+    } else {
+      Files.forIO.readUtf8(fs2.io.file.Path(name)).compile.foldMonoid
+    }
+
+  private def parseData(name: String)(data: String) =
+    if (name.endsWith(".yaml") || name.endsWith(".yml"))
+      ConfigSource.fromConfig(YamlConfig.parse(data))
+    else
+      ConfigSource.string(data)
 }
 
 @simulacrum.typeclass
