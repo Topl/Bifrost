@@ -106,14 +106,15 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             .useStateAt(_: BlockId)(_: EpochBoundariesEventSourcedState.EpochBoundaries[F] => F[BlockId]))
             .expects(*, *)
             .twice()
-            .onCall { case (_: BlockId, f: (EpochBoundariesEventSourcedState.EpochBoundaries[F] => F[BlockId])) =>
-              TestStore
-                .make[F, Epoch, BlockId]
-                .flatTap(_.put(0, block2.header.id))
-                .flatTap(_.put(1, block3.header.id))
-                .flatTap(_.put(2, block4.header.id))
-                .flatTap(_.put(3, block5.header.id))
-                .flatMap(f)
+            .onCall {
+              case (_: BlockId, f: (EpochBoundariesEventSourcedState.EpochBoundaries[F] => F[BlockId]) @unchecked) =>
+                TestStore
+                  .make[F, Epoch, BlockId]
+                  .flatTap(_.put(0, block2.header.id))
+                  .flatTap(_.put(1, block3.header.id))
+                  .flatTap(_.put(2, block4.header.id))
+                  .flatTap(_.put(3, block5.header.id))
+                  .flatMap(f)
             }
           consensusDataEss = mock[EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
             F
@@ -122,37 +123,49 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             .useStateAt(_: BlockId)(_: ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]))
             .expects(genesisBlock.header.id, *)
             .repeat(2)
-            .onCall { case (_: BlockId, f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)])) =>
-              (
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 40)),
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 0))
-              )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
-                .flatMap(f)
+            .onCall {
+              case (
+                    _: BlockId,
+                    f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]) @unchecked
+                  ) =>
+                (
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 40)),
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 0))
+                )
+                  .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
+                  .flatMap(f)
             }
           _ = (consensusDataEss
             .useStateAt(_: BlockId)(_: ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]))
             .expects(block2.header.id, *)
             .once()
-            .onCall { case (_: BlockId, f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)])) =>
-              (
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20)),
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20))
-              )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
-                .flatMap(f)
+            .onCall {
+              case (
+                    _: BlockId,
+                    f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]) @unchecked
+                  ) =>
+                (
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20)),
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20))
+                )
+                  .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
+                  .flatMap(f)
             }
           _ = (consensusDataEss
             .useStateAt(_: BlockId)(_: ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]))
             .expects(block3.header.id, *)
             .once()
-            .onCall { case (_: BlockId, f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)])) =>
-              (
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 30)),
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 10))
-              )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
-                .flatMap(f)
+            .onCall {
+              case (
+                    _: BlockId,
+                    f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]) @unchecked
+                  ) =>
+                (
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 30)),
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 10))
+                )
+                  .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
+                  .flatMap(f)
             }
           ess <- EpochDataEventSourcedState.make[F](
             BlockId(zeroBytes(32)).pure[F],
