@@ -103,7 +103,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         .rhoForSlot(_: Slot, _: Eta))
         .expects(*, *)
         .anyNumberOfTimes()
-        .onCall { case (slot: Slot, _: Eta) =>
+        .onCall { case (slot: Slot, _: Eta @unchecked) =>
           // Encode the slot as the first 8 bytes of the Rho so that it can be decoded by another mock later
           Rho(Sized.strictUnsafe(ByteString.copyFrom(Longs.toByteArray(slot)).concat(new Array[Byte](64 - 8)))).pure[F]
         }
@@ -118,7 +118,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
         .isSlotLeaderForThreshold(_: Ratio)(_: Rho))
         .expects(*, *)
         .anyNumberOfTimes()
-        .onCall { case (_: Ratio, rho: Rho) =>
+        .onCall { case (_: Ratio, rho: Rho @unchecked) =>
           // Decode the first 8 bytes of the Rho to determine the slot, and return true if the slot is "odd"
           (Longs.fromByteArray(rho.sizedBytes.data.take(8).toArray) % 2 != 0).pure[F]
         }
