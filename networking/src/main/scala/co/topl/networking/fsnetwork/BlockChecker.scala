@@ -236,7 +236,7 @@ object BlockChecker {
       (appliedHeaders, error) <- processedHeadersAndErrors
       newState                <- processHeaderValidationError(state, error)
       _                       <- requestMissedBodies(newState, hostId, appliedHeaders.lastOption.map(_.id))
-      _                       <- requestNextHeaders(newState)
+      _                       <- if (appliedHeaders.nonEmpty) requestNextHeaders(newState) else ().pure[F]
     } yield (newState, newState)
   }
 
@@ -346,8 +346,8 @@ object BlockChecker {
     for {
       (appliedBlockIds, error) <- processedBlocksAndError
       stateAfterError          <- processBodyValidationError(state, error)
-      _                        <- requestNextBodies(stateAfterError, hostId)
-      newState                 <- updateState(stateAfterError, appliedBlockIds.lastOption).pure[F]
+      _        <- if (appliedBlockIds.nonEmpty) requestNextBodies(stateAfterError, hostId) else ().pure[F]
+      newState <- updateState(stateAfterError, appliedBlockIds.lastOption).pure[F]
     } yield (newState, newState)
   }
 
