@@ -1,6 +1,6 @@
 package co.topl.common.application
 
-import cats.data.{Chain, Nested, OptionT}
+import cats.data.{Chain, EitherT, Nested, OptionT}
 import cats.effect._
 import cats.implicits._
 import cats.kernel.Monoid
@@ -9,6 +9,8 @@ import fs2.io.file.Files
 import fs2.io.net.Network
 import org.http4s.client.middleware.FollowRedirect
 import org.http4s.ember.client.EmberClientBuilder
+import org.typelevel.log4cats.SelfAwareStructuredLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import pureconfig._
 
 /**
@@ -54,6 +56,9 @@ object IOBaseApp {
   implicit val monoidConfig: Monoid[Config] =
     Monoid.instance(ConfigFactory.empty(), _ withFallback _)
 
+  implicit private val logger: SelfAwareStructuredLogger[IO] =
+    Slf4jLogger.getLoggerFromName[IO]("IOBaseApp")
+
   def createTypesafeConfig[Args: ContainsUserConfigs: ContainsDebugFlag](
     cmdArgs:                       Args,
     configFileEnvironmentVariable: Option[String] = None
@@ -78,7 +83,14 @@ object IOBaseApp {
     environmentVariableName: String
   ): IO[Option[ConfigReader.Result[Config]]] =
     OptionT(IO.envForIO.get(environmentVariableName))
-      .semiflatMap(fileName => readData(fileName).map(parseData(fileName)))
+      .flatMap(fileName =>
+        EitherT(readData(fileName).attempt)
+          .leftSemiflatTap(_ =>
+            logger.warn(s"Environment configuration file not found at location=$fileName.  Skipping.")
+          )
+          .toOption
+          .map(parseData(fileName))
+      )
       .map(_.config())
       .value
 

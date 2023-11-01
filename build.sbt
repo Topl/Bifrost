@@ -1,7 +1,7 @@
-import com.typesafe.sbt.packager.docker.DockerChmodType
+import com.typesafe.sbt.packager.docker.{DockerChmodType, ExecCmd}
 import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
-import NativePackagerHelper._
+import NativePackagerHelper.*
 
 val scala213 = "2.13.12"
 
@@ -68,11 +68,13 @@ lazy val dockerSettings = Seq(
 lazy val nodeDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes ++= Seq("/opt/docker/.bifrost/data", "/opt/docker/.bifrost/staking", "/opt/docker/conf"),
     Docker / packageName := "bifrost-node",
-    Docker / mappings += (file("node/docker/conf/docker.yaml"), "/opt/docker/conf/docker.yaml"),
-    dockerEnvVars ++= Map("BIFROST_CONFIG_FILE" -> "conf/docker.yaml"),
-    dockerChmodType := DockerChmodType.UserGroupWriteExecute
+    dockerExposedVolumes += "/bifrost",
+    dockerEnvVars ++= Map(
+      "BIFROST_APPLICATION_DATA_DIR" -> "/bifrost/data/{genesisBlockId}",
+      "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost/staking/{genesisBlockId}",
+      "BIFROST_CONFIG_FILE" -> "/bifrost/config/user.yaml"
+    )
   )
 
 lazy val networkDelayerDockerSettings =
