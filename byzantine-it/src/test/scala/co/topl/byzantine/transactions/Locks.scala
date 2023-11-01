@@ -31,12 +31,16 @@ object Locks {
   // HeightRange END
 
   // Digest BEGIN
-  private[byzantine] val preimage = Preimage(ByteString.copyFrom("secret".getBytes), ByteString.copyFrom("salt".getBytes))
+  private[byzantine] val preimage =
+    Preimage(ByteString.copyFrom("secret".getBytes), ByteString.copyFrom("salt".getBytes))
 
   private[byzantine] val digest = Digest(
     ByteString.copyFrom((new Blake2b256).hash(preimage.input.toByteArray ++ preimage.salt.toByteArray))
   )
-  private[byzantine] val DigestProposition = Proposition(Proposition.Value.Digest(Proposition.Digest("Blake2b256", digest)))
+
+  private[byzantine] val DigestProposition = Proposition(
+    Proposition.Value.Digest(Proposition.Digest("Blake2b256", digest))
+  )
 
   private[byzantine] val DigestLock = Lock(
     Lock.Value.Predicate(Lock.Predicate(List(Challenge().withRevealed(DigestProposition)), 1))

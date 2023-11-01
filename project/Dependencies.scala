@@ -84,7 +84,7 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.10",
-    "org.scodec" %% "scodec-bits" % "1.1.37",
+    "org.scodec" %% "scodec-bits" % "1.1.38",
     "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.28.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.29.0"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
