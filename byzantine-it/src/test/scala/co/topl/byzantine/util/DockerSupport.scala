@@ -123,9 +123,6 @@ object DockerSupport {
       environment: Map[String, String],
       config:      TestNodeConfig
     ): ContainerConfig = {
-      val configDirectory = "/bifrost-config"
-      val stakingDirectory = "/bifrost-staking"
-      val dataDirectory = "/bifrost-data"
       val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
       val exposedPorts: Seq[String] = List(config.rpcPort, config.p2pPort, config.jmxRemotePort).map(_.toString)
       val env =
@@ -138,10 +135,8 @@ object DockerSupport {
           "-Dcom.sun.management.jmxremote.ssl=false",
           "-Dcom.sun.management.jmxremote.local.only=false",
           "-Dcom.sun.management.jmxremote.authenticate=false",
-          "--config",
-          "/bifrost-config/node.yaml",
           "--logbackFile",
-          "/bifrost-config/logback.xml",
+          "/bifrost/config/logback.xml",
           "--debug"
         )
 
@@ -152,21 +147,17 @@ object DockerSupport {
               HostConfig.Bind
                 .builder()
                 .from(sourceDir)
-                .to(stakingDirectory)
+                .to("/bifrost/staking")
                 .selinuxLabeling(true)
                 .build()
             )
           )
           .build()
 
-      val volumes =
-        List(configDirectory, dataDirectory) ++ Option.when(config.stakingBindSourceDir.isEmpty)(stakingDirectory)
-
       ContainerConfig
         .builder()
         .image(bifrostImage)
         .env(env: _*)
-        .volumes(volumes: _*)
         .cmd(cmd: _*)
         .hostname(name)
         .hostConfig(hostConfig)
@@ -195,10 +186,6 @@ case class TestNodeConfig(
     )
     s"""
        |bifrost:
-       |  data:
-       |    directory: /bifrost-data
-       |  staking:
-       |    directory: /bifrost-staking
        |  rpc:
        |    bind-host: 0.0.0.0
        |    port: "$rpcPort"
