@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 object TransactionGeneratorApp
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => IO.delay(Args.parserArgs.constructOrThrow(args)),
-      createConfig = IOBaseApp.createTypesafeConfig,
+      createConfig = IOBaseApp.createTypesafeConfig(_),
       parseConfig = (_, conf) => IO.delay(ApplicationConfig.unsafe(conf))
     ) {
 
