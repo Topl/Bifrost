@@ -1,5 +1,0 @@
-bifrost:
-  data:
-    directory: /opt/docker/.bifrost/data/{genesisBlockId}
-  staking:
-    directory: /opt/docker/.bifrost/staking/{genesisBlockId}
