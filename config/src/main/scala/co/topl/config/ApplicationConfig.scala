@@ -57,17 +57,18 @@ object ApplicationConfig {
       maxPerformanceDelayInSlots:           Double = 2.0,
       remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
       minimumBlockProvidingReputationPeers: Int = 2,
-      minimumPerformanceReputationPeers:    Int = 1,
+      minimumPerformanceReputationPeers:    Int = 2,
       minimumRequiredReputation:            Double = 0.66,
-      minimumHotConnections:                Int = 3,
-      minimumWarmConnections:               Int = 6,
+      minimumHotConnections:                Int = 7,
       maximumWarmConnections:               Int = 12,
       warmHostsUpdateEveryNBlock:           Double = 4.0,
       commonAncestorTrackInterval:          FiniteDuration = FiniteDuration(10, SECONDS),
       // we could try to connect to remote peer again after
       // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
       closeTimeoutFirstDelayInMs: Long = 1000,
-      closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24 // 1 day
+      closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24, // 1 day
+      aggressiveP2P:              Boolean = true, // always try to found new good remote peers
+      aggressiveP2PCount:         Int = 2 // how many new connection will be opened
     )
 
     case class KnownPeer(host: String, port: Int)

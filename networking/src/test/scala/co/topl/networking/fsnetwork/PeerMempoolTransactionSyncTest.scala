@@ -19,7 +19,7 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSyncTest.F
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.TestHelper.BlockBodyOrTransactionErrorByName
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -50,7 +50,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
 
       val totalTransactions = 10
       val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
@@ -81,7 +81,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       }
 
       PeerMempoolTransactionSync
-        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, reputationAggregator)
+        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, peersManager)
         .use { actor =>
           for {
             state <- actor.send(PeerMempoolTransactionSync.Message.StartActor)
@@ -97,7 +97,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
 
       val totalTransactions = 1
       val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
@@ -122,8 +122,8 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
           .returns(
             Either.left[NonEmptyChain[TransactionSyntaxError], IoTransaction](NonEmptyChain.one(EmptyInputs)).pure[F]
           )
-        (reputationAggregator.sendNoWait _)
-          .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
+        (peersManager.sendNoWait _)
+          .expects(PeersManager.Message.CriticalErrorForHost(hostId))
           .once()
           .returns(Applicative[F].unit)
         (transactionStore.put _).expects(tx.id, tx).never().returns(Applicative[F].unit)
@@ -131,7 +131,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       }
 
       PeerMempoolTransactionSync
-        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, reputationAggregator)
+        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, peersManager)
         .use { actor =>
           for {
             state <- actor.send(PeerMempoolTransactionSync.Message.StartActor)
@@ -147,7 +147,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
 
       val totalTransactions = 1
       val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
@@ -166,8 +166,8 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
             case (_: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
               arbitraryIoTransaction.arbitrary.first.pure[F]
           }
-        (reputationAggregator.sendNoWait _)
-          .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
+        (peersManager.sendNoWait _)
+          .expects(PeersManager.Message.CriticalErrorForHost(hostId))
           .once()
           .returns(Applicative[F].unit)
         (transactionSyntaxValidation.validate _).expects(tx).never().returns(Either.right(tx).pure[F])
@@ -176,7 +176,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       }
 
       PeerMempoolTransactionSync
-        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, reputationAggregator)
+        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, peersManager)
         .use { actor =>
           for {
             state <- actor.send(PeerMempoolTransactionSync.Message.StartActor)
@@ -192,7 +192,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
 
       val totalTransactions = 10
       val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
@@ -212,8 +212,8 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
             case (_: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
               throw new RuntimeException()
           }
-        (reputationAggregator.sendNoWait _)
-          .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+        (peersManager.sendNoWait _)
+          .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
           .once()
           .returns(Applicative[F].unit)
         (transactionSyntaxValidation.validate _).expects(tx).never().returns(Either.right(tx).pure[F])
@@ -226,7 +226,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       }
 
       PeerMempoolTransactionSync
-        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, reputationAggregator)
+        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, peersManager)
         .use { actor =>
           for {
             state <- actor.send(PeerMempoolTransactionSync.Message.StartActor)
@@ -242,14 +242,14 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
 
       (() => client.remoteTransactionNotifications).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[TransactionId]).pure[F]
       }
 
       PeerMempoolTransactionSync
-        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, reputationAggregator)
+        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, peersManager)
         .use { actor =>
           for {
             state1 <- actor.send(PeerMempoolTransactionSync.Message.StartActor)
@@ -269,14 +269,14 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+      val peersManager = mock[PeersManagerActor[F]]
 
       (() => client.remoteTransactionNotifications).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[TransactionId]).pure[F]
       }
 
       PeerMempoolTransactionSync
-        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, reputationAggregator)
+        .makeActor(hostId, client, transactionSyntaxValidation, transactionStore, mempool, peersManager)
         .use { actor =>
           for {
             state1 <- actor.send(PeerMempoolTransactionSync.Message.StartActor)

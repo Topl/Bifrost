@@ -18,16 +18,16 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
-import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOfLen
+import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
+import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersManagerTest.F
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, arbitraryHostBlockId}
+import co.topl.networking.fsnetwork.TestHelper.arbitraryHost
 import co.topl.networking.p2p.RemoteAddress
-import com.github.benmanes.caffeine.cache.Caffeine
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -72,6 +72,9 @@ class PeersManagerTest
 
   val defaultTransactionSyntaxValidation: TransactionSyntaxVerifier[F] = (t: IoTransaction) => Either.right(t).pure[F]
 
+  def defaultCache(): Cache[BlockId, Set[HostId]] =
+    Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+
   implicit val dummyDns: DnsResolver[F] = (host: HostId) => Option(host).pure[F]
 
   def mockPeerActor[F[_]: Applicative](): PeerActor[F] = {
@@ -93,7 +96,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val coldHost = arbitraryHost.arbitrary.first
@@ -121,6 +123,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           warmHost -> Peer(
@@ -131,9 +134,10 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
-          hotHost -> Peer(PeerState.Hot, Option(hotPeer), hotHost, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
+          hotHost -> Peer(PeerState.Hot, Option(hotPeer), hotHost, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
           banedHost -> Peer(
             PeerState.Banned,
             Option(banedPeer),
@@ -141,6 +145,7 @@ class PeersManagerTest
             None,
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
@@ -165,11 +170,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.GetCurrentTips)
           } yield ()
         }
@@ -187,7 +191,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val coldHost = arbitraryHost.arbitrary.first
@@ -215,6 +218,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           warmHost -> Peer(
@@ -225,9 +229,10 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
-          hotHost -> Peer(PeerState.Hot, Option(hotPeer), hotHost, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
+          hotHost -> Peer(PeerState.Hot, Option(hotPeer), hotHost, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
           banedHost -> Peer(
             PeerState.Banned,
             Option(banedPeer),
@@ -235,6 +240,7 @@ class PeersManagerTest
             None,
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
@@ -259,11 +265,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.GetNetworkQualityForWarmHosts)
           } yield ()
         }
@@ -280,7 +285,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val coldHost = arbitraryHost.arbitrary.first
@@ -309,6 +313,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           warmHost -> Peer(
@@ -319,9 +324,10 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
-          hotHost -> Peer(PeerState.Hot, None, hotHost, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
+          hotHost -> Peer(PeerState.Hot, None, hotHost, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
           banedHost -> Peer(
             PeerState.Banned,
             None,
@@ -329,6 +335,7 @@ class PeersManagerTest
             None,
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
@@ -353,11 +360,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.PrintCommonAncestor)
           } yield ()
         }
@@ -375,7 +381,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val addedAddress1 = RemoteAddress("host", 9090)
@@ -400,11 +405,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           Map.empty,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _             <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             updatedState1 <- actor.send(PeersManager.Message.UpdateThisPeerAddress(addedAddress1))
             _ = assert(updatedState1.thisHostIds.contains(addedAddress1.host))
             updatedState2 <- actor.send(PeersManager.Message.UpdateThisPeerAddress(addedAddress2))
@@ -424,7 +428,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val host1 = "1"
@@ -432,17 +435,14 @@ class PeersManagerTest
       (peerActor1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(host1))
-        .returns(().pure[F])
 
       val host2 = "2"
       val peerActor2 = mockPeerActor[F]()
 
       val initialPeersMap =
         Map(
-          host1 -> Peer(PeerState.Hot, Option(peerActor1), host1, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
-          host2 -> Peer(PeerState.Cold, Option(peerActor2), host2, None, Seq.empty, remoteNetworkLevel = false, 0, 0)
+          host1 -> Peer(PeerState.Hot, Option(peerActor1), host1, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
+          host2 -> Peer(PeerState.Cold, Option(peerActor2), host2, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0)
         )
 
       PeersManager
@@ -464,11 +464,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             preTimestamp <- System.currentTimeMillis().pure[F]
             endState1    <- actor.send(PeersManager.Message.BanPeer(host1))
             _ = assert(endState1.peersHandler(host1).state == PeerState.Banned)
@@ -494,15 +493,11 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val peerActor = mockPeerActor[F]()
       (peerActor.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
-        .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(hostId))
         .returns(().pure[F])
 
       val initialPeersMap =
@@ -513,6 +508,7 @@ class PeersManagerTest
           None,
           Seq(System.currentTimeMillis()),
           remoteNetworkLevel = true,
+          0,
           0,
           0
         ))
@@ -536,11 +532,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             preTimestamp <- System.currentTimeMillis().pure[F]
             endState     <- actor.send(PeersManager.Message.ClosePeer(hostId))
             _ = assert(endState.peersHandler(hostId).actorOpt.isEmpty)
@@ -564,7 +559,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val host1 = arbitraryHost.arbitrary.first
@@ -572,18 +566,11 @@ class PeersManagerTest
       (peerActor1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(host1))
-        .returns(().pure[F])
 
       val host2 = arbitraryHost.arbitrary.first
       val peerActor2 = mockPeerActor[F]()
       (peerActor2.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
-        .returns(().pure[F])
-
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(host2))
         .returns(().pure[F])
 
       val initialPeersMap =
@@ -596,6 +583,7 @@ class PeersManagerTest
             Seq(System.currentTimeMillis()),
             remoteNetworkLevel = false,
             0,
+            0,
             0
           ),
           host2 -> Peer(
@@ -605,6 +593,7 @@ class PeersManagerTest
             None,
             Seq(System.currentTimeMillis()),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
@@ -629,11 +618,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             preTimestamp <- System.currentTimeMillis().pure[F]
             endState     <- actor.send(PeersManager.Message.MoveToCold(NonEmptyChain(host1, host2)))
             endTimestamp = System.currentTimeMillis()
@@ -673,11 +661,6 @@ class PeersManagerTest
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(().pure[F])
 
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(hostId))
-        .returns(().pure[F])
-
       val timeoutWindows = 1000
       val initialPeersMap =
         Map.empty[HostId, Peer[F]] + (hostId -> Peer(
@@ -687,6 +670,7 @@ class PeersManagerTest
           None,
           Seq(0, 200, System.currentTimeMillis() - timeoutWindows, System.currentTimeMillis()),
           remoteNetworkLevel = true,
+          0,
           0,
           0
         ))
@@ -710,11 +694,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             preTimestamp <- System.currentTimeMillis().pure[F]
             endState     <- actor.send(PeersManager.Message.MoveToCold(NonEmptyChain(hostId)))
             _ = assert(endState.peersHandler(hostId).state == PeerState.Cold)
@@ -741,9 +724,8 @@ class PeersManagerTest
 
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
-          NetworkProperties(minimumWarmConnections = 2, minimumHotConnections = 0)
+          NetworkProperties(maximumWarmConnections = 2, minimumHotConnections = 0)
         )
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
       val host1 = RemoteAddress("1", 1)
       val host2 = RemoteAddress("2", 2)
@@ -771,18 +753,17 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeers = Map.empty[HostId, Peer[F]],
-          blockSource = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          blockSource = defaultCache()
         )
         .use { actor =>
           val peers = NonEmptyChain(RemotePeer(host1, 0, 0), RemotePeer(host2, 0, 0), RemotePeer(host3, 0, 0))
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             withColdPeer <- actor.send(PeersManager.Message.AddKnownPeers(peers))
             _ = assert(withColdPeer.peersHandler(host1.host).state == PeerState.Cold)
             _ = assert(withColdPeer.peersHandler(host2.host).state == PeerState.Cold)
             _ = assert(withColdPeer.peersHandler(host3.host).state == PeerState.Cold)
 
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(Map.empty, Map.empty, Map.empty))
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Cold)
@@ -805,9 +786,8 @@ class PeersManagerTest
 
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
-          NetworkProperties(minimumWarmConnections = 10, minimumHotConnections = 0)
+          NetworkProperties(maximumWarmConnections = 10, minimumHotConnections = 0)
         )
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
       val host1 = RemoteAddress("1", 1)
       val host2 = RemoteAddress("2", 2)
@@ -829,6 +809,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           host2.host -> Peer(
@@ -839,9 +820,10 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
-          host3.host -> Peer(PeerState.Cold, None, host3.host, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
+          host3.host -> Peer(PeerState.Cold, None, host3.host, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
           host4.host -> Peer(
             PeerState.Warm,
             None,
@@ -849,6 +831,7 @@ class PeersManagerTest
             Option(host4.port),
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -860,6 +843,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           host6.host -> Peer(
@@ -869,6 +853,7 @@ class PeersManagerTest
             Option(host6.port),
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
@@ -893,13 +878,12 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
 
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(Map.empty, Map.empty, Map.empty))
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Cold)
@@ -912,7 +896,7 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: Empty reputation update, cold to warm, warm to hot") {
+  test("Reputation update: Empty reputation update, cold to warm, warm NOT to hot because no actor yet") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -926,9 +910,8 @@ class PeersManagerTest
 
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
-          NetworkProperties(minimumWarmConnections = 2, minimumHotConnections = 1)
+          NetworkProperties(maximumWarmConnections = 2, minimumHotConnections = 1)
         )
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
       val host1 = RemoteAddress("1", 1)
       val host2 = RemoteAddress("2", 2)
@@ -944,7 +927,8 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0.7,
-            0.8
+            0.8,
+            0
           ),
           host2.host -> Peer(
             PeerState.Cold,
@@ -954,7 +938,8 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0.8,
-            0.2
+            0.2,
+            0
           ),
           host3.host -> Peer(
             PeerState.Cold,
@@ -964,15 +949,13 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0.0,
-            0.0
+            0.0,
+            0
           )
         )
 
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).returns(().pure[F])
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.NewHotPeer(host1.host))
-        .returns(Applicative[F].unit)
 
       PeersManager
         .makeActor(
@@ -993,17 +976,110 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            stateWithReputationAgg <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
-            _ = assert(stateWithReputationAgg.peersHandler.reputationAggregator.get == reputationAggregator)
-
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(Map.empty, Map.empty, Map.empty))
-            _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Hot)
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
+            _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Cold)
+          } yield ()
+        }
+    }
+  }
+
+  test("Aggressive P2P: move some warm peers to hot") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val p2pConfig: P2PNetworkConfig =
+        defaultP2PConfig.copy(networkProperties = NetworkProperties(aggressiveP2PCount = 1))
+
+      val host1 = RemoteAddress("1", 1)
+      val host2 = RemoteAddress("2", 2)
+      val host3 = RemoteAddress("3", 3)
+
+      val peer1 = mockPeerActor[F]()
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
+        .returns(().pure[F])
+
+      val peer2 = mockPeerActor[F]()
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(
+          host1.host -> Peer(
+            PeerState.Warm,
+            peer1.some,
+            host1.host,
+            Option(host1.port),
+            Seq.empty,
+            remoteNetworkLevel = true,
+            0.1,
+            0.0,
+            0
+          ),
+          host2.host -> Peer(
+            PeerState.Warm,
+            peer2.some,
+            host2.host,
+            Option(host2.port),
+            Seq.empty,
+            remoteNetworkLevel = true,
+            0.0,
+            0.0,
+            0
+          ),
+          host3.host -> Peer(
+            PeerState.Warm,
+            None,
+            host3.host,
+            Option(host3.port),
+            Seq.empty,
+            remoteNetworkLevel = true,
+            0.1,
+            0.0,
+            0
+          )
+        )
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          p2pConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            withUpdate <- actor.send(PeersManager.Message.AggressiveP2PUpdate)
+            _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Hot)
+            _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Warm)
+            _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Warm)
+            _ = assert(withUpdate.peersHandler.get(host1.host).get.newRep == p2pConfig.remotePeerNoveltyInSlots)
           } yield ()
         }
     }
@@ -1023,14 +1099,16 @@ class PeersManagerTest
 
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
-          NetworkProperties(minimumWarmConnections = 1, minimumHotConnections = 1)
+          NetworkProperties(maximumWarmConnections = 0, minimumHotConnections = 0)
         )
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
       val host1 = RemoteAddress("1", 1)
       val host2 = RemoteAddress("2", 2)
       val host3 = RemoteAddress("3", 3)
 
+      val repBlock = 0.8
+      val repPerf = 0.9
+      val repNovelty = 2
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
           host1.host -> Peer(
@@ -1040,8 +1118,9 @@ class PeersManagerTest
             Option(host1.port),
             Seq.empty,
             remoteNetworkLevel = true,
-            0,
-            0
+            repBlock,
+            repPerf,
+            repNovelty
           ),
           host2.host -> Peer(
             PeerState.Warm,
@@ -1050,8 +1129,9 @@ class PeersManagerTest
             Option(host2.port),
             Seq.empty,
             remoteNetworkLevel = true,
-            0,
-            0
+            repBlock,
+            repPerf,
+            repNovelty
           ),
           host3.host -> Peer(
             PeerState.Hot,
@@ -1060,13 +1140,11 @@ class PeersManagerTest
             Option(host3.port),
             Seq.empty,
             remoteNetworkLevel = true,
-            0,
-            0
+            repBlock,
+            repPerf,
+            repNovelty
           )
         )
-
-      val blockRep = Map(host1.host -> 0.1, host2.host -> 0.5, host3.host -> 1.0)
-      val perfRep = Map(host1.host -> 0.1, host2.host -> 0.5, host3.host -> 1.0)
 
       PeersManager
         .makeActor(
@@ -1087,24 +1165,24 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            stateWithReputationAgg <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
-            _ = assert(stateWithReputationAgg.peersHandler.reputationAggregator.get == reputationAggregator)
-
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(perfRep, blockRep, Map.empty))
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
             peers = withUpdate.peersHandler.peers
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Hot)
-            _ = assert(peers(host1.host).lastKnownPerformanceReputation == 0)
-            _ = assert(peers(host1.host).lastKnownBlockProvidingReputation == 0)
-            _ = assert(peers(host2.host).lastKnownPerformanceReputation == perfRep(host2.host))
-            _ = assert(peers(host2.host).lastKnownBlockProvidingReputation == 0)
-            _ = assert(peers(host3.host).lastKnownPerformanceReputation == perfRep(host3.host))
-            _ = assert(peers(host3.host).lastKnownBlockProvidingReputation == perfRep(host3.host))
+            _ = assert(peers(host1.host).perfRep == repPerf)
+            _ = assert(peers(host1.host).blockRep == repBlock)
+            _ = assert(peers(host1.host).newRep == repNovelty)
+            _ = assert(peers(host2.host).perfRep == repPerf)
+            _ = assert(peers(host2.host).blockRep == repBlock)
+            _ = assert(peers(host2.host).newRep == repNovelty)
+            _ = assert(peers(host3.host).perfRep == repPerf)
+            _ = assert(peers(host3.host).blockRep == repBlock * defaultP2PConfig.blockNoveltyDecoy)
+            _ = assert(peers(host3.host).newRep == repNovelty - 1)
           } yield ()
         }
     }
@@ -1123,9 +1201,8 @@ class PeersManagerTest
       val mempool = mock[MempoolAlgebra[F]]
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
-          NetworkProperties(minimumWarmConnections = 5, minimumHotConnections = 0)
+          NetworkProperties(maximumWarmConnections = 5, minimumHotConnections = 0)
         )
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
       val host1 = RemoteAddress("1", 1)
       val host2 = RemoteAddress("2", 2)
@@ -1138,11 +1215,7 @@ class PeersManagerTest
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host3).returns(().pure[F])
 
-      val closeTimeoutFirstDelayInMs = 1000
-      val currentTimestamp = System.currentTimeMillis()
-
-      val eligibleTimestampFor1recentCloses = currentTimestamp - closeTimeoutFirstDelayInMs
-      val eligibleTimestampFor2RecentCloses = currentTimestamp - (4 * closeTimeoutFirstDelayInMs)
+      val closeTimeoutFirstDelayInMs = p2pConfig.networkProperties.closeTimeoutFirstDelayInMs
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
@@ -1154,6 +1227,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           host2.host -> Peer(
@@ -1161,8 +1235,9 @@ class PeersManagerTest
             None,
             host2.host,
             Option(host2.port),
-            Seq(eligibleTimestampFor1recentCloses),
+            Seq(System.currentTimeMillis() - closeTimeoutFirstDelayInMs),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -1171,8 +1246,9 @@ class PeersManagerTest
             None,
             host3.host,
             Option(host3.port),
-            Seq(0, eligibleTimestampFor2RecentCloses),
+            Seq(0, System.currentTimeMillis() - (4 * closeTimeoutFirstDelayInMs)),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -1181,8 +1257,9 @@ class PeersManagerTest
             None,
             host4.host,
             Option(host4.port),
-            Seq(currentTimestamp),
+            Seq(System.currentTimeMillis()),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -1191,8 +1268,9 @@ class PeersManagerTest
             None,
             host5.host,
             Option(host5.port),
-            Seq(currentTimestamp - closeTimeoutFirstDelayInMs),
+            Seq(System.currentTimeMillis() - closeTimeoutFirstDelayInMs),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -1201,12 +1279,18 @@ class PeersManagerTest
             None,
             host6.host,
             Option(host6.port),
-            Seq(0, 1, eligibleTimestampFor2RecentCloses),
+            Seq(0, 1, System.currentTimeMillis() - (4 * closeTimeoutFirstDelayInMs)),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
         )
+
+      val selector = new SelectorColdToWarm[F] {
+        override def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] =
+          hosts.flatMap(_.asRemoteAddress).take(countToReceive)
+      }
 
       PeersManager
         .makeActor(
@@ -1224,16 +1308,15 @@ class PeersManagerTest
           p2pConfig,
           defaultHotPeerUpdater,
           defaultPeersSaver,
-          new SemiRandomSelectorColdToWarm[F](closeTimeoutFirstDelayInMs),
+          selector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
 
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(Map.empty, Map.empty, Map.empty))
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Warm)
@@ -1257,8 +1340,7 @@ class PeersManagerTest
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val mempool = mock[MempoolAlgebra[F]]
       val p2pConfig: P2PNetworkConfig =
-        defaultP2PConfig.copy(networkProperties = NetworkProperties(minimumWarmConnections = 2))
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
+        defaultP2PConfig.copy(networkProperties = NetworkProperties(maximumWarmConnections = 2))
 
       val host1 = RemoteAddress("1", 1)
       val host2 = RemoteAddress("2", 2)
@@ -1267,9 +1349,9 @@ class PeersManagerTest
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
-          host1.host -> Peer(PeerState.Hot, None, host1.host, Option(1), Seq.empty, remoteNetworkLevel = true, 0, 0),
-          host2.host -> Peer(PeerState.Banned, None, host2.host, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
-          host3.host -> Peer(PeerState.Cold, None, host3.host, Option(3), Seq.empty, remoteNetworkLevel = true, 0, 0)
+          host1.host -> Peer(PeerState.Hot, None, host1.host, Option(1), Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
+          host2.host -> Peer(PeerState.Banned, None, host2.host, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0),
+          host3.host -> Peer(PeerState.Cold, None, host3.host, Option(3), Seq.empty, remoteNetworkLevel = true, 0, 0, 0)
         )
 
       PeersManager
@@ -1291,7 +1373,7 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           val peers = NonEmptyChain(
@@ -1302,7 +1384,6 @@ class PeersManagerTest
           )
 
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             withColdPeer <- actor.send(PeersManager.Message.AddKnownPeers(peers))
             _ = assert(withColdPeer.peersHandler(host1.host).state == PeerState.Hot)
             _ = assert(withColdPeer.peersHandler(host2.host).state == PeerState.Banned)
@@ -1325,7 +1406,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val host1 = RemoteAddress("first", 1)
@@ -1345,18 +1425,11 @@ class PeersManagerTest
       (peer5.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(host5.host))
-        .returns(().pure[F])
 
       val host6 = RemoteAddress("six", 6)
       val peer6 = mockPeerActor[F]()
       (peer6.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
-        .returns(().pure[F])
-
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.StopReputationTracking(host6.host))
         .returns(().pure[F])
 
       val initialPeersMap: Map[HostId, Peer[F]] =
@@ -1369,9 +1442,20 @@ class PeersManagerTest
             Seq(1),
             remoteNetworkLevel = true,
             0,
+            1.0,
             0
           ),
-          host2.host -> Peer(PeerState.Hot, Option(peer2), host2.host, None, Seq(2), remoteNetworkLevel = true, 0, 0),
+          host2.host -> Peer(
+            PeerState.Hot,
+            Option(peer2),
+            host2.host,
+            None,
+            Seq(2),
+            remoteNetworkLevel = true,
+            1.0,
+            0,
+            0
+          ),
           host3.host -> Peer(
             PeerState.Hot,
             Option(peer3),
@@ -1379,29 +1463,33 @@ class PeersManagerTest
             Option(3),
             Seq(3),
             remoteNetworkLevel = true,
+            defaultP2PConfig.networkProperties.minimumRequiredReputation * 1.05,
+            defaultP2PConfig.networkProperties.minimumRequiredReputation * 1.05,
+            0
+          ),
+          host4.host -> Peer(
+            PeerState.Hot,
+            Option(peer4),
+            host4.host,
+            None,
+            Seq(4),
+            remoteNetworkLevel = true,
+            0,
+            0,
+            2
+          ),
+          host5.host -> Peer(
+            PeerState.Hot,
+            Option(peer5),
+            host5.host,
+            None,
+            Seq(5),
+            remoteNetworkLevel = false,
+            0,
             0,
             0
           ),
-          host4.host -> Peer(PeerState.Hot, Option(peer4), host4.host, None, Seq(4), remoteNetworkLevel = true, 0, 0),
-          host5.host -> Peer(PeerState.Hot, Option(peer5), host5.host, None, Seq(5), remoteNetworkLevel = false, 0, 0),
-          host6.host -> Peer(PeerState.Hot, Option(peer6), host6.host, None, Seq(6), remoteNetworkLevel = true, 0, 0)
-        )
-
-      val performanceRep: Map[HostId, HostReputationValue] =
-        Map(
-          host1.host -> 1.0,
-          host3.host -> defaultP2PConfig.networkProperties.minimumRequiredReputation * 1.05
-        )
-
-      val blockRep: Map[HostId, HostReputationValue] =
-        Map(
-          host2.host -> 1.0,
-          host3.host -> defaultP2PConfig.networkProperties.minimumRequiredReputation * 1.05
-        )
-
-      val noveltyRep: Map[HostId, Long] =
-        Map(
-          host4.host -> 1
+          host6.host -> Peer(PeerState.Hot, Option(peer6), host6.host, None, Seq(6), remoteNetworkLevel = true, 0, 0, 0)
         )
 
       val hotUpdater = mock[Set[RemoteAddress] => F[Unit]]
@@ -1426,12 +1514,11 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _          <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(performanceRep, blockRep, noveltyRep))
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Hot)
             _ = assert(withUpdate.peersHandler(host1.host).closedTimestamps == Seq(1))
             _ = assert(withUpdate.peersHandler(host1.host).actorOpt.isDefined)
@@ -1465,7 +1552,6 @@ class PeersManagerTest
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -1476,7 +1562,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1487,15 +1573,21 @@ class PeersManagerTest
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
+        .returns(Applicative[F].unit)
       (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnection).returns(Applicative[F].unit)
 
       (networkAlgebra.makePeer _)
-        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _).expects(PeerActor.Message.GetPeerServerAddress).returns(Applicative[F].unit)
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returns(Applicative[F].unit)
+      (peer2.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map.empty
@@ -1519,11 +1611,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _          <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, client1))
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Cold)
@@ -1534,6 +1625,75 @@ class PeersManagerTest
             withUpdate3 <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, client2))
             _ = assert(withUpdate3.peersHandler(host1.host).state == PeerState.Cold)
             _ = assert(withUpdate3.peersHandler(host1.host).actorOpt.get == peer2)
+          } yield ()
+        }
+    }
+  }
+
+  test("Cold peer and then incoming new connection shall create new peer actor") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val client1 = mock[BlockchainPeerClient[F]]
+      val host1 = RemoteAddress("first", 1)
+      val peer1 = mockPeerActor[F]()
+
+      (networkAlgebra.makePeer _)
+        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *)
+        .once()
+        .returns(
+          Resource
+            .pure(peer1)
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnection)))
+        ) // simulate real actor finalizer
+      (peer1.sendNoWait _).expects(PeerActor.Message.GetPeerServerAddress).returns(Applicative[F].unit)
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returns(Applicative[F].unit)
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
+        .returns(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnection).returns(Applicative[F].unit)
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(host1.host -> Peer(PeerState.Cold, None, host1.host, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0))
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, client1))
+            _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Cold)
+            _ = assert(withUpdate.peersHandler(host1.host).actorOpt.get == peer1)
           } yield ()
         }
     }
@@ -1552,26 +1712,17 @@ class PeersManagerTest
       val mempool = mock[MempoolAlgebra[F]]
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties = NetworkProperties(minimumHotConnections = 2))
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
       val host1 = RemoteAddress("first", 1)
       val peer1 = mockPeerActor[F]()
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
         .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.NewHotPeer(host1.host))
-        .once()
-        .returns(().pure[F])
 
       val host2 = RemoteAddress("second", 2)
       val peer2 = mockPeerActor[F]()
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
-        .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.NewHotPeer(host2.host))
-        .once()
         .returns(().pure[F])
 
       val host3 = RemoteAddress("third", 3)
@@ -1590,6 +1741,7 @@ class PeersManagerTest
             Seq(1),
             remoteNetworkLevel = true,
             0,
+            1.0,
             0
           ),
           host2.host -> Peer(
@@ -1600,18 +1752,31 @@ class PeersManagerTest
             Seq(2),
             remoteNetworkLevel = true,
             0,
+            0.9,
             0
           ),
-          host3.host -> Peer(PeerState.Warm, Option(peer3), host3.host, None, Seq(3), remoteNetworkLevel = true, 0, 0),
-          host4.host -> Peer(PeerState.Warm, Option(peer4), host4.host, None, Seq(4), remoteNetworkLevel = true, 0, 0)
-        )
-
-      val performanceRep: Map[HostId, HostReputationValue] =
-        Map(
-          host1.host -> 1.0,
-          host2.host -> 0.9,
-          host3.host -> 0.8,
-          host4.host -> 0.7
+          host3.host -> Peer(
+            PeerState.Warm,
+            Option(peer3),
+            host3.host,
+            None,
+            Seq(3),
+            remoteNetworkLevel = true,
+            0,
+            0.8,
+            0
+          ),
+          host4.host -> Peer(
+            PeerState.Warm,
+            Option(peer4),
+            host4.host,
+            None,
+            Seq(4),
+            remoteNetworkLevel = true,
+            0,
+            0.7,
+            0
+          )
         )
 
       val hotUpdater = mock[Set[RemoteAddress] => F[Unit]]
@@ -1636,16 +1801,17 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _          <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputation(performanceRep, Map.empty, Map.empty))
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Hot)
             _ = assert(withUpdate.peersHandler(host1.host).closedTimestamps == Seq(1))
+            _ = assert(withUpdate.peersHandler(host1.host).newRep == defaultP2PConfig.remotePeerNoveltyInSlots)
             _ = assert(withUpdate.peersHandler(host2.host).state == PeerState.Hot)
             _ = assert(withUpdate.peersHandler(host2.host).closedTimestamps == Seq(2))
+            _ = assert(withUpdate.peersHandler(host2.host).newRep == defaultP2PConfig.remotePeerNoveltyInSlots)
             _ = assert(withUpdate.peersHandler(host3.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host3.host).closedTimestamps == Seq(3))
             _ = assert(withUpdate.peersHandler(host4.host).state == PeerState.Warm)
@@ -1667,14 +1833,13 @@ class PeersManagerTest
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
       val host1 = RemoteAddress("1", 1)
       val peer1 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1.host, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer1))
       (peer1.sendNoWait _)
@@ -1683,11 +1848,14 @@ class PeersManagerTest
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.GetPeerServerAddress)
         .returns(Applicative[F].unit)
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
+        .returns(Applicative[F].unit)
 
       val host2 = RemoteAddress("2", 2)
       val peer2 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host2.host, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host2.host, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -1696,11 +1864,14 @@ class PeersManagerTest
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.GetPeerServerAddress)
         .returns(Applicative[F].unit)
+      (peer2.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
+        .returns(Applicative[F].unit)
 
       val host3 = RemoteAddress("3", 3)
       val peer3 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host3.host, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host3.host, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer3))
       (peer3.sendNoWait _)
@@ -1708,6 +1879,9 @@ class PeersManagerTest
         .returns(Applicative[F].unit)
       (peer3.sendNoWait _)
         .expects(PeerActor.Message.GetPeerServerAddress)
+        .returns(Applicative[F].unit)
+      (peer3.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
 
       val host4 = RemoteAddress("4", 4)
@@ -1717,7 +1891,7 @@ class PeersManagerTest
       val host5 = RemoteAddress("5", 5)
       val peer5 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host5.host, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host5.host, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer5))
       (peer5.sendNoWait _)
@@ -1725,6 +1899,9 @@ class PeersManagerTest
         .returns(Applicative[F].unit)
       (peer5.sendNoWait _)
         .expects(PeerActor.Message.GetPeerServerAddress)
+        .returns(Applicative[F].unit)
+      (peer5.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
 
       val host6 = RemoteAddress("6", 6)
@@ -1734,12 +1911,12 @@ class PeersManagerTest
       val peer7 = mockPeerActor[F]()
 
       val initialPeersMap = Map(
-        host1.host -> Peer(PeerState.Cold, None, host1.host, None, Seq(1), remoteNetworkLevel = false, 0, 0),
-        host3.host -> Peer(PeerState.Warm, None, host3.host, None, Seq(3), remoteNetworkLevel = true, 0, 0),
-        host4.host -> Peer(PeerState.Banned, None, host4.host, None, Seq(4), remoteNetworkLevel = true, 0, 0),
-        host5.host -> Peer(PeerState.Hot, None, host5.host, None, Seq(5), remoteNetworkLevel = true, 0, 0),
-        host6.host -> Peer(PeerState.Cold, Option(peer6), host6.host, None, Seq(6), remoteNetworkLevel = true, 0, 0),
-        host7.host -> Peer(PeerState.Warm, Option(peer7), host7.host, None, Seq(7), remoteNetworkLevel = false, 0, 0)
+        host1.host -> Peer(PeerState.Cold, None, host1.host, None, Seq(1), remoteNetworkLevel = false, 0, 0, 0),
+        host3.host -> Peer(PeerState.Warm, None, host3.host, None, Seq(3), remoteNetworkLevel = true, 0, 0, 0),
+        host4.host -> Peer(PeerState.Banned, None, host4.host, None, Seq(4), remoteNetworkLevel = true, 0, 0, 0),
+        host5.host -> Peer(PeerState.Hot, None, host5.host, None, Seq(5), remoteNetworkLevel = true, 0, 0, 0),
+        host6.host -> Peer(PeerState.Cold, Option(peer6), host6.host, None, Seq(6), remoteNetworkLevel = true, 0, 0, 0),
+        host7.host -> Peer(PeerState.Warm, Option(peer7), host7.host, None, Seq(7), remoteNetworkLevel = false, 0, 0, 0)
       )
 
       PeersManager
@@ -1761,11 +1938,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _          <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _          <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             stateHost1 <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, mock[BlockchainPeerClient[F]]))
@@ -1805,7 +1981,6 @@ class PeersManagerTest
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -1822,10 +1997,20 @@ class PeersManagerTest
       val peer4 = mockPeerActor[F]()
 
       val initialPeersMap = Map(
-        host1.host -> Peer(PeerState.Banned, Option(peer1), host1.host, None, Seq(1), remoteNetworkLevel = true, 0, 0),
-        host2.host -> Peer(PeerState.Cold, Option(peer2), host2.host, None, Seq(3), remoteNetworkLevel = true, 0, 0),
-        host3.host -> Peer(PeerState.Warm, Option(peer3), host3.host, None, Seq(4), remoteNetworkLevel = true, 0, 0),
-        host4.host -> Peer(PeerState.Hot, Option(peer4), host4.host, None, Seq(5), remoteNetworkLevel = true, 0, 0)
+        host1.host -> Peer(
+          PeerState.Banned,
+          Option(peer1),
+          host1.host,
+          None,
+          Seq(1),
+          remoteNetworkLevel = true,
+          0,
+          0,
+          0
+        ),
+        host2.host -> Peer(PeerState.Cold, Option(peer2), host2.host, None, Seq(3), remoteNetworkLevel = true, 0, 0, 0),
+        host3.host -> Peer(PeerState.Warm, Option(peer3), host3.host, None, Seq(4), remoteNetworkLevel = true, 0, 0, 0),
+        host4.host -> Peer(PeerState.Hot, Option(peer4), host4.host, None, Seq(5), remoteNetworkLevel = true, 0, 0, 0)
       )
 
       PeersManager
@@ -1847,11 +2032,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _          <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _          <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             stateHost1 <- actor.send(PeersManager.Message.RemotePeerNetworkLevel(host1.host, networkLevel = false))
@@ -1886,7 +2070,6 @@ class PeersManagerTest
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -1912,8 +2095,28 @@ class PeersManagerTest
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
-          host1.host -> Peer(PeerState.Hot, Option(peer1), host1.host, None, Seq(1), remoteNetworkLevel = true, 0, 0),
-          host3.host -> Peer(PeerState.Hot, Option(peer3), host3.host, None, Seq(3), remoteNetworkLevel = true, 0, 0),
+          host1.host -> Peer(
+            PeerState.Hot,
+            Option(peer1),
+            host1.host,
+            None,
+            Seq(1),
+            remoteNetworkLevel = true,
+            0,
+            0,
+            0
+          ),
+          host3.host -> Peer(
+            PeerState.Hot,
+            Option(peer3),
+            host3.host,
+            None,
+            Seq(3),
+            remoteNetworkLevel = true,
+            0,
+            0,
+            0
+          ),
           host4.host -> Peer(
             PeerState.Hot,
             Option(peer4),
@@ -1921,6 +2124,7 @@ class PeersManagerTest
             Option(host4serverAddress.port),
             Seq(4),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -1931,6 +2135,7 @@ class PeersManagerTest
             Option(hostServer5.port),
             Seq(5),
             remoteNetworkLevel = true,
+            0,
             0,
             0
           )
@@ -1958,11 +2163,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _         <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _         <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _         <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             newState1 <- actor.send(PeersManager.Message.RemotePeerServerPort(host1.host, hostServer1Port))
@@ -1987,7 +2191,6 @@ class PeersManagerTest
       val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2018,6 +2221,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           host2 -> Peer(
@@ -2027,6 +2231,7 @@ class PeersManagerTest
             Option(hostServer2Port),
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -2038,6 +2243,7 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
           host4 -> Peer(
@@ -2047,6 +2253,7 @@ class PeersManagerTest
             Option(hostServer4Port),
             Seq.empty,
             remoteNetworkLevel = true,
+            0,
             0,
             0
           ),
@@ -2058,9 +2265,10 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             0,
+            0,
             0
           ),
-          host6 -> Peer(PeerState.Hot, None, host6, None, Seq.empty, remoteNetworkLevel = true, 0, 0)
+          host6 -> Peer(PeerState.Hot, None, host6, None, Seq.empty, remoteNetworkLevel = true, 0, 0, 0)
         )
 
       val writingHosts = mock[Set[RemotePeer] => F[Unit]]
@@ -2091,91 +2299,13 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
           } yield ()
-        }
-    }
-  }
-
-  test("Block source shall be sent to reputation aggregator with correct count") {
-    PropF.forAllF(nonEmptyChainArbOfLen(arbitraryHostBlockId, maxChainSize).arbitrary) {
-      inputData: NonEmptyChain[(HostId, BlockId)] =>
-        withMock {
-          val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-          val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-          val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-          val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-          val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-          val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-          val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-            mock[BlockHeaderToBodyValidationAlgebra[F]]
-          val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-          val blockChecker = mock[BlockCheckerActor[F]]
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
-          val requestProxy = mock[RequestsProxyActor[F]]
-          val mempool = mock[MempoolAlgebra[F]]
-
-          val blockWithSource: Map[BlockId, Set[HostId]] =
-            inputData.toList
-              .take(10)
-              .map(d => d._2)
-              .zipWithIndex
-              .map { case (block, index) =>
-                val sourcesForBlock = (1 to index).map(i => i.toString).toSet
-                (block, sourcesForBlock)
-              }
-              .toMap
-
-          val initialCash =
-            Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
-          initialCash.putAll(blockWithSource.asJava)
-
-          val expectedData = inputData.map { case (host, blockId) =>
-            (host, blockWithSource.getOrElse(blockId, Set.empty).size.toLong + 1)
-          }
-
-          (reputationAggregator.sendNoWait _)
-            .expects(ReputationAggregator.Message.BlockProvidingReputationUpdate(expectedData))
-            .once()
-            .returns(().pure[F])
-
-          PeersManager
-            .makeActor(
-              thisHostId,
-              networkAlgebra,
-              localChain,
-              slotDataStore,
-              transactionStore,
-              blockIdTree,
-              blockHeights,
-              mempool,
-              headerToBodyValidation,
-              defaultTransactionSyntaxValidation,
-              newPeerCreationAlgebra,
-              defaultP2PConfig,
-              defaultHotPeerUpdater,
-              defaultPeersSaver,
-              defaultColdToWarmSelector,
-              defaultWarmToHotSelector,
-              Map.empty,
-              initialCash
-            )
-            .use { actor =>
-              for {
-                _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
-                _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
-                _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
-                _ <- actor.send(PeersManager.Message.BlocksSource(inputData))
-                // if we send the same data no message is sent
-                _ <- actor.send(PeersManager.Message.BlocksSource(inputData))
-              } yield ()
-            }
         }
     }
   }
@@ -2192,7 +2322,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2225,11 +2354,10 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           Map.empty,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _            <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _            <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             updatedState <- actor.send(PeersManager.Message.AddKnownNeighbors(someHost, remoteAddresses))
@@ -2258,7 +2386,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2280,7 +2407,8 @@ class PeersManagerTest
             Seq.empty,
             remoteNetworkLevel = true,
             host1BlockRep,
-            host1PerfRep
+            host1PerfRep,
+            0
           )
         )
 
@@ -2303,17 +2431,18 @@ class PeersManagerTest
           defaultColdToWarmSelector,
           defaultWarmToHotSelector,
           initialPeersMap,
-          Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+          defaultCache()
         )
         .use { actor =>
           for {
-            _            <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _            <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _            <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             updatedState <- actor.send(PeersManager.Message.AddKnownNeighbors(host1, NonEmptyChain(address1, address2)))
             knownPeers1 = updatedState.peersHandler.peers
-            _ = assert(knownPeers1(address1.host).lastKnownBlockProvidingReputation == host1BlockRep)
-            _ = assert(knownPeers1(address1.host).lastKnownPerformanceReputation == host1PerfRep)
+            _ = assert(knownPeers1(address1.host).blockRep == host1BlockRep)
+            _ = assert(knownPeers1(address1.host).perfRep == 0.0)
+            _ = assert(knownPeers1(address2.host).blockRep == host1BlockRep)
+            _ = assert(knownPeers1(address2.host).perfRep == 0.0)
           } yield ()
         }
     }
@@ -2332,7 +2461,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2352,12 +2480,22 @@ class PeersManagerTest
         )
 
       val initialCash =
-        Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
-        blockSource -> Peer(PeerState.Hot, Option(peer), blockSource, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
+        blockSource -> Peer(
+          PeerState.Hot,
+          Option(peer),
+          blockSource,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          0,
+          0,
+          0
+        ),
         coldPeer -> Peer(
           PeerState.Cold,
           Option(mockPeerActor[F]()),
@@ -2365,6 +2503,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         ),
@@ -2376,6 +2515,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         bannedPeer -> Peer(
@@ -2386,6 +2526,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         warmPeer -> Peer(
@@ -2395,6 +2536,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         )
@@ -2429,7 +2571,6 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ <- actor.send(messageToSend)
@@ -2451,7 +2592,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2463,12 +2603,22 @@ class PeersManagerTest
       val blockWithSource: Map[BlockId, Set[HostId]] = Map()
 
       val initialCash =
-        Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
-        blockSource -> Peer(PeerState.Hot, Option(peer), blockSource, None, Seq.empty, remoteNetworkLevel = true, 0, 0)
+        blockSource -> Peer(
+          PeerState.Hot,
+          Option(peer),
+          blockSource,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          0,
+          0,
+          0
+        )
       )
 
       val expectedMessage = PeerActor.Message.DownloadBlockHeaders(NonEmptyChain(blockHeader1.id, blockHeader2.id))
@@ -2500,7 +2650,6 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ <- actor.send(messageToSend)
@@ -2522,7 +2671,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2541,7 +2689,7 @@ class PeersManagerTest
         )
 
       val initialCash =
-        Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
@@ -2553,6 +2701,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         preWarmPeer -> Peer(
@@ -2562,6 +2711,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         ),
@@ -2573,6 +2723,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         warmPeer -> Peer(
@@ -2582,6 +2733,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         )
@@ -2619,7 +2771,6 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ <- actor.send(messageToSend)
@@ -2641,7 +2792,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2661,12 +2811,22 @@ class PeersManagerTest
         )
 
       val initialCash =
-        Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
-        blockSource -> Peer(PeerState.Hot, Option(peer), blockSource, None, Seq.empty, remoteNetworkLevel = true, 0, 0),
+        blockSource -> Peer(
+          PeerState.Hot,
+          Option(peer),
+          blockSource,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          0,
+          0,
+          0
+        ),
         coldPeer -> Peer(
           PeerState.Cold,
           Option(mockPeerActor[F]()),
@@ -2674,6 +2834,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         ),
@@ -2685,6 +2846,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         bannedPeer -> Peer(
@@ -2695,6 +2857,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         warmPeer -> Peer(
@@ -2704,6 +2867,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         )
@@ -2738,7 +2902,6 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ <- actor.send(messageToSend)
@@ -2760,7 +2923,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2772,12 +2934,22 @@ class PeersManagerTest
       val blockWithSource: Map[BlockId, Set[HostId]] = Map()
 
       val initialCash =
-        Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
-        blockSource -> Peer(PeerState.Hot, Option(peer), blockSource, None, Seq.empty, remoteNetworkLevel = true, 0, 0)
+        blockSource -> Peer(
+          PeerState.Hot,
+          Option(peer),
+          blockSource,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          0,
+          0,
+          0
+        )
       )
 
       val expectedMessage = PeerActor.Message.DownloadBlockBodies(NonEmptyChain(blockHeader1, blockHeader2))
@@ -2809,7 +2981,6 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ <- actor.send(messageToSend)
@@ -2831,7 +3002,6 @@ class PeersManagerTest
         mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -2850,7 +3020,7 @@ class PeersManagerTest
         )
 
       val initialCash =
-        Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+        defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
@@ -2862,6 +3032,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         preWarmPeer -> Peer(
@@ -2871,6 +3042,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         ),
@@ -2882,6 +3054,7 @@ class PeersManagerTest
           Seq.empty,
           remoteNetworkLevel = true,
           0,
+          0,
           0
         ),
         warmPeer -> Peer(
@@ -2891,6 +3064,7 @@ class PeersManagerTest
           None,
           Seq.empty,
           remoteNetworkLevel = true,
+          0,
           0,
           0
         )
@@ -2928,13 +3102,615 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupReputationAggregator(reputationAggregator))
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ <- actor.send(messageToSend)
           } yield ()
         }
 
+    }
+  }
+
+  test("Correct pong message shall be processed") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val initBlock = 0.1
+      val initNovelty = 1
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        hostId -> Peer(
+          PeerState.Cold,
+          Option(mockPeerActor[F]()),
+          hostId,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          initBlock,
+          0.5,
+          initNovelty
+        )
+      )
+
+      val delay = 230L
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            newState <- actor.send(PeersManager.Message.PingPongMessagePing(hostId, Right(delay)))
+            peer = newState.peersHandler(hostId)
+            _ = assert(peer.perfRep == PeersManager.delayToReputation(defaultP2PConfig, delay))
+            _ = assert(peer.blockRep == initBlock)
+            _ = assert(peer.newRep == initNovelty)
+          } yield ()
+        }
+    }
+  }
+
+  test("NoPongMessage message shall be processed") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val initBlock = 0.1
+      val initNovelty = 1
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        hostId -> Peer(
+          PeerState.Cold,
+          Option(mockPeerActor[F]()),
+          hostId,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          initBlock,
+          0.5,
+          initNovelty
+        )
+      )
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            newState <- actor.send(PeersManager.Message.PingPongMessagePing(hostId, Left(NoPongMessage)))
+            peer = newState.peersHandler(hostId)
+            _ = assert(peer.state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
+  test("IncorrectPongMessage message shall be processed") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val initBlock = 0.1
+      val initNovelty = 1
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        hostId -> Peer(
+          PeerState.Cold,
+          Option(mockPeerActor[F]()),
+          hostId,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          initBlock,
+          0.5,
+          initNovelty
+        )
+      )
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            newState <- actor.send(PeersManager.Message.PingPongMessagePing(hostId, Left(IncorrectPongMessage)))
+            peer = newState.peersHandler(hostId)
+            _ = assert(peer.state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
+  test("IncorrectBlock message shall be processed") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val initBlock = 0.1
+      val initNovelty = 1
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        hostId -> Peer(
+          PeerState.Cold,
+          Option(mockPeerActor[F]()),
+          hostId,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          initBlock,
+          0.5,
+          initNovelty
+        )
+      )
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            newState <- actor.send(PeersManager.Message.CriticalErrorForHost(hostId))
+            peer = newState.peersHandler(hostId)
+            _ = assert(peer.state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
+  test("Performance reputation after header downloading shall be updated") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val initBlock = 0.1
+      val initPerf = 0.5
+      val initNovelty = 1
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        hostId -> Peer(
+          PeerState.Cold,
+          Option(mockPeerActor[F]()),
+          hostId,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          initBlock,
+          initPerf,
+          initNovelty
+        )
+      )
+
+      val downloadTime = 120
+      val reputation = PeersManager.delayToReputation(defaultP2PConfig, downloadTime)
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.DownloadTimeHeader(hostId, downloadTime))
+            peer = newState.peersHandler(hostId)
+            _ = assert(peer.perfRep == (initPerf * 2 + reputation) / 3.0)
+            _ = assert(peer.blockRep == initBlock)
+            _ = assert(peer.newRep == initNovelty)
+          } yield ()
+        }
+    }
+  }
+
+  test("Performance reputation after body downloading shall be updated") {
+    PropF.forAllF { (txTimes: Seq[Long]) =>
+      withMock {
+        val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+        val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+        val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+        val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+        val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+        val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+        val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+          mock[BlockHeaderToBodyValidationAlgebra[F]]
+        val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+        val mempool = mock[MempoolAlgebra[F]]
+
+        val initBlock = 0.1
+        val initPerf = 0.5
+        val initNovelty = 1
+        val initialPeersMap: Map[HostId, Peer[F]] = Map(
+          hostId -> Peer(
+            PeerState.Cold,
+            Option(mockPeerActor[F]()),
+            hostId,
+            None,
+            Seq.empty,
+            remoteNetworkLevel = true,
+            initBlock,
+            initPerf,
+            initNovelty
+          )
+        )
+
+        val downloadTime = 120L
+        val txDownloadTime: Seq[Long] = txTimes.filter(_ > 0)
+        val reputation = PeersManager.delayToReputation(defaultP2PConfig, (txDownloadTime :+ downloadTime).max)
+
+        PeersManager
+          .makeActor(
+            thisHostId,
+            networkAlgebra,
+            localChain,
+            slotDataStore,
+            transactionStore,
+            blockIdTree,
+            blockHeights,
+            mempool,
+            headerToBodyValidation,
+            defaultTransactionSyntaxValidation,
+            newPeerCreationAlgebra,
+            defaultP2PConfig,
+            defaultHotPeerUpdater,
+            defaultPeersSaver,
+            defaultColdToWarmSelector,
+            defaultWarmToHotSelector,
+            initialPeersMap,
+            defaultCache()
+          )
+          .use { actor =>
+            for {
+              newState <- actor.send(PeersManager.Message.DownloadTimeBody(hostId, downloadTime, txDownloadTime))
+              peer = newState.peersHandler(hostId)
+              _ = assert(peer.perfRep == (initPerf * 2 + reputation) / 3.0)
+              _ = assert(peer.blockRep == initBlock)
+              _ = assert(peer.newRep == initNovelty)
+            } yield ()
+          }
+      }
+    }
+  }
+
+  test("Block providing reputation: take better value from update and current value") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val host1 = arbitraryHost.arbitrary.first
+      val host2 = arbitraryHost.arbitrary.first
+      val host3 = arbitraryHost.arbitrary.first
+      val host4 = arbitraryHost.arbitrary.first
+      val host5 = arbitraryHost.arbitrary.first
+
+      val blockId1 = arbitraryBlockId.arbitrary.first
+      val blockId2 = arbitraryBlockId.arbitrary.first
+      val blockId3 = arbitraryBlockId.arbitrary.first
+      val blockId4 = arbitraryBlockId.arbitrary.first
+      val blockId5 = arbitraryBlockId.arbitrary.first
+
+      val worstedKnownSources = 4L
+      val worstedReputation = PeersManager.knownSourcesToReputation(defaultP2PConfig, worstedKnownSources)
+
+      val worstKnownSources = 3L
+      val worstReputation = PeersManager.knownSourcesToReputation(defaultP2PConfig, worstKnownSources)
+
+      val okKnownSources = 2L
+      val okReputation = PeersManager.knownSourcesToReputation(defaultP2PConfig, okKnownSources)
+
+      val bestKnownSources = 1L
+      val bestReputation = PeersManager.knownSourcesToReputation(defaultP2PConfig, bestKnownSources)
+      assert(bestReputation == 1)
+
+      val update: NonEmptyChain[(HostId, BlockId)] = NonEmptyChain(
+        host1 -> blockId1,
+        host1 -> blockId2,
+        host1 -> blockId3,
+        host1 -> blockId4,
+        host2 -> blockId2,
+        host2 -> blockId3,
+        host2 -> blockId4,
+        host3 -> blockId3,
+        host3 -> blockId4,
+        host4 -> blockId4,
+        host5 -> blockId5
+      )
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        host1 -> Peer(
+          PeerState.Hot,
+          Option(mockPeerActor[F]()),
+          host1,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          worstReputation,
+          0.0,
+          0
+        ),
+        host2 -> Peer(
+          PeerState.Hot,
+          Option(mockPeerActor[F]()),
+          host2,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          worstReputation,
+          0.0,
+          0
+        ),
+        host3 -> Peer(
+          PeerState.Hot,
+          Option(mockPeerActor[F]()),
+          host3,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          worstReputation,
+          0.0,
+          0
+        ),
+        host4 -> Peer(
+          PeerState.Hot,
+          Option(mockPeerActor[F]()),
+          host4,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          worstReputation,
+          0.0,
+          0
+        ),
+        host5 -> Peer(
+          PeerState.Hot,
+          Option(mockPeerActor[F]()),
+          host5,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          worstedReputation,
+          0.0,
+          0
+        )
+      )
+
+      val cache = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
+      cache.put(blockId5, Set(host1, host2, host3))
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          cache
+        )
+        .use { actor =>
+          for {
+            res <- actor.send(PeersManager.Message.BlocksSource(update))
+            _ = assert(res.peersHandler(host1).blockRep == bestReputation)
+            _ = assert(res.peersHandler(host2).blockRep == okReputation)
+            _ = assert(res.peersHandler(host3).blockRep == worstReputation)
+            _ = assert(res.peersHandler(host4).blockRep == worstReputation)
+            _ = assert(res.peersHandler(host5).blockRep == worstedReputation)
+          } yield ()
+        }
+    }
+  }
+
+  test("Move remote peer to cold if remote host provide bad k lookback slot data") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val peerActor = mockPeerActor[F]()
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        hostId -> Peer(
+          PeerState.Hot,
+          Option(peerActor),
+          hostId,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        )
+      )
+
+      (peerActor.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returns(Applicative[F].unit)
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.BadKLookbackSlotData(hostId))
+            _ = assert(newState.peersHandler(hostId).state == PeerState.Cold)
+          } yield ()
+        }
     }
   }
 }

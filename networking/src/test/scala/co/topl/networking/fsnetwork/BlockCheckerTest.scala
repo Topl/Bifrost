@@ -20,7 +20,6 @@ import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
 import co.topl.networking.fsnetwork.BlockCheckerTest.F
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper._
 import co.topl.node.models.{Block, BlockBody}
@@ -48,7 +47,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(1, maxChainSize)).arbitrary) {
       slotData: NonEmptyChain[SlotData] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
 
           val requestsProxy = mock[RequestsProxyActor[F]]
 
@@ -69,7 +67,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -94,7 +91,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary) {
       slotData: NonEmptyChain[SlotData] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -116,6 +112,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             .once()
             .returning(localSlotData.pure[F])
           (headerStore.contains _).expects(localId).once().returning(true.pure[F])
+          (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
 
           // slot data from peer
           val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -143,7 +140,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -170,7 +166,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary) {
       slotData: NonEmptyChain[SlotData] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -192,6 +187,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             .once()
             .returning(localSlotData.pure[F])
           (headerStore.contains _).expects(localId).once().returning(true.pure[F])
+          (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
 
           // slot data from peer
           val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
@@ -222,7 +218,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -249,7 +244,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary) {
       slotData: NonEmptyChain[SlotData] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -289,6 +283,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             }
 
           (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
+          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
 
           val expectedRequest =
             RequestsProxy.Message.DownloadHeadersRequest(
@@ -301,7 +296,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -327,7 +321,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary) {
       slotData: NonEmptyChain[SlotData] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           mock[PeersManagerActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
@@ -361,6 +354,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             }
 
           (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
+          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
 
           val currentBestChain = NonEmptyChain.fromSeq(slotData.toList.take(2)).get
           (chainSelectionAlgebra.compare _).expects(slotData.last, currentBestChain.last).returning(1.pure[F])
@@ -376,7 +370,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -405,7 +398,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(nonEmptyChainArbOfLen(arbitraryHeader, maxChainSize).arbitrary) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -423,7 +415,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val message = headers.map(UnverifiedBlockHeader(hostId, _, 0))
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -448,7 +439,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -467,7 +457,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -492,7 +481,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -565,7 +553,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -591,7 +578,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -695,7 +681,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -723,7 +708,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(3, maxChainSize)).arbitrary) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val requestsProxy = mock[RequestsProxyActor[F]]
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -809,7 +793,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           BlockChecker
             .makeActor(
-              reputationAggregator,
               requestsProxy,
               localChain,
               slotDataStore,
@@ -839,7 +822,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       nonEmptyChainArbOfLen(ModelGenerators.arbitraryNodeBody, Gen.choose(2, maxChainSize).first).arbitrary
     ) { bodies: NonEmptyChain[BlockBody] =>
       withMock {
-        val reputationAggregator = mock[ReputationAggregatorActor[F]]
         val requestsProxy = mock[RequestsProxyActor[F]]
         val localChain = mock[LocalChainAlgebra[F]]
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -863,7 +845,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
         BlockChecker
           .makeActor(
-            reputationAggregator,
             requestsProxy,
             localChain,
             slotDataStore,
@@ -889,7 +870,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       nonEmptyChainArbOfLen(ModelGenerators.arbitraryNodeBody, Gen.choose(2, maxChainSize).first).arbitrary
     ) { bodies: NonEmptyChain[BlockBody] =>
       withMock {
-        val reputationAggregator = mock[ReputationAggregatorActor[F]]
         val requestsProxy = mock[RequestsProxyActor[F]]
         val localChain = mock[LocalChainAlgebra[F]]
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -970,7 +950,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
         BlockChecker
           .makeActor(
-            reputationAggregator,
             requestsProxy,
             localChain,
             slotDataStore,
@@ -996,7 +975,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       nonEmptyChainArbOfLen(ModelGenerators.arbitraryNodeBody, Gen.choose(2, maxChainSize).first).arbitrary
     ) { bodies: NonEmptyChain[BlockBody] =>
       withMock {
-        val reputationAggregator = mock[ReputationAggregatorActor[F]]
         val requestsProxy = mock[RequestsProxyActor[F]]
         val localChain = mock[LocalChainAlgebra[F]]
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1088,7 +1066,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
         BlockChecker
           .makeActor(
-            reputationAggregator,
             requestsProxy,
             localChain,
             slotDataStore,
@@ -1113,7 +1090,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   test("RemoteBlockBodies: Verify and save blocks, apply to local chain, send new request due headers exist") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1226,7 +1202,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       BlockChecker
         .makeActor(
-          reputationAggregator,
           requestsProxy,
           localChain,
           slotDataStore,
@@ -1255,7 +1230,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   test("RemoteBlockBodies: Verify and save blocks, apply to local chain, send no new request due headers") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1362,7 +1336,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       BlockChecker
         .makeActor(
-          reputationAggregator,
           requestsProxy,
           localChain,
           slotDataStore,
@@ -1391,7 +1364,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   test("RemoteBlockBodies: Verify and save only first block because of error in validation") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1508,7 +1480,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       BlockChecker
         .makeActor(
-          reputationAggregator,
           requestsProxy,
           localChain,
           slotDataStore,
@@ -1532,7 +1503,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   test("RemoteBlockBodies: Invalidate block on current best chain do clear best chain and host") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1551,7 +1521,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       BlockChecker
         .makeActor(
-          reputationAggregator,
           requestsProxy,
           localChain,
           slotDataStore,
@@ -1579,7 +1548,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   test("RemoteBlockBodies: Invalidate block on current best chain and non best chain do clear best chain and host") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1599,7 +1567,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val invalidatedBlocks = NonEmptyChain(arbitraryBlockId.arbitrary.first, invalidSlotData.slotId.blockId)
       BlockChecker
         .makeActor(
-          reputationAggregator,
           requestsProxy,
           localChain,
           slotDataStore,
@@ -1627,7 +1594,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
   test("RemoteBlockBodies: Invalidate block on not current best chain do nothing") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
@@ -1646,7 +1612,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       BlockChecker
         .makeActor(
-          reputationAggregator,
           requestsProxy,
           localChain,
           slotDataStore,

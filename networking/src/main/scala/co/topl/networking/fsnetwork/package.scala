@@ -10,7 +10,7 @@ import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models._
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
-import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
+import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -237,6 +237,8 @@ package object fsnetwork {
         Math.ceil(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis).toInt,
         MILLISECONDS
       )
+
+    val aggressiveP2PRequestInterval: FiniteDuration = remotePeerNoveltyInSlots * slotDuration
   }
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {

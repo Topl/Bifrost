@@ -20,7 +20,6 @@ import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherAct
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransactionSyncActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
@@ -84,19 +83,18 @@ object PeerActor {
   }
 
   case class State[F[_]](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    reputationAggregator: ReputationAggregatorActor[F],
-    blockHeaderActor:     PeerBlockHeaderFetcherActor[F],
-    blockBodyActor:       PeerBlockBodyFetcherActor[F],
-    mempoolSync:          PeerMempoolTransactionSyncActor[F],
-    peersManager:         PeersManagerActor[F],
-    localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, BlockId, SlotData],
-    blockHeights:         EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
-    networkLevel:         Boolean,
-    applicationLevel:     Boolean,
-    genesisBlockId:       BlockId
+    hostId:           HostId,
+    client:           BlockchainPeerClient[F],
+    blockHeaderActor: PeerBlockHeaderFetcherActor[F],
+    blockBodyActor:   PeerBlockBodyFetcherActor[F],
+    mempoolSync:      PeerMempoolTransactionSyncActor[F],
+    peersManager:     PeersManagerActor[F],
+    localChain:       LocalChainAlgebra[F],
+    slotDataStore:    Store[F, BlockId, SlotData],
+    blockHeights:     EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    networkLevel:     Boolean,
+    applicationLevel: Boolean,
+    genesisBlockId:   BlockId
   )
 
   type Response[F[_]] = State[F]
@@ -119,7 +117,6 @@ object PeerActor {
     networkAlgebra:              NetworkAlgebra[F],
     client:                      BlockchainPeerClient[F],
     requestsProxy:               RequestsProxyActor[F],
-    reputationAggregator:        ReputationAggregatorActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -161,14 +158,13 @@ object PeerActor {
         transactionSyntaxValidation,
         transactionStore,
         mempool,
-        reputationAggregator
+        peersManager
       )
 
       genesisSlotData <- localChain.genesis.toResource
       initialState = State(
         hostId,
         client,
-        reputationAggregator,
         header,
         body,
         mempoolSync,
@@ -275,7 +271,7 @@ object PeerActor {
     .handleErrorWith { error =>
       val message = Option(error.getLocalizedMessage).getOrElse("")
       Logger[F].error(show"Error $message during getting remote peer neighbours") >>
-      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
 
@@ -291,7 +287,7 @@ object PeerActor {
     .handleErrorWith { error =>
       val message = Option(error.getLocalizedMessage).getOrElse("")
       Logger[F].error(show"Error $message during getting remote peer server port") >>
-      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
 
@@ -299,14 +295,14 @@ object PeerActor {
     getPing(state).value
       .flatMap { res =>
         val message =
-          ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
+          PeersManager.Message.PingPongMessagePing(state.hostId, res)
         Logger[F].info(show"From host ${state.hostId}: $message") >>
-        state.reputationAggregator.sendNoWait(message)
+        state.peersManager.sendNoWait(message)
       }
       .handleErrorWith { error =>
         val message = Option(error.getLocalizedMessage).getOrElse("")
         Logger[F].error(show"Error $message during getting remote peer network quality") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+        state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 
   private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
@@ -344,7 +340,7 @@ object PeerActor {
       .recoverWith { case exception =>
         val exceptionMessage = exception.getLocalizedMessage
         Logger[F].error(s"Remote peer ${state.hostId} provide incorrect genesis information: $exceptionMessage") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+        state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       }
 
   private def printCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
@@ -359,6 +355,7 @@ object PeerActor {
           .flatMap(slotData =>
             Logger[F].info(
               show"Traced common ancestor to" +
+              show"peer=${state.hostId}" +
               show" id=$ancestor" +
               show" height=${slotData.height}" +
               show" slot=${slotData.slotId.slot}"
@@ -368,7 +365,7 @@ object PeerActor {
       .void
       .handleErrorWith { e =>
         Logger[F].error(e)("Common ancestor trace failed") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+        state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 
   private def getLocalBlockIdAtHeight[F[_]: Async](

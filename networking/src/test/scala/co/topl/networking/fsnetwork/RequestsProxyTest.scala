@@ -14,7 +14,6 @@ import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionErr
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError.HeaderNotFoundInPeer
 import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyOrTransactionError, BlockHeaderDownloadError}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxyTest.RequestStatus.{InProgress, NewRequest, ReceivedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.ResponseStatus.{DownloadError, DownloadedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.{F, RequestStatus, ResponseStatus}
@@ -72,8 +71,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
 
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
-
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -122,7 +119,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           }
 
           RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore, headerRequests = headerRequestsCache)
+            .makeActor(peersManager, headerStore, bodyStore, headerRequests = headerRequestsCache)
             .use { actor =>
               for {
                 _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
@@ -139,7 +136,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
 
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -177,15 +173,15 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             }
 
           response.collect { case (_, Right(_)) =>
-            (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.DownloadTimeHeader(hostId, 0))
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.DownloadTimeHeader(hostId, 0))
               .returns(().pure[F])
           }
 
           val errorIds = response.collect { case (id, Left(_)) => id }
           NonEmptyChain.fromChain(errorIds).map { errors =>
-            (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.CriticalErrorForHost(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockHeadersRequest(None, errors))
@@ -193,7 +189,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           }
 
           RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+            .makeActor(peersManager, headerStore, bodyStore)
             .use { actor =>
               for {
                 _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
@@ -214,7 +210,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
 
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -258,15 +253,15 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             }
 
           response.collect { case (_, Right(_)) =>
-            (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.DownloadTimeHeader(hostId, 0))
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.DownloadTimeHeader(hostId, 0))
               .returns(().pure[F])
           }
 
           val errorIds = response.collect { case (id, Left(_)) => id }
           NonEmptyChain.fromChain(errorIds).map { errors =>
-            (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockHeadersRequest(None, errors))
@@ -274,7 +269,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           }
 
           RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+            .makeActor(peersManager, headerStore, bodyStore)
             .use { actor =>
               for {
                 _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
@@ -297,7 +292,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           val dataMap: ListMap[BlockId, (BlockHeader, BlockBody)] =
             ListMap.from(data.toList.map(d => (d._1, (d._3, d._4))))
 
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -353,7 +347,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
           )
 
           RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore, bodyRequests = bodyRequestsCache)
+            .makeActor(peersManager, headerStore, bodyStore, bodyRequests = bodyRequestsCache)
             .use { actor =>
               for {
                 _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
@@ -373,7 +367,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             ListMap.from(data.toList.map(d => (d._1, (d._3, d._4))))
           val parentOfFirstBlock: BlockId = dataMap.head._2._1.parentHeaderId
 
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -428,15 +421,15 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           response
             .collect { case (_, Right(_)) =>
-              (reputationAggregator.sendNoWait _)
-                .expects(ReputationAggregator.Message.DownloadTimeBody(hostId, 0, Seq.empty))
+              (peersManager.sendNoWait _)
+                .expects(PeersManager.Message.DownloadTimeBody(hostId, 0, Seq.empty))
                 .returns(().pure[F])
             }
 
           val errorHeaders = response.collect { case (header, Left(_)) => header }
           NonEmptyChain.fromSeq(errorHeaders).map { headers =>
-            (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.CriticalErrorForHost(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockBodyRequest(None, headers))
@@ -447,7 +440,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             (header, errorOrBody.map(UnverifiedBlockBody(hostId, _, 0)))
           }
           RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+            .makeActor(peersManager, headerStore, bodyStore)
             .use { actor =>
               for {
                 _ <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
@@ -473,7 +466,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             ListMap.from(data.toList.map(d => (d._1, (d._3, d._4))))
           val parentOfFirstBlock: BlockId = dataMap.head._2._1.parentHeaderId
 
-          val reputationAggregator = mock[ReputationAggregatorActor[F]]
           val peersManager = mock[PeersManagerActor[F]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -534,15 +526,15 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
           response
             .collect { case (_, Right(_)) =>
-              (reputationAggregator.sendNoWait _)
-                .expects(ReputationAggregator.Message.DownloadTimeBody(hostId, 0, Seq.empty))
+              (peersManager.sendNoWait _)
+                .expects(PeersManager.Message.DownloadTimeBody(hostId, 0, Seq.empty))
                 .returns(().pure[F])
             }
 
           val errorHeaders = response.collect { case (header, Left(_)) => header }
           NonEmptyChain.fromSeq(errorHeaders).map { headers =>
-            (reputationAggregator.sendNoWait _)
-              .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+            (peersManager.sendNoWait _)
+              .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
               .returns(().pure[F])
             (peersManager.sendNoWait _)
               .expects(PeersManager.Message.BlockBodyRequest(None, headers))
@@ -553,7 +545,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             (header, errorOrBody.map(UnverifiedBlockBody(hostId, _, 0)))
           }
           RequestsProxy
-            .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+            .makeActor(peersManager, headerStore, bodyStore)
             .use { actor =>
               for {
                 _ <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
@@ -573,7 +565,6 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
   test("Get all tips shall be forwarded to peers manager") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val peersManager = mock[PeersManagerActor[F]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
@@ -583,7 +574,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         .returns(().pure[F])
 
       RequestsProxy
-        .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+        .makeActor(peersManager, headerStore, bodyStore)
         .use { actor =>
           for {
             _ <- actor.send(RequestsProxy.Message.GetCurrentTips)
@@ -595,17 +586,16 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
   test("Block invalidation shall leads to banning host") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val peersManager = mock[PeersManagerActor[F]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
 
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.CriticalErrorForHost(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.CriticalErrorForHost(hostId))
         .returns(().pure[F])
 
       RequestsProxy
-        .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+        .makeActor(peersManager, headerStore, bodyStore)
         .use { actor =>
           for {
             _ <- actor.send(RequestsProxy.Message.InvalidateBlockId(hostId, arbitraryBlockId.arbitrary.first))
@@ -617,17 +607,16 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
   test("BadKLookbackSlotData shall be resent to reputation aggregator") {
     withMock {
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
       val peersManager = mock[PeersManagerActor[F]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
 
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.BadKLookbackSlotData(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.BadKLookbackSlotData(hostId))
         .returns(().pure[F])
 
       RequestsProxy
-        .makeActor(reputationAggregator, peersManager, headerStore, bodyStore)
+        .makeActor(peersManager, headerStore, bodyStore)
         .use { actor =>
           for {
             _ <- actor.send(RequestsProxy.Message.BadKLookbackSlotData(hostId))
