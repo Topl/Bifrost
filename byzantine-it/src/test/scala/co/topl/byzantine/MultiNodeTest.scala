@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.algebras.NodeRpc
-import co.topl.blockchain.{PrivateTestnet, StakerInitializers, StakingInit}
+import co.topl.blockchain.{BigBang, PrivateTestnet, StakerInitializers, StakingInit}
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
 import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
 import co.topl.brambl.models.box.{Attestation, Value}
@@ -70,8 +70,10 @@ class MultiNodeTest extends IntegrationSuite {
         _ <- initialNodes
           .parTraverse(node => node.rpcClient[F](node.config.rpcPort).use(_.waitForRpcStartUp))
           .toResource
-        client         <- node0.rpcClient[F](node0.config.rpcPort)
-        genesisBlockId <- OptionT(client.blockIdAtHeight(1)).getOrRaise(new IllegalStateException).toResource
+        client <- node0.rpcClient[F](node0.config.rpcPort)
+        genesisBlockId <- OptionT(client.blockIdAtHeight(BigBang.Height))
+          .getOrRaise(new IllegalStateException)
+          .toResource
         genesisTransaction <-
           OptionT(client.fetchBlockBody(genesisBlockId))
             .map(_.transactionIds.head)
