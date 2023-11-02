@@ -147,7 +147,7 @@ object DockerSupport {
               HostConfig.Bind
                 .builder()
                 .from(sourceDir)
-                .to("/bifrost/staking")
+                .to("/bifrost-staking")
                 .selinuxLabeling(true)
                 .build()
             )

@@ -70,9 +70,10 @@ lazy val nodeDockerSettings =
     dockerExposedPorts := Seq(9084, 9085),
     Docker / packageName := "bifrost-node",
     dockerExposedVolumes += "/bifrost",
+    dockerExposedVolumes += "/bifrost-staking",
     dockerEnvVars ++= Map(
       "BIFROST_APPLICATION_DATA_DIR" -> "/bifrost/data/{genesisBlockId}",
-      "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost/staking/{genesisBlockId}",
+      "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost-staking/{genesisBlockId}",
       "BIFROST_CONFIG_FILE" -> "/bifrost/config/user.yaml"
     )
   )
