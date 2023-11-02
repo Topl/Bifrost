@@ -2,36 +2,35 @@ package co.topl.networking.fsnetwork
 
 import co.topl.networking.p2p.RemoteAddress
 
+import scala.annotation.tailrec
 import scala.util.Random
 
 abstract class SelectorColdToWarm[F[_]] {
   def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress]
 }
 
-class SemiRandomSelectorColdToWarm[F[_]](closeTimeoutFirstDelayInMs: Long) extends SelectorColdToWarm[F] {
+class SemiRandomSelectorColdToWarm[F[_]] extends SelectorColdToWarm[F] {
 
-  def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
-    val currentTimestamp = System.currentTimeMillis()
+  @tailrec
+  final def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
+    val randomPeers: Seq[RemoteAddress] =
+      Random.shuffle(hosts).take(countToReceive).flatMap(_.asRemoteAddress).toSeq
 
-    val eligibleColdPeers = hosts.filter { p =>
-      val timestamps = p.closedTimestamps
-      val lastClose = timestamps.lastOption.getOrElse(0L)
-      val totalCloses = timestamps.size
-      val nonEligibleWindow = totalCloses * totalCloses * closeTimeoutFirstDelayInMs
-      currentTimestamp.toDouble >= (lastClose + nonEligibleWindow)
-    }
-
-    val randomPeers: Set[RemoteAddress] =
-      Random.shuffle(eligibleColdPeers).take(countToReceive).flatMap(_.asRemoteAddress)
-
-    val reputationPeers: Set[RemoteAddress] =
-      eligibleColdPeers.toSeq
-        .sortBy(peer => (peer.lastKnownBlockProvidingReputation + peer.lastKnownPerformanceReputation))
+    val reputationPeers: Seq[RemoteAddress] =
+      hosts.toSeq
+        .sortBy(peer => peer.blockRep + peer.perfRep)
         .takeRight(countToReceive)
         .flatMap(_.asRemoteAddress)
-        .toSet
 
-    Random.shuffle(randomPeers ++ reputationPeers).take(countToReceive)
+    // take double reputation peers according to simulation
+    val res =
+      Random.shuffle(randomPeers ++ reputationPeers ++ reputationPeers).take(countToReceive).toSet
+
+    if (res.size == countToReceive || res.size == hosts.size) {
+      res
+    } else {
+      select(hosts, countToReceive)
+    }
   }
 
 }

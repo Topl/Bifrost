@@ -253,12 +253,14 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
           )
       } yield (algebra, remotePeersStore, mempoolAlgebra)
 
+      val timeout = FiniteDuration(100, MILLISECONDS)
       for {
         ((algebra, remotePeersStore, mempoolAlgebra), algebraFinalizer) <- execResource.allocated
-        _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(peerOpenRequested.get()))
+        _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(peerOpenRequested.get()))
         (_, peerFinalizer) <- algebra.usePeer(client).allocated
-        _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(pingProcessedFlag.get()))
-        _ <- Sync[F].untilM_(Sync[F].sleep(FiniteDuration(100, MILLISECONDS)))(Sync[F].delay(hotPeersUpdatedFlag.get()))
+        _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(pingProcessedFlag.get()))
+        _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(hotPeersUpdatedFlag.get()))
+        _ <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].defer(mempoolAlgebra.size).map(_ == transactions.size))
         _ <- peerFinalizer
         _ <- algebraFinalizer
         _ = assert(hotPeers.contains(remotePeerAddress))

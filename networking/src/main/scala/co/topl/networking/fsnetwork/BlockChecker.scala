@@ -16,7 +16,6 @@ import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.BlockApplyError.BodyApplyException.BodyValidationException
 import co.topl.networking.fsnetwork.BlockApplyError.{BodyApplyException, HeaderApplyException}
 import co.topl.networking.fsnetwork.BlockApplyError.HeaderApplyException.HeaderValidationException
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
@@ -61,7 +60,6 @@ object BlockChecker {
   }
 
   case class State[F[_]](
-    reputationAggregator:        ReputationAggregatorActor[F],
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -90,7 +88,6 @@ object BlockChecker {
     }
 
   def makeActor[F[_]: Async: Logger](
-    reputationAggregator:        ReputationAggregatorActor[F],
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
@@ -106,7 +103,6 @@ object BlockChecker {
   ): Resource[F, BlockCheckerActor[F]] = {
     val initialState =
       State(
-        reputationAggregator,
         requestsProxy,
         localChain,
         slotDataStore,
@@ -179,7 +175,7 @@ object BlockChecker {
     val missedSlotDataF = getFromChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
       getT = state.slotDataStore.getOrRaise,
-      terminateOn = sd => state.headerStore.contains(sd.slotId.blockId)
+      terminateOn = sd => state.bodyStore.contains(sd.slotId.blockId)
     )(from)
 
     missedSlotDataF.map(sd => remoteSlotData.prependChain(Chain.fromSeq(sd)))

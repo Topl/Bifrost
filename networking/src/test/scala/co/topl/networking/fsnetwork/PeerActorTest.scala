@@ -24,9 +24,8 @@ import co.topl.networking.fsnetwork.PeerActorTest.F
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransactionSyncActor
+import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -136,8 +135,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val client = createDummyClient()
 
       val (networkAlgebra, _, _, _) = createDummyNetworkAlgebra()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _).stubs(*).returns(Applicative[F].unit)
+      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
 
       PeerActor
         .makeActor(
@@ -145,7 +143,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -176,10 +173,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
-      (reputationAggregation.sendNoWait _).stubs(*).returns(Applicative[F].unit)
+      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
       val (networkAlgebra, blockHeaderFetcher, _, _) = createDummyNetworkAlgebra()
 
       val blockHeader = arbitraryHeader.arbitrary.first.embedId
@@ -193,7 +189,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -225,10 +220,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
-      (reputationAggregation.sendNoWait _).stubs(*).returns(Applicative[F].unit)
+      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
       val (networkAlgebra, _, blockBodyFetcher, _) = createDummyNetworkAlgebra()
 
       val blockHeader = arbitraryHeader.arbitrary.first.embedId
@@ -242,7 +236,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -304,8 +297,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _).expects(*).atLeastOnce().onCall { message: ReputationAggregator.Message =>
+      (peersManager.sendNoWait _).expects(*).atLeastOnce().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
             assert(t >= pingDelay.toMillis)
@@ -320,7 +312,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -388,8 +379,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _).expects(*).once().onCall { message: ReputationAggregator.Message =>
+      (peersManager.sendNoWait _).expects(*).once().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
             assert(t >= pingDelay.toMillis)
@@ -397,13 +387,13 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           case _ => throw new IllegalStateException()
         }
       }
-      (reputationAggregation.sendNoWait _).expects(*).once().onCall { message: ReputationAggregator.Message =>
+      (peersManager.sendNoWait _).expects(*).once().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Left(NoPongMessage)) => ().pure[F]
           case _                                                  => throw new IllegalStateException()
         }
       }
-      (reputationAggregation.sendNoWait _).expects(*).atLeastOnce().onCall { message: ReputationAggregator.Message =>
+      (peersManager.sendNoWait _).expects(*).atLeastOnce().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Left(IncorrectPongMessage)) => ().pure[F]
           case _                                                         => throw new IllegalStateException()
@@ -416,7 +406,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -473,9 +462,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .returns(Applicative[F].unit)
 
       PeerActor
@@ -484,7 +472,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -551,15 +538,12 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-
       PeerActor
         .makeActor(
           hostId,
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -627,9 +611,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .returns(Applicative[F].unit)
 
       PeerActor
@@ -638,7 +621,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -668,7 +650,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -695,7 +676,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -726,7 +706,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -762,7 +741,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -793,7 +771,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -820,7 +797,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -851,7 +827,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -872,8 +847,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .expects(CurrentKnownHostsReq(2))
         .onCall { _: CurrentKnownHostsReq => throw new RuntimeException() }
 
-      (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .returns(Applicative[F].unit)
 
       PeerActor
@@ -882,7 +857,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -913,7 +887,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -947,7 +920,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -978,7 +950,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = createDummyClient()
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -999,8 +970,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .expects()
         .onCall(() => throw new RuntimeException())
 
-      (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .returns(Applicative[F].unit)
 
       PeerActor
@@ -1009,7 +980,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -1052,9 +1022,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         .once()
         .returning(remoteGenesisId.some.pure[F])
       (client.closeConnection _).stubs().returns(Applicative[F].unit)
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
-      (reputationAggregation.sendNoWait _)
-        .expects(ReputationAggregator.Message.NonCriticalErrorForHost(hostId))
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .once()
         .returns(Applicative[F].unit)
 
@@ -1075,7 +1044,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,
@@ -1103,7 +1071,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = mock[BlockchainPeerClient[F]]
-      val reputationAggregation = mock[ReputationAggregatorActor[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
@@ -1117,7 +1084,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.getPongMessage _).stubs(*).onCall { ping: PingMessage =>
         Option(PongMessage(ping.ping.reverse)).pure[F]
       }
-      (reputationAggregation.sendNoWait _).stubs(*).returns(Applicative[F].unit)
+      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
       (client.closeConnection _).stubs().returns(Applicative[F].unit)
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
 
@@ -1127,7 +1094,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           networkAlgebra,
           client,
           requestsProxy,
-          reputationAggregation,
           peersManager,
           localChain,
           slotDataStore,

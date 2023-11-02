@@ -12,7 +12,7 @@ import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError.UnknownError
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -26,13 +26,13 @@ object PeerMempoolTransactionSync {
   }
 
   case class State[F[_]](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    transactionStore:     Store[F, TransactionId, IoTransaction],
-    transactionFetcher:   TransactionFetcher[F],
-    mempool:              MempoolAlgebra[F],
-    reputationAggregator: ReputationAggregatorActor[F],
-    fetchingFiber:        Option[Fiber[F, Throwable, Unit]]
+    hostId:             HostId,
+    client:             BlockchainPeerClient[F],
+    transactionStore:   Store[F, TransactionId, IoTransaction],
+    transactionFetcher: TransactionFetcher[F],
+    mempool:            MempoolAlgebra[F],
+    peersManager:       PeersManagerActor[F],
+    fetchingFiber:      Option[Fiber[F, Throwable, Unit]]
   )
 
   type Response[F[_]] = State[F]
@@ -51,11 +51,11 @@ object PeerMempoolTransactionSync {
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     mempool:                     MempoolAlgebra[F],
-    reputationAggregator:        ReputationAggregatorActor[F]
+    peersManager:                PeersManagerActor[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]] = {
     val transactionFetcher = new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
     val initialState =
-      State(hostId, client, transactionStore, transactionFetcher, mempool, reputationAggregator, None)
+      State(hostId, client, transactionStore, transactionFetcher, mempool, peersManager, None)
     val actorName = s"Mempool transaction sync for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
@@ -121,10 +121,9 @@ object PeerMempoolTransactionSync {
           error.notCritical
             .pure[F]
             .ifM(
-              ifTrue = state.reputationAggregator
-                .sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)),
-              ifFalse =
-                state.reputationAggregator.sendNoWait(ReputationAggregator.Message.CriticalErrorForHost(state.hostId))
+              ifTrue = state.peersManager
+                .sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)),
+              ifFalse = state.peersManager.sendNoWait(PeersManager.Message.CriticalErrorForHost(state.hostId))
             )
       }
       .void

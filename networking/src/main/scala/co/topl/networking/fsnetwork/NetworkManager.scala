@@ -73,11 +73,8 @@ object NetworkManager {
         buildSaveRemotePeersFunction(remotePeerStore)
       )
 
-      reputationAggregator <- networkAlgebra.makeReputationAggregation(peerManager, p2pNetworkConfig)
-
-      requestsProxy <- networkAlgebra.makeRequestsProxy(reputationAggregator, peerManager, headerStore, bodyStore)
+      requestsProxy <- networkAlgebra.makeRequestsProxy(peerManager, headerStore, bodyStore)
       blocksChecker <- networkAlgebra.makeBlockChecker(
-        reputationAggregator,
         requestsProxy,
         localChain,
         slotDataStore,
@@ -91,7 +88,6 @@ object NetworkManager {
       )
 
       _ <- Resource.liftK(requestsProxy.sendNoWait(RequestsProxy.Message.SetupBlockChecker(blocksChecker)))
-      _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupReputationAggregator(reputationAggregator)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupBlockChecker(blocksChecker)))
       _ <- Resource.liftK(peerManager.sendNoWait(PeersManager.Message.SetupRequestsProxy(requestsProxy)))
 
@@ -104,7 +100,7 @@ object NetworkManager {
           .getOrElse(Logger[F].error(show"No know hosts are set during node startup"))
       )
 
-      notifier <- networkAlgebra.makeNotifier(peerManager, reputationAggregator, p2pNetworkConfig)
+      notifier <- networkAlgebra.makeNotifier(peerManager, p2pNetworkConfig)
       _        <- Resource.liftK(notifier.sendNoWait(Notifier.Message.StartNotifications))
 
       _ <- startPeersStatusNotifier(peerManager, peersStatusChangesTopic)

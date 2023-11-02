@@ -10,13 +10,16 @@ abstract class SelectorWarmToHot[F[_]] {
 class ReputationRandomBasedSelectorWarmToHot[F[_]] extends SelectorWarmToHot[F] {
 
   def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
-    val random: Set[RemoteAddress] =
-      Random.shuffle(hosts.flatMap(_.asRemoteAddress)).take(countToReceive)
+    val random: Seq[RemoteAddress] =
+      Random.shuffle(hosts.flatMap(_.asRemoteAddress)).take(countToReceive).toSeq
 
-    val reputation: Set[RemoteAddress] =
-      hosts.toSeq.sortBy(_.overallReputation).takeRight(countToReceive).flatMap(_.asRemoteAddress).toSet
+    val perfReputation: Seq[RemoteAddress] =
+      hosts.toSeq.sortBy(_.perfRep).takeRight(countToReceive).flatMap(_.asRemoteAddress)
 
-    Random.shuffle(random ++ reputation).take(countToReceive)
+    val blockReputation: Seq[RemoteAddress] =
+      hosts.toSeq.sortBy(_.blockRep).takeRight(countToReceive).flatMap(_.asRemoteAddress)
+
+    Random.shuffle(random ++ perfReputation ++ blockReputation).take(countToReceive).toSet
   }
 
 }
