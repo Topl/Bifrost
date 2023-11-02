@@ -34,7 +34,7 @@ import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import com.typesafe.config.Config
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Path
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -95,7 +95,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId timestamp=${bigBangBlock.header.timestamp}").toResource
 
       stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
-      _ <- Files[F].createDirectories(stakingDir).toResource
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
 
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
@@ -219,6 +218,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         OptionT
           .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
           .filter(identity)
+          .flatTapNone(Logger[F].warn("Staking directory is empty.  Continuing in relay-only mode.").toResource)
           .semiflatMap { _ =>
             val blockFinder = (transactionId: TransactionId) =>
               BlockFinder

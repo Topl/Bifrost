@@ -16,7 +16,7 @@ import co.topl.brambl.syntax._
 import co.topl.byzantine.util._
 import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
 import co.topl.codecs.bytes.typeclasses.Persistable
-import co.topl.consensus.models.StakingAddress
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
@@ -27,6 +27,7 @@ import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path, PosixPermission, PosixPermissions}
 import co.topl.quivr.api.Prover
+import co.topl.typeclasses.implicits.showBlockId
 
 import java.security.SecureRandom
 import java.time.Instant
@@ -69,16 +70,14 @@ class MultiNodeTest extends IntegrationSuite {
         _ <- initialNodes
           .parTraverse(node => node.rpcClient[F](node.config.rpcPort).use(_.waitForRpcStartUp))
           .toResource
-        genesisTransaction <- node0
-          .rpcClient[F](node0.config.rpcPort)
-          .use(client =>
-            OptionT(client.blockIdAtHeight(1))
-              .flatMapF(client.fetchBlockBody)
-              .map(_.transactionIds.head)
-              .flatMapF(client.fetchTransaction)
-              .getOrRaise(new IllegalStateException)
-          )
-          .toResource
+        client         <- node0.rpcClient[F](node0.config.rpcPort)
+        genesisBlockId <- OptionT(client.blockIdAtHeight(1)).getOrRaise(new IllegalStateException).toResource
+        genesisTransaction <-
+          OptionT(client.fetchBlockBody(genesisBlockId))
+            .map(_.transactionIds.head)
+            .flatMapF(client.fetchTransaction)
+            .getOrRaise(new IllegalStateException)
+            .toResource
         // Node 3 is a delayed staker.  It will register in epoch 0, but the container won't launch until epoch 2.
         tmpHostStakingDirectory <- Files.forAsync[F].tempDirectory
         _ <- Files.forAsync[F].setPosixPermissions(tmpHostStakingDirectory, PosixOtherWritePermissions).toResource
@@ -100,7 +99,7 @@ class MultiNodeTest extends IntegrationSuite {
         delayedNodeStakingAddress <- node1
           .rpcClient[F](node1.config.rpcPort)
           // Take stake from node0 and transfer it to the delayed node
-          .evalMap(registerStaker(genesisTransaction, 0)(_, tmpHostStakingDirectory))
+          .evalMap(registerStaker(genesisTransaction, 0, genesisBlockId)(_, tmpHostStakingDirectory))
         _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
         _ <- delayedNode.startContainer[F].toResource
         _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
@@ -122,9 +121,11 @@ class MultiNodeTest extends IntegrationSuite {
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
         // The delayed node's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
         // by the delayed node's staking address
-        _ <- node0
-          .rpcClient[F](node0.config.rpcPort)
-          .use(_.adoptedHeaders.find(_.address == delayedNodeStakingAddress).timeout(2.minutes).compile.lastOrError)
+        _ <- client.adoptedHeaders
+          .find(_.address == delayedNodeStakingAddress)
+          .timeout(2.minutes)
+          .compile
+          .lastOrError
           .toResource
         heights = thirdEpochHeads.map(_.height)
         // All nodes should be at _roughly_ equal height
@@ -154,7 +155,7 @@ class MultiNodeTest extends IntegrationSuite {
    * @param rpcClient the RPC client to receive the broadcasted transaction
    * @return the new staker's StakingAddress
    */
-  private def registerStaker(inputTransaction: IoTransaction, inputIndex: Int)(
+  private def registerStaker(inputTransaction: IoTransaction, inputIndex: Int, genesisBlockId: BlockId)(
     rpcClient:   NodeRpc[F, fs2.Stream[F, *]],
     localTmpDir: Path
   ): F[StakingAddress] =
@@ -164,15 +165,21 @@ class MultiNodeTest extends IntegrationSuite {
         .delay(new KesProduct().createKeyPair(SecureRandom.getInstanceStrong.generateSeed(32), (9, 9), 0))
       operatorKey <- Sync[F].delay(new Ed25519().deriveKeyPairFromEntropy(Entropy.generate(), None))
       vrfKey      <- Sync[F].delay(Ed25519VRF.precomputed().generateRandom)
+      localTmpStakingDir = localTmpDir / genesisBlockId.show
+      _ <- Files.forAsync[F].createDirectories(localTmpStakingDir)
       writeFile = (name: String, data: Array[Byte]) =>
-        fs2.Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(localTmpDir / name)).compile.drain
+        fs2.Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(localTmpStakingDir / name)).compile.drain
       _ <- Logger[F].info("Saving new staker keys to temp directory")
-      _ <- Files[F].createDirectory(localTmpDir / StakingInit.KesDirectoryName)
-      _ <- Files.forAsync[F].setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName, PosixOtherWritePermissions)
-      _ <- Files[F].createFile(localTmpDir / StakingInit.KesDirectoryName / "0", Some(PosixOtherWritePermissions))
+      _ <- Files.forAsync[F].createDirectory(localTmpStakingDir / StakingInit.KesDirectoryName)
       _ <- Files
         .forAsync[F]
-        .setPosixPermissions(localTmpDir / StakingInit.KesDirectoryName / "0", PosixOtherWritePermissions)
+        .setPosixPermissions(localTmpStakingDir / StakingInit.KesDirectoryName, PosixOtherWritePermissions)
+      _ <- Files
+        .forAsync[F]
+        .createFile(localTmpStakingDir / StakingInit.KesDirectoryName / "0", Some(PosixOtherWritePermissions))
+      _ <- Files
+        .forAsync[F]
+        .setPosixPermissions(localTmpStakingDir / StakingInit.KesDirectoryName / "0", PosixOtherWritePermissions)
       _ <- writeFile(
         StakingInit.KesDirectoryName + "/0",
         Persistable[SecretKeyKesProduct].persistedBytes(kesKey._1).toByteArray
