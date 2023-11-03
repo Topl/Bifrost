@@ -668,7 +668,7 @@ class PeersManagerTest
           Option(peerActor),
           hostId,
           None,
-          Seq(0, 200, System.currentTimeMillis() - timeoutWindows, System.currentTimeMillis()),
+          Seq(0, 200, System.currentTimeMillis() - timeoutWindows - 1, System.currentTimeMillis()),
           remoteNetworkLevel = true,
           0,
           0,
