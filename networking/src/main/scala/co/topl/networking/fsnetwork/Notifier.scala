@@ -160,10 +160,10 @@ object Notifier {
 
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info("Stopping notification sending from Notifier actor") >>
-    state.slotNotificationFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.networkQualityFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.warmHostsUpdateFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.commonAncestorFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.aggressiveP2PFiber.map(_.cancel).getOrElse(().pure[F])
+    state.slotNotificationFiber.traverse(_.cancel) >>
+    state.networkQualityFiber.traverse(_.cancel) >>
+    state.warmHostsUpdateFiber.traverse(_.cancel) >>
+    state.commonAncestorFiber.traverse(_.cancel) >>
+    state.aggressiveP2PFiber.traverse(_.cancel).void
 
 }
