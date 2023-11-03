@@ -54,14 +54,14 @@ class PeersManagerTest
   val hostId: HostId = "127.0.0.1"
 
   val defaultColdToWarmSelector: SelectorColdToWarm[F] =
-    (coldHosts: Set[Peer[F]], countToReceive: Int) =>
-      coldHosts.toSeq.sortBy(_.remoteServerPort).take(countToReceive).flatMap(_.asRemoteAddress).toSet
+    (coldHosts: Map[HostId, Peer[F]], countToReceive: Int) =>
+      coldHosts.toSeq.sortBy(_._2.remoteServerPort).take(countToReceive).map(_._1).toSet
 
   val defaultWarmToHotSelector: SelectorWarmToHot[F] =
     new SelectorWarmToHot[F]() {
 
-      override def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] =
-        hosts.toSeq.sortBy(_.overallReputation).takeRight(countToReceive).flatMap(_.asRemoteAddress).toSet
+      override def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] =
+        hosts.toSeq.sortBy(_._2.overallReputation).takeRight(countToReceive).map(_._1).toSet
     }
 
   val defaultHotPeerUpdater: Set[RemoteAddress] => F[Unit] = _ => Applicative[F].unit
@@ -1188,7 +1188,7 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: If no warm peer then move only eligible by timeout cold peer(s) to warm") {
+  test("Reputation update: If no warm peer then move only eligible by timeout and port cold peer(s) to warm") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -1209,7 +1209,8 @@ class PeersManagerTest
       val host3 = RemoteAddress("3", 3)
       val host4 = RemoteAddress("4", 4)
       val host5 = RemoteAddress("5", 5)
-      val host6 = RemoteAddress("5", 6)
+      val host6 = RemoteAddress("6", 6)
+      val host7 = RemoteAddress("7", 7)
 
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).returns(().pure[F])
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
@@ -1268,7 +1269,7 @@ class PeersManagerTest
             None,
             host5.host,
             Option(host5.port),
-            Seq(System.currentTimeMillis() - closeTimeoutFirstDelayInMs),
+            Seq(0, System.currentTimeMillis() - closeTimeoutFirstDelayInMs),
             remoteNetworkLevel = true,
             0,
             0,
@@ -1284,12 +1285,23 @@ class PeersManagerTest
             0,
             0,
             0
+          ),
+          host7.host -> Peer(
+            PeerState.Cold,
+            None,
+            host7.host,
+            None,
+            Seq.empty,
+            remoteNetworkLevel = true,
+            1,
+            1,
+            1
           )
         )
 
       val selector = new SelectorColdToWarm[F] {
-        override def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] =
-          hosts.flatMap(_.asRemoteAddress).take(countToReceive)
+        override def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] =
+          hosts.keys.take(countToReceive).toSet
       }
 
       PeersManager
@@ -1323,6 +1335,7 @@ class PeersManagerTest
             _ = assert(withUpdate.peersHandler(host4.host).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host5.host).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host6.host).state == PeerState.Cold)
+            _ = assert(withUpdate.peersHandler(host7.host).state == PeerState.Cold)
           } yield ()
         }
     }

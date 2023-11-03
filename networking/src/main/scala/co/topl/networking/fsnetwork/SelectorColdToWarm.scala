@@ -1,26 +1,24 @@
 package co.topl.networking.fsnetwork
 
-import co.topl.networking.p2p.RemoteAddress
-
 import scala.annotation.tailrec
 import scala.util.Random
 
 abstract class SelectorColdToWarm[F[_]] {
-  def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress]
+  def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId]
 }
 
 class SemiRandomSelectorColdToWarm[F[_]] extends SelectorColdToWarm[F] {
 
   @tailrec
-  final def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
-    val randomPeers: Seq[RemoteAddress] =
-      Random.shuffle(hosts).take(countToReceive).flatMap(_.asRemoteAddress).toSeq
+  final override def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] = {
+    val randomPeers: Seq[HostId] =
+      Random.shuffle(hosts).take(countToReceive).keys.toSeq
 
-    val reputationPeers: Seq[RemoteAddress] =
+    val reputationPeers: Seq[HostId] =
       hosts.toSeq
-        .sortBy(peer => peer.blockRep + peer.perfRep)
+        .sortBy { case (_, peer) => peer.blockRep + peer.perfRep }
         .takeRight(countToReceive)
-        .flatMap(_.asRemoteAddress)
+        .map(_._1)
 
     // take double reputation peers according to simulation
     val res =
