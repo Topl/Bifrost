@@ -19,10 +19,11 @@ import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, RemoteAdd
 import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: Logger: DnsResolver](
+  def make[F[_]: Async: DnsResolver](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
@@ -47,6 +48,7 @@ object ActorPeerHandlerBridgeAlgebra {
     addRemotePeer:               DisconnectedPeer => F[Unit],
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
+    implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName("Bifrost.P2P")
 
     val networkAlgebra = new NetworkAlgebraImpl[F](clockAlgebra)
     val networkManager =

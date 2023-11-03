@@ -83,9 +83,9 @@ object BigBang {
   }
 
   val ParentId: BlockId = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(0)))
-  val ParentSlot: Slot = -1
-  val Slot = 0
-  val Height = 1
+  val ParentSlot: Slot = -1L
+  val Slot: Slot = 0L
+  val Height: Long = 1L
 
   def vrfCertificate(eta: Eta): EligibilityCertificate = EligibilityCertificate(
     ByteString.copyFrom(Array.fill[Byte](80)(0)),

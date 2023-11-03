@@ -34,7 +34,7 @@ import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import com.typesafe.config.Config
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Path
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -47,7 +47,7 @@ object NodeApp extends AbstractNodeApp
 abstract class AbstractNodeApp
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = a => IO.delay(Args.parse(a)),
-      createConfig = IOBaseApp.createTypesafeConfig,
+      createConfig = IOBaseApp.createTypesafeConfig(_, AbstractNodeApp.ConfigFileEnvironmentVariable.some),
       parseConfig = (args, conf) => IO.delay(ApplicationConfigOps.unsafe(args, conf)),
       preInitFunction = config => IO.delay(if (config.kamon.enable) Kamon.init())
     ) {
@@ -55,6 +55,10 @@ abstract class AbstractNodeApp
   def run(cmdArgs: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     if (cmdArgs.startup.cli) new ConfiguredCliApp(appConfig).run
     else new ConfiguredNodeApp(cmdArgs, appConfig).run
+}
+
+object AbstractNodeApp {
+  final val ConfigFileEnvironmentVariable = "BIFROST_CONFIG_FILE"
 }
 
 class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
@@ -88,10 +92,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       bigBangBlockId = bigBangBlock.header.id
       bigBangSlotData <- dataStores.slotData.getOrRaise(bigBangBlockId).toResource
-      _               <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
+      _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId timestamp=${bigBangBlock.header.timestamp}").toResource
 
       stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
-      _ <- Files[F].createDirectories(stakingDir).toResource
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
 
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
@@ -99,7 +102,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get().toResource
       canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId).toResource
       canonicalHead         <- dataStores.headers.getOrRaise(canonicalHeadId).toResource
-      _                     <- Logger[F].info(show"Canonical head id=$canonicalHeadId").toResource
+      _ <- Logger[F]
+        .info(
+          show"Canonical head" +
+          show" id=$canonicalHeadId" +
+          show" height=${canonicalHeadSlotData.height}" +
+          show" slot=${canonicalHeadSlotData.slotId.slot}"
+        )
+        .toResource
 
       blockIdTree <- ParentChildTree.FromReadWrite
         .make[F, BlockId](
@@ -151,9 +161,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         ntpClockSkewer
       )
       globalSlot <- clock.globalSlot.toResource
-      _ <- Logger[F]
-        .info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
-        .toResource
+      _          <- Logger[F].info(show"globalSlot=$globalSlot").toResource
       etaCalculation <-
         EtaCalculation
           .make(
@@ -210,6 +218,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         OptionT
           .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
           .filter(identity)
+          .flatTapNone(Logger[F].warn("Staking directory is empty.  Continuing in relay-only mode.").toResource)
           .semiflatMap { _ =>
             val blockFinder = (transactionId: TransactionId) =>
               BlockFinder
