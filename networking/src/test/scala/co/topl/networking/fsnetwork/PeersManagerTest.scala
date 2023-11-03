@@ -61,7 +61,7 @@ class PeersManagerTest
     new SelectorWarmToHot[F]() {
 
       override def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] =
-        hosts.toSeq.sortBy(_._2.overallReputation).takeRight(countToReceive).map(_._1).toSet
+        hosts.toSeq.sortBy(_._2.reputation).takeRight(countToReceive).map(_._1).toSet
     }
 
   val defaultHotPeerUpdater: Set[RemoteAddress] => F[Unit] = _ => Applicative[F].unit
@@ -1021,7 +1021,7 @@ class PeersManagerTest
             PeerState.Warm,
             peer1.some,
             host1.host,
-            Option(host1.port),
+            None,
             Seq.empty,
             remoteNetworkLevel = true,
             0.1,
@@ -1632,6 +1632,7 @@ class PeersManagerTest
             withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, client1))
             _ = assert(withUpdate.peersHandler(host1.host).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host1.host).actorOpt.get == peer1)
+            _ = assert(withUpdate.peersHandler(host1.host).remoteServerPort.isEmpty)
             withUpdate2 <- actor.send(PeersManager.Message.ClosePeer(host1.host))
             _ = assert(withUpdate2.peersHandler(host1.host).state == PeerState.Cold)
             _ = assert(withUpdate2.peersHandler(host1.host).actorOpt.isEmpty)
@@ -1750,7 +1751,7 @@ class PeersManagerTest
             PeerState.Warm,
             Option(peer1),
             host1.host,
-            Option(1),
+            None,
             Seq(1),
             remoteNetworkLevel = true,
             0,
@@ -1793,7 +1794,7 @@ class PeersManagerTest
         )
 
       val hotUpdater = mock[Set[RemoteAddress] => F[Unit]]
-      (hotUpdater.apply _).expects(Set(host1, host2)).once().returns(().pure[F])
+      (hotUpdater.apply _).expects(Set(host2)).once().returns(().pure[F]) // skip host1, because it have no server port
 
       PeersManager
         .makeActor(
@@ -1960,24 +1961,31 @@ class PeersManagerTest
             stateHost1 <- actor.send(PeersManager.Message.OpenedPeerConnection(host1, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost1.peersHandler(host1.host).state == PeerState.Cold)
             _ = assert(stateHost1.peersHandler(host1.host).closedTimestamps == Seq(1))
+            _ = assert(stateHost1.peersHandler(host1.host).remoteServerPort.isEmpty)
             stateHost2 <- actor.send(PeersManager.Message.OpenedPeerConnection(host2, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost2.peersHandler(host2.host).state == PeerState.Cold)
             _ = assert(stateHost2.peersHandler(host2.host).closedTimestamps == Seq.empty)
+            _ = assert(stateHost2.peersHandler(host2.host).remoteServerPort.isEmpty)
             stateHost3 <- actor.send(PeersManager.Message.OpenedPeerConnection(host3, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost3.peersHandler(host3.host).state == PeerState.Warm)
             _ = assert(stateHost3.peersHandler(host3.host).closedTimestamps == Seq(3))
+            _ = assert(stateHost3.peersHandler(host3.host).remoteServerPort.isEmpty)
             stateHost4 <- actor.send(PeersManager.Message.OpenedPeerConnection(host4, client4))
             _ = assert(stateHost4.peersHandler(host4.host).state == PeerState.Banned)
             _ = assert(stateHost4.peersHandler(host4.host).closedTimestamps == Seq(4))
+            _ = assert(stateHost4.peersHandler(host4.host).remoteServerPort.isEmpty)
             stateHost5 <- actor.send(PeersManager.Message.OpenedPeerConnection(host5, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost5.peersHandler(host5.host).state == PeerState.Hot)
             _ = assert(stateHost5.peersHandler(host5.host).closedTimestamps == Seq(5))
+            _ = assert(stateHost5.peersHandler(host5.host).remoteServerPort.isEmpty)
             stateHost6 <- actor.send(PeersManager.Message.OpenedPeerConnection(host6, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost6.peersHandler(host6.host).state == PeerState.Cold)
             _ = assert(stateHost6.peersHandler(host6.host).closedTimestamps == Seq(6))
+            _ = assert(stateHost6.peersHandler(host6.host).remoteServerPort.isEmpty)
             stateHost7 <- actor.send(PeersManager.Message.OpenedPeerConnection(host7, mock[BlockchainPeerClient[F]]))
             _ = assert(stateHost7.peersHandler(host7.host).state == PeerState.Warm)
             _ = assert(stateHost7.peersHandler(host7.host).closedTimestamps == Seq(7))
+            _ = assert(stateHost7.peersHandler(host7.host).remoteServerPort.isEmpty)
           } yield ()
         }
     }

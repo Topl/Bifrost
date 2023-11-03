@@ -105,6 +105,16 @@ package object fsnetwork {
     case PingPongMessagePing(host, Left(networkError)) => show"$networkError from host $host"
   }
 
+  implicit def showPeer[F[_]]: Show[Peer[F]] = { peer: Peer[F] =>
+    "Peer" +
+    s" ${peer.ip}:[${peer.remoteServerPort.map(_.toString).getOrElse("")}];" +
+    s" State is ${peer.state.toString};" +
+    s" Actor is ${if (peer.actorOpt.isDefined) "present" else "absent"};" +
+    s" Remote peer is ${if (peer.remoteNetworkLevel) "active" else "no active"};" +
+    s" Reputation is: block=${peer.blockRep}, perf=${peer.perfRep}, new=${peer.newRep}, mean=${peer.reputation};" +
+    s" With total ${peer.closedTimestamps.size} closes with timestamps ${peer.closedTimestamps}"
+  }
+
   /**
    * Get some T from chain until reach terminateOn condition, f.e.
    * let assume we have chain:
@@ -179,12 +189,6 @@ package object fsnetwork {
 
   private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
   implicit val peerToAddCodec: Codec[RemotePeer] = (remoteAddressCodec :: double :: double).as[RemotePeer]
-
-  def getTotalReputation(
-    blockProvidingRep: HostReputationValue,
-    performanceRep:    HostReputationValue
-  ): HostReputationValue =
-    (blockProvidingRep + performanceRep) / 2
 
   case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: FiniteDuration) {
 

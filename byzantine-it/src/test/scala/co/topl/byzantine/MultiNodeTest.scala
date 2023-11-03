@@ -59,7 +59,8 @@ class MultiNodeTest extends IntegrationSuite {
                 bigBang,
                 totalNodeCount - 1,
                 index,
-                if (index == 0) Nil else List(s"MultiNodeTest-node${index - 1}")
+                if (index == 0) Nil else List(s"MultiNodeTest-node${index - 1}"),
+                exposeServerPort = if (index == 1) false else true
               )
             )
           )

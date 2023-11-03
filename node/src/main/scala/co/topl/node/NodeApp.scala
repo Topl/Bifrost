@@ -366,6 +366,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           protocolConfig,
           additionalGrpcServices,
           epochData,
+          appConfig.bifrost.p2p.exposeServerPort,
           appConfig.bifrost.p2p.networkProperties
         )
     } yield ()

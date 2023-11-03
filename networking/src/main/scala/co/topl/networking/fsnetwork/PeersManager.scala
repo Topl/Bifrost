@@ -515,7 +515,8 @@ object PeersManager {
     state.peersHandler.getWarmPeersWithActor.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetNetworkQuality)) >>
     (state, state).pure[F]
 
-  private def requestCommonAncestor[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+  private def requestCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    Logger[F].info(show"Current peer(s) state: ${state.peersHandler.getHotPeers}") >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
 
@@ -530,9 +531,11 @@ object PeersManager {
     serverPort: Int
   ): F[(State[F], Response[F])] =
     for {
-      _        <- Logger[F].info(s"For peer $hostId received server address: $serverPort")
-      newState <- state.copy(peersHandler = state.peersHandler.copyWithUpdatedServerPort(hostId, serverPort)).pure[F]
-      _        <- updateExternalHotPeersList(newState)
+      _ <- Logger[F].info(s"For peer $hostId received server address: $serverPort")
+      newState <- state
+        .copy(peersHandler = state.peersHandler.copyWithUpdatedServerPort(hostId, serverPort.some))
+        .pure[F]
+      _ <- updateExternalHotPeersList(newState)
     } yield (newState, newState)
 
   private def remoteNetworkLevel[F[_]: Async: Logger](
@@ -662,7 +665,13 @@ object PeersManager {
           _         <- Logger[F].info(show"Going to create actor for handling connection to remote peer $hostId")
           peerActor <- setupPeerActor
           // shall do in two step, for case of incoming connection from already known cold peer
-          newPeerHandler <- state.peersHandler.copyWithNewHost(hostId).copyWithNewPeerActor(hostId, peerActor).pure[F]
+          newPeerHandler <-
+            state.peersHandler
+              .copyWithNewHost(hostId)
+              .copyWithNewPeerActor(hostId, peerActor)
+              // clear port in case if expose server port is not allowed by remote peer
+              .copyWithUpdatedServerPort(hostId, None)
+              .pure[F]
 
           peerState = newPeerHandler.get(hostId).get.state
           _ <- peerActor.sendNoWait(PeerActor.Message.UpdateState(peerState.networkLevel, peerState.applicationLevel))
@@ -765,7 +774,7 @@ object PeersManager {
     state:     State[F]
   ): F[(State[F], Response[F])] =
     for {
-      _ <- Logger[F].info(s"Peers: ${state.peersHandler}")
+      _ <- Logger[F].debug(s"Peers: ${state.peersHandler}")
 
       stateWithLastRep     <- getPeerHandlerAfterReputationDecoy(state).pure[F]
       stateWithPreWarm     <- coldToWarm(thisActor, stateWithLastRep)
@@ -809,7 +818,10 @@ object PeersManager {
     state:     State[F]
   ): F[State[F]] = {
     val minimumHotConnections = state.p2pNetworkConfig.networkProperties.minimumHotConnections
-    val lackHotPeersCount = minimumHotConnections - state.peersHandler.getHotPeers.size
+
+    val lackHotPeersCount =
+      minimumHotConnections - state.peersHandler.getHotPeers.count(_._2.remoteServerPort.isDefined)
+
     val warmToHot =
       state.warmToHotSelector.select(state.peersHandler.getWarmPeersWithActor, lackHotPeersCount)
 
@@ -845,22 +857,19 @@ object PeersManager {
     for {
       peersHandler <- state.peersHandler.moveToState(coldToWarm, PeerState.Warm, peerReleaseAction(thisActor))
       newState     <- state.copy(peersHandler = peersHandler).pure[F]
-      warmHostToPeer <- coldToWarm
-        .flatMap(host => newState.peersHandler.get(host).map(peer => host -> peer))
-        .toMap
-        .pure[F]
-      _ <- checkConnection(newState, warmHostToPeer)
+      _            <- checkConnection(newState, coldToWarm)
     } yield newState
   }
 
   private def checkConnection[F[_]: Async: Logger: DnsResolver](
     state:        State[F],
-    peersToCheck: Map[HostId, Peer[F]]
+    hostsToCheck: Set[HostId]
   ): F[Unit] = {
-    val addressesToOpen =
-      peersToCheck
-        .filter { case (_, peer) => peer.haveNoConnection }
-        .map(d => RemoteAddress(d._1, d._2.remoteServerPort.get))
+    val addressesToOpen: Seq[RemoteAddress] =
+      hostsToCheck
+        .flatMap(state.peersHandler.get)
+        .filter(p => p.haveNoConnection && p.state.isActive)
+        .flatMap(_.asRemoteAddress)
         .toSeq
 
     for {
@@ -902,7 +911,7 @@ object PeersManager {
 
     val saveByOverallReputation =
       currentHotPeers.filter { case (_, peer) =>
-        val totalRep = getTotalReputation(peer.blockRep, peer.perfRep)
+        val totalRep = peer.reputation
         totalRep >= p2pNetworkConfig.networkProperties.minimumRequiredReputation
       }.keySet
 
