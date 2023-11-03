@@ -141,9 +141,7 @@ case class PeersHandler[F[_]: Async: Logger](
       }
       .getOrElse(this)
 
-  def copyWithAddedPeers(
-    newPeers: NonEmptyChain[RemotePeer]
-  ): PeersHandler[F] = {
+  def copyWithAddedPeers(newPeers: NonEmptyChain[RemotePeer]): PeersHandler[F] = {
     val peersToAdd: Map[HostId, Peer[F]] =
       newPeers.toList.map { case RemotePeer(RemoteAddress(host, port), initialBlockReputation, initialPerfReputation) =>
         peers.get(host) match {
@@ -186,10 +184,10 @@ case class PeersHandler[F[_]: Async: Logger](
     this.copy(peers = peers ++ newPeers)
   }
 
-  def copyWithUpdatedServerPort(hostId: HostId, serverPort: Int): PeersHandler[F] =
+  def copyWithUpdatedServerPort(hostId: HostId, serverPortOpt: Option[Int]): PeersHandler[F] =
     peers
       .get(hostId)
-      .map(peer => this.copy(peers = peers + (hostId -> peer.copy(remoteServerPort = Option(serverPort)))))
+      .map(peer => this.copy(peers = peers + (hostId -> peer.copy(remoteServerPort = serverPortOpt))))
       .getOrElse(this)
 
   def copyWithUpdatedNetworkLevel(
@@ -217,12 +215,9 @@ case class Peer[F[_]: Logger](
   remoteServerPort:   Option[Int],
   closedTimestamps:   Seq[Long],
   remoteNetworkLevel: Boolean,
-
-  // last known reputation could take actual reputation from peer
-  // or it could been inherited from peer which provide that peer
-  blockRep: HostReputationValue,
-  perfRep:  HostReputationValue,
-  newRep:   Long
+  blockRep:           HostReputationValue,
+  perfRep:            HostReputationValue,
+  newRep:             Long
 ) {
   def haveNoConnection: Boolean = actorOpt.isEmpty
 
@@ -234,5 +229,5 @@ case class Peer[F[_]: Logger](
 
   def asRemoteAddress: Option[RemoteAddress] = remoteServerPort.map(RemoteAddress(ip, _))
 
-  val overallReputation: Double = getTotalReputation(blockRep, perfRep)
+  val reputation: Double = (blockRep + perfRep) / 2
 }

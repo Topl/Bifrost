@@ -48,6 +48,7 @@ object ApplicationConfig {
       publicHost:        String,
       publicPort:        Int,
       knownPeers:        List[KnownPeer],
+      exposeServerPort:  Boolean,
       networkProperties: NetworkProperties
     )
 

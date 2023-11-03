@@ -59,6 +59,7 @@ object Blockchain {
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
     _epochData:                EpochDataAlgebra[F],
+    exposeServerPort:          Boolean,
     networkProperties:         NetworkProperties
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
@@ -112,13 +113,14 @@ object Blockchain {
 
       p2pBlockAdoptionsTopic <- Resource.make(Topic[F, BlockId])(_.close.void)
       _ <- Stream.force(localChain.adoptions).through(p2pBlockAdoptionsTopic.publish).compile.drain.background
+      _ <- Logger[F].info(s"Exposing server port is ${if (exposeServerPort) "enabled" else "disabled"}").toResource
       peerServerF = BlockchainPeerServer.make(
         dataStores.slotData.get,
         dataStores.headers.get,
         dataStores.bodies.get,
         dataStores.transactions.get,
         blockHeights,
-        () => Option(localPeer.localAddress.port),
+        if (exposeServerPort) () => Option(localPeer.localAddress.port) else () => None,
         () => currentPeers.get,
         localChain,
         mempool,

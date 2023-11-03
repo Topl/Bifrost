@@ -177,7 +177,8 @@ case class TestNodeConfig(
   p2pPort:              Int = 9085,
   jmxRemotePort:        Int = 9083,
   genusEnabled:         Boolean = false,
-  stakingBindSourceDir: Option[String] = None
+  stakingBindSourceDir: Option[String] = None,
+  exposeServerPort:     Boolean = true
 ) {
 
   def yaml: String = {
@@ -193,6 +194,7 @@ case class TestNodeConfig(
        |    bind-host: 0.0.0.0
        |    port: "$p2pPort"
        |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
+       |    expose-server-port: "$exposeServerPort"
        |  big-bang:
        |    staker-count: $stakerCount
        |    local-staker-index: $localStakerIndex
