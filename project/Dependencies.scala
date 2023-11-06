@@ -9,7 +9,7 @@ object Dependencies {
   val catsEffectVersion = "3.5.2"
   val fs2Version = "3.9.3"
   val logback = "1.4.11"
-  val orientDbVersion = "3.2.23"
+  val orientDbVersion = "3.2.24"
   val ioGrpcVersion = "1.59.0"
   val http4sVersion = "0.23.23"
   val protobufSpecsVersion = "2.0.0-alpha5" // scala-steward:off
