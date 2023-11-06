@@ -6,8 +6,10 @@ import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.syntax._
+import co.topl.consensus.models.BlockId
 import co.topl.models.utility._
 import co.topl.node.models.Ratio
+import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
 import quivr.models.Int128
@@ -56,6 +58,33 @@ package object cli {
       .untilDefinedM
   }
 
+  sealed abstract class YesNo
+  case object Yes extends YesNo
+  case object No extends YesNo
+
+  /**
+   * Prompt the user for a Yes-or-No response, and run the corresponding ifYes/ifNo function.
+   * @param prompt The message to give to the user
+   * @param default An optional yes/no default.  If none, the user will be continually prompted for a valid answer.
+   * @param ifYes computation to execute if the user provides Yes
+   * @param ifNo computation to execute if the user provides No
+   * @return the result of either ifYes or ifNo
+   */
+  def readYesNo[F[_]: Sync: Console, T](prompt: String, default: Option[YesNo] = None)(
+    ifYes: => StageResultT[F, T],
+    ifNo:  => StageResultT[F, T]
+  ): StageResultT[F, T] =
+    readLowercasedChoice(prompt)(
+      List("y", "n"),
+      default.map {
+        case Yes => "y"
+        case No  => "n"
+      }
+    ).flatMap {
+      case "y" => ifYes
+      case "n" => ifNo
+    }
+
   /**
    * Write the given file to disk, and log the operation.  Files are saved to the configured staking directory.
    *
@@ -77,14 +106,14 @@ package object cli {
         .drain
     }
 
-  def read[F[_]: Sync: Console, T: UserInputParser](param: String, examples: List[String]): StageResultT[F, T] =
-    readOptional[F, T](param, examples).untilDefinedM
+  def readParameter[F[_]: Sync: Console, T: UserInputParser](param: String, examples: List[String]): StageResultT[F, T] =
+    readOptionalParameter[F, T](param, examples).untilDefinedM
 
-  def readOptional[F[_]: Sync: Console, T: UserInputParser](
+  def readOptionalParameter[F[_]: Sync: Console, T: UserInputParser](
     param:    String,
     examples: List[String]
   ): StageResultT[F, Option[T]] =
-    (writeMessage[F](s"Please enter $param parameter. Ex: ${examples.mkString(", ")}") >>
+    (writeMessage[F](s"Please enter $param parameter. (Ex: ${examples.mkString(", ")})") >>
       readInput[F]
         .flatMap {
           case "" => none[T].some.pure[StageResultT[F, *]]
@@ -102,7 +131,7 @@ package object cli {
     examples: List[String],
     default:  String
   ): StageResultT[F, T] =
-    (writeMessage[F](show"Please enter $param parameter. Ex: ${examples.mkString(", ")}. Default: $default.") >>
+    (writeMessage[F](show"Please enter $param parameter. (Ex: ${examples.mkString(", ")}) (Default: $default)") >>
       readInput[F]
         .map {
           case "" => default
@@ -146,6 +175,17 @@ package object cli {
 
   implicit private[cli] val parseLockAddress: UserInputParser[LockAddress] =
     (s: String) => co.topl.brambl.codecs.AddressCodecs.decodeAddress(s).leftMap(_.toString)
+
+  implicit private[cli] val parseBlockId: UserInputParser[BlockId] =
+    (s: String) => {
+      val withoutPrefix = if (s.startsWith("b_")) s.substring(2) else s
+      co.topl.brambl.utils.Encoding
+        .decodeFromBase58(withoutPrefix)
+        .leftMap(_.toString)
+        .ensure("Invalid Block ID")(_.length == 32)
+        .map(ByteString.copyFrom)
+        .map(BlockId(_))
+    }
 }
 
 @typeclass
