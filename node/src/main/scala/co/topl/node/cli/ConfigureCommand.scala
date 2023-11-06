@@ -1,6 +1,6 @@
 package co.topl.node.cli
 
-import cats.{ApplicativeThrow, Monad}
+import cats.ApplicativeThrow
 import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.std.{Console, Env}
@@ -26,11 +26,14 @@ object ConfigureCommand {
 class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
 
   private val intro: StageResultT[F, Unit] =
-    writeMessage[F]("This utility helps configure your node.")
+    writeMessage[F](
+      "This utility helps configure your node." +
+      " Unless otherwise specified, all prompts can be left blank to preserve the existing settings."
+    )
 
   private val promptDataDir =
     writeMessage[F](
-      s"Where should blockchain data be saved? (Leave blank to use default=${appConfig.bifrost.data.directory})"
+      s"Where should blockchain data be saved? (current=${appConfig.bifrost.data.directory})"
     ) >>
     readInput[F].map(_.some.filterNot(_.isEmpty))
 
@@ -41,7 +44,7 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
     readYesNo("Enable staking operations?", No.some)(
       ifYes = for {
         _ <- writeMessage[F](
-          s"Where should staking data be saved? (Leave blank to use default=${appConfig.bifrost.staking.directory})"
+          s"Where should staking data be saved? (current=${appConfig.bifrost.staking.directory})"
         )
         stakingDir <- readInput[F].map(_.some.filterNot(_.isEmpty))
         rewardAddress <- readOptionalParameter[F, LockAddress](
@@ -64,7 +67,7 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
         )
         sourcePath <- readOptionalParameter[F, String](
           "Genesis Data Source",
-          List("https://raw.githubusercontent.com/Topl/Genesis_Testnets/main/testnet2")
+          List("https://raw.githubusercontent.com/Topl/Genesis/main", "/home/alice/Downloads/testnet37")
         )
       } yield (blockId, sourcePath),
       ifNo = (none[BlockId], none[String]).pure[StageResultT[F, *]]
@@ -90,11 +93,11 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
     } yield (rpcHost, rpcPort, enableGenus)
 
   /**
-   * Returns Tuple (allow ingress, p2p bind host, p2p bind port, p2p known peers)
+   * Returns Tuple (p2p expose server port, p2p bind host, p2p bind port, p2p known peers)
    */
   private val promptP2P =
     for {
-      allowIngress <- readOptionalParameter[F, Boolean](
+      exposeServerPort <- readOptionalParameter[F, Boolean](
         "Allow Ingress P2P Traffic",
         List("true", "false")
       )
@@ -104,21 +107,18 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       )
       port <- readOptionalParameter[F, Int](
         "P2P Bind Port",
-        List("9084", "8080")
+        List("9084")
       )
-      peers <- Monad[StageResultT[F, *]]
-        .tailRecM(List.empty[String]) { result =>
-          OptionT(
-            readOptionalParameter[F, String](
-              "P2P Peer",
-              List("testnet.topl.co:9085")
-            )
-          ).map(peer => result :+ peer)
-            .toLeft(result)
-            .value
-        }
-        .map(_.some.filter(_.nonEmpty))
-    } yield (allowIngress, host, port, peers)
+      peers <-
+        OptionT(
+          readOptionalParameter[F, String](
+            "P2P Known Peers",
+            List("testnet.topl.co:9085,192.168.1.50:9085")
+          )
+        )
+          .map(_.split(",").toList)
+          .value
+    } yield (exposeServerPort, host, port, peers)
 
   private val promptSettings =
     for {
@@ -216,7 +216,7 @@ private[cli] case class ConfigureCommandInput(
   rpcHost:              Option[String],
   rpcPort:              Option[Int],
   enableGenus:          Option[Boolean],
-  p2pAllowIngress:      Option[Boolean],
+  p2pExposeServerPort:  Option[Boolean],
   p2pBindHost:          Option[String],
   p2pBindPort:          Option[Int],
   p2pKnownPeers:        Option[List[String]]
@@ -245,21 +245,27 @@ private[cli] case class ConfigureCommandInput(
                 "source-path" -> genesisSourcePath.asJson
               )
               .dropNullValues,
-            "rpc" -> Json.obj(
-              "bind-host" -> rpcHost.asJson,
-              "bind-port" -> rpcPort.asJson
-            ),
-            "genus" -> Json.obj(
-              "enable" -> enableGenus.asJson
-            ),
-            "p2p" -> Json.obj(
-              "bind-host"     -> p2pBindHost.asJson,
-              "bind-port"     -> p2pBindPort.asJson,
-              "allow-ingress" -> p2pAllowIngress.asJson,
-              "known-peers"   -> p2pKnownPeers.map(_.mkString(",")).asJson
-            )
+            "rpc" -> Json
+              .obj(
+                "bind-host" -> rpcHost.asJson,
+                "bind-port" -> rpcPort.asJson
+              )
+              .dropNullValues,
+            "p2p" -> Json
+              .obj(
+                "bind-host"          -> p2pBindHost.asJson,
+                "bind-port"          -> p2pBindPort.asJson,
+                "expose-server-port" -> p2pExposeServerPort.asJson,
+                "known-peers"        -> p2pKnownPeers.map(_.mkString(",")).asJson
+              )
+              .dropNullValues
           )
-          .dropEmptyValues
+          .dropEmptyValues,
+        "genus" -> Json
+          .obj(
+            "enable" -> enableGenus.asJson
+          )
+          .dropNullValues
       )
       .dropEmptyValues
       .asObject
