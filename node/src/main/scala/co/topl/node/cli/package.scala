@@ -106,7 +106,10 @@ package object cli {
         .drain
     }
 
-  def readParameter[F[_]: Sync: Console, T: UserInputParser](param: String, examples: List[String]): StageResultT[F, T] =
+  def readParameter[F[_]: Sync: Console, T: UserInputParser](
+    param:    String,
+    examples: List[String]
+  ): StageResultT[F, T] =
     readOptionalParameter[F, T](param, examples).untilDefinedM
 
   def readOptionalParameter[F[_]: Sync: Console, T: UserInputParser](
@@ -154,6 +157,13 @@ package object cli {
 
   implicit private[cli] val parseInt128: UserInputParser[Int128] = (s: String) =>
     parseBigInt.parse(s).map(bigInt => bigInt: Int128)
+
+  implicit private[cli] val parseBoolean: UserInputParser[Boolean] = (s: String) =>
+    s.toLowerCase match {
+      case "true" | "t" | "yes" | "y" => true.asRight[String]
+      case "false" | "f" | "no" | "n" => false.asRight[String]
+      case _                          => "Not a boolean".asLeft[Boolean]
+    }
 
   implicit private[cli] val parseString: UserInputParser[String] = (s: String) =>
     Either.cond(s.nonEmpty, s, "Empty Input")

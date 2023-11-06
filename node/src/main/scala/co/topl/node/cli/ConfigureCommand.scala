@@ -1,6 +1,6 @@
 package co.topl.node.cli
 
-import cats.ApplicativeThrow
+import cats.{ApplicativeThrow, Monad}
 import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.std.{Console, Env}
@@ -34,6 +34,9 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
     ) >>
     readInput[F].map(_.some.filterNot(_.isEmpty))
 
+  /**
+   * Returns: Tuple (optional directory, optional reward address)
+   */
   private val promptStakingSettings: StageResultT[F, (Option[String], Option[LockAddress])] =
     readYesNo("Enable staking operations?", No.some)(
       ifYes = for {
@@ -49,7 +52,10 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       ifNo = (none[String], none[LockAddress]).pure[StageResultT[F, *]]
     )
 
-  private val promptGenesis =
+  /**
+   * Returns Tuple (optional genesis ID, optional source-path)
+   */
+  private val promptGenesis: StageResultT[F, (Option[BlockId], Option[String])] =
     readYesNo("Configure genesis settings?", Yes.some)(
       ifYes = for {
         blockId <- readOptionalParameter[F, BlockId](
@@ -64,12 +70,77 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       ifNo = (none[BlockId], none[String]).pure[StageResultT[F, *]]
     )
 
+  /**
+   * Returns Tuple (rpc bind host, rpc bind port, enable genus)
+   */
+  private val promptRpc =
+    for {
+      rpcHost <- readOptionalParameter[F, String](
+        "RPC Bind Host",
+        List("0.0.0.0", "localhost")
+      )
+      rpcPort <- readOptionalParameter[F, Int](
+        "RPC Bind Port",
+        List("9084", "8080")
+      )
+      enableGenus <- readOptionalParameter[F, Boolean](
+        "Enable Genus",
+        List("true", "false")
+      )
+    } yield (rpcHost, rpcPort, enableGenus)
+
+  /**
+   * Returns Tuple (allow ingress, p2p bind host, p2p bind port, p2p known peers)
+   */
+  private val promptP2P =
+    for {
+      allowIngress <- readOptionalParameter[F, Boolean](
+        "Allow Ingress P2P Traffic",
+        List("true", "false")
+      )
+      host <- readOptionalParameter[F, String](
+        "P2P Bind Host",
+        List("0.0.0.0", "localhost")
+      )
+      port <- readOptionalParameter[F, Int](
+        "P2P Bind Port",
+        List("9084", "8080")
+      )
+      peers <- Monad[StageResultT[F, *]]
+        .tailRecM(List.empty[String]) { result =>
+          OptionT(
+            readOptionalParameter[F, String](
+              "P2P Peer",
+              List("testnet.topl.co:9085")
+            )
+          ).map(peer => result :+ peer)
+            .toLeft(result)
+            .value
+        }
+        .map(_.some.filter(_.nonEmpty))
+    } yield (allowIngress, host, port, peers)
+
   private val promptSettings =
     for {
-      dataDir                             <- promptDataDir
-      (stakingDir, stakingRewardAddress)  <- promptStakingSettings
-      (genesisBlockId, genesisSourcePath) <- promptGenesis
-    } yield ConfigureCommandInput(dataDir, stakingDir, stakingRewardAddress, genesisBlockId, genesisSourcePath)
+      dataDir                                            <- promptDataDir
+      (stakingDir, stakingRewardAddress)                 <- promptStakingSettings
+      (genesisBlockId, genesisSourcePath)                <- promptGenesis
+      (rpcHost, rpcPort, enableGenus)                    <- promptRpc
+      (p2pAllowIngress, p2pHost, p2pPort, p2pKnownPeers) <- promptP2P
+    } yield ConfigureCommandInput(
+      dataDir,
+      stakingDir,
+      stakingRewardAddress,
+      genesisBlockId,
+      genesisSourcePath,
+      rpcHost,
+      rpcPort,
+      enableGenus,
+      p2pAllowIngress,
+      p2pHost,
+      p2pPort,
+      p2pKnownPeers
+    )
 
   private def printConfig(configContents: String) =
     writeMessage[F]("Configuration contents:") >> writeMessage[F](configContents)
@@ -82,11 +153,7 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       )
       .map(Path(_))
 
-  private def saveConfig(destination: Path, configContents: String): StageResultT[F, Unit] = {
-    val w = writeFile(destination.parent.getOrElse(Path(".")))(configContents.getBytes(StandardCharsets.UTF_8))(
-      "Config File",
-      destination.fileName.toString
-    )
+  private def saveConfig(destination: Path, configContents: String): StageResultT[F, Unit] =
     StageResultT
       .liftF(Files.forAsync[F].exists(destination))
       .ifM(
@@ -105,8 +172,6 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
           destination.fileName.toString
         )
       )
-
-  }
 
   private def outro(configFile: Path): StageResultT[F, Unit] =
     writeMessage[F](s"Configuration complete.") >>
@@ -147,7 +212,14 @@ private[cli] case class ConfigureCommandInput(
   stakingDir:           Option[String],
   stakingRewardAddress: Option[LockAddress],
   genesisBlockId:       Option[BlockId],
-  genesisSourcePath:    Option[String]
+  genesisSourcePath:    Option[String],
+  rpcHost:              Option[String],
+  rpcPort:              Option[Int],
+  enableGenus:          Option[Boolean],
+  p2pAllowIngress:      Option[Boolean],
+  p2pBindHost:          Option[String],
+  p2pBindPort:          Option[Int],
+  p2pKnownPeers:        Option[List[String]]
 ) {
 
   def toJson: Option[Json] =
@@ -172,7 +244,20 @@ private[cli] case class ConfigureCommandInput(
                 "genesis-id"  -> genesisBlockId.map(_.show).asJson,
                 "source-path" -> genesisSourcePath.asJson
               )
-              .dropNullValues
+              .dropNullValues,
+            "rpc" -> Json.obj(
+              "bind-host" -> rpcHost.asJson,
+              "bind-port" -> rpcPort.asJson
+            ),
+            "genus" -> Json.obj(
+              "enable" -> enableGenus.asJson
+            ),
+            "p2p" -> Json.obj(
+              "bind-host"     -> p2pBindHost.asJson,
+              "bind-port"     -> p2pBindPort.asJson,
+              "allow-ingress" -> p2pAllowIngress.asJson,
+              "known-peers"   -> p2pKnownPeers.map(_.mkString(",")).asJson
+            )
           )
           .dropEmptyValues
       )
