@@ -1,6 +1,5 @@
 package co.topl.networking.fsnetwork
 
-import cats.Applicative
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits._
@@ -320,7 +319,7 @@ object PeersManager {
   )(state: State[F]): F[Unit] = savePeersFunction(state.peersHandler.getRemotePeers)
 
   private def peerReleaseAction[F[_]: Async](thisActor: PeersManagerActor[F])(peer: Peer[F]): F[Unit] =
-    peer.actorOpt.map(a => thisActor.releaseActor(a).void).getOrElse(Applicative[F].unit)
+    peer.actorOpt.traverse_(a => thisActor.releaseActor(a).void)
 
   private def setupBlockChecker[F[_]: Async: Logger](
     state:         State[F],
@@ -438,8 +437,8 @@ object PeersManager {
         (state, state).pure[F]
       case None =>
         state.blocksChecker
-          .map(_.sendNoWait(BlockChecker.Message.InvalidateBlockIds(NonEmptyChain.one(blockIds.last))))
-          .getOrElse(().pure[F]) >>
+          .traverse_(_.sendNoWait(BlockChecker.Message.InvalidateBlockIds(NonEmptyChain.one(blockIds.last))))
+
         (state, state).pure[F]
     }
 
@@ -456,8 +455,7 @@ object PeersManager {
         (state, state).pure[F]
       case None =>
         state.blocksChecker
-          .map(_.sendNoWait(BlockChecker.Message.InvalidateBlockIds(NonEmptyChain.one(blocks.last.id))))
-          .getOrElse(().pure[F]) >>
+          .traverse_(_.sendNoWait(BlockChecker.Message.InvalidateBlockIds(NonEmptyChain.one(blocks.last.id))))
         (state, state).pure[F]
     }
 

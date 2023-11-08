@@ -193,13 +193,12 @@ object BlockChecker {
 
   private def requestNextHeaders[F[_]: MonadThrow: Logger](state: State[F]): F[Unit] =
     state.bestKnownRemoteSlotDataOpt
-      .map { slotData =>
+      .traverse_ { slotData =>
         getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.lastId, chunkSize)
           .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
           .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
           .foreachF(state.requestsProxy.sendNoWait)
       }
-      .getOrElse(().pure[F])
       .handleErrorWith(e => Logger[F].error(show"Failed to request next headers due ${e.toString}"))
 
   private def processRemoteHeaders[F[_]: Async: Logger](
@@ -448,18 +447,9 @@ object BlockChecker {
     state:           State[F],
     invalidBlockIds: NonEmptyChain[BlockId]
   ): F[State[F]] = {
-    val invalidBlockOnCurrentBestChain =
-      invalidBlockIds.find { invalidBlockId =>
-        state.bestKnownRemoteSlotDataOpt.exists(_.containsBlockId(invalidBlockId))
-      }.isDefined
-
-    if (invalidBlockOnCurrentBestChain) {
-      val newState = state.copy(bestKnownRemoteSlotDataOpt = None, bestKnownRemoteSlotDataHost = None)
-      Logger[F].error("clean current best chain due error in validation") >>
-      state.requestsProxy.sendNoWait(RequestsProxy.Message.GetCurrentTips) >>
-      newState.pure[F]
-    } else {
-      state.pure[F]
-    }
+    val newState = state.copy(bestKnownRemoteSlotDataOpt = None, bestKnownRemoteSlotDataHost = None)
+    Logger[F].error(show"Clean current best chain due error in receiving/validation data from $invalidBlockIds") >>
+    state.requestsProxy.sendNoWait(RequestsProxy.Message.ResetRequestsProxy) >>
+    newState.pure[F]
   }
 }

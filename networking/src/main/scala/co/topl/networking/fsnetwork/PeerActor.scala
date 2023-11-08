@@ -296,7 +296,7 @@ object PeerActor {
       .flatMap { res =>
         val message =
           PeersManager.Message.PingPongMessagePing(state.hostId, res)
-        Logger[F].info(show"From host ${state.hostId}: $message") >>
+        Logger[F].debug(show"From host ${state.hostId}: $message") >>
         state.peersManager.sendNoWait(message)
       }
       .handleErrorWith { error =>
