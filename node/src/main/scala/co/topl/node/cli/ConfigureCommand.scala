@@ -229,13 +229,13 @@ private[cli] case class ConfigureCommandInput(
           .obj(
             "data" -> Json
               .obj(
-                "dir" -> dataDir.asJson
+                "directory" -> dataDir.asJson
               )
               .dropNullValues,
             "staking" -> Json
               .obj(
-                "dir"           -> stakingDir.asJson,
-                "rewardAddress" -> stakingRewardAddress.map(co.topl.brambl.codecs.AddressCodecs.encodeAddress).asJson
+                "directory"      -> stakingDir.asJson,
+                "reward-address" -> stakingRewardAddress.map(co.topl.brambl.codecs.AddressCodecs.encodeAddress).asJson
               )
               .dropNullValues,
             "big-bang" -> Json
