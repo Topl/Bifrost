@@ -38,18 +38,18 @@ private class ProposalCommandImpl[F[_]: Async](implicit c: Console[F]) {
     for {
       _ <- writeMessage[F](Messages.intro)
 
-      label                      <- read[F, String]("label <required>", List("Update Slot duration"))
-      fEffective                 <- readOptional[F, Ratio]("f-effective", List("15/100"))
-      vrfLddCutoff               <- readOptional[F, Int]("vrf-ldd-cutoff", List("50"))
-      vrfPrecision               <- readOptional[F, Int]("vrf-precision", List("40"))
-      vrfBaselineDifficulty      <- readOptional[F, Ratio]("vrf-baseline-difficulty", List("1/20"))
-      vrfAmplitude               <- readOptional[F, Ratio]("vrf-amplitude", List("1/2"))
-      chainSelectionKLookback    <- readOptional[F, Long]("chain-selection-k-lookback", List("50"))
-      slotDuration               <- readOptional[F, Duration]("slot-duration", List("1000 milli"))
-      forwardBiasedSlotWindow    <- readOptional[F, Long]("forward-biased-slot-window", List("50"))
-      operationalPeriodsPerEpoch <- readOptional[F, Long]("operational-periods-per-epoch", List("2"))
-      kesKeyHours                <- readOptional[F, Int]("kes-key-hours", List("2"))
-      kesKeyMinutes              <- readOptional[F, Int]("kes-key-minutes", List("9"))
+      label                      <- readParameter[F, String]("label <required>", List("Update Slot duration"))
+      fEffective                 <- readOptionalParameter[F, Ratio]("f-effective", List("15/100"))
+      vrfLddCutoff               <- readOptionalParameter[F, Int]("vrf-ldd-cutoff", List("50"))
+      vrfPrecision               <- readOptionalParameter[F, Int]("vrf-precision", List("40"))
+      vrfBaselineDifficulty      <- readOptionalParameter[F, Ratio]("vrf-baseline-difficulty", List("1/20"))
+      vrfAmplitude               <- readOptionalParameter[F, Ratio]("vrf-amplitude", List("1/2"))
+      chainSelectionKLookback    <- readOptionalParameter[F, Long]("chain-selection-k-lookback", List("50"))
+      slotDuration               <- readOptionalParameter[F, Duration]("slot-duration", List("1000 milli"))
+      forwardBiasedSlotWindow    <- readOptionalParameter[F, Long]("forward-biased-slot-window", List("50"))
+      operationalPeriodsPerEpoch <- readOptionalParameter[F, Long]("operational-periods-per-epoch", List("2"))
+      kesKeyHours                <- readOptionalParameter[F, Int]("kes-key-hours", List("2"))
+      kesKeyMinutes              <- readOptionalParameter[F, Int]("kes-key-minutes", List("9"))
 
       proposal = UpdateProposal(
         label,
@@ -66,7 +66,7 @@ private class ProposalCommandImpl[F[_]: Async](implicit c: Console[F]) {
         kesKeyMinutes
       )
 
-      lockAddress <- read[F, LockAddress](
+      lockAddress <- readParameter[F, LockAddress](
         "Address",
         List("ptetP7jshHVrEKqDRdKAZtuybPZoMWTKKM2ngaJ7L5iZnxP5BprDB3hGJEFr")
       )

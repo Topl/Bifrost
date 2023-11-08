@@ -15,11 +15,13 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
 
   private val readUserCommand =
     (
-      writeMessage[F]("Please enter a command. [ QUIT | register | proposal | init-testnet]") >>
+      writeMessage[F]("Please enter a command. [ QUIT | configure | register | proposal | init-testnet]") >>
         readLowercasedInput
     ).semiflatMap {
       case "" | "quit" =>
         CliApp.Command.Quit.some.widen[CliApp.Command].pure[F]
+      case "configure" =>
+        CliApp.Command.Configure.some.widen[CliApp.Command].pure[F]
       case "register" =>
         CliApp.Command.Register.some.widen[CliApp.Command].pure[F]
       case "proposal" =>
@@ -43,6 +45,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
   private def handleUserCommand(command: CliApp.Command): StageResultT[F, Unit] =
     command match {
       case CliApp.Command.Quit        => QuitCommand[F]
+      case CliApp.Command.Configure   => ConfigureCommand[F](appConfig)
       case CliApp.Command.Register    => RegistrationCommand[F](appConfig)
       case CliApp.Command.Proposal    => ProposalCommand[F]
       case CliApp.Command.InitTestnet => InitTestnetCommand[F](appConfig)
@@ -55,6 +58,7 @@ object CliApp {
 
   object Command {
     case object Quit extends Command
+    case object Configure extends Command
     case object Register extends Command
     case object Proposal extends Command
     case object InitTestnet extends Command
