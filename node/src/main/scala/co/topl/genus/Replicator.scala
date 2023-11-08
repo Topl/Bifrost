@@ -10,7 +10,6 @@ import co.topl.algebras.SynchronizationTraversalStep
 import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.services.BlockData
-import co.topl.genusLibrary.model.GE
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats.Logger
@@ -63,7 +62,6 @@ object Replicator {
               .value
         }
         .rethrow
-        .recover(_ => ().asRight[GE])
 
     } yield ()
 }

@@ -38,7 +38,6 @@ import fs2.io.file.Path
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import io.grpc.ServerServiceDefinition
 
 import java.time.Instant
 
@@ -279,46 +278,29 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         leaderElectionThreshold,
         clock
       )
-      additionalGrpcServices <-
-        for {
-          genusServices <-
-            if (appConfig.genus.enable) {
-              (
-                for {
-                  genus <- Genus
-                    .make[F](
-                      appConfig.bifrost.rpc.bindHost,
-                      appConfig.bifrost.rpc.bindPort,
-                      Some(appConfig.genus.orientDbDirectory)
-                        .filterNot(_.isEmpty)
-                        .getOrElse(dataStores.baseDirectory./("orient-db").toString),
-                      appConfig.genus.orientDbPassword
-                    )
-                  _ <- Replicator.background(genus)
-                  definitions <-
-                    GenusGrpc.Server.services(
-                      genus.blockFetcher,
-                      genus.transactionFetcher,
-                      genus.vertexFetcher,
-                      genus.valueFetcher
-                    )
-                } yield definitions
-              )
-                .recoverWith { case e =>
-                  Logger[F]
-                    .warn(e)("Failed to start Genus server, continuing without it")
-                    .void
-                    .as(Nil)
-                    .toResource
-                }
-            } else
-              Resource.pure[F, List[ServerServiceDefinition]](Nil)
-          healthCheck <- HealthCheck
-            .make[F]()
-          healthServices <- HealthCheckGrpc.Server.services(
-            healthCheck.healthChecker
-          )
-        } yield (genusServices ::: healthServices)
+      genusOpt <- OptionT
+        .whenF(appConfig.genus.enable)(
+          Genus
+            .make[F](
+              appConfig.bifrost.rpc.bindHost,
+              appConfig.bifrost.rpc.bindPort,
+              Some(appConfig.genus.orientDbDirectory)
+                .filterNot(_.isEmpty)
+                .getOrElse(dataStores.baseDirectory./("orient-db").toString),
+              appConfig.genus.orientDbPassword
+            )
+        )
+        .value
+      genusServices <- genusOpt.toList.flatTraverse(genus =>
+        GenusGrpc.Server.services(
+          genus.blockFetcher,
+          genus.transactionFetcher,
+          genus.vertexFetcher,
+          genus.valueFetcher
+        )
+      )
+      healthCheck    <- HealthCheck.make[F]()
+      healthServices <- HealthCheckGrpc.Server.services(healthCheck.healthChecker)
 
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
 
@@ -364,11 +346,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
-          additionalGrpcServices,
+          genusServices ::: healthServices,
           epochData,
           appConfig.bifrost.p2p.exposeServerPort,
           appConfig.bifrost.p2p.networkProperties
         )
+        .parProduct(genusOpt.traverse(Replicator.background[F]).void)
     } yield ()
 
   private def makeEpochBoundariesState(
@@ -469,12 +452,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   body         <- dataStores.bodies.getOrRaise(publicBigBang.genesisId).toResource
                   transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
                 } yield FullBlock(header, FullBlockBody(transactions)),
-                for {
-                  reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
-                  headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
-                  bigBangBlock <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
-                  _            <- DataStoresInit.initialize(dataStores, bigBangBlock).toResource
-                } yield bigBangBlock
+                DataReaders
+                  .fromSourcePath[F](publicBigBang.sourcePath)
+                  .use(reader =>
+                    BlockHeaderToBodyValidation
+                      .make[F]()
+                      .flatMap(
+                        BigBang.fromRemote(reader)(_)(publicBigBang.genesisId)
+                      )
+                      .flatTap(DataStoresInit.initialize(dataStores, _))
+                  )
+                  .toResource
               )
               .tupleRight(dataStores)
           )
