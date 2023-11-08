@@ -734,12 +734,11 @@ object PeersManager {
       newState            <- state.copy(peersHandler = newPeers).pure[F]
     } yield (newState, newState)
 
-  private def updateWarmHosts[F[_]: Async: Logger](
-    state: State[F]
-  ): F[(State[F], Response[F])] =
+  private def updateWarmHosts[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     for {
-      _ <- requestNeighboursFromHotPeers(state)
-    } yield (state, state)
+      _        <- requestNeighboursFromHotPeers(state)
+      newState <- clearColdPeers(state).pure[F]
+    } yield (newState, newState)
 
   private def requestNeighboursFromHotPeers[F[_]: Async: Logger](state: State[F]): F[Unit] = {
     val newWarmPeerCount = state.p2pNetworkConfig.networkProperties.maximumWarmConnections
@@ -753,6 +752,21 @@ object PeersManager {
         .void
     } else {
       Logger[F].info(s"Do not request neighbours, warmPeersSize: $warmPeersSize, newWarmPeerCount: $newWarmPeerCount")
+    }
+  }
+
+  // we do NOT work here with cold peers which are present but had been closed recently. That allow us to not remove
+  // cold peer which are no eligible to move to warm status
+  private def clearColdPeers[F[_]](state: State[F]): State[F] = {
+    val eligibleColdPeers = getEligibleColdPeers(state)
+    if (eligibleColdPeers.size > state.p2pNetworkConfig.networkProperties.maximumEligibleColdConnections) {
+      val minimumColdConnections = state.p2pNetworkConfig.networkProperties.minimumEligibleColdConnections
+      val savedCold =
+        eligibleColdPeers.toSeq.sortBy(_._2.closedTimestamps.size).take(minimumColdConnections).map(_._1).toSet
+      val newPeer = state.peersHandler.copyWithRemovedPeers(eligibleColdPeers.keySet -- savedCold)
+      state.copy(peersHandler = newPeer)
+    } else {
+      state
     }
   }
 
@@ -828,18 +842,16 @@ object PeersManager {
     warmPeersToHot(thisActor, state, warmToHot)
   }
 
-  private def getEligibleColdPeers[F[_]](
-    hosts:                      Map[HostId, Peer[F]],
-    closeTimeoutFirstDelayInMs: Long
-  ): Map[HostId, Peer[F]] = {
+  private def getEligibleColdPeers[F[_]](state: State[F]): Map[HostId, Peer[F]] = {
+    val closeTimeoutFirstDelayInMs = state.p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs
     val currentTimestamp = System.currentTimeMillis()
 
-    hosts.filter { case (_, host) =>
+    state.peersHandler.getColdPeers.filter { case (_, host) =>
       val timestamps = host.closedTimestamps
       val lastClose = timestamps.lastOption.getOrElse(0L)
       val totalCloses = timestamps.size
       val nonEligibleWindow = totalCloses * totalCloses * closeTimeoutFirstDelayInMs
-      currentTimestamp.toDouble >= (lastClose + nonEligibleWindow) && host.remoteServerPort.isDefined
+      (currentTimestamp.toDouble >= (lastClose + nonEligibleWindow)) && host.remoteServerPort.isDefined
     }
   }
 
@@ -849,9 +861,7 @@ object PeersManager {
   ): F[State[F]] = {
     val maximumWarmConnection = state.p2pNetworkConfig.networkProperties.maximumWarmConnections
     val lackWarmPeersCount = maximumWarmConnection - state.peersHandler.getWarmPeersWithActor.size
-    val coldPeers = state.peersHandler.getColdPeers
-    val eligibleColdPeers =
-      getEligibleColdPeers(coldPeers, state.p2pNetworkConfig.networkProperties.closeTimeoutFirstDelayInMs)
+    val eligibleColdPeers = getEligibleColdPeers(state)
     val coldToWarm: Set[HostId] = state.coldToWarmSelector.select(eligibleColdPeers, lackWarmPeersCount)
 
     for {

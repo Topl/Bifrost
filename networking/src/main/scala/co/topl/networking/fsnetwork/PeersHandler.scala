@@ -206,6 +206,11 @@ case class PeersHandler[F[_]: Async: Logger](
 
     updatedPeersF.map(peers => this.copy(peers = this.peers ++ peers.toMap))
   }
+
+  def copyWithRemovedPeers(toRemove: Set[HostId]): PeersHandler[F] = {
+    val newPeers = peers -- toRemove
+    this.copy(peers = newPeers)
+  }
 }
 
 case class Peer[F[_]: Logger](
