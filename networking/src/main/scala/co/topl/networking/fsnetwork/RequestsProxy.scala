@@ -24,7 +24,7 @@ object RequestsProxy {
   object Message {
     case class SetupBlockChecker[F[_]](blockCheckerActor: BlockCheckerActor[F]) extends Message
 
-    case object GetCurrentTips extends Message
+    case object ResetRequestsProxy extends Message
 
     case class RemoteSlotData(hostId: HostId, slotData: NonEmptyChain[SlotData]) extends Message
 
@@ -71,7 +71,7 @@ object RequestsProxy {
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] =
     Fsm {
       case (state, message: SetupBlockChecker[F] @unchecked)    => setupBlockChecker(state, message.blockCheckerActor)
-      case (state, GetCurrentTips)                              => getCurrentTips(state)
+      case (state, ResetRequestsProxy)                          => resetProxy(state)
       case (state, RemoteSlotData(hostId, slotData))            => processRemoteSlotData(state, hostId, slotData)
       case (state, BadKLookbackSlotData(hostId))                => resendBadKLookbackSlotData(state, hostId)
       case (state, DownloadHeadersRequest(hostId, blockIds))    => downloadHeadersRequest(state, hostId, blockIds)
@@ -112,9 +112,12 @@ object RequestsProxy {
     (newState, newState).pure[F]
   }
 
-  private def getCurrentTips[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
-    state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips) >>
-    (state, state).pure[F]
+  private def resetProxy[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+    for {
+      _ <- state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips)
+      _ = state.headerRequests.invalidateAll()
+      _ = state.bodyRequests.invalidateAll()
+    } yield (state, state)
 
   private def processRemoteSlotData[F[_]: Async](
     state:    State[F],
@@ -122,7 +125,7 @@ object RequestsProxy {
     slotData: NonEmptyChain[SlotData]
   ): F[(State[F], Response[F])] = {
     val message = BlockChecker.Message.RemoteSlotData(source, slotData)
-    state.blockCheckerOpt.map(blockChecker => blockChecker.sendNoWait(message)).getOrElse(().pure[F]) >>
+    state.blockCheckerOpt.traverse_(blockChecker => blockChecker.sendNoWait(message)) >>
     (state, state).pure[F]
   }
 

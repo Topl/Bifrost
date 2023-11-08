@@ -563,7 +563,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
-  test("Get all tips shall be forwarded to peers manager") {
+  test("Get all tips shall be forwarded to peers manager and clear cache") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
@@ -573,11 +573,21 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         .expects(PeersManager.Message.GetCurrentTips)
         .returns(().pure[F])
 
+      val headerRequests: Cache[BlockId, Option[UnverifiedBlockHeader]] =
+        Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockHeader]]()
+      headerRequests.put(arbitraryBlockId.arbitrary.first, None)
+
+      val bodyRequests: Cache[BlockId, Option[UnverifiedBlockBody]] =
+        Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]]()
+      bodyRequests.put(arbitraryBlockId.arbitrary.first, None)
+
       RequestsProxy
-        .makeActor(peersManager, headerStore, bodyStore)
+        .makeActor(peersManager, headerStore, bodyStore, headerRequests, bodyRequests)
         .use { actor =>
           for {
-            _ <- actor.send(RequestsProxy.Message.GetCurrentTips)
+            newState <- actor.send(RequestsProxy.Message.ResetRequestsProxy)
+            _ = assert(newState.bodyRequests.asMap().isEmpty)
+            _ = assert(newState.headerRequests.asMap().isEmpty)
           } yield ()
         }
 

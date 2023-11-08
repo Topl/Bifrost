@@ -163,15 +163,13 @@ object PeerBlockHeaderFetcher {
   ): F[Unit] = {
     val newSourcesF =
       newSourcesOpt
-        .map(sources => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(sources)))
-        .getOrElse(().pure[F])
+        .traverse_(sources => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(sources)))
 
     val newSlotDataF =
       newSlotDataOpt
-        .map(newSlotData =>
+        .traverse_(newSlotData =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.RemoteSlotData(state.hostId, newSlotData))
         )
-        .getOrElse(().pure[F])
 
     newSourcesF >> newSlotDataF
   }

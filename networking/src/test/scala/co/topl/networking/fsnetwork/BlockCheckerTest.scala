@@ -786,7 +786,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             .expects(RequestsProxy.Message.InvalidateBlockId(hostId, newIdAndHeaders(1)._1))
             .returning(().pure[F])
           (requestsProxy.sendNoWait _)
-            .expects(RequestsProxy.Message.GetCurrentTips)
+            .expects(RequestsProxy.Message.ResetRequestsProxy)
             .returns(().pure[F])
 
           val message = headers.map(UnverifiedBlockHeader(hostId, _, 0))
@@ -1475,7 +1475,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .expects(RequestsProxy.Message.InvalidateBlockId(hostId, requestIdSlotDataHeaderBlock(1)._1))
         .returns(().pure[F])
       (requestsProxy.sendNoWait _)
-        .expects(RequestsProxy.Message.GetCurrentTips)
+        .expects(RequestsProxy.Message.ResetRequestsProxy)
         .returns(().pure[F])
 
       BlockChecker
@@ -1517,7 +1517,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
       val invalidSlotData = currentBestChain.get(Gen.choose(0, currentBestChain.size - 1).first).get
 
-      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.ResetRequestsProxy).returns(().pure[F])
 
       BlockChecker
         .makeActor(
@@ -1562,7 +1562,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
       val invalidSlotData = currentBestChain.get(Gen.choose(0, currentBestChain.size - 1).first).get
 
-      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).returns(().pure[F])
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.ResetRequestsProxy).returns(().pure[F])
 
       val invalidatedBlocks = NonEmptyChain(arbitraryBlockId.arbitrary.first, invalidSlotData.slotId.blockId)
       BlockChecker
@@ -1592,7 +1592,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     }
   }
 
-  test("RemoteBlockBodies: Invalidate block on not current best chain do nothing") {
+  test("RemoteBlockBodies: Invalidate block on not current best clear as well") {
     withMock {
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
@@ -1608,7 +1608,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
       val invalidBlockId = arbitrarySlotData.arbitrary.first.slotId.blockId
 
-      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.GetCurrentTips).never()
+      (requestsProxy.sendNoWait _).expects(RequestsProxy.Message.ResetRequestsProxy).once().returns(().pure[F])
 
       BlockChecker
         .makeActor(
@@ -1628,8 +1628,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .use { actor =>
           for {
             state <- actor.send(BlockChecker.Message.InvalidateBlockIds(NonEmptyChain.one(invalidBlockId)))
-            _ = assert(state.bestKnownRemoteSlotDataOpt.isDefined)
-            _ = assert(state.bestKnownRemoteSlotDataHost.isDefined)
+            _ = assert(state.bestKnownRemoteSlotDataOpt.isEmpty)
+            _ = assert(state.bestKnownRemoteSlotDataHost.isEmpty)
           } yield ()
         }
     }
