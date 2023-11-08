@@ -60,6 +60,8 @@ object ApplicationConfig {
       minimumBlockProvidingReputationPeers: Int = 2,
       minimumPerformanceReputationPeers:    Int = 2,
       minimumRequiredReputation:            Double = 0.66,
+      minimumEligibleColdConnections:       Int = 50,
+      maximumEligibleColdConnections:       Int = 100,
       minimumHotConnections:                Int = 7,
       maximumWarmConnections:               Int = 12,
       warmHostsUpdateEveryNBlock:           Double = 4.0,

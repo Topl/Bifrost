@@ -3734,4 +3734,135 @@ class PeersManagerTest
         }
     }
   }
+
+  test("Cold peers shall be cleared") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val host1 = "1"
+      val host2 = "2"
+      val host3 = "3"
+      val host4 = "4"
+      val host5 = "5"
+      val host6 = "6"
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        host1 -> Peer(
+          PeerState.Cold,
+          None,
+          host1,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        ),
+        host2 -> Peer(
+          PeerState.Cold,
+          None,
+          host2,
+          2.some,
+          Seq(0),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        ),
+        host3 -> Peer(
+          PeerState.Cold,
+          None,
+          host3,
+          3.some,
+          Seq(0, 1),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        ),
+        host4 -> Peer(
+          PeerState.Cold,
+          None,
+          host4,
+          4.some,
+          Seq(0, 1),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        ),
+        host5 -> Peer(
+          PeerState.Cold,
+          None,
+          host5,
+          5.some,
+          Seq(System.currentTimeMillis()),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        ),
+        host6 -> Peer(
+          PeerState.Cold,
+          None,
+          host6,
+          6.some,
+          Seq(System.currentTimeMillis()),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        )
+      )
+
+      val networkConfig =
+        defaultP2PConfig.networkProperties.copy(
+          maximumEligibleColdConnections = 2,
+          minimumEligibleColdConnections = 1,
+          closeTimeoutFirstDelayInMs = 1000000
+        )
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          config,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdateWarmHosts)
+            _ = assert(newState.peersHandler.getColdPeers.size == 4) // 1 saved + non eligible 3 cold peers
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host1))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host5))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host6))
+          } yield ()
+        }
+    }
+  }
 }
