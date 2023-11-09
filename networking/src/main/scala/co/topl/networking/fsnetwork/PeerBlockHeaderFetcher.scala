@@ -149,7 +149,7 @@ object PeerBlockHeaderFetcher {
       .liftF(state.localChain.couldBeWorse(newSlotData).flatTap {
         case true =>
           Logger[F]
-            .debug(show"Received tip ${newSlotData.slotId} from peer ${state.hostId}could be better than current block")
+            .debug(show"Received tip ${newSlotData.slotId} from peer ${state.hostId} could be better than current block")
         case false =>
           Logger[F]
             .info(show"Ignoring weaker (or equal) block tip id=${newSlotData.slotId} from peer ${state.hostId}")

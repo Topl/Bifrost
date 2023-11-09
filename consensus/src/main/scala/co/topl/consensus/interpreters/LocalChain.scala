@@ -30,7 +30,13 @@ object LocalChain {
           Slf4jLogger.getLoggerFromName[F]("Bifrost.LocalChain")
 
         def couldBeWorse(newHead: SlotData): F[Boolean] =
-          head.map(slotData => slotData.height <= newHead.height && slotData.slotId.blockId != newHead.slotId.blockId)
+          head.map{slotData =>
+            val couldBeBetterByHeight =
+              slotData.height <= newHead.height && slotData.slotId.blockId != newHead.slotId.blockId
+            val couldBeBetterByDensity =
+              (slotData.height - newHead.height) > chainSelection.getKLookBack
+            couldBeBetterByHeight || couldBeBetterByDensity
+          }
 
         def isWorseThan(newHead: SlotData): F[Boolean] =
           head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))

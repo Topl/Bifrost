@@ -7,4 +7,6 @@ trait ChainSelectionAlgebra[F[_], A] {
    * 0 is returned.  If `x` is "worse" than `y`, some value < 0 is returned.
    */
   def compare(x: A, y: A): F[Int]
+
+  def getKLookBack: Long
 }

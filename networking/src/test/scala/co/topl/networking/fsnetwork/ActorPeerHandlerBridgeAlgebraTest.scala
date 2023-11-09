@@ -44,8 +44,10 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   val genesisSlotData: SlotData = arbitrarySlotData.arbitrary.first.copy(height = 0)
 
-  val chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] =
-    (x: SlotData, y: SlotData) => x.height.compare(y.height).pure[F]
+  val chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
+    override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+    override def getKLookBack: Long = 100
+  }
 
   val networkProperties: NetworkProperties = NetworkProperties()
 

@@ -228,6 +228,8 @@ object ChainSelection {
         copy(inner(xSegment), inner(ySegment))
       }
     }
+
+    override def getKLookBack: Long = kLookback
   }
 
   implicit private class OrderSupport[T](order: Order[T]) {

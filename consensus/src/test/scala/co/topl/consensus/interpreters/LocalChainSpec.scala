@@ -25,6 +25,11 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
   private val blockId1 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(1)))
   private val blockId2 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(2)))
 
+  val defaultChainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
+    override def compare(a: SlotData, b: SlotData): F[Int] = a.height.compareTo(b.height).pure[F]
+    override def getKLookBack: Long = 100
+  }
+
   test("store the head of the local canonical tine") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
@@ -36,10 +41,8 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           0
         )
 
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
-
       LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .make[F](initialHead, initialHead, defaultChainSelection, _ => Applicative[F].unit)
         .use(_.head.assertEquals(initialHead))
     }
   }
@@ -55,8 +58,6 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           0
         )
 
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
-
       val newHead =
         SlotData(
           SlotId.of(2, blockId2),
@@ -67,7 +68,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         )
 
       LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .make[F](initialHead, initialHead, defaultChainSelection, _ => Applicative[F].unit)
         .use(_.isWorseThan(newHead).assert)
     }
   }
@@ -83,8 +84,6 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           0
         )
 
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
-
       val newHead =
         SlotData(
           SlotId.of(2, blockId2),
@@ -95,7 +94,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         )
 
       LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .make[F](initialHead, initialHead, defaultChainSelection, _ => Applicative[F].unit)
         .use(underTest =>
           underTest.head.assertEquals(initialHead) >>
           underTest.adopt(Validated.Valid(newHead)) >>
@@ -124,10 +123,8 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         1
       )
 
-    val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
-
     LocalChain
-      .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+      .make[F](initialHead, initialHead, defaultChainSelection, _ => Applicative[F].unit)
       .use(underTest =>
         fs2.Stream
           .force(underTest.adoptions)
