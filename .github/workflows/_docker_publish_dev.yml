@@ -43,7 +43,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push images to registries
-        run: DOCKER_PUBLISH_DEV_TAG=true sbt node/Docker/publish
+        run: DOCKER_PUBLISH_DEV_TAG=false sbt node/Docker/publish
 
       # Then publish other iamges to GCP Artifact Registry
       - id: "auth"
