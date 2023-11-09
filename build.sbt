@@ -60,7 +60,7 @@ lazy val dockerSettings = Seq(
   dockerAliases := dockerAliases.value.flatMap { alias =>
     Seq(
       alias.withTag(if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean)) Option("dev") else None),
-      alias.withRegistryHost(Some("docker.io/toplprotocol:blahblah")),
+      alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
   }
