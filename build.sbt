@@ -53,13 +53,14 @@ lazy val commonSettings = Seq(
 
 lazy val dockerSettings = Seq(
   dockerBaseImage := "eclipse-temurin:11-jre",
-  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(true)(_.toBoolean),
+  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(false)(_.toBoolean),
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),
   dockerAliases := dockerAliases.value.flatMap { alias =>
     Seq(
-      alias.withRegistryHost(Some("docker.io/toplprotocol")),
+      alias.withTag(if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean)) Option("dev") else None),
+      alias.withRegistryHost(Some("docker.io/toplprotocol:blahblah")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
   }
