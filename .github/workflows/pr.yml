@@ -8,30 +8,24 @@ on:
       - "release-**"
 
 jobs:
-  # sbt-build:
-  #   uses: ./.github/workflows/_sbt_build.yml
-  #   with:
-  #     preserve-cache-between-runs: true
-
-  # sbt-integration-tests:
-  #   uses: ./.github/workflows/_sbt_integration_tests.yml
-  #   needs: [sbt-build]
-  #   with:
-  #     preserve-cache-between-runs: true
-
-  # sbt-jar:
-  #   uses: ./.github/workflows/_sbt_jar.yml
-  #   needs: [sbt-build]
-  #   with:
-  #     preserve-cache-between-runs: true
-
-  publish-docker-images-unofficial:
-    uses: ./.github/workflows/_docker_publish_dev.yml
+  sbt-build:
+    uses: ./.github/workflows/_sbt_build.yml
     with:
-      remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
-    secrets: inherit
+      preserve-cache-between-runs: true
 
-  # publish-test-results:
-  #   uses: ./.github/workflows/_publish_test_results.yml
-  #   needs: [sbt-build, sbt-integration-tests]
-  #   if: always()
+  sbt-integration-tests:
+    uses: ./.github/workflows/_sbt_integration_tests.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+
+  sbt-jar:
+    uses: ./.github/workflows/_sbt_jar.yml
+    needs: [sbt-build]
+    with:
+      preserve-cache-between-runs: true
+
+  publish-test-results:
+    uses: ./.github/workflows/_publish_test_results.yml
+    needs: [sbt-build, sbt-integration-tests]
+    if: always()
