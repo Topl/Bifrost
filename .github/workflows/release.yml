@@ -61,6 +61,6 @@ jobs:
             ${{ env.MD5_LOCATION }}
             ${{ env.SHA256_LOCATION }}
   publish-docker-images-official:
-    uses: ./.github/workflows/_docker_publish_public.yml
+    uses: ./.github/workflows/_docker_publish_release.yml
     needs: [create-release]
     secrets: inherit

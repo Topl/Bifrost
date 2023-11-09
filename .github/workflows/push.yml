@@ -30,7 +30,7 @@ jobs:
     uses: ./.github/workflows/_sbt_jar.yml
     needs: [sbt-build]
   publish-docker-images-unofficial:
-    uses: ./.github/workflows/_docker_publish_private.yml
+    uses: ./.github/workflows/_docker_publish_dev.yml
     needs: [sbt-build, build-jar]
     with:
       remote-repository: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev"
