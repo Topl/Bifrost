@@ -239,7 +239,7 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
       (consensusState
         .operatorRelativeStake(_: BlockId, _: Slot)(_: StakingAddress)(_: Monad[F]))
         .expects(*, *, *, *)
-        .once()
+        .anyNumberOfTimes()
         .returning(Ratio.One.some.pure[F])
 
       val res = for {
@@ -261,9 +261,9 @@ class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite
           )
         // The keys are created in a background fiber, so we need to wait for that fiber to complete before
         // verifying mocks
-        _ <- underTest.operationalKeyForSlot(operationalPeriodLength * 2 - 1, parentSlotId).toResource
+        _ <- underTest.operationalKeyForSlot(operationalPeriodLength * 2, parentSlotId).toResource
         _ <- Range
-          .Long(operationalPeriodLength, operationalPeriodLength * 2, 1)
+          .Long(operationalPeriodLength + 1, operationalPeriodLength * 2, 1)
           .toVector
           .traverse(slot =>
             verifyOut(underTest)(vk.copy(step = 1), slot, parentSlotId)(kesProductResource, ed25519Resource)

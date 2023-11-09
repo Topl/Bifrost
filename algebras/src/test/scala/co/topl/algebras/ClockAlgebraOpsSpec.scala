@@ -3,6 +3,7 @@ package co.topl.algebras
 import cats.implicits._
 import ClockAlgebra.implicits._
 import cats.effect.IO
+import co.topl.models.{Epoch, Slot}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 
@@ -15,10 +16,14 @@ class ClockAlgebraOpsSpec extends CatsEffectSuite with ScalaCheckEffectSuite wit
       val clock = mock[ClockAlgebra[F]]
       (() => clock.slotsPerEpoch)
         .expects()
-        .once()
+        .anyNumberOfTimes()
         .returning(500L.pure[F])
 
-      clock.epochOf(500L).assertEquals(1L)
+      clock.epochOf(0L).assertEquals(-1L) >>
+      clock.epochOf(1L).assertEquals(0L) >>
+      clock.epochOf(500L).assertEquals(0L) >>
+      clock.epochOf(499L).assertEquals(0L) >>
+      clock.epochOf(501L).assertEquals(1L)
     }
   }
 
@@ -27,10 +32,22 @@ class ClockAlgebraOpsSpec extends CatsEffectSuite with ScalaCheckEffectSuite wit
       val clock = mock[ClockAlgebra[F]]
       (() => clock.slotsPerEpoch)
         .expects()
-        .once()
+        .anyNumberOfTimes()
         .returning(500L.pure[F])
 
-      clock.epochRange(3).map(boundary => boundary.start == 1500L && boundary.end == 1999L).assert
+      def check(epoch: Epoch)(expectedStart: Slot, expectedEnd: Slot) =
+        clock
+          .epochRange(epoch)
+          .flatMap(boundary =>
+            boundary.start.pure[F].assertEquals(expectedStart) *> boundary.end.pure[F].assertEquals(expectedEnd)
+          )
+
+      check(-2)(-1, -1) *>
+      check(-1)(0, 0) *>
+      check(0)(1, 500) *>
+      check(1)(501, 1000) *>
+      check(2)(1001, 1500) *>
+      check(3)(1501, 2000)
     }
   }
 }

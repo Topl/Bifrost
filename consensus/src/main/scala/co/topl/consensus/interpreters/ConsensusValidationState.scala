@@ -49,7 +49,7 @@ object ConsensusValidationState {
             targetEpoch = epoch - 2
             // Note: Blocks created within the first two epochs should use the state from the genesis block
             boundaryBlockId <-
-              if (targetEpoch >= 0)
+              if (targetEpoch > 0)
                 epochBoundaryEventSourcedState.useStateAt(currentBlockId)(_.getOrRaise(targetEpoch))
               else
                 genesisBlockId.pure[F]

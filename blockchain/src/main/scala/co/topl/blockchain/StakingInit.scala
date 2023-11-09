@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.algebras.ClockAlgebra.implicits.ClockOps
+import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.blockchain.algebras.NodeMetadataAlgebra
 import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction

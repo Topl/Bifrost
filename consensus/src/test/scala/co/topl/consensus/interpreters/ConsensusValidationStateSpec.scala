@@ -36,7 +36,7 @@ class ConsensusValidationStateSpec extends CatsEffectSuite with ScalaCheckEffect
               TestStore.make[F, Unit, BigInt],
               TestStore.make[F, StakingAddress, ActiveStaker]
             ).mapN(ConsensusDataEventSourcedState.ConsensusData[F])
-            _ <- boundaryStore.put(3L, n2Id)
+            _ <- boundaryStore.put(2L, n2Id)
             _ <- consensusData.stakers.put(staker.registration.address, staker)
             epochBoundaryEventSourcedState = new EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
               F
