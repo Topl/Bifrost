@@ -62,7 +62,13 @@ lazy val dockerSettings = Seq(
       alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
-  }
+  },
+  dockerAliases ++= (
+    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean)) Seq(
+      DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
+      DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
+    ) else Seq()
+  )
 )
 
 lazy val nodeDockerSettings =
