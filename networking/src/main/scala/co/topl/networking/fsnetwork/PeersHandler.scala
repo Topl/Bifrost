@@ -51,6 +51,8 @@ case class PeersHandler[F[_]: Async: Logger](
 
   def getHotPeers: Map[HostId, Peer[F]] = getPeers(PeerState.Hot)
 
+  def getWarmPeers: Map[HostId, Peer[F]] = getPeers(PeerState.Warm)
+
   def getWarmPeersWithActor: Map[HostId, Peer[F]] = getPeers(PeerState.Warm).filter(_._2.actorOpt.isDefined)
 
   def getColdPeers: Map[HostId, Peer[F]] = getPeers(PeerState.Cold)
