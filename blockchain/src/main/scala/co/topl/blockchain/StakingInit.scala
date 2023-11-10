@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.algebras.ClockAlgebra.implicits.ClockOps
+import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.blockchain.algebras.NodeMetadataAlgebra
 import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
@@ -174,8 +174,14 @@ object StakingInit {
       _ <- Async[F]
         .whenA(beginSlot > globalSlot)(
           Logger[F].info(s"Delaying staking procedures until slot=$beginSlot") >>
-          clock.delayedUntilSlot(beginSlot) >>
-          Logger[F].info(s"Constructing staker")
+          clock.delayedUntilSlot(beginSlot)
+        )
+        .toResource
+      _ <- Logger[F]
+        .info(
+          show"Constructing staker with" +
+          show" activationSlot=$beginSlot" +
+          show" activationPeriod=$activationPeriod"
         )
         .toResource
       kesPath     <- Sync[F].delay(stakingDir / KesDirectoryName).toResource
@@ -195,7 +201,6 @@ object StakingInit {
           clock = clock,
           vrfCalculator = vrfCalculator,
           leaderElectionThreshold,
-          etaCalculation,
           consensusValidationState,
           cryptoResources.kesProduct,
           cryptoResources.ed25519

@@ -4,7 +4,7 @@ import cats.{Applicative, MonadThrow}
 import cats.effect.{Async, Resource}
 import cats.effect.implicits._
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra.implicits.ClockOps
+import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.brambl.models.TransactionId
@@ -136,8 +136,8 @@ object EpochDataEventSourcedState {
      */
     private def epochBoundaryCrossed(state: State[F])(header: BlockHeader, epoch: Epoch) =
       for {
-        // Update the previous epoch entry (unless this is the 0th epoch)
-        _ <- Applicative[F].whenA(epoch > 0)(
+        // Update the previous epoch entry (unless this is the genesis/-1th epoch)
+        _ <- Applicative[F].whenA(epoch >= 0)(
           state
             .getOrRaise(epoch - 1)
             .map(_.copy(isComplete = true))
@@ -145,7 +145,7 @@ object EpochDataEventSourcedState {
         )
         // Active/Inactive Stake calculation is delayed by 2 epochs
         stakesBoundaryBlock <-
-          if (epoch >= 2)
+          if (epoch >= 1)
             epochBoundaryEventSourcedState.useStateAt(header.id)(_.getOrRaise(epoch - 2))
           else
             genesisBlockId.pure[F]
@@ -257,7 +257,7 @@ object EpochDataEventSourcedState {
     private def epochBoundaryCrossed(state: State[F])(epoch: Epoch) =
       for {
         previousEpochData <- state.getOrRaise(epoch - 1)
-        updatedPreviousEpochData = previousEpochData.copy(isComplete = false)
+        updatedPreviousEpochData = previousEpochData.copy(isComplete = epoch < 1)
         _ <- state.put(epoch - 1, updatedPreviousEpochData)
         _ <- state.remove(epoch)
       } yield state

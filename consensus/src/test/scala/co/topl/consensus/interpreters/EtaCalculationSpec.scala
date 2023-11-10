@@ -94,7 +94,7 @@ class EtaCalculationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
           expected = EtaCalculationSpec.expectedEta(
             Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
             epoch + 1,
-            blocks
+            blocks.tail
               .map(_.eligibilityCertificate.vrfSig.toByteArray)
               .map(ed25519Vrf.proofToHash)
               .map(ByteString.copyFrom)
@@ -103,57 +103,6 @@ class EtaCalculationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
           _ = assert(actual == expected)
         } yield ()
 
-      r.use_
-    }
-  }
-
-  test("compute the eta for an epoch with only a genesis block") {
-    withMock {
-      val ed25519Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-      val clock = mock[ClockAlgebra[F]]
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
-      val bigBangHeader = arbitraryHeader.arbitrary.first.copy(slot = 0L, parentSlot = -1L)
-      val bigBangSlotData = bigBangHeader.slotData(ed25519Vrf)
-
-      (() => clock.slotsPerEpoch)
-        .expects()
-        .anyNumberOfTimes()
-        .returning(15L.pure[F])
-
-      fetchSlotData
-        .expects(bigBangHeader.id)
-        .once()
-        .returning(bigBangSlotData.pure[F])
-
-      val r =
-        for {
-          blake2b256R <- CatsUnsafeResource.make[F, Blake2b256](new Blake2b256, 1).toResource
-          blake2b512R <- CatsUnsafeResource.make[F, Blake2b512](new Blake2b512, 1).toResource
-          underTest <- EtaCalculation
-            .make[F](
-              fetchSlotData,
-              clock,
-              Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
-              blake2b256R,
-              blake2b512R
-            )
-            .toResource
-          epoch = 0L
-          actual <- underTest.etaToBe(SlotId(bigBangHeader.slot, bigBangHeader.id), 16L).toResource
-          expected =
-            EtaCalculationSpec.expectedEta(
-              Sized.strictUnsafe(bigBangHeader.eligibilityCertificate.eta),
-              epoch + 1,
-              List(
-                Rho(
-                  Sized.strictUnsafe(
-                    ByteString.copyFrom(ed25519Vrf.proofToHash(bigBangHeader.eligibilityCertificate.vrfSig.toByteArray))
-                  )
-                )
-              )
-            )
-          _ = assert(actual == expected)
-        } yield ()
       r.use_
     }
   }

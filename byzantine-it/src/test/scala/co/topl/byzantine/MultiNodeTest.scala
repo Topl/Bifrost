@@ -124,12 +124,15 @@ class MultiNodeTest extends IntegrationSuite {
         _ <- Logger[F].info("Nodes have reached target epoch").toResource
         // The delayed node's blocks should be valid on other nodes (like node0), so search node0 for adoptions of a block produced
         // by the delayed node's staking address
+        _ <- Logger[F].info("Searching for block from new staker").toResource
         _ <- client.adoptedHeaders
           .find(_.address == delayedNodeStakingAddress)
           .timeout(2.minutes)
           .compile
           .lastOrError
           .toResource
+        _ <- Logger[F].info("Found block from new staker").toResource
+        _ <- Logger[F].info("Verifying consensus of nodes").toResource
         heights = thirdEpochHeads.map(_.height)
         // All nodes should be at _roughly_ equal height
         _ <- IO(heights.max - heights.min <= 5).assert.toResource
@@ -143,6 +146,7 @@ class MultiNodeTest extends IntegrationSuite {
           .map(_.toSet.size)
           .assertEquals(1)
           .toResource
+        _ <- Logger[F].info("Nodes are in consensus").toResource
       } yield ()
 
     resource.use_

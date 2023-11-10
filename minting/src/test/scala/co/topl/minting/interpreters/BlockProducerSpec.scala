@@ -54,8 +54,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .once()
             .returning(vrfHit.some.pure[F])
           (staker
-            .certifyBlock(_, _, _))
-            .expects(parentSlotData.slotId, vrfHit.slot, *)
+            .certifyBlock(_, _, _, _))
+            .expects(parentSlotData.slotId, vrfHit.slot, *, *)
             .once()
             .returning(outputHeader.some.pure[F])
 
@@ -66,8 +66,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               .returning(rewardAddress.pure[F])
 
           val clock = mock[ClockAlgebra[F]]
-          (() => clock.slotsPerEpoch).expects().once().returning(300L.pure[F])
-          (() => clock.globalSlot).expects().twice().returning((parentSlotData.slotId.slot + 1).pure[F])
+          (() => clock.slotsPerEpoch).expects().anyNumberOfTimes().returning(300L.pure[F])
+          (() => clock.globalSlot).expects().anyNumberOfTimes().returning((parentSlotData.slotId.slot + 1).pure[F])
           (clock
             .slotToTimestamps(_))
             .expects(vrfHit.slot)
