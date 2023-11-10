@@ -11,6 +11,7 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.common.application._
+import co.topl.genus.services.TransactionServiceFs2Grpc
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters._
 import co.topl.transactiongenerator.interpreters._
@@ -38,41 +39,36 @@ object TransactionGeneratorApp
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       // Initialize gRPC Clients
       clientAddresses <- parseClientAddresses(appConfig)
-      _               <- Logger[F].info(show"Initializing clients=$clientAddresses")
-      clients = clientAddresses.traverse { case (host, port, useTls) =>
+      genusClientAddress = clientAddresses.head
+      _ <- Logger[F].info(show"Initializing clients=$clientAddresses")
+      genusClientResource = co.topl.grpc
+        .makeChannel[F](genusClientAddress._1, genusClientAddress._2, genusClientAddress._3)
+        .flatMap(TransactionServiceFs2Grpc.stubResource[F])
+      _      <- Logger[F].info(show"Initializing wallet")
+      wallet <- genusClientResource.flatMap(GenusWalletInitializer.make[F]).use(_.initialize)
+      _      <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
+      // Produce a stream of Transactions from the base wallet
+      targetTps = appConfig.transactionGenerator.broadcaster.tps
+      _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
+      transactionStream <- Fs2TransactionGenerator
+        .make[F](
+          wallet,
+          appConfig.transactionGenerator.parallelism.generateTx,
+          appConfig.transactionGenerator.generator.maxWalletSize
+        )
+        .flatMap(_.generateTransactions)
+      nodeClientsResource = clientAddresses.traverse { case (host, port, useTls) =>
         NodeGrpc.Client.make[F](host, port, tls = useTls)
       }
       // Turn the list of clients into a single client (randomly chosen per-call)
-      _ <- clients
+      _ <- nodeClientsResource
         .evalMap(MultiNodeRpc.make[F, NonEmptyChain])
         .use(client =>
-          for {
-            // Assemble a base wallet of available UTxOs
-            _ <- Logger[F].info(show"Initializing wallet")
-            wallet <- ToplRpcWalletInitializer
-              .make[F](
-                client,
-                appConfig.transactionGenerator.parallelism.fetchBody,
-                appConfig.transactionGenerator.parallelism.fetchTransaction
-              )
-              .flatMap(_.initialize)
-            _ <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
-            // Produce a stream of Transactions from the base wallet
-            targetTps = appConfig.transactionGenerator.broadcaster.tps
-            _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
-            transactionStream <- Fs2TransactionGenerator
-              .make[F](
-                wallet,
-                appConfig.transactionGenerator.parallelism.generateTx,
-                appConfig.transactionGenerator.generator.maxWalletSize
-              )
-              .flatMap(_.generateTransactions)
-            // Broadcast the transactions and run the background mempool stream
-            _ <- (
-              runBroadcastStream(transactionStream, client, targetTps),
-              runMempoolStream(client, appConfig.transactionGenerator.mempool.period)
-            ).parTupled
-          } yield ()
+          // Broadcast the transactions and run the background mempool stream
+          (
+            runBroadcastStream(transactionStream, client, targetTps),
+            runMempoolStream(client, appConfig.transactionGenerator.mempool.period)
+          ).parTupled
         )
     } yield ()
 

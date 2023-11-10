@@ -1,13 +1,10 @@
 package co.topl.grpc
 
-import cats.Eval
 import cats.MonadThrow
-import cats.Now
 import cats.effect.kernel.Async
 import cats.effect.kernel.Resource
 import cats.implicits._
-import co.topl.algebras.SynchronizationTraversalStep
-import co.topl.algebras.SynchronizationTraversalSteps
+import co.topl.algebras._
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -21,7 +18,6 @@ import fs2.grpc.syntax.all._
 import io.grpc.Metadata
 import io.grpc.Server
 import io.grpc.ServerServiceDefinition
-import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder
 import io.grpc.protobuf.services.ProtoReflectionService
 import java.net.InetSocketAddress
@@ -37,18 +33,7 @@ object NodeGrpc {
      * @param tls Should the connection use TLS?
      */
     def make[F[_]: Async](host: String, port: Int, tls: Boolean): Resource[F, NodeRpc[F, Stream[F, *]]] =
-      Eval
-        .now(NettyChannelBuilder.forAddress(host, port))
-        .flatMap(ncb =>
-          Eval
-            .now(tls)
-            .ifM(
-              Now(ncb.useTransportSecurity()),
-              Now(ncb.usePlaintext())
-            )
-        )
-        .value
-        .resource[F]
+      makeChannel(host, port, tls)
         .flatMap(NodeRpcFs2Grpc.stubResource[F])
         .map(client =>
           new NodeRpc[F, Stream[F, *]] {

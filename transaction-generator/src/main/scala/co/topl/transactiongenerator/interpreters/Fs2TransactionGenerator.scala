@@ -103,7 +103,9 @@ object Fs2TransactionGenerator {
    * Selects a spendable box from the wallet
    */
   private def pickInput[F[_]: Applicative](wallet: Wallet): OptionT[F, (TransactionOutputAddress, Box)] =
-    OptionT.fromOption[F](wallet.spendableBoxes.toList.maximumByOption(_._2.value.getLvl.quantity: BigInt))
+    OptionT.fromOption[F](
+      wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.maximumByOption(_._2.value.getLvl.quantity: BigInt)
+    )
 
   /**
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
