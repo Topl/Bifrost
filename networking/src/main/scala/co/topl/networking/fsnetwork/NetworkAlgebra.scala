@@ -111,7 +111,8 @@ trait NetworkAlgebra[F[_]] {
   ): Resource[F, PeerMempoolTransactionSyncActor[F]]
 }
 
-class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F]) extends NetworkAlgebra[F] {
+class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver](clock: ClockAlgebra[F])
+    extends NetworkAlgebra[F] {
 
   override def makePeerManger(
     thisHostId:                  HostId,

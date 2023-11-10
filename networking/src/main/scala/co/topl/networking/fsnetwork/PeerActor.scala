@@ -264,7 +264,7 @@ object PeerActor {
       hotPeers <- OptionT
         .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
         .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
-      _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
+      _ <- OptionT.liftF(Logger[F].info(s"Got hot peers $hotPeers from ${state.hostId}"))
       _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(state.hostId, hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))

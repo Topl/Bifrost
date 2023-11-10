@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.Applicative
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.effect.Async
 import cats.implicits._
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -17,8 +17,7 @@ object PeersHandler {
       case PeerState.Banned  => Set.empty
       // Cold to Cold -- special case for closing connection if peers are already in the cold state
       case PeerState.Cold => Set(PeerState.Cold, PeerState.Banned, PeerState.Warm)
-      // Warm to Warm -- special case for opening new connection case, will be removed later
-      case PeerState.Warm => Set(PeerState.Cold, PeerState.Warm, PeerState.Hot, PeerState.Banned)
+      case PeerState.Warm => Set(PeerState.Cold, PeerState.Hot, PeerState.Banned)
       case PeerState.Hot  => Set(PeerState.Cold, PeerState.Banned)
     }
 }
@@ -82,7 +81,7 @@ case class PeersHandler[F[_]: Async: Logger](
             peerWithRep             <- updateReputation(oldPeer, peerWithClosedTimestamp).pure[F]
             actorOpt                <- closePeerIfNecessary(peerWithClosedTimestamp, peerActorCloseAndRelease)
             newPeer                 <- peerWithRep.copy(actorOpt = actorOpt).pure[F]
-            _                       <- Logger[F].info(s"Move host $host with peer $oldPeer to new state $newPeer")
+            _                       <- Logger[F].info(show"Move host $host with peer $oldPeer to new state $newPeer")
           } yield host -> newPeer
         }
 
@@ -143,7 +142,7 @@ case class PeersHandler[F[_]: Async: Logger](
       }
       .getOrElse(this)
 
-  def copyWithAddedPeers(newPeers: NonEmptyChain[RemotePeer]): PeersHandler[F] = {
+  def copyWithAddedPeers(newPeers: Chain[RemotePeer]): PeersHandler[F] = {
     val peersToAdd: Map[HostId, Peer[F]] =
       newPeers.toList.map { case RemotePeer(RemoteAddress(host, port), initialBlockReputation, initialPerfReputation) =>
         peers.get(host) match {

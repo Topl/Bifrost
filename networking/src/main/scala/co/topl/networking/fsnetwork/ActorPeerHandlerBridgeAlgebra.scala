@@ -23,7 +23,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: DnsResolver](
+  def make[F[_]: Async: DnsResolver: ReverseDnsResolver](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],

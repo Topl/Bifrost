@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.Show
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits._
@@ -22,6 +23,7 @@ import co.topl.networking.p2p.RemoteAddress
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.networking.fsnetwork.DnsResolverHTInstances._
+import co.topl.networking.fsnetwork.ReverseDnsResolverHTInstances._
 
 /**
  * Actor for managing peers
@@ -229,7 +231,8 @@ object PeersManager {
   type PeersManagerActor[F[_]] = Actor[F, Message, Response[F]]
 
   // scalastyle:off cyclomatic.complexity
-  def getFsm[F[_]: Async: Logger: DnsResolver]: PeersManagerActor[F] => Fsm[F, State[F], Message, Response[F]] =
+  def getFsm[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver]
+    : PeersManagerActor[F] => Fsm[F, State[F], Message, Response[F]] =
     (thisActor: PeersManagerActor[F]) =>
       Fsm {
         case (state, checker: SetupBlockChecker[F] @unchecked)    => setupBlockChecker(state, checker.blockChecker)
@@ -262,7 +265,7 @@ object PeersManager {
   // scalastyle:on cyclomatic.complexity
 
   // scalastyle:off parameter.number
-  def makeActor[F[_]: Async: Logger: DnsResolver](
+  def makeActor[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver](
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
@@ -308,15 +311,21 @@ object PeersManager {
     val actorName = s"Peers manager actor"
 
     for {
-      _     <- Resource.liftK(Logger[F].info(s"Start PeerManager for host $thisHostId"))
-      actor <- Actor.makeFull(actorName, initialState, getFsm[F], finalizeActor[F](savePeersFunction))
+      _          <- Resource.liftK(Logger[F].info(s"Start PeerManager for host $thisHostId"))
+      thisHostIp <- Resource.liftK(thisHostId.resolving())
+      state <- Resource.pure(thisHostIp.map(ip => initialState.copy(thisHostIds = Set(ip))).getOrElse(initialState))
+      actor <- Actor.makeFull(actorName, state, getFsm[F], finalizeActor[F](savePeersFunction))
     } yield actor
   }
   // scalastyle:on parameter.number
 
-  private def finalizeActor[F[_]](
+  private def finalizeActor[F[_]: Async](
     savePeersFunction: Set[RemotePeer] => F[Unit]
-  )(state: State[F]): F[Unit] = savePeersFunction(state.peersHandler.getRemotePeers)
+  )(state: State[F])(implicit res: ReverseDnsResolverHT[RemotePeer, F]): F[Unit] =
+    for {
+      hostNames <- state.peersHandler.getRemotePeers.toSeq.traverse(_.reverseResolving())
+      _         <- savePeersFunction(hostNames.toSet)
+    } yield ()
 
   private def peerReleaseAction[F[_]: Async](thisActor: PeersManagerActor[F])(peer: Peer[F]): F[Unit] =
     peer.actorOpt.traverse_(a => thisActor.releaseActor(a).void)
@@ -405,7 +414,7 @@ object PeersManager {
     state:     State[F],
     hostId:    HostId
   ): F[(State[F], Response[F])] =
-    Logger[F].error(show"Got got bad k lookback slot data from host $hostId") >>
+    Logger[F].error(show"Got bad k lookback slot data from host $hostId") >>
     coldPeer(thisActor, state, NonEmptyChain.one(hostId))
 
   private def criticalErrorForHost[F[_]: Async: Logger](
@@ -525,7 +534,7 @@ object PeersManager {
     state.peersHandler.getHotPeers.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetCurrentTip)) >>
     (state, state).pure[F]
 
-  private def remotePeerServerPort[F[_]: Async: Logger](
+  private def remotePeerServerPort[F[_]: Async: Logger: ReverseDnsResolver](
     state:      State[F],
     hostId:     HostId,
     serverPort: Int
@@ -551,11 +560,14 @@ object PeersManager {
       newState <- state.copy(peersHandler = newPeersHandler).pure[F]
     } yield (newState, newState)
 
-  private def updateExternalHotPeersList[F[_]: Async: Logger](state: State[F]): F[Unit] =
+  private def updateExternalHotPeersList[F[_]: Async: Logger](
+    state: State[F]
+  )(implicit res: ReverseDnsResolverHT[RemoteAddress, F]): F[Unit] =
     for {
       hotPeersServers <- state.peersHandler.getHotPeers.values.flatMap(_.asRemoteAddress).toSet.pure[F]
-      _               <- Logger[F].debug(s"Going to update hot peers servers $hotPeersServers")
-      _               <- state.hotPeersUpdate(hotPeersServers)
+      hotPeersAsHosts <- hotPeersServers.toSeq.traverse(_.reverseResolving())
+      _               <- Logger[F].debug(show"Going to update hot peers servers $hotPeersAsHosts")
+      _               <- state.hotPeersUpdate(hotPeersAsHosts.toSet)
     } yield ()
 
   private def coldPeer[F[_]: Async: Logger](
@@ -691,12 +703,14 @@ object PeersManager {
     }
   }
 
-  private def resolveHosts[T, F[_]: Async: Logger](unresolved: Seq[T])(implicit res: DnsResolverHT[T, F]): F[Seq[T]] =
+  private def resolveHosts[T: Show, F[_]: Async: Logger](
+    unresolved: Seq[T]
+  )(implicit res: DnsResolverHT[T, F]): F[Seq[T]] =
     unresolved
       .traverse { unresolvedAddress =>
         unresolvedAddress
-          .resolve()
-          .flatTap(resolvedAddress => Logger[F].debug(s"Resolve address $unresolvedAddress to $resolvedAddress"))
+          .resolving()
+          .flatTap(resolvedAddress => Logger[F].info(show"Resolve address $unresolvedAddress to $resolvedAddress"))
       }
       .map(_.flatten.toSeq)
 
@@ -706,10 +720,10 @@ object PeersManager {
     knownPeers: NonEmptyChain[RemoteAddress]
   ): F[(State[F], Response[F])] = {
     for {
-      resolvedPeers    <- OptionT(resolveHosts(knownPeers.toList).map(NonEmptyChain.fromSeq))
-      filteredLoopback <- OptionT.fromOption[F](NonEmptyChain.fromChain(resolvedPeers.filterNot(_.isSpecialHost)))
+      resolvedPeers   <- OptionT(resolveHosts(knownPeers.toList).map(NonEmptyChain.fromSeq))
+      nonSpecialHosts <- OptionT.fromOption[F](NonEmptyChain.fromChain(resolvedPeers.filterNot(_.isSpecialHost)))
       neighbourBlockRep = state.peersHandler.get(source).map(_.blockRep).getOrElse(0.0)
-      peerToAdd = filteredLoopback.map(ra => RemotePeer(ra, neighbourBlockRep, 0.0))
+      peerToAdd = nonSpecialHosts.map(ra => RemotePeer(ra, neighbourBlockRep, 0.0))
     } yield addKnownResolvedPeers(state, peerToAdd)
   }.getOrElse((state, state).pure[F]).flatten
 
@@ -727,10 +741,11 @@ object PeersManager {
     knownPeers: NonEmptyChain[RemotePeer]
   ): F[(State[F], Response[F])] =
     for {
+      filteredLoopback    <- knownPeers.filterNot(ra => state.thisHostIds.contains(ra.address.host)).pure[F]
       oldPeers            <- state.peersHandler.pure[F]
-      newPeers            <- oldPeers.copyWithAddedPeers(knownPeers).pure[F]
+      newPeers            <- oldPeers.copyWithAddedPeers(filteredLoopback).pure[F]
       peersHadBeenChanged <- (newPeers.peers.size != oldPeers.peers.size).pure[F]
-      _                   <- Logger[F].infoIf(peersHadBeenChanged, s"Add some peers from: $knownPeers")
+      _                   <- Logger[F].infoIf(peersHadBeenChanged, show"New known peers: $filteredLoopback")
       newState            <- state.copy(peersHandler = newPeers).pure[F]
     } yield (newState, newState)
 
@@ -783,7 +798,7 @@ object PeersManager {
     warmPeersToHot(thisActor, state, toHot).map(s => (s, s))
   }
 
-  private def repUpdate[F[_]: Async: Logger: DnsResolver](
+  private def repUpdate[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver](
     thisActor: PeersManagerActor[F],
     state:     State[F]
   ): F[(State[F], Response[F])] =
