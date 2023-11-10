@@ -514,7 +514,9 @@ object PeersManager {
     (state, state).pure[F]
 
   private def requestCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(show"Current peer(s) state: ${state.peersHandler.getHotPeers}") >>
+    Logger[F].info(show"Current hot peer(s) state: ${state.peersHandler.getHotPeers}") >>
+    Logger[F].info(show"Current warm peer(s) state: ${state.peersHandler.getWarmPeers}") >>
+    Logger[F].info(show"With known cold peers amount: ${state.peersHandler.getColdPeers.size}") >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
 

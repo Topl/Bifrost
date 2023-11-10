@@ -355,7 +355,7 @@ object PeerActor {
           .flatMap(slotData =>
             Logger[F].info(
               show"Traced common ancestor to" +
-              show"peer=${state.hostId}" +
+              show" peer=${state.hostId}" +
               show" id=$ancestor" +
               show" height=${slotData.height}" +
               show" slot=${slotData.slotId.slot}"
