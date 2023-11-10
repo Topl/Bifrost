@@ -5,6 +5,7 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
+import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.brambl.models._
 import co.topl.brambl.models.box._
 import co.topl.brambl.models.transaction._
@@ -15,6 +16,8 @@ import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.minting.algebras.{BlockPackerAlgebra, BlockProducerAlgebra, StakingAlgebra}
 import co.topl.minting.models.VrfHit
 import co.topl.models._
+import co.topl.models.utility.HasLength.instances.byteStringLength
+import co.topl.models.utility.Sized
 import co.topl.node.models.{BlockBody, FullBlock, FullBlockBody}
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
@@ -84,6 +87,12 @@ object BlockProducer {
      */
     private def makeChild(parentSlotData: SlotData): F[FullBlock] =
       Async[F].onCancel(
+        Logger[F].info(
+          show"Starting block attempt on" +
+          show" parentId=${parentSlotData.slotId.blockId}" +
+          show" parentSlot=${parentSlotData.slotId.slot}" +
+          show" parentHeight=${parentSlotData.height}"
+        ) >>
         clock.globalSlot >>= attemptUntilCertified(parentSlotData),
         Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
       )
@@ -94,7 +103,9 @@ object BlockProducer {
      */
     private def attemptUntilCertified(parentSlotData: SlotData)(fromSlot: Slot): F[FullBlock] =
       for {
-        nextHit <- nextEligibility(parentSlotData.slotId)(fromSlot)
+        parentEpoch <- clock.epochOf(parentSlotData.slotId.slot)
+        maxSlot     <- clock.epochRange(parentEpoch + 1).map(_.last)
+        nextHit     <- nextEligibility(parentSlotData.slotId)(fromSlot, maxSlot)
         _ <- Logger[F].debug(
           show"Packing block for" +
           show" parentId=${parentSlotData.slotId.blockId}" +
@@ -105,7 +116,8 @@ object BlockProducer {
         fullBody  <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
         timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
         blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
-        maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker)
+        eta: Eta = Sized.strictUnsafe[ByteString, Eta.Length](nextHit.cert.eta)
+        maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker, eta)
         result <- OptionT
           .fromOption[F](maybeHeader)
           .map(FullBlock(_, fullBody))
@@ -135,10 +147,21 @@ object BlockProducer {
     /**
      * Determine the staker's next eligibility based on the given parent
      */
-    private def nextEligibility(parentSlotId: SlotId)(fromSlot: Slot): F[VrfHit] =
-      (fromSlot
-        .max(parentSlotId.slot + 1))
-        .tailRecM(testSlot => OptionT(staker.elect(parentSlotId, testSlot)).toRight(testSlot + 1).value)
+    private def nextEligibility(parentSlotId: SlotId)(fromSlot: Slot, maxSlot: Slot): F[VrfHit] =
+      OptionT(
+        fs2.Stream
+          .range[F, Slot](
+            fromSlot.max(parentSlotId.slot + 1L),
+            maxSlot
+          )
+          .evalMap(staker.elect(parentSlotId, _))
+          .collectFirst { case Some(value) => value }
+          .compile
+          .last
+      ).getOrElseF(
+        Logger[F].warn("No remaining eligibilities within epoch boundaries.  Waiting for block from remote peer.") >>
+        Async[F].never[VrfHit]
+      )
 
     /**
      * Launch the block packer function, then delay the clock, then stop the block packer function and
@@ -187,7 +210,7 @@ object BlockProducer {
                   )
                   .withOutputs(
                     List(
-                      UnspentTransactionOutput(rewardAddress, Value(Value.Value.Lvl(Value.LVL(rewardQuantity))))
+                      UnspentTransactionOutput(rewardAddress, Value.defaultInstance.withLvl(Value.LVL(rewardQuantity)))
                     )
                   )
               )

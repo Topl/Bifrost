@@ -46,11 +46,10 @@ object ConsensusValidationState {
         )(f: ConsensusDataEventSourcedState.ConsensusData[F] => F[Res]): F[Res] =
           for {
             epoch <- clock.epochOf(slot)
-            targetEpoch = epoch - 2
             // Note: Blocks created within the first two epochs should use the state from the genesis block
             boundaryBlockId <-
-              if (targetEpoch > 0)
-                epochBoundaryEventSourcedState.useStateAt(currentBlockId)(_.getOrRaise(targetEpoch))
+              if (epoch > 1)
+                epochBoundaryEventSourcedState.useStateAt(currentBlockId)(_.getOrRaise(epoch - 2))
               else
                 genesisBlockId.pure[F]
             res <- consensusDataEventSourcedState.useStateAt(boundaryBlockId)(f)

@@ -61,18 +61,29 @@ object EtaCalculation {
     private val twoThirdsLength = slotsPerEpoch * 2 / 3
 
     override def etaToBe(parentSlotId: SlotId, childSlot: Slot): F[Eta] =
-      if (childSlot < slotsPerEpoch) genesisEta.pure[F]
-      else {
-        for {
-          parentEpoch    <- clock.epochOf(parentSlotId.slot)
-          childEpoch     <- clock.epochOf(childSlot)
-          parentSlotData <- fetchSlotData(parentSlotId.blockId)
-          eta <-
-            if (parentEpoch === childEpoch) Sized.strictUnsafe[Bytes, Eta.Length](parentSlotData.eta).pure[F]
-            else if (childEpoch - parentEpoch > 1) emptyEpochDetected(parentEpoch - 1)
-            else locateTwoThirdsBest(parentSlotData).flatMap(calculate)
-        } yield eta
-      }
+      clock
+        .epochOf(childSlot)
+        .flatMap(childEpoch =>
+          if (childEpoch === 0L) genesisEta.pure[F]
+          else
+            for {
+              parentEpoch    <- clock.epochOf(parentSlotId.slot)
+              parentSlotData <- fetchSlotData(parentSlotId.blockId)
+              eta <-
+                if (parentEpoch === childEpoch) Sized.strictUnsafe[Bytes, Eta.Length](parentSlotData.eta).pure[F]
+                else if (childEpoch - parentEpoch > 1)
+                  MonadThrow[F].raiseError(
+                    new IllegalStateException(
+                      show"Eta calculation encountered empty epoch for" +
+                      show" parentSlotId=$parentSlotId" +
+                      show" childSlot=$childSlot" +
+                      show" parentEpoch=$parentEpoch" +
+                      show" childEpoch=$childEpoch"
+                    )
+                  )
+                else locateTwoThirdsBest(parentSlotData).flatMap(calculate)
+            } yield eta
+        )
 
     /**
      * Given some header near the end of an epoch, traverse the chain (toward genesis) until reaching a block

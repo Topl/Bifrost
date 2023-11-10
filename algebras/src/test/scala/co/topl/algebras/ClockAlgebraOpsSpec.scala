@@ -23,7 +23,12 @@ class ClockAlgebraOpsSpec extends CatsEffectSuite with ScalaCheckEffectSuite wit
       clock.epochOf(1L).assertEquals(0L) >>
       clock.epochOf(500L).assertEquals(0L) >>
       clock.epochOf(499L).assertEquals(0L) >>
-      clock.epochOf(501L).assertEquals(1L)
+      clock.epochOf(501L).assertEquals(1L) >>
+      clock.epochOf(1000L).assertEquals(1L) >>
+      clock.epochOf(1001L).assertEquals(2L) >>
+      clock.epochOf(1500L).assertEquals(2L) >>
+      clock.epochOf(1500L).assertEquals(2L)
+      clock.epochOf(1501L).assertEquals(3L)
     }
   }
 
