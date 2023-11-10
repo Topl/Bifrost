@@ -111,50 +111,38 @@ object PeerBlockHeaderFetcher {
   ): F[Unit] =
     for {
       _                 <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
-      newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockId).value
+      blockSlotData     <- getSlotDataFromStorageOrRemote(state)(blockId)
+      newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockSlotData).value
       _                 <- Logger[F].info(show"Build slot data chain from tip $blockId is ${newSlotDataOpt.isDefined}")
-      newBlockSourceOpt <- buildBlockSource(state, blockId, newSlotDataOpt)
+      newBlockSourceOpt <- buildBlockSource(state, blockSlotData, newSlotDataOpt)
       _                 <- sendMessages(state, newSlotDataOpt, newBlockSourceOpt)
     } yield ()
 
   private def getRemoteBetterSlotDataChain[F[_]: Async: Logger](
-    state:   State[F],
-    blockId: BlockId
+    state:       State[F],
+    newSlotData: SlotData
   ): OptionT[F, NonEmptyChain[SlotData]] =
     for {
-      newSlotData            <- OptionT.liftF(getSlotDataFromStorageOrRemote(state)(blockId))
-      possibleBetterSlotData <- slotDataCouldBeBetter(state, newSlotData)
-      savedSlotData          <- downloadAndSaveSlotDataChain(state, possibleBetterSlotData)
-      betterSlotData         <- compareSlotDataWithLocal(savedSlotData, state)
+      savedSlotData  <- downloadAndSaveSlotDataChain(state, newSlotData)
+      betterSlotData <- compareSlotDataWithLocal(savedSlotData, state)
     } yield betterSlotData
 
+  // if newSlotDataOpt is defined then it will include blockId as well
   private def buildBlockSource[F[_]: Async](
     state:          State[F],
-    blockId:        BlockId,
+    blockSlotData:  SlotData,
     newSlotDataOpt: Option[NonEmptyChain[SlotData]]
   ): F[Option[NonEmptyChain[(HostId, BlockId)]]] =
     OptionT
       .fromOption[F](newSlotDataOpt)
       .map(newSlotData => newSlotData.map(sd => (state.hostId, sd.slotId.blockId)))
       .orElseF {
-        sourceOfAlreadyAdoptedBlockIsUseful(state, blockId).ifM(
-          ifTrue = Option(NonEmptyChain.one(state.hostId -> blockId)).pure[F],
+        sourceOfAlreadyAdoptedBlockIsUseful(state, blockSlotData).ifM(
+          ifTrue = Option(NonEmptyChain.one(state.hostId -> blockSlotData.slotId.blockId)).pure[F],
           ifFalse = Option.empty[NonEmptyChain[(HostId, BlockId)]].pure[F]
         )
       }
       .value
-
-  private def slotDataCouldBeBetter[F[_]: Async: Logger](state: State[F], newSlotData: SlotData): OptionT[F, SlotData] =
-    OptionT
-      .liftF(state.localChain.couldBeWorse(newSlotData).flatTap {
-        case true =>
-          Logger[F]
-            .debug(show"Received tip ${newSlotData.slotId} from peer ${state.hostId}could be better than current block")
-        case false =>
-          Logger[F]
-            .info(show"Ignoring weaker (or equal) block tip id=${newSlotData.slotId} from peer ${state.hostId}")
-      })
-      .flatMap(OptionT.when(_)(newSlotData))
 
   private def sendMessages[F[_]: Async](
     state:          State[F],
@@ -175,15 +163,17 @@ object PeerBlockHeaderFetcher {
   }
 
   // we still interesting in source if we receive current best block
-  private def sourceOfAlreadyAdoptedBlockIsUseful[F[_]: Async](state: State[F], blockId: BlockId): F[Boolean] =
-    state.localChain.head.map(_.slotId.blockId == blockId)
+  private def sourceOfAlreadyAdoptedBlockIsUseful[F[_]: Async](state: State[F], blockSlotData: SlotData): F[Boolean] =
+    state.localChain.head.map(_.height == blockSlotData.height)
 
   private def downloadAndSaveSlotDataChain[F[_]: Async: Logger](
     state: State[F],
     from:  SlotData
   ): OptionT[F, NonEmptyChain[SlotData]] =
     for {
-      slotDataChain <- buildSlotDataChain(state, from)
+      slotDataChain <- buildSlotDataChain(state, from).flatTapNone(
+        Logger[F].info(show"Received already adopted block ${from.slotId.blockId} from peer ${state.hostId}")
+      )
       _             <- OptionT.liftF(Logger[F].info(show"Going to save remote tine length=${slotDataChain.length}"))
       savedSlotData <- OptionT.liftF(saveSlotDataChain(state, slotDataChain))
     } yield savedSlotData
@@ -244,8 +234,8 @@ object PeerBlockHeaderFetcher {
       (sd: SlotData) => state.slotDataStore.contains(sd.slotId.blockId)
     )(from.slotId.blockId)
       .handleErrorWith { error =>
-        Logger[F].error(show"Failed to get remote slot data due to ${error.getLocalizedMessage}") >>
-        List.empty[SlotData].pure[F] // TODO send information about error to reputation handler
+        Logger[F].error(show"Failed to get remote slot data due to ${error.toString}") >>
+        List.empty[SlotData].pure[F] // TODO send information about error
       }
 
     OptionT(tine.map(NonEmptyChain.fromSeq(_)))
@@ -265,10 +255,10 @@ object PeerBlockHeaderFetcher {
             Logger[F].debug(show"Received tip $bestBlockId is better than current block") >>
             Option(slotData).pure[F]
           case false =>
-            state.localChain
-              .couldBeWorse(slotData.last)
+            state.localChain.head
+              .map(_.height < bestSlotData.height)
               .ifM(
-                ifTrue = Logger[F].info(show"Ignoring tip $bestBlockId because of density rule") >>
+                ifTrue = Logger[F].info(show"Ignoring tip $bestBlockId because of the density rule") >>
                   state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId)),
                 ifFalse =
                   Logger[F].info(show"Ignoring tip $bestBlockId because other better or equal block had been adopted")

@@ -95,9 +95,6 @@ object ActorPeerHandlerBridgeAlgebraTest {
   def createEmptyLocalChain: LocalChainAlgebra[F] = new LocalChainAlgebra[F] {
     private var currentHead: SlotData = genesisSlotData
 
-    override def couldBeWorse(newHead: SlotData): F[Boolean] =
-      (newHead.height > currentHead.height).pure[F]
-
     override def isWorseThan(newHead: SlotData): F[Boolean] =
       (newHead.height > currentHead.height).pure[F]
 
