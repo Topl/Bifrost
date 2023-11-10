@@ -131,6 +131,7 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
 class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val dummyDns: DnsResolver[F] = (host: HostId) => Option(host).pure[F]
+  implicit val dummyReverseDns: ReverseDnsResolver[F] = (h: HostId) => h.pure[F]
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
   val hostId: HostId = "127.0.0.1"
 

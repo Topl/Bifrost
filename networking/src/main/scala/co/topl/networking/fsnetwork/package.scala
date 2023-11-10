@@ -14,7 +14,7 @@ import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
-import com.comcast.ip4s.{Dns, Hostname}
+import com.comcast.ip4s.{Dns, Hostname, IpAddress}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import scodec.Codec
@@ -113,6 +113,10 @@ package object fsnetwork {
     s" Remote peer is ${if (peer.remoteNetworkLevel) "active" else "no active"};" +
     s" Reputation is: block=${peer.blockRep}, perf=${peer.perfRep}, new=${peer.newRep}, mean=${peer.reputation};" +
     s" With total ${peer.closedTimestamps.size} closes with timestamps ${peer.closedTimestamps}"
+  }
+
+  implicit val remotePeerShow: Show[RemotePeer] = { remotePeer: RemotePeer =>
+    s"Remote peer: ${remotePeer.address}"
   }
 
   /**
@@ -272,6 +276,10 @@ package object fsnetwork {
     }
   }
 
+  implicit class DnsResolverSyntax[F[_]](hostId: HostId)(implicit val resolver: DnsResolver[F]) {
+    def resolving(): F[Option[HostId]] = resolver.resolving(hostId)
+  }
+
   trait DnsResolverHT[T, F[_]] {
     def resolving(host: T): F[Option[T]]
   }
@@ -293,9 +301,58 @@ package object fsnetwork {
 
   implicit class DnsResolverHTSyntax[F[_], T](host: T)(implicit res: DnsResolverHT[T, F]) {
 
-    def resolve(): F[Option[T]] = {
+    def resolving(): F[Option[T]] = {
       val resolver: DnsResolverHT[T, F] = implicitly[DnsResolverHT[T, F]]
       resolver.resolving(host)
+    }
+  }
+
+  trait ReverseDnsResolver[F[_]] {
+    def reverseResolving(host: HostId): F[HostId]
+  }
+
+  object ReverseDnsResolverInstances {
+
+    def defaultResolver[F[_]: Dns: Monad]: ReverseDnsResolver[F] = hostIdAsIp => {
+      val resolver: Dns[F] = implicitly[Dns[F]]
+      val res =
+        for {
+          ip       <- OptionT.fromOption[F](IpAddress.fromString(hostIdAsIp))
+          resolved <- OptionT(resolver.reverseOption(ip))
+        } yield resolved.normalized.toString
+      // if we failed to get hostname then still use ip
+      res.value.map(_.getOrElse(hostIdAsIp))
+    }
+  }
+
+  implicit class ReverseDnsResolverSyntax[F[_]](hostId: HostId)(implicit val resolver: ReverseDnsResolver[F]) {
+    def reverseResolving(): F[HostId] = resolver.reverseResolving(hostId)
+  }
+
+  trait ReverseDnsResolverHT[T, F[_]] {
+    def reverseResolving(host: T): F[T]
+  }
+
+  object ReverseDnsResolverHTInstances {
+
+    implicit def reverseRemoteAddressResolver[F[_]: Monad: ReverseDnsResolver]: ReverseDnsResolverHT[RemoteAddress, F] =
+      (resolvedHost: RemoteAddress) => {
+        val resolver = implicitly[ReverseDnsResolver[F]]
+        resolver.reverseResolving(resolvedHost.host).map(resolved => resolvedHost.copy(host = resolved))
+      }
+
+    implicit def reversePeerToAddResolver[F[_]: Monad: ReverseDnsResolver]: ReverseDnsResolverHT[RemotePeer, F] =
+      (resolvedHost: RemotePeer) => {
+        val resolver = implicitly[ReverseDnsResolverHT[RemoteAddress, F]]
+        resolver.reverseResolving(resolvedHost.address).map(resolved => resolvedHost.copy(address = resolved))
+      }
+  }
+
+  implicit class ReverseDnsResolverHTSyntax[F[_], T](host: T)(implicit res: ReverseDnsResolverHT[T, F]) {
+
+    def reverseResolving(): F[T] = {
+      val resolver: ReverseDnsResolverHT[T, F] = implicitly[ReverseDnsResolverHT[T, F]]
+      resolver.reverseResolving(host)
     }
   }
 }
