@@ -11,7 +11,7 @@ tags:
 
 In this example, we will be using Docker to run the node.
 
-The way to connect to a testnet is by adding it as a known peer. To do this via CLI, you can use `--knownPeersUnresolvedDns testnet.topl.co:9085`. You will also need to pass the `--config` which contains the genesis block information and other configuration requirements for the given testnet.
+The way to connect to a testnet is by adding it as a known peer. To do this via CLI, you can use `--knownPeers testnet.topl.co:9085`. You will also need to pass the `--config` which contains the genesis block information and other configuration requirements for the given testnet.
 
 The testnet configs are hosted on GitHub https://github.com/Topl/Genesis_Testnets which can be automatically downloaded by Bifrost using the `--config https://raw.githubusercontent.com/Topl/Genesis_Testnets/main/testnet2/config.yaml` parameter.
 
