@@ -165,7 +165,5 @@ object EtaCalculation {
         .map(v => v: ByteString)
         .map(Sized.strictUnsafe(_): Eta)
 
-    private def emptyEpochDetected(epoch: Epoch) =
-      MonadThrow[F].raiseError(new IllegalStateException(s"Eta calculation encountered empty epoch=$epoch"))
   }
 }

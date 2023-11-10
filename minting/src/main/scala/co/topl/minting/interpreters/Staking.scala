@@ -78,7 +78,7 @@ object Staking {
           parentSlotId:         SlotId,
           slot:                 Slot,
           unsignedBlockBuilder: UnsignedBlockHeader.PartialOperationalCertificate => UnsignedBlockHeader,
-          eta: Eta
+          eta:                  Eta
         ): F[Option[BlockHeader]] =
           OptionT(operationalKeyMaker.operationalKeyForSlot(slot, parentSlotId, eta)).semiflatMap { operationalKeyOut =>
             for {
