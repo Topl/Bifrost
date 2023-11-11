@@ -1,6 +1,6 @@
 package co.topl.networking.fsnetwork
 
-import cats.Applicative
+import cats.{Applicative, Parallel}
 import cats.data.NonEmptyChain
 import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, Resource}
@@ -773,7 +773,7 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: If no warm peer then move eligible cold peer(s) with port to warm") {
+  test("Reputation update: If no warm peer then move eligible cold peer(s) with port or actor to warm") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -796,6 +796,11 @@ class PeersManagerTest
       val host4 = RemoteAddress("4", 4)
       val host5 = RemoteAddress("5", 5)
       val host6 = RemoteAddress("6", 6)
+      val host7 = RemoteAddress("7", 6)
+      val host7Actor = mock[PeerActor[F]]
+      (host7Actor.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
+        .returning(Applicative[F].unit)
 
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).returns(().pure[F])
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
@@ -857,6 +862,17 @@ class PeersManagerTest
             0,
             0,
             0
+          ),
+          host7.host -> Peer(
+            PeerState.Cold,
+            host7Actor.some,
+            host7.host,
+            None,
+            Seq.empty,
+            remoteNetworkLevel = true,
+            0,
+            0,
+            0
           )
         )
 
@@ -891,7 +907,7 @@ class PeersManagerTest
             _ = assert(withUpdate.peersHandler(host4.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host5.host).state == PeerState.Hot)
             _ = assert(withUpdate.peersHandler(host6.host).state == PeerState.Banned)
-
+            _ = assert(withUpdate.peersHandler(host7.host).state == PeerState.Warm)
           } yield ()
         }
     }
@@ -2195,7 +2211,7 @@ class PeersManagerTest
           defaultWarmToHotSelector,
           initialPeersMap,
           defaultCache()
-        )(implicitly[Async[IO]], logger, dummyDns, dummyReverseReverseDns)
+        )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dummyDns, dummyReverseReverseDns)
         .use { actor =>
           for {
             _         <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2332,7 +2348,7 @@ class PeersManagerTest
           defaultWarmToHotSelector,
           initialPeersMap,
           defaultCache()
-        )(implicitly[Async[IO]], logger, dummyDns, dummyReverseReverseDns)
+        )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dummyDns, dummyReverseReverseDns)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))

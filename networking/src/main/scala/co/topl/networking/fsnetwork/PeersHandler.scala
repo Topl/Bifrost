@@ -17,7 +17,8 @@ object PeersHandler {
       case PeerState.Banned  => Set.empty
       // Cold to Cold -- special case for closing connection if peers are already in the cold state
       case PeerState.Cold => Set(PeerState.Cold, PeerState.Banned, PeerState.Warm)
-      case PeerState.Warm => Set(PeerState.Cold, PeerState.Hot, PeerState.Banned)
+      // Warm to Warm -- special case for opening new connection case, will be removed later
+      case PeerState.Warm => Set(PeerState.Cold, PeerState.Warm, PeerState.Hot, PeerState.Banned)
       case PeerState.Hot  => Set(PeerState.Cold, PeerState.Banned)
     }
 }
@@ -208,8 +209,10 @@ case class PeersHandler[F[_]: Async: Logger](
     updatedPeersF.map(peers => this.copy(peers = this.peers ++ peers.toMap))
   }
 
-  def copyWithRemovedPeers(toRemove: Set[HostId]): PeersHandler[F] = {
-    val newPeers = peers -- toRemove
+  def copyWithRemovedColdPeersWithoutActor(toRemove: Set[HostId]): PeersHandler[F] = {
+    val filteredToRemove =
+      getColdPeers.view.filterKeys(toRemove).filter(_._2.actorOpt.isEmpty).keySet
+    val newPeers = peers -- filteredToRemove
     this.copy(peers = newPeers)
   }
 }
