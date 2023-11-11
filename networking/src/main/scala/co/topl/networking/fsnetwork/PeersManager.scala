@@ -1,6 +1,6 @@
 package co.topl.networking.fsnetwork
 
-import cats.Show
+import cats.{Parallel, Show}
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
 import cats.implicits._
@@ -231,7 +231,7 @@ object PeersManager {
   type PeersManagerActor[F[_]] = Actor[F, Message, Response[F]]
 
   // scalastyle:off cyclomatic.complexity
-  def getFsm[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver]
+  def getFsm[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver]
     : PeersManagerActor[F] => Fsm[F, State[F], Message, Response[F]] =
     (thisActor: PeersManagerActor[F]) =>
       Fsm {
@@ -265,7 +265,7 @@ object PeersManager {
   // scalastyle:on cyclomatic.complexity
 
   // scalastyle:off parameter.number
-  def makeActor[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver](
+  def makeActor[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
@@ -319,11 +319,14 @@ object PeersManager {
   }
   // scalastyle:on parameter.number
 
-  private def finalizeActor[F[_]: Async](
+  private def finalizeActor[F[_]: Async: Logger](
     savePeersFunction: Set[RemotePeer] => F[Unit]
   )(state: State[F])(implicit res: ReverseDnsResolverHT[RemotePeer, F]): F[Unit] =
     for {
+      ipToSave  <- state.peersHandler.getRemotePeers.toSeq.pure[F]
+      _         <- Logger[F].debug(show"Try to resolve next ip(s) as hostnames: $ipToSave")
       hostNames <- state.peersHandler.getRemotePeers.toSeq.traverse(_.reverseResolving())
+      _         <- Logger[F].debug(show"Resolved ip(s) as hostnames: $hostNames")
       _         <- savePeersFunction(hostNames.toSet)
     } yield ()
 
@@ -525,7 +528,8 @@ object PeersManager {
   private def requestCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(show"Current hot peer(s) state: ${state.peersHandler.getHotPeers}") >>
     Logger[F].info(show"Current warm peer(s) state: ${state.peersHandler.getWarmPeers}") >>
-    Logger[F].info(show"With known cold peers amount: ${state.peersHandler.getColdPeers.size}") >>
+    Logger[F].info(show"Current first five cold peer(s) state: ${state.peersHandler.getColdPeers.take(5)}") >>
+    Logger[F].info(show"With known cold peers: ${state.peersHandler.getColdPeers.keySet}") >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
 
@@ -534,7 +538,7 @@ object PeersManager {
     state.peersHandler.getHotPeers.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetCurrentTip)) >>
     (state, state).pure[F]
 
-  private def remotePeerServerPort[F[_]: Async: Logger: ReverseDnsResolver](
+  private def remotePeerServerPort[F[_]: Async: Parallel: Logger: ReverseDnsResolver](
     state:      State[F],
     hostId:     HostId,
     serverPort: Int
@@ -560,13 +564,14 @@ object PeersManager {
       newState <- state.copy(peersHandler = newPeersHandler).pure[F]
     } yield (newState, newState)
 
-  private def updateExternalHotPeersList[F[_]: Async: Logger](
+  private def updateExternalHotPeersList[F[_]: Async: Parallel: Logger](
     state: State[F]
   )(implicit res: ReverseDnsResolverHT[RemoteAddress, F]): F[Unit] =
     for {
       hotPeersServers <- state.peersHandler.getHotPeers.values.flatMap(_.asRemoteAddress).toSet.pure[F]
-      hotPeersAsHosts <- hotPeersServers.toSeq.traverse(_.reverseResolving())
-      _               <- Logger[F].debug(show"Going to update hot peers servers $hotPeersAsHosts")
+      _               <- Logger[F].debug(show"Going to resolve ip(s) to hostnames for hot peers $hotPeersServers")
+      hotPeersAsHosts <- hotPeersServers.toSeq.parTraverse(_.reverseResolving())
+      _               <- Logger[F].debug(show"Going to update hot peers hostnames $hotPeersAsHosts")
       _               <- state.hotPeersUpdate(hotPeersAsHosts.toSet)
     } yield ()
 
@@ -703,18 +708,18 @@ object PeersManager {
     }
   }
 
-  private def resolveHosts[T: Show, F[_]: Async: Logger](
+  private def resolveHosts[T: Show, F[_]: Async: Parallel: Logger](
     unresolved: Seq[T]
   )(implicit res: DnsResolverHT[T, F]): F[Seq[T]] =
     unresolved
-      .traverse { unresolvedAddress =>
+      .parTraverse { unresolvedAddress =>
         unresolvedAddress
           .resolving()
-          .flatTap(resolvedAddress => Logger[F].info(show"Resolve address $unresolvedAddress to $resolvedAddress"))
+          .flatTap(resolvedAddress => Logger[F].debug(show"Resolve address $unresolvedAddress to $resolvedAddress"))
       }
       .map(_.flatten.toSeq)
 
-  private def addKnownNeighbors[F[_]: Async: Logger: DnsResolver](
+  private def addKnownNeighbors[F[_]: Async: Parallel: Logger: DnsResolver](
     state:      State[F],
     source:     HostId,
     knownPeers: NonEmptyChain[RemoteAddress]
@@ -727,7 +732,7 @@ object PeersManager {
     } yield addKnownResolvedPeers(state, peerToAdd)
   }.getOrElse((state, state).pure[F]).flatten
 
-  private def addKnownPeers[F[_]: Async: Logger: DnsResolver](
+  private def addKnownPeers[F[_]: Async: Parallel: Logger: DnsResolver](
     state:      State[F],
     knownPeers: NonEmptyChain[RemotePeer]
   ): F[(State[F], Response[F])] = {
@@ -773,12 +778,12 @@ object PeersManager {
   // we do NOT work here with cold peers which are present but had been closed recently. That allow us to not remove
   // cold peer which are no eligible to move to warm status
   private def clearColdPeers[F[_]](state: State[F]): State[F] = {
-    val eligibleColdPeers = getEligibleColdPeers(state)
+    val eligibleColdPeers = getEligibleColdPeers(state).filter(_._2.remoteServerPort.isDefined)
     if (eligibleColdPeers.size > state.p2pNetworkConfig.networkProperties.maximumEligibleColdConnections) {
       val minimumColdConnections = state.p2pNetworkConfig.networkProperties.minimumEligibleColdConnections
       val savedCold =
         eligibleColdPeers.toSeq.sortBy(_._2.closedTimestamps.size).take(minimumColdConnections).map(_._1).toSet
-      val newPeer = state.peersHandler.copyWithRemovedPeers(eligibleColdPeers.keySet -- savedCold)
+      val newPeer = state.peersHandler.copyWithRemovedColdPeersWithoutActor(eligibleColdPeers.keySet -- savedCold)
       state.copy(peersHandler = newPeer)
     } else {
       state
@@ -798,7 +803,7 @@ object PeersManager {
     warmPeersToHot(thisActor, state, toHot).map(s => (s, s))
   }
 
-  private def repUpdate[F[_]: Async: Logger: DnsResolver: ReverseDnsResolver](
+  private def repUpdate[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](
     thisActor: PeersManagerActor[F],
     state:     State[F]
   ): F[(State[F], Response[F])] =
@@ -866,17 +871,21 @@ object PeersManager {
       val lastClose = timestamps.lastOption.getOrElse(0L)
       val totalCloses = timestamps.size
       val nonEligibleWindow = totalCloses * totalCloses * closeTimeoutFirstDelayInMs
-      (currentTimestamp.toDouble >= (lastClose + nonEligibleWindow)) && host.remoteServerPort.isDefined
+      currentTimestamp.toDouble >= (lastClose + nonEligibleWindow)
     }
   }
 
-  private def coldToWarm[F[_]: Async: Logger: DnsResolver](
+  private def coldToWarm[F[_]: Async: Parallel: Logger: DnsResolver](
     thisActor: PeersManagerActor[F],
     state:     State[F]
   ): F[State[F]] = {
     val maximumWarmConnection = state.p2pNetworkConfig.networkProperties.maximumWarmConnections
     val lackWarmPeersCount = maximumWarmConnection - state.peersHandler.getWarmPeersWithActor.size
-    val eligibleColdPeers = getEligibleColdPeers(state)
+    val eligibleColdPeers =
+      getEligibleColdPeers(state).filter { case (_, peer) =>
+        // we shall be able to establish connection or already have established connection
+        peer.remoteServerPort.isDefined || peer.actorOpt.isDefined
+      }
     val coldToWarm: Set[HostId] = state.coldToWarmSelector.select(eligibleColdPeers, lackWarmPeersCount)
 
     for {
@@ -886,7 +895,7 @@ object PeersManager {
     } yield newState
   }
 
-  private def checkConnection[F[_]: Async: Logger: DnsResolver](
+  private def checkConnection[F[_]: Async: Parallel: Logger: DnsResolver](
     state:        State[F],
     hostsToCheck: Set[HostId]
   ): F[Unit] = {

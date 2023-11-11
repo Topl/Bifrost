@@ -1,7 +1,7 @@
 package co.topl.networking
 
 import cats.data.{NonEmptyChain, OptionT}
-import cats.effect.Async
+import cats.effect.{Async, Sync}
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
@@ -15,11 +15,12 @@ import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.{Dns, Hostname, IpAddress}
-import com.github.benmanes.caffeine.cache.Cache
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import org.typelevel.log4cats.Logger
 import scodec.Codec
 import scodec.codecs.{cstring, double, int32}
 
+import java.time.Duration
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
 package object fsnetwork {
@@ -313,15 +314,35 @@ package object fsnetwork {
 
   object ReverseDnsResolverInstances {
 
-    def defaultResolver[F[_]: Dns: Monad]: ReverseDnsResolver[F] = hostIdAsIp => {
-      val resolver: Dns[F] = implicitly[Dns[F]]
-      val res =
-        for {
-          ip       <- OptionT.fromOption[F](IpAddress.fromString(hostIdAsIp))
-          resolved <- OptionT(resolver.reverseOption(ip))
-        } yield resolved.normalized.toString
-      // if we failed to get hostname then still use ip
-      res.value.map(_.getOrElse(hostIdAsIp))
+    class NoOpReverseResolver[F[_]: Applicative] extends ReverseDnsResolver[F] {
+      override def reverseResolving(host: HostId): F[HostId] = host.pure[F]
+    }
+
+    class ReverseResolver[F[_]: Dns: Sync] extends ReverseDnsResolver[F] {
+      val reverseDnsCacheSize: Int = 1000
+      val expireAfterWriteDuration: Duration = java.time.Duration.ofMinutes(30)
+
+      val cache: Cache[HostId, HostId] =
+        Caffeine.newBuilder
+          .maximumSize(reverseDnsCacheSize)
+          .expireAfterWrite(expireAfterWriteDuration)
+          .build[String, String]()
+
+      override def reverseResolving(hostIdAsIp: HostId): F[HostId] =
+        Option(cache.getIfPresent(hostIdAsIp))
+          .map(_.pure[F])
+          .getOrElse(doResolve(hostIdAsIp).flatTap(hostname => Sync[F].delay(cache.put(hostIdAsIp, hostname))))
+
+      private def doResolve(hostIdAsIp: HostId): F[HostId] = {
+        val resolver: Dns[F] = implicitly[Dns[F]]
+        val res =
+          for {
+            ip       <- OptionT.fromOption[F](IpAddress.fromString(hostIdAsIp))
+            resolved <- OptionT(resolver.reverseOption(ip))
+          } yield resolved.normalized.toString
+        // if we failed to get hostname then still use ip
+        res.value.map(_.getOrElse(hostIdAsIp))
+      }
     }
   }
 
