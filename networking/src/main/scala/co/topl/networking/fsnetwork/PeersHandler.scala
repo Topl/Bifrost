@@ -1,7 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.Applicative
-import cats.data.NonEmptyChain
+import cats.data.Chain
 import cats.effect.Async
 import cats.implicits._
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -82,7 +82,7 @@ case class PeersHandler[F[_]: Async: Logger](
             peerWithRep             <- updateReputation(oldPeer, peerWithClosedTimestamp).pure[F]
             actorOpt                <- closePeerIfNecessary(peerWithClosedTimestamp, peerActorCloseAndRelease)
             newPeer                 <- peerWithRep.copy(actorOpt = actorOpt).pure[F]
-            _                       <- Logger[F].info(s"Move host $host with peer $oldPeer to new state $newPeer")
+            _                       <- Logger[F].info(show"Move host $host with peer $oldPeer to new state $newPeer")
           } yield host -> newPeer
         }
 
@@ -143,7 +143,7 @@ case class PeersHandler[F[_]: Async: Logger](
       }
       .getOrElse(this)
 
-  def copyWithAddedPeers(newPeers: NonEmptyChain[RemotePeer]): PeersHandler[F] = {
+  def copyWithAddedPeers(newPeers: Chain[RemotePeer]): PeersHandler[F] = {
     val peersToAdd: Map[HostId, Peer[F]] =
       newPeers.toList.map { case RemotePeer(RemoteAddress(host, port), initialBlockReputation, initialPerfReputation) =>
         peers.get(host) match {
@@ -209,8 +209,10 @@ case class PeersHandler[F[_]: Async: Logger](
     updatedPeersF.map(peers => this.copy(peers = this.peers ++ peers.toMap))
   }
 
-  def copyWithRemovedPeers(toRemove: Set[HostId]): PeersHandler[F] = {
-    val newPeers = peers -- toRemove
+  def copyWithRemovedColdPeersWithoutActor(toRemove: Set[HostId]): PeersHandler[F] = {
+    val filteredToRemove =
+      getColdPeers.view.filterKeys(toRemove).filter(_._2.actorOpt.isEmpty).keySet
+    val newPeers = peers -- filteredToRemove
     this.copy(peers = newPeers)
   }
 }

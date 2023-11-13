@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.Parallel
 import cats.effect.{Async, Resource}
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
@@ -111,7 +112,8 @@ trait NetworkAlgebra[F[_]] {
   ): Resource[F, PeerMempoolTransactionSyncActor[F]]
 }
 
-class NetworkAlgebraImpl[F[_]: Async: Logger: DnsResolver](clock: ClockAlgebra[F]) extends NetworkAlgebra[F] {
+class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](clock: ClockAlgebra[F])
+    extends NetworkAlgebra[F] {
 
   override def makePeerManger(
     thisHostId:                  HostId,
