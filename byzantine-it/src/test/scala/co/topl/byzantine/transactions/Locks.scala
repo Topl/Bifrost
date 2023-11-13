@@ -4,7 +4,7 @@ import co.topl.brambl.constants.NetworkConstants
 import co.topl.brambl.models.Indices
 import co.topl.brambl.models.box.{Challenge, Lock}
 import co.topl.brambl.syntax.lockAsLockSyntaxOps
-import co.topl.brambl.wallet.WalletApi
+import co.topl.brambl.syntax.{cryptoToPbKeyPair, pbKeyPairToCryptoKeyPair}
 import co.topl.crypto.generation.Bip32Indexes
 import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.signing.ExtendedEd25519
@@ -54,12 +54,12 @@ object Locks {
   private val indices = Indices(0, 0, 0)
 
   private val keyPair: KeyPair =
-    WalletApi.cryptoToPbKeyPair((new ExtendedEd25519).deriveKeyPairFromSeed(Array.fill(96)(0: Byte)))
+    cryptoToPbKeyPair((new ExtendedEd25519).deriveKeyPairFromSeed(Array.fill(96)(0: Byte)))
 
   private[byzantine] val childKeyPair: KeyPair =
-    WalletApi.cryptoToPbKeyPair(
+    cryptoToPbKeyPair(
       (new ExtendedEd25519).deriveKeyPairFromChildPath(
-        WalletApi.pbKeyPairToCryotoKeyPair(keyPair).signingKey,
+        pbKeyPairToCryptoKeyPair(keyPair).signingKey,
         List(
           Bip32Indexes.HardenedIndex(indices.x),
           Bip32Indexes.SoftIndex(indices.y),
