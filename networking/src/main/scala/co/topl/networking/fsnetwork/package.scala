@@ -265,15 +265,33 @@ package object fsnetwork {
 
   object DnsResolverInstances {
 
-    def defaultResolver[F[_]: Dns: Monad]: DnsResolver[F] = unresolvedHost => {
-      val resolver: Dns[F] = implicitly[Dns[F]]
+    class DefaultDnsResolver[F[_]: Dns: Sync] extends DnsResolver[F] {
+      val dnsCacheSize: Int = 1000
+      val expireAfterWriteDuration: Duration = java.time.Duration.ofMinutes(30)
 
-      val res =
-        for {
-          host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
-          resolved <- OptionT(resolver.resolveOption(host))
-        } yield resolved.toUriString
-      res.value
+      val cache: Cache[HostId, HostId] =
+        Caffeine.newBuilder
+          .maximumSize(dnsCacheSize)
+          .expireAfterWrite(expireAfterWriteDuration)
+          .build[String, String]()
+
+      override def resolving(host: HostId): F[Option[HostId]] =
+        if (cache.contains(host)) {
+          Option(cache.getIfPresent(host)).pure[F]
+        } else {
+          doResolve(host).flatTap(hostname => hostname.traverse(rh => Sync[F].delay(cache.put(host, rh))))
+        }
+
+      private def doResolve(unresolvedHost: HostId): F[Option[HostId]] = {
+        val resolver: Dns[F] = implicitly[Dns[F]]
+
+        val res =
+          for {
+            host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
+            resolved <- OptionT(resolver.resolveOption(host))
+          } yield resolved.toUriString
+        res.value
+      }
     }
   }
 
@@ -318,7 +336,7 @@ package object fsnetwork {
       override def reverseResolving(host: HostId): F[HostId] = host.pure[F]
     }
 
-    class ReverseResolver[F[_]: Dns: Sync] extends ReverseDnsResolver[F] {
+    class DefaultReverseDnsResolver[F[_]: Dns: Sync] extends ReverseDnsResolver[F] {
       val reverseDnsCacheSize: Int = 1000
       val expireAfterWriteDuration: Duration = java.time.Duration.ofMinutes(30)
 
