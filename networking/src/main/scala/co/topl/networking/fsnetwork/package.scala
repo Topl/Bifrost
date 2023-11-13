@@ -17,11 +17,13 @@ import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.{Dns, Hostname, IpAddress}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import org.typelevel.log4cats.Logger
+import scalacache.Entry
+import scalacache.caffeine.CaffeineCache
 import scodec.Codec
 import scodec.codecs.{cstring, double, int32}
 
 import java.time.Duration
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 package object fsnetwork {
 
@@ -338,18 +340,17 @@ package object fsnetwork {
 
     class DefaultReverseDnsResolver[F[_]: Dns: Sync] extends ReverseDnsResolver[F] {
       val reverseDnsCacheSize: Int = 1000
-      val expireAfterWriteDuration: Duration = java.time.Duration.ofMinutes(30)
+      val expireAfterWriteDuration: FiniteDuration = 30.minutes
 
-      val cache: Cache[HostId, HostId] =
-        Caffeine.newBuilder
-          .maximumSize(reverseDnsCacheSize)
-          .expireAfterWrite(expireAfterWriteDuration)
-          .build[String, String]()
+      val cache: CaffeineCache[F, String, String] =
+        CaffeineCache[F, String, String](
+          Caffeine.newBuilder
+            .maximumSize(reverseDnsCacheSize)
+            .build[String, Entry[String]]()
+        )
 
       override def reverseResolving(hostIdAsIp: HostId): F[HostId] =
-        Option(cache.getIfPresent(hostIdAsIp))
-          .map(_.pure[F])
-          .getOrElse(doResolve(hostIdAsIp).flatTap(hostname => Sync[F].delay(cache.put(hostIdAsIp, hostname))))
+        cache.cachingF(hostIdAsIp)(expireAfterWriteDuration.some)(doResolve(hostIdAsIp))
 
       private def doResolve(hostIdAsIp: HostId): F[HostId] = {
         val resolver: Dns[F] = implicitly[Dns[F]]
