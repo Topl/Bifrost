@@ -1,7 +1,6 @@
 package co.topl.transactiongenerator.app
 
 import cats.Show
-import cats.data._
 import cats.effect._
 import cats.effect.std.Random
 import cats.effect.std.SecureRandom
@@ -38,11 +37,10 @@ object TransactionGeneratorApp
       _                            <- Logger[F].info(show"Launching Transaction Generator with appConfig=$appConfig")
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       // Initialize gRPC Clients
-      clientAddresses <- parseClientAddresses(appConfig)
-      genusClientAddress = clientAddresses.head
-      _ <- Logger[F].info(show"Initializing clients=$clientAddresses")
+      clientAddress <- parseClientAddress(appConfig)
+      _             <- Logger[F].info(show"Initializing client=$clientAddress")
       genusClientResource = co.topl.grpc
-        .makeChannel[F](genusClientAddress._1, genusClientAddress._2, genusClientAddress._3)
+        .makeChannel[F](clientAddress._1, clientAddress._2, clientAddress._3)
         .flatMap(TransactionServiceFs2Grpc.stubResource[F])
       _      <- Logger[F].info(show"Initializing wallet")
       wallet <- genusClientResource.flatMap(GenusWalletInitializer.make[F]).use(_.initialize)
@@ -57,12 +55,8 @@ object TransactionGeneratorApp
           appConfig.transactionGenerator.generator.maxWalletSize
         )
         .flatMap(_.generateTransactions)
-      nodeClientsResource = clientAddresses.traverse { case (host, port, useTls) =>
-        NodeGrpc.Client.make[F](host, port, tls = useTls)
-      }
-      // Turn the list of clients into a single client (randomly chosen per-call)
-      _ <- nodeClientsResource
-        .evalMap(MultiNodeRpc.make[F, NonEmptyChain])
+      _ <- NodeGrpc.Client
+        .make[F](clientAddress._1, clientAddress._2, clientAddress._3)
         .use(client =>
           // Broadcast the transactions and run the background mempool stream
           (
@@ -78,24 +72,20 @@ object TransactionGeneratorApp
    * If the address starts with "http://", TLS will be disabled on the connection.
    * If the address starts with neither, TLS will be enabled on the connection.
    */
-  private def parseClientAddresses(appConfig: ApplicationConfig): F[NonEmptyChain[(String, Int, Boolean)]] =
-    IO.fromEither(
-      NonEmptyChain
-        .fromSeq(appConfig.transactionGenerator.rpc.clients)
-        .toRight[Exception](new IllegalArgumentException("No RPC clients specified"))
-        .flatMap(_.traverse { string =>
-          val (withoutProtocol: String, useTls: Boolean) =
-            if (string.startsWith("http://")) (string.drop(7), false)
-            else if (string.startsWith("https://")) (string.drop(8), true)
-            else (string, true)
+  private def parseClientAddress(appConfig: ApplicationConfig): F[(String, Int, Boolean)] =
+    IO.fromEither {
+      val string = appConfig.transactionGenerator.rpc.client
+      val (withoutProtocol: String, useTls: Boolean) =
+        if (string.startsWith("http://")) (string.drop(7), false)
+        else if (string.startsWith("https://")) (string.drop(8), true)
+        else (string, true)
 
-          withoutProtocol.split(':').toList match {
-            case host :: port :: Nil =>
-              port.toIntOption.toRight(new IllegalArgumentException("Invalid RPC port provided")).map((host, _, useTls))
-            case _ => Left(new IllegalArgumentException("Invalid RPC config provided"))
-          }
-        })
-    )
+      withoutProtocol.split(':').toList match {
+        case host :: port :: Nil =>
+          port.toIntOption.toRight(new IllegalArgumentException("Invalid RPC port provided")).map((host, _, useTls))
+        case _ => Left(new IllegalArgumentException("Invalid RPC config provided"))
+      }
+    }
 
   /**
    * Broadcasts each transaction from the input stream
