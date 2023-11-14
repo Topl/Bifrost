@@ -1,9 +1,9 @@
 package co.topl.networking.fsnetwork
 
-import cats.Applicative
+import cats.{Applicative, Parallel}
 import cats.data.NonEmptyChain
 import cats.effect.kernel.Sync
-import cats.effect.{IO, Resource}
+import cats.effect.{Async, IO, Resource}
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.brambl.generators.TransactionGenerator
@@ -50,7 +50,7 @@ class PeersManagerTest
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
   val maxChainSize = 99
 
-  val thisHostId: HostId = "0.0.0.0"
+  val thisHostId: HostId = "43.0.0.0"
   val hostId: HostId = "127.0.0.1"
 
   val defaultColdToWarmSelector: SelectorColdToWarm[F] =
@@ -76,6 +76,7 @@ class PeersManagerTest
     Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
 
   implicit val dummyDns: DnsResolver[F] = (host: HostId) => Option(host).pure[F]
+  implicit val dummyReverseDns: ReverseDnsResolver[F] = (h: HostId) => h.pure[F]
 
   def mockPeerActor[F[_]: Applicative](): PeerActor[F] = {
     val mocked = mock[PeerActor[F]]
@@ -772,7 +773,7 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: If no warm peer then move eligible cold peer(s) with port to warm") {
+  test("Reputation update: If no warm peer then move eligible cold peer(s) with port or actor to warm") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -795,6 +796,11 @@ class PeersManagerTest
       val host4 = RemoteAddress("4", 4)
       val host5 = RemoteAddress("5", 5)
       val host6 = RemoteAddress("6", 6)
+      val host7 = RemoteAddress("7", 6)
+      val host7Actor = mock[PeerActor[F]]
+      (host7Actor.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
+        .returning(Applicative[F].unit)
 
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).returns(().pure[F])
       (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
@@ -856,6 +862,17 @@ class PeersManagerTest
             0,
             0,
             0
+          ),
+          host7.host -> Peer(
+            PeerState.Cold,
+            host7Actor.some,
+            host7.host,
+            None,
+            Seq.empty,
+            remoteNetworkLevel = true,
+            0,
+            0,
+            0
           )
         )
 
@@ -890,7 +907,7 @@ class PeersManagerTest
             _ = assert(withUpdate.peersHandler(host4.host).state == PeerState.Warm)
             _ = assert(withUpdate.peersHandler(host5.host).state == PeerState.Hot)
             _ = assert(withUpdate.peersHandler(host6.host).state == PeerState.Banned)
-
+            _ = assert(withUpdate.peersHandler(host7.host).state == PeerState.Warm)
           } yield ()
         }
     }
@@ -2163,8 +2180,17 @@ class PeersManagerTest
         )
 
       val hotUpdater = mock[Set[RemoteAddress] => F[Unit]]
-      (hotUpdater.apply _).expects(Set(host1serverAddress, host4serverAddress)).twice().returns(().pure[F])
+      (hotUpdater.apply _)
+        .expects(
+          Set(
+            host1serverAddress.copy(host = host1serverAddress.host.reverse),
+            host4serverAddress.copy(host = host4serverAddress.host.reverse)
+          )
+        )
+        .twice()
+        .returns(().pure[F])
 
+      implicit val dummyReverseReverseDns: ReverseDnsResolver[F] = (h: HostId) => h.reverse.pure[F]
       PeersManager
         .makeActor(
           thisHostId,
@@ -2185,7 +2211,7 @@ class PeersManagerTest
           defaultWarmToHotSelector,
           initialPeersMap,
           defaultCache()
-        )
+        )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dummyDns, dummyReverseReverseDns)
         .use { actor =>
           for {
             _         <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2201,7 +2227,7 @@ class PeersManagerTest
     }
   }
 
-  test("Finalized actor shall write non-banned hosts") {
+  test("Finalized actor shall write non-banned hosts by using their hostnames") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -2215,22 +2241,22 @@ class PeersManagerTest
       val requestProxy = mock[RequestsProxyActor[F]]
       val mempool = mock[MempoolAlgebra[F]]
 
-      val host1 = "1"
+      val host1 = "host1"
       val hostServer1Port = 1
 
-      val host2 = "2"
+      val host2 = "host2"
       val hostServer2Port = 2
 
-      val host3 = "3"
+      val host3 = "host3"
       val hostServer3Port = 3
 
-      val host4 = "4"
+      val host4 = "host4"
       val hostServer4Port = 4
 
-      val host5 = "5"
+      val host5 = "host5"
       val hostServer5Port = 5
 
-      val host6 = "6"
+      val host6 = "host6"
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
@@ -2294,13 +2320,14 @@ class PeersManagerTest
 
       val writingHosts = mock[Set[RemotePeer] => F[Unit]]
       val expectedHosts = Set(
-        RemotePeer(RemoteAddress(host2, hostServer2Port), 0, 0),
-        RemotePeer(RemoteAddress(host3, hostServer3Port), 0, 0),
-        RemotePeer(RemoteAddress(host4, hostServer4Port), 0, 0),
-        RemotePeer(RemoteAddress(host5, hostServer5Port), 0, 0)
+        RemotePeer(RemoteAddress(host2.reverse, hostServer2Port), 0, 0),
+        RemotePeer(RemoteAddress(host3.reverse, hostServer3Port), 0, 0),
+        RemotePeer(RemoteAddress(host4.reverse, hostServer4Port), 0, 0),
+        RemotePeer(RemoteAddress(host5.reverse, hostServer5Port), 0, 0)
       )
       (writingHosts.apply _).expects(expectedHosts).once().returns(().pure[F])
 
+      implicit val dummyReverseReverseDns: ReverseDnsResolver[F] = (h: HostId) => h.reverse.pure[F]
       PeersManager
         .makeActor(
           thisHostId,
@@ -2321,7 +2348,7 @@ class PeersManagerTest
           defaultWarmToHotSelector,
           initialPeersMap,
           defaultCache()
-        )
+        )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dummyDns, dummyReverseReverseDns)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2331,7 +2358,7 @@ class PeersManagerTest
     }
   }
 
-  test("Add known neighbours shall correctly filter out special IP addresses") {
+  test("Add known neighbours shall correctly filter out special IP addresses and local address") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -2350,10 +2377,20 @@ class PeersManagerTest
 
       val externalIPs = Set("126.0.0.0", "8.8.8.8")
       val specialIPs =
-        Set("0.0.0.0", "127.127.127.127", "238.255.255.255", "224.0.0.0", "0.0.0.0", "255.255.255.255", "wrong ip")
+        Set(
+          "0.0.0.0",
+          "127.127.127.127",
+          "238.255.255.255",
+          "224.0.0.0",
+          "0.0.0.0",
+          "255.255.255.255",
+          "wrong ip"
+        )
+
+      val loopBack = Set(thisHostId)
 
       val remoteAddresses =
-        NonEmptyChain.fromSeq((externalIPs ++ specialIPs).map(ip => RemoteAddress(ip, 0)).toSeq).get
+        NonEmptyChain.fromSeq((externalIPs ++ specialIPs ++ loopBack).map(ip => RemoteAddress(ip, 0)).toSeq).get
       val peersToAdd = remoteAddresses.map(ra => RemotePeer(ra, 0, 0))
 
       PeersManager

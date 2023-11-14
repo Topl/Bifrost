@@ -53,6 +53,7 @@ object ApplicationConfig {
     )
 
     case class NetworkProperties(
+      useHostNames:                         Boolean = false,
       pingPongInterval:                     FiniteDuration = FiniteDuration(90, SECONDS),
       expectedSlotsPerBlock:                Double = 5.0, // TODO shall be calculated?
       maxPerformanceDelayInSlots:           Double = 2.0,

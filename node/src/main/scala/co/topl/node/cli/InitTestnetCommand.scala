@@ -17,12 +17,12 @@ import co.topl.consensus.models.BlockId
 import co.topl.crypto.hash.Blake2b256
 import co.topl.node.ProtocolVersioner
 import co.topl.node.cli.InitTestnetCommand.{DefaultProtocol, DefaultUpdateProposal}
-import co.topl.node.models.{BlockBody, FullBlock, Ratio}
+import co.topl.node.models.{BlockBody, FullBlock}
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import com.google.protobuf.duration.Duration
 import fs2.io.file.{Files, Path}
-import quivr.models.{Int128, SmallData}
+import quivr.models.{Int128, Ratio, SmallData}
 import co.topl.numerics.implicits._
 
 import java.nio.charset.StandardCharsets

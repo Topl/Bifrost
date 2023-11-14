@@ -8,7 +8,7 @@ import co.topl.brambl.models.LockAddress
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.models.utility._
-import co.topl.node.models.Ratio
+import quivr.models.Ratio
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}

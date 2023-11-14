@@ -205,11 +205,11 @@ object BigBang {
   def protocolToUpdateProposal(protocol: ApplicationConfig.Bifrost.Protocol): Value.UpdateProposal =
     Value.UpdateProposal(
       label = "genesis",
-      fEffective = (protocol.fEffective: co.topl.node.models.Ratio).some,
+      fEffective = (protocol.fEffective: quivr.models.Ratio).some,
       vrfLddCutoff = protocol.vrfLddCutoff.some,
       vrfPrecision = protocol.vrfPrecision.some,
-      vrfBaselineDifficulty = (protocol.vrfBaselineDifficulty: co.topl.node.models.Ratio).some,
-      vrfAmplitude = (protocol.vrfAmplitude: co.topl.node.models.Ratio).some,
+      vrfBaselineDifficulty = (protocol.vrfBaselineDifficulty: quivr.models.Ratio).some,
+      vrfAmplitude = (protocol.vrfAmplitude: quivr.models.Ratio).some,
       chainSelectionKLookback = protocol.chainSelectionKLookback.some,
       slotDuration = (protocol.slotDuration: com.google.protobuf.duration.Duration).some,
       forwardBiasedSlotWindow = protocol.forwardBiasedSlotWindow.some,

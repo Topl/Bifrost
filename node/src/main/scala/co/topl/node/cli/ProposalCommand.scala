@@ -7,7 +7,7 @@ import co.topl.brambl.models.box.Value.UpdateProposal
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, UnspentTransactionOutput}
 import co.topl.brambl.models.{Datum, Event, LockAddress}
 import co.topl.node.cli.ProposalCommand.Messages
-import co.topl.node.models.Ratio
+import quivr.models.Ratio
 import com.google.protobuf.duration.Duration
 import fs2.io.file.Path
 

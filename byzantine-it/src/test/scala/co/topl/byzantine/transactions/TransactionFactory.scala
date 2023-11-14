@@ -11,7 +11,7 @@ import co.topl.brambl.models.box.{Attestation, Box, Lock, Value}
 import co.topl.brambl.models.transaction.{IoTransaction, Schedule, SpentTransactionOutput, UnspentTransactionOutput}
 import co.topl.brambl.models._
 import co.topl.brambl.syntax._
-import co.topl.brambl.wallet.WalletApi
+import co.topl.brambl.syntax.pbKeyPairToCryptoKeyPair
 import co.topl.crypto.signing.ExtendedEd25519
 import co.topl.quivr.api.Prover
 import com.google.protobuf.ByteString
@@ -192,7 +192,7 @@ object TransactionFactory {
               ByteString.copyFrom(
                 (new ExtendedEd25519)
                   .sign(
-                    WalletApi.pbKeyPairToCryotoKeyPair(Locks.childKeyPair).signingKey,
+                    pbKeyPairToCryptoKeyPair(Locks.childKeyPair).signingKey,
                     unprovenTransaction.signable.value.toByteArray
                   )
               )

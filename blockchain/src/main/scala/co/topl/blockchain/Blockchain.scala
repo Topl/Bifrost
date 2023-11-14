@@ -23,7 +23,9 @@ import co.topl.ledger.algebras._
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters._
 import co.topl.networking.blockchain._
-import co.topl.networking.fsnetwork.{ActorPeerHandlerBridgeAlgebra, DnsResolver, DnsResolverInstances}
+import co.topl.networking.fsnetwork.DnsResolverInstances.DefaultDnsResolver
+import co.topl.networking.fsnetwork.ReverseDnsResolverInstances.{DefaultReverseDnsResolver, NoOpReverseResolver}
+import co.topl.networking.fsnetwork._
 import co.topl.networking.p2p._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -63,7 +65,9 @@ object Blockchain {
     networkProperties:         NetworkProperties
   ): Resource[F, Unit] = {
     implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
-    implicit val dnsResolver: DnsResolver[F] = DnsResolverInstances.defaultResolver[F]
+    implicit val dnsResolver: DnsResolver[F] = new DefaultDnsResolver[F]()
+    implicit val reverseDnsResolver: ReverseDnsResolver[F] =
+      if (networkProperties.useHostNames) new DefaultReverseDnsResolver[F]() else new NoOpReverseResolver[F]
 
     for {
       remotePeers             <- Queue.unbounded[F, DisconnectedPeer].toResource
