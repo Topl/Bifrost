@@ -12,7 +12,6 @@ import co.topl.brambl.syntax._
 import co.topl.common.application._
 import co.topl.genus.services.TransactionServiceFs2Grpc
 import co.topl.grpc.NodeGrpc
-import co.topl.interpreters._
 import co.topl.transactiongenerator.interpreters._
 import co.topl.typeclasses.implicits._
 import com.typesafe.config.Config
