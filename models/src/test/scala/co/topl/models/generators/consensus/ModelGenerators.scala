@@ -208,12 +208,17 @@ trait ModelGenerators {
         )
     }
 
-  def arbitraryLinkedSlotDataChainFor(sizeGen: Gen[Long]): Arbitrary[NonEmptyChain[SlotData]] =
+  def arbitraryLinkedSlotDataChainFor(
+    sizeGen:  Gen[Long],
+    parentId: Option[SlotData] = None
+  ): Arbitrary[NonEmptyChain[SlotData]] =
     Arbitrary(
       for {
         size <- sizeGen
         root <- arbitrarySlotData.arbitrary
-      } yield addSlotDataToChain(NonEmptyChain.one(root.copy(height = 0)), arbitrarySlotData.arbitrary, size)
+        updatedRoot =
+          parentId.map(p => root.copy(parentSlotId = p.slotId, height = p.height + 1)).getOrElse(root.copy(height = 0))
+      } yield addSlotDataToChain(NonEmptyChain.one(updatedRoot), arbitrarySlotData.arbitrary, size)
     )
 
   implicit val arbitraryLinkedSlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =

@@ -41,15 +41,18 @@ object PeerBlockHeaderFetcher {
   }
 
   case class State[F[_]](
-    hostId:        HostId,
-    client:        BlockchainPeerClient[F],
-    requestsProxy: RequestsProxyActor[F],
-    peersManager:  PeersManagerActor[F],
-    localChain:    LocalChainAlgebra[F],
-    slotDataStore: Store[F, BlockId, SlotData],
-    blockIdTree:   ParentChildTree[F, BlockId],
-    fetchingFiber: Option[Fiber[F, Throwable, Unit]],
-    clock:         ClockAlgebra[F]
+    hostId:               HostId,
+    client:               BlockchainPeerClient[F],
+    requestsProxy:        RequestsProxyActor[F],
+    peersManager:         PeersManagerActor[F],
+    localChain:           LocalChainAlgebra[F],
+    slotDataStore:        Store[F, BlockId, SlotData],
+    blockIdTree:          ParentChildTree[F, BlockId],
+    fetchingFiber:        Option[Fiber[F, Throwable, Unit]],
+    clock:                ClockAlgebra[F],
+    blockHeights:         BlockHeights[F],
+    slotDataDownloadStep: Long,
+    commonAncestorF:      (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -63,17 +66,33 @@ object PeerBlockHeaderFetcher {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:        HostId,
-    client:        BlockchainPeerClient[F],
-    requestsProxy: RequestsProxyActor[F],
-    peersManager:  PeersManagerActor[F],
-    localChain:    LocalChainAlgebra[F],
-    slotDataStore: Store[F, BlockId, SlotData],
-    blockIdTree:   ParentChildTree[F, BlockId],
-    clock:         ClockAlgebra[F]
+    hostId:               HostId,
+    client:               BlockchainPeerClient[F],
+    requestsProxy:        RequestsProxyActor[F],
+    peersManager:         PeersManagerActor[F],
+    localChain:           LocalChainAlgebra[F],
+    slotDataStore:        Store[F, BlockId, SlotData],
+    blockIdTree:          ParentChildTree[F, BlockId],
+    clock:                ClockAlgebra[F],
+    blockHeights:         BlockHeights[F],
+    slotDataDownloadStep: Long,
+    commonAncestorF:      (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
-      State(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, None, clock)
+      State(
+        hostId,
+        client,
+        requestsProxy,
+        peersManager,
+        localChain,
+        slotDataStore,
+        blockIdTree,
+        None,
+        clock,
+        blockHeights,
+        slotDataDownloadStep,
+        commonAncestorF
+      )
     val actorName = s"Header fetcher actor for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
@@ -101,9 +120,43 @@ object PeerBlockHeaderFetcher {
     // TODO close connection to remote peer in case of error
     newBlockIdsStream
       .evalMap { newBlockId =>
-        getRemoteSlotDataByBlockId(state, newBlockId)
+        processBlockId(state, newBlockId)
           .handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
       }
+
+  private def processBlockId[F[_]: Async: Logger](
+    state:   State[F],
+    blockId: BlockId
+  ): F[Unit] =
+    for {
+      _             <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
+      blockSlotData <- getSlotDataFromStorageOrRemote(state)(blockId)
+      toSync        <- slotDataToSync(state, blockSlotData)
+      _             <- toSync.traverse(getRemoteSlotDataByBlockId(state, _))
+    } yield ()
+
+  private def slotDataToSync[F[_]: Async: Logger](
+    state:   State[F],
+    endSlot: SlotData
+  ): F[Seq[BlockId]] =
+    state.slotDataStore
+      .contains(endSlot.parentSlotId.blockId)
+      .ifM(
+        ifTrue = Seq(endSlot.slotId.blockId).pure[F],
+        ifFalse = buildSlotDataToSync(state, endSlot)
+      )
+
+  private def buildSlotDataToSync[F[_]: Async: Logger](
+    state:   State[F],
+    endSlot: SlotData
+  ): F[Seq[BlockId]] =
+    for {
+      commonBlock <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
+      commonSlot  <- getSlotDataFromStorageOrRemote(state)(commonBlock)
+      heights =
+        Range.Long(commonSlot.height + state.slotDataDownloadStep, endSlot.height, state.slotDataDownloadStep).toList
+      blockIdsToSync <- heights.traverse(state.client.getRemoteBlockIdAtHeight(_, None)).map(_.flatten.toSeq)
+    } yield blockIdsToSync :+ endSlot.slotId.blockId
 
   private def getRemoteSlotDataByBlockId[F[_]: Async: Logger](
     state:   State[F],
@@ -162,9 +215,9 @@ object PeerBlockHeaderFetcher {
     newSourcesF >> newSlotDataF
   }
 
-  // we still interesting in source if we receive current best block
+  // we still interesting in source if we receive current best block or short fork
   private def sourceOfAlreadyAdoptedBlockIsUseful[F[_]: Async](state: State[F], blockSlotData: SlotData): F[Boolean] =
-    state.localChain.head.map(_.height == blockSlotData.height)
+    state.localChain.head.map(sd => sd.height == blockSlotData.height && sd.parentSlotId == blockSlotData.parentSlotId)
 
   private def downloadAndSaveSlotDataChain[F[_]: Async: Logger](
     state: State[F],
@@ -272,7 +325,7 @@ object PeerBlockHeaderFetcher {
     for {
       _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from peer ${state.hostId}"))
       tip <- OptionT(state.client.remoteCurrentTip())
-      _   <- OptionT.liftF(getRemoteSlotDataByBlockId(state, tip))
+      _   <- OptionT.liftF(processBlockId(state, tip))
       _   <- OptionT.liftF(Logger[F].info(show"Processed current tip $tip from peer ${state.hostId}"))
     } yield (state, state)
   }.getOrElse((state, state))
