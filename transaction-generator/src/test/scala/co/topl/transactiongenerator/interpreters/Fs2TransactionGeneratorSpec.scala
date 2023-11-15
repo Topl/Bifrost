@@ -9,6 +9,7 @@ import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.transaction.Schedule
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
 import co.topl.numerics.implicits._
 import munit.CatsEffectSuite
 import quivr.models.SmallData
@@ -24,7 +25,7 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
             Seq(
               UnspentTransactionOutput(
                 address = HeightLockOneSpendingAddress,
-                value = Value().withLvl(Value.LVL(1000000))
+                value = Value.defaultInstance.withLvl(Value.LVL(1000000))
               )
             )
           )
@@ -34,9 +35,10 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
           .pure[F]
       wallet = applyTransaction(emptyWallet)(seedTransaction)
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
-      underTest                    <- Fs2TransactionGenerator.make[F](wallet, 1, 10)
-      stream                       <- underTest.generateTransactions
-      result                       <- stream.take(500).compile.toList
+      costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
+      underTest <- Fs2TransactionGenerator.make[F](wallet, 1, 10, costCalculator)
+      stream    <- underTest.generateTransactions
+      result    <- stream.take(500).compile.toList
       _ = assert(result.length === 500)
     } yield ()
   }

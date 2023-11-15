@@ -14,11 +14,12 @@ import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.{BlockId, ProtocolVersion}
+import co.topl.genus.services.TransactionServiceFs2Grpc
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.models.utility._
 import co.topl.node.models.{BlockBody, FullBlock}
-import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
+import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, GenusWalletInitializer}
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.Port
 import fs2._
@@ -131,12 +132,17 @@ class NodeAppTest extends CatsEffectSuite {
               rpcClients = List(rpcClientA, rpcClientB)
               implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
               _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
-              walletInitializer            <- ToplRpcWalletInitializer.make[F](rpcClientA, 1, 1).toResource
-              wallet                       <- walletInitializer.initialize.toResource
+              wallet <- co.topl.grpc
+                .makeChannel[F]("localhost", 9151, tls = false)
+                .flatMap(TransactionServiceFs2Grpc.stubResource[F])
+                .flatMap(GenusWalletInitializer.make[F])
+                .use(_.initialize)
+                .toResource
               implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
               // Construct two competing graphs of transactions.
               // Graph 1 has higher fees and should be included in the chain
-              transactionGenerator1 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 1000).toResource
+              transactionGenerator1 <-
+                Fs2TransactionGenerator.make[F](wallet, 1, 1, _ => 1000L.pure[F]).toResource
               transactionGraph1 <- Stream
                 .force(transactionGenerator1.generateTransactions)
                 .take(10)
@@ -144,7 +150,8 @@ class NodeAppTest extends CatsEffectSuite {
                 .toList
                 .toResource
               // Graph 2 has lower fees, so the Block Packer should never choose them
-              transactionGenerator2 <- Fs2TransactionGenerator.make[F](wallet, 1, 1, feeF = _ => 10).toResource
+              transactionGenerator2 <-
+                Fs2TransactionGenerator.make[F](wallet, 1, 1, _ => 10L.pure[F]).toResource
               transactionGraph2 <- Stream
                 .force(transactionGenerator2.generateTransactions)
                 .take(10)
