@@ -77,20 +77,25 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    blockHeights:                BlockHeights[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-    mempool:                     MempoolAlgebra[F]
+    mempool:                     MempoolAlgebra[F],
+    slotDataDownloadStep:        Long,
+    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerActor[F]]
 
   def makePeerHeaderFetcher(
-    hostId:        HostId,
-    client:        BlockchainPeerClient[F],
-    requestsProxy: RequestsProxyActor[F],
-    peersManager:  PeersManagerActor[F],
-    localChain:    LocalChainAlgebra[F],
-    slotDataStore: Store[F, BlockId, SlotData],
-    blockIdTree:   ParentChildTree[F, BlockId]
+    hostId:               HostId,
+    client:               BlockchainPeerClient[F],
+    requestsProxy:        RequestsProxyActor[F],
+    peersManager:         PeersManagerActor[F],
+    localChain:           LocalChainAlgebra[F],
+    slotDataStore:        Store[F, BlockId, SlotData],
+    blockIdTree:          ParentChildTree[F, BlockId],
+    blockHeights:         BlockHeights[F],
+    slotDataDownloadStep: Long,
+    commonAncestorF:      (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]]
 
   def makePeerBodyFetcher(
@@ -204,10 +209,12 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     slotDataStore:               Store[F, BlockId, SlotData],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    blockHeights:                BlockHeights[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-    mempool:                     MempoolAlgebra[F]
+    mempool:                     MempoolAlgebra[F],
+    slotDataDownloadStep:        Long,
+    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerActor[F]] =
     PeerActor.makeActor(
       hostId,
@@ -222,17 +229,22 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       blockHeights,
       headerToBodyValidation,
       transactionSyntaxValidation,
-      mempool
+      mempool,
+      slotDataDownloadStep,
+      commonAncestorF
     )
 
   override def makePeerHeaderFetcher(
-    hostId:        HostId,
-    client:        BlockchainPeerClient[F],
-    requestsProxy: RequestsProxyActor[F],
-    peersManager:  PeersManagerActor[F],
-    localChain:    LocalChainAlgebra[F],
-    slotDataStore: Store[F, BlockId, SlotData],
-    blockIdTree:   ParentChildTree[F, BlockId]
+    hostId:               HostId,
+    client:               BlockchainPeerClient[F],
+    requestsProxy:        RequestsProxyActor[F],
+    peersManager:         PeersManagerActor[F],
+    localChain:           LocalChainAlgebra[F],
+    slotDataStore:        Store[F, BlockId, SlotData],
+    blockIdTree:          ParentChildTree[F, BlockId],
+    blockHeights:         BlockHeights[F],
+    slotDataDownloadStep: Long,
+    commonAncestorF:      (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
     PeerBlockHeaderFetcher.makeActor(
       hostId,
@@ -242,7 +254,10 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       localChain,
       slotDataStore,
       blockIdTree,
-      clock
+      clock,
+      blockHeights,
+      slotDataDownloadStep,
+      commonAncestorF
     )
 
   override def makePeerBodyFetcher(

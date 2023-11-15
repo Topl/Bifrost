@@ -70,9 +70,7 @@ object BlockChecker {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    // TODO maybe use some kind of stack to not loose previous best slot data; TODO use more efficient structure
-    bestKnownRemoteSlotDataOpt: Option[BestChain],
-    // TODO will be deleted hostId shall be selected by peers manager
+    bestKnownRemoteSlotDataOpt:  Option[BestChain],
     bestKnownRemoteSlotDataHost: Option[HostId]
   )
 

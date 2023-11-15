@@ -23,6 +23,7 @@ import co.topl.typeclasses.implicits._
 import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
+import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -79,8 +80,26 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(idAndHeader.map(_._1)))
@@ -127,8 +146,26 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(NonEmptyChain.one(header.id)))
@@ -183,8 +220,26 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(idAndHeader.map(_._1)))
@@ -245,8 +300,26 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _ <- actor.sendNoWait(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(idAndHeader.map(_._1)))
@@ -310,14 +383,263 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = maxChainSize
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
             _     <- state.fetchingFiber.get.join
           } yield ()
         }
+    }
+  }
+
+  test("New better slot data and block source shall be sent by chunks if local chain is worse") {
+    withMock {
+      val slotDataDownloadStep = 5
+
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (knownId, knownSlotData) = idAndSlotData.head
+      val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.tail).get
+
+      val (bestSlotId, bestSlotData) = remoteSlotData.last
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+      val remoteSlotDataCount = remoteIdToSlotData.size
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
+      }
+
+      val peersManager = mock[PeersManagerActor[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+
+      val localChain = mock[LocalChainAlgebra[F]]
+
+      val heights =
+        (Range
+          .Long(slotDataDownloadStep, bestSlotData.height, slotDataDownloadStep)
+          .toList :+ bestSlotData.height).toSet
+
+      val req =
+        remoteSlotData
+          .foldLeft[(Seq[Seq[(BlockId, SlotData)]], Seq[(BlockId, SlotData)])]((Seq.empty, Seq.empty)) {
+            case ((acc, currentChain), (rBlockId, rSlotData)) =>
+              val newCurrentChain = currentChain :+ (rBlockId, rSlotData)
+              if (heights.contains(rSlotData.height)) (acc :+ newCurrentChain, Seq.empty) else (acc, newCurrentChain)
+          }
+          ._1
+
+      req.init.foreach { mes =>
+        (localChain.isWorseThan _).expects(mes.last._2).once().returning(true.pure[F])
+        (client.getRemoteBlockIdAtHeight _).expects(mes.last._2.height, None).returning(mes.last._1.some.pure[F])
+
+        val necMes = NonEmptyChain.fromSeq(mes).get
+        val expectedSourceMessage: PeersManager.Message =
+          PeersManager.Message.BlocksSource(necMes.map(d => (hostId, d._1)))
+        (peersManager.sendNoWait _).expects(expectedSourceMessage).once().returning(().pure[F])
+
+        val expectedSlotDataMessage: RequestsProxy.Message =
+          RequestsProxy.Message.RemoteSlotData(hostId, necMes.map(_._2))
+        (requestsProxy.sendNoWait _).expects(expectedSlotDataMessage).once().returning(().pure[F])
+      }
+
+      val lastBatch = NonEmptyChain.fromSeq(req.last).get
+      (localChain.isWorseThan _).expects(lastBatch.last._2).once().returning(true.pure[F])
+
+      val expectedSourceMessage: PeersManager.Message =
+        PeersManager.Message.BlocksSource(lastBatch.map(d => (hostId, d._1)))
+      (peersManager.sendNoWait _).expects(expectedSourceMessage).once().returning(().pure[F])
+
+      val expectedSlotDataMessage: RequestsProxy.Message =
+        RequestsProxy.Message.RemoteSlotData(hostId, lastBatch.map(_._2))
+      (requestsProxy.sendNoWait _).expects(expectedSlotDataMessage).once().returning(().pure[F])
+
+      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData] + (knownId -> knownSlotData)
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _).expects(*, *).rep(remoteSlotDataCount).onCall { case (id: BlockId, slotData: SlotData) =>
+        slotDataStoreMap.put(id, slotData).pure[F].void
+      }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount).returning(().pure[F])
+
+      val clock = mock[ClockAlgebra[F]]
+      (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
+
+      val blockHeights = mock[BlockHeights[F]]
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
+      PeerBlockHeaderFetcher
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
+        .use { actor =>
+          for {
+            state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
+  test("Send slot data by chunks") {
+    PropF.forAllF(arbitrarySlotData.arbitrary) { commonAncestor =>
+      withMock {
+        val slotDataDownloadStep = 5
+        val localSlotData: NonEmptyChain[SlotData] =
+          arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize), commonAncestor.some).arbitrary.first
+        val localIdAndSlotData: NonEmptyChain[(BlockId, SlotData)] = localSlotData.map(s => (s.slotId.blockId, s))
+
+        val remoteSlotData: NonEmptyChain[SlotData] =
+          arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize), commonAncestor.some).arbitrary.first
+        val remoteIdAndSlotData: NonEmptyChain[(BlockId, SlotData)] = remoteSlotData.map(s => (s.slotId.blockId, s))
+
+        def betterThanLocal(sd: SlotData): Boolean = if (sd.height > localIdAndSlotData.last._2.height) true else false
+        val localChain = mock[LocalChainAlgebra[F]]
+        (localChain.isWorseThan _).expects(*).anyNumberOfTimes().onCall { sd: SlotData =>
+          betterThanLocal(sd).pure[F]
+        }
+        (() => localChain.head).expects().anyNumberOfTimes().returning(localSlotData.last.pure[F])
+
+        val remoteIdToSlotData: Map[BlockId, SlotData] = remoteIdAndSlotData.toList.toMap
+        val client = mock[BlockchainPeerClient[F]]
+        (client
+          .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+          .expects(*, *, *)
+          .anyNumberOfTimes()
+          .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+          }
+        (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+          Stream.eval[F, BlockId](remoteIdAndSlotData.last._1.pure[F]).pure[F]
+        }
+
+        val slotDataStoreMap = mutable.Map[BlockId, SlotData](localIdAndSlotData.toList: _*) +
+          (commonAncestor.slotId.blockId -> commonAncestor)
+        val slotDataStore = mock[Store[F, BlockId, SlotData]]
+        (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+          slotDataStoreMap.get(id).pure[F]
+        }
+        (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+          slotDataStoreMap.contains(id).pure[F]
+        }
+        (slotDataStore.put _).expects(*, *).anyNumberOfTimes().onCall { case (id: BlockId, slotData: SlotData) =>
+          slotDataStoreMap.put(id, slotData).pure[F].void
+        }
+
+        val peersManager = mock[PeersManagerActor[F]]
+        val requestsProxy = mock[RequestsProxyActor[F]]
+
+        val heights = (Range
+          .Long(commonAncestor.height + slotDataDownloadStep, remoteSlotData.last.height, slotDataDownloadStep)
+          .toList :+ remoteSlotData.last.height).toSet
+
+        val req =
+          remoteIdAndSlotData
+            .foldLeft[(Seq[Seq[(BlockId, SlotData)]], Seq[(BlockId, SlotData)])]((Seq.empty, Seq.empty)) {
+              case ((acc, currentChain), (rBlockId, rSlotData)) =>
+                val newCurrentChain = currentChain :+ (rBlockId, rSlotData)
+                if (heights.contains(rSlotData.height)) (acc :+ newCurrentChain, Seq.empty) else (acc, newCurrentChain)
+            }
+            ._1
+
+        req.init.foreach { mes =>
+          (client.getRemoteBlockIdAtHeight _).expects(mes.last._2.height, None).returning(mes.last._1.some.pure[F])
+        }
+
+        req.foreach { mes =>
+          // (client.getRemoteBlockIdAtHeight _).expects(mes.last._2.height, None).returning(mes.last._1.some.pure[F])
+          val necMes = NonEmptyChain.fromSeq(mes).get
+
+          if (betterThanLocal(mes.last._2)) {
+            val expectedSlotDataMessage: RequestsProxy.Message =
+              RequestsProxy.Message.RemoteSlotData(hostId, necMes.map(_._2))
+            (requestsProxy.sendNoWait _).expects(expectedSlotDataMessage).once().returning(().pure[F])
+            val expectedSourceMessage: PeersManager.Message =
+              PeersManager.Message.BlocksSource(necMes.map(d => (hostId, d._1)))
+            (peersManager.sendNoWait _).expects(expectedSourceMessage).once().returning(().pure[F])
+          }
+        }
+
+        val blockIdTree = mock[ParentChildTree[F, BlockId]]
+        (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+        val clock = mock[ClockAlgebra[F]]
+        (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
+
+        val blockHeights = mock[BlockHeights[F]]
+
+        val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+        (commonAncestorF.apply _).expects(*, *, *).returning(commonAncestor.slotId.blockId.pure[F])
+
+        PeerBlockHeaderFetcher
+          .makeActor(
+            hostId,
+            client,
+            requestsProxy,
+            peersManager,
+            localChain,
+            slotDataStore,
+            blockIdTree,
+            clock,
+            blockHeights,
+            slotDataDownloadStep,
+            commonAncestorF
+          )
+          .use { actor =>
+            for {
+              state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+              _     <- state.fetchingFiber.get.join
+            } yield ()
+          }
+      }
     }
   }
 
@@ -381,8 +703,27 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = maxChainSize
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -414,6 +755,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       (slotDataStore.get _).expects(slotData.slotId.blockId).anyNumberOfTimes().returning(slotData.some.pure[F])
+      (slotDataStore.contains _).expects(slotData.parentSlotId.blockId).anyNumberOfTimes().returning(true.pure[F])
       (slotDataStore.contains _).expects(slotData.slotId.blockId).anyNumberOfTimes().returning(true.pure[F])
 
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
@@ -421,8 +763,27 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF =
+        mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -457,6 +818,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       (slotDataStore.get _).expects(remoteHead.slotId.blockId).anyNumberOfTimes().returning(remoteHead.some.pure[F])
+      (slotDataStore.contains _).expects(remoteHead.parentSlotId.blockId).anyNumberOfTimes().returning(true.pure[F])
       (slotDataStore.contains _).expects(remoteHead.slotId.blockId).anyNumberOfTimes().returning(true.pure[F])
 
       val blockIdTree = mock[ParentChildTree[F, BlockId]]
@@ -464,8 +826,26 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -535,8 +915,27 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = maxChainSize
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -605,8 +1004,27 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = maxChainSize
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -674,8 +1092,27 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = maxChainSize
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -741,8 +1178,27 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = maxChainSize
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _     <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
@@ -791,8 +1247,26 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .once()
         .returning((-1L).pure[F])
 
+      val blockHeights = mock[BlockHeights[F]]
+
+      val slotDataDownloadStep = 10
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
       PeerBlockHeaderFetcher
-        .makeActor(hostId, client, requestsProxy, peersManager, localChain, slotDataStore, blockIdTree, clock)
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          slotDataDownloadStep,
+          commonAncestorF
+        )
         .use { actor =>
           for {
             _ <- Sync[F].andWait(

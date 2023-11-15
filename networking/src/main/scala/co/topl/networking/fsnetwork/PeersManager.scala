@@ -672,7 +672,9 @@ object PeersManager {
             state.blockHeights,
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
-            state.mempool
+            state.mempool,
+            state.p2pNetworkConfig.networkProperties.slotDataDownloadStep,
+            commonAncestor
           )
         )
 

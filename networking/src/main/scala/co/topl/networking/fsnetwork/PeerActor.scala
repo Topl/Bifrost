@@ -91,10 +91,11 @@ object PeerActor {
     peersManager:     PeersManagerActor[F],
     localChain:       LocalChainAlgebra[F],
     slotDataStore:    Store[F, BlockId, SlotData],
-    blockHeights:     EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    blockHeights:     BlockHeights[F],
     networkLevel:     Boolean,
     applicationLevel: Boolean,
-    genesisBlockId:   BlockId
+    genesisBlockId:   BlockId,
+    commonAncestorF:  (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -125,7 +126,9 @@ object PeerActor {
     blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-    mempool:                     MempoolAlgebra[F]
+    mempool:                     MempoolAlgebra[F],
+    slotDataDownloadStep:        Long,
+    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
     val initAppLevel = false
@@ -141,7 +144,10 @@ object PeerActor {
         peersManager,
         localChain,
         slotDataStore,
-        blockIdTree
+        blockIdTree,
+        blockHeights,
+        slotDataDownloadStep,
+        commonAncestorF
       )
       body <- networkAlgebra.makePeerBodyFetcher(
         hostId,
@@ -174,7 +180,8 @@ object PeerActor {
         blockHeights,
         initNetworkLevel,
         initAppLevel,
-        genesisSlotData.slotId.blockId
+        genesisSlotData.slotId.blockId,
+        commonAncestorF
       )
       _     <- verifyGenesisAgreement(initialState).toResource
       actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
@@ -344,11 +351,8 @@ object PeerActor {
       }
 
   private def printCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    state.client
-      .findCommonAncestor(
-        getLocalBlockIdAtHeight(state.localChain, state.blockHeights),
-        () => state.localChain.head.map(_.height)
-      )
+    state
+      .commonAncestorF(state.client, state.blockHeights, state.localChain)
       .flatTap(ancestor =>
         state.slotDataStore
           .getOrRaise(ancestor)
@@ -367,14 +371,4 @@ object PeerActor {
         Logger[F].error(e)("Common ancestor trace failed") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
-
-  private def getLocalBlockIdAtHeight[F[_]: Async](
-    localChain:   LocalChainAlgebra[F],
-    blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
-  )(height: Long) =
-    OptionT(
-      localChain.head
-        .map(_.slotId.blockId)
-        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
-    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
 }

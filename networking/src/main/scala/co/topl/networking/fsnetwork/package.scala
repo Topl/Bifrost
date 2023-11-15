@@ -7,8 +7,11 @@ import cats.{Applicative, Monad, MonadThrow, Show}
 import co.topl.algebras.Store
 import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
+import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models._
+import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
+import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.networking.p2p.RemoteAddress
@@ -39,6 +42,8 @@ package object fsnetwork {
   val requestCacheSize = 100
 
   val blockSourceCacheSize = 512
+
+  type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
 
   implicit class CacheOps[K, V](cache: Cache[K, V]) {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
@@ -75,6 +80,27 @@ package object fsnetwork {
         .compile
         .toList
   }
+
+  def commonAncestor[F[_]: Async: Logger](
+    client:       BlockchainPeerClient[F],
+    blockHeights: BlockHeights[F],
+    localChain:   LocalChainAlgebra[F]
+  ): F[BlockId] =
+    client
+      .findCommonAncestor(
+        getLocalBlockIdAtHeight(localChain, blockHeights),
+        () => localChain.head.map(_.height)
+      )
+
+  private def getLocalBlockIdAtHeight[F[_]: Async](
+    localChain:   LocalChainAlgebra[F],
+    blockHeights: BlockHeights[F]
+  )(height: Long): F[BlockId] =
+    OptionT(
+      localChain.head
+        .map(_.slotId.blockId)
+        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
+    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
 
   // TODO move Show instances to separate file
   implicit val showTransactionSyntaxError: Show[TransactionSyntaxError] =
