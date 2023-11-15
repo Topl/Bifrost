@@ -8,6 +8,7 @@ import cats.implicits._
 import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
 import co.topl.common.application.IOBaseApp
 import co.topl.interpreters.MultiNodeRpc
 import co.topl.consensus.models.BlockHeader
@@ -239,7 +240,8 @@ object Orchestrator
         .make[F](
           wallet,
           Runtime.getRuntime.availableProcessors(),
-          20
+          20,
+          TransactionCostCalculatorInterpreter.make(TransactionCostConfig())
         )
         .flatMap(_.generateTransactions)
       // Build the stream

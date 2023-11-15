@@ -2,6 +2,8 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
+import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.brambl.models.{GroupId, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
@@ -11,6 +13,8 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
+import quivr.models.Int128
+
 import java.time.Instant
 
 trait ShowInstances {
@@ -64,6 +68,20 @@ trait ShowInstances {
 
   implicit val showSeriesId: Show[SeriesId] =
     s => show"s_${s.value: Bytes}"
+
+  implicit val showInt128: Show[Int128] =
+    v => BigInt(v.value.toByteArray).toString()
+
+  implicit val showValue: Show[Value] =
+    value =>
+      value.value match {
+        case Value.Value.Lvl(lvl)   => show"LVL(${lvl.quantity})"
+        case Value.Value.Topl(topl) => show"TOPL(${topl.quantity})"
+        case v                      => v.getClass.getName
+      }
+
+  implicit val showStxo: Show[SpentTransactionOutput] =
+    stxo => show"Stxo(utxo=${stxo.address}, value=${stxo.value})"
 }
 
 object ShowInstances extends ShowInstances

@@ -9,6 +9,8 @@ import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.common.application._
 import co.topl.genus.services.TransactionServiceFs2Grpc
 import co.topl.grpc.NodeGrpc
@@ -46,12 +48,14 @@ object TransactionGeneratorApp
       _      <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
       // Produce a stream of Transactions from the base wallet
       targetTps = appConfig.transactionGenerator.broadcaster.tps
-      _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
+      _              <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
+      costCalculator <- TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig()).pure[F]
       transactionStream <- Fs2TransactionGenerator
         .make[F](
           wallet,
           appConfig.transactionGenerator.parallelism.generateTx,
-          appConfig.transactionGenerator.generator.maxWalletSize
+          appConfig.transactionGenerator.generator.maxWalletSize,
+          costCalculator
         )
         .flatMap(_.generateTransactions)
       _ <- NodeGrpc.Client
@@ -59,7 +63,7 @@ object TransactionGeneratorApp
         .use(client =>
           // Broadcast the transactions and run the background mempool stream
           (
-            runBroadcastStream(transactionStream, client, targetTps),
+            runBroadcastStream(transactionStream, client, targetTps, costCalculator),
             runMempoolStream(client, appConfig.transactionGenerator.mempool.period)
           ).parTupled
         )
@@ -92,7 +96,8 @@ object TransactionGeneratorApp
   private def runBroadcastStream(
     transactionStream: Stream[F, IoTransaction],
     client:            NodeRpc[F, Stream[F, *]],
-    targetTps:         Double
+    targetTps:         Double,
+    costCalculator:    TransactionCostCalculator[F]
   ) =
     transactionStream
       // Send 1 transaction per _this_ duration
@@ -101,7 +106,9 @@ object TransactionGeneratorApp
       .evalTap(transaction =>
         Logger[F].debug(show"Broadcasting transaction id=${transaction.id}") >>
         client.broadcastTransaction(transaction) >>
-        Logger[F].info(show"Broadcasted transaction id=${transaction.id}")
+        costCalculator
+          .costOf(transaction)
+          .flatTap(cost => Logger[F].info(show"Broadcasted transaction id=${transaction.id} cost=$cost"))
       )
       .onError { case e =>
         Stream.eval(Logger[F].error(e)("Stream failed"))

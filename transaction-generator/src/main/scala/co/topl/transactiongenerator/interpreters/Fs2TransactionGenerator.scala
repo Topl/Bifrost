@@ -1,6 +1,6 @@
 package co.topl.transactiongenerator.interpreters
 
-import cats.Applicative
+import cats.{Applicative, Monad}
 import cats.data.OptionT
 import cats.effect._
 import cats.effect.std.Queue
@@ -13,10 +13,14 @@ import co.topl.brambl.common.ContainsSignable._
 import co.topl.brambl.common.ContainsSignable.instances._
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.quivr.api.Prover
 import co.topl.transactiongenerator.algebras.TransactionGenerator
 import co.topl.transactiongenerator.models.Wallet
+import co.topl.typeclasses.implicits._
 import fs2._
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import quivr.models.SmallData
 
 object Fs2TransactionGenerator {
@@ -27,13 +31,15 @@ object Fs2TransactionGenerator {
    * @param wallet An initial wallet containing an initial set of spendable UTxOs
    */
   def make[F[_]: Async](
-    wallet:        Wallet,
-    parallelism:   Int,
-    maxWalletSize: Int,
-    feeF:          BigInt => BigInt = _ => 0
+    wallet:         Wallet,
+    parallelism:    Int,
+    maxWalletSize:  Int,
+    costCalculator: TransactionCostCalculator[F]
   ): F[TransactionGenerator[F, Stream[F, *]]] =
     Sync[F].delay(
       new TransactionGenerator[F, Stream[F, *]] {
+
+        implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F]("TransactionGenerator")
 
         def generateTransactions: F[Stream[F, IoTransaction]] =
           Queue
@@ -44,7 +50,7 @@ object Fs2TransactionGenerator {
             .map(queue =>
               Stream
                 .fromQueueNoneTerminated(queue)
-                .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_, feeF).value)
+                .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_, costCalculator).value)
                 .evalMap {
                   case Some((transaction, wallet)) =>
                     // Now that we've processed the old wallet, determine if the new wallet is big
@@ -69,32 +75,37 @@ object Fs2TransactionGenerator {
    * Given a _current_ wallet, produce a new Transaction and new Wallet.  The generated transaction
    * will spend a random input from the wallet and produce two new outputs
    */
-  private def nextTransactionOf[F[_]: Async](
-    wallet: Wallet,
-    feeF:   BigInt => BigInt
+  private def nextTransactionOf[F[_]: Async: Logger](
+    wallet:         Wallet,
+    costCalculator: TransactionCostCalculator[F]
   ): OptionT[F, (IoTransaction, Wallet)] =
     pickInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
       for {
         predicate <- Attestation.Predicate(inputBox.lock.getPredicate, Nil).pure[F]
         unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
         inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
-        outputs   <- createOutputs[F](inputBox, feeF)
+        outputs   <- createOutputs[F](inputBox)
         timestamp <- Async[F].realTimeInstant
         schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
         datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
-        unprovenTransaction = IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+        unprovenTransaction <- applyFee(costCalculator)(
+          IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+        )
+        _     <- Logger[F].info(show"Spending ${unprovenTransaction.inputs.mkString_(", ")}")
         proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
-        provenTransaction = unprovenTransaction.copy(
-          inputs = unprovenTransaction.inputs.map(
-            _.copy(attestation =
-              Attestation(
-                Attestation.Value.Predicate(
-                  predicate.copy(responses = List(proof))
+        provenTransaction = unprovenTransaction
+          .copy(
+            inputs = unprovenTransaction.inputs.map(
+              _.copy(attestation =
+                Attestation(
+                  Attestation.Value.Predicate(
+                    predicate.copy(responses = List(proof))
+                  )
                 )
               )
             )
           )
-        )
+          .embedId
         updatedWallet = applyTransaction(wallet)(provenTransaction)
       } yield (provenTransaction, updatedWallet)
     }
@@ -111,21 +122,44 @@ object Fs2TransactionGenerator {
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
    */
   private def createOutputs[F[_]: Applicative](
-    inputBox: Box,
-    feeF:     BigInt => BigInt
+    inputBox: Box
   ): F[List[UnspentTransactionOutput]] = {
     val lvlBoxValue = inputBox.value.getLvl
     val inQuantity: BigInt = lvlBoxValue.quantity
-    val spendableQuantity = inQuantity - feeF(inQuantity)
+    val spendableQuantity = inQuantity
     if (spendableQuantity > 0) {
       val quantityOutput0 = spendableQuantity / 2
       List(quantityOutput0, spendableQuantity - quantityOutput0)
         .filter(_ > 0)
-        .map(quantity => UnspentTransactionOutput(HeightLockOneSpendingAddress, Value().withLvl(Value.LVL(quantity))))
+        .map(quantity =>
+          UnspentTransactionOutput(HeightLockOneSpendingAddress, Value.defaultInstance.withLvl(Value.LVL(quantity)))
+        )
     } else {
       Nil
     }
   }
     .pure[F]
+
+  private def applyFee[F[_]: Monad](
+    costCalculator: TransactionCostCalculator[F]
+  )(transaction: IoTransaction): F[IoTransaction] =
+    for {
+      cost <- costCalculator.costOf(transaction)
+      updated = transaction.withOutputs(
+        transaction.outputs
+          .foldLeft((cost, List.empty[UnspentTransactionOutput])) {
+            case ((remainingCost, outputs), output) if remainingCost > 0 =>
+              output.value.value.lvl.fold((remainingCost, outputs)) { lvl =>
+                if (lvl.quantity > remainingCost)
+                  (0L -> (outputs :+ output
+                    .copy(value = Value.defaultInstance.withLvl(lvl.copy(quantity = lvl.quantity - cost)))))
+                else
+                  ((remainingCost - (lvl.quantity: BigInt).toLong): Long, outputs)
+              }
+            case ((_, outputs), output) => (0L, (outputs :+ output))
+          }
+          ._2
+      )
+    } yield updated
 
 }
