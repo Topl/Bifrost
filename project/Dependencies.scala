@@ -74,7 +74,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.76"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.77"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
