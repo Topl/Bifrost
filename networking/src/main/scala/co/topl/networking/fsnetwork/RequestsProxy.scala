@@ -15,8 +15,11 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import org.typelevel.log4cats.Logger
+import scalacache.Entry
+import scalacache.caffeine.CaffeineCache
 
 import scala.annotation.nowarn
+import scala.concurrent.duration.DurationInt
 
 object RequestsProxy {
   sealed trait Message
@@ -61,8 +64,8 @@ object RequestsProxy {
     blockCheckerOpt: Option[BlockCheckerActor[F]],
     headerStore:     Store[F, BlockId, BlockHeader],
     bodyStore:       Store[F, BlockId, BlockBody],
-    headerRequests:  Cache[BlockId, Option[UnverifiedBlockHeader]],
-    bodyRequests:    Cache[BlockId, Option[UnverifiedBlockBody]]
+    headerRequests:  CaffeineCache[F, BlockId, Option[UnverifiedBlockHeader]],
+    bodyRequests:    CaffeineCache[F, BlockId, Option[UnverifiedBlockBody]]
   )
 
   type Response[F[_]] = State[F]
@@ -85,10 +88,10 @@ object RequestsProxy {
     peersManager: PeersManagerActor[F],
     headerStore:  Store[F, BlockId, BlockHeader],
     bodyStore:    Store[F, BlockId, BlockBody],
-    headerRequests: Cache[BlockId, Option[UnverifiedBlockHeader]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockHeader]](),
-    bodyRequests: Cache[BlockId, Option[UnverifiedBlockBody]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]]()
+    headerRequests: Cache[BlockId, Entry[Option[UnverifiedBlockHeader]]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockHeader]]](),
+    bodyRequests: Cache[BlockId, Entry[Option[UnverifiedBlockBody]]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockBody]]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
       State(
@@ -96,8 +99,8 @@ object RequestsProxy {
         blockCheckerOpt = None,
         headerStore,
         bodyStore,
-        headerRequests,
-        bodyRequests
+        CaffeineCache(headerRequests),
+        CaffeineCache(bodyRequests)
       )
     val actorName = "Requests proxy actor"
     Actor.make(actorName, initialState, getFsm[F])
@@ -115,8 +118,8 @@ object RequestsProxy {
   private def resetProxy[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
     for {
       _ <- state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips)
-      _ = state.headerRequests.invalidateAll()
-      _ = state.bodyRequests.invalidateAll()
+      _ <- state.headerRequests.doRemoveAll
+      _ <- state.bodyRequests.doRemoveAll
     } yield (state, state)
 
   private def processRemoteSlotData[F[_]: Async](
@@ -148,7 +151,7 @@ object RequestsProxy {
       _              <- Logger[F].info(show"Send already downloaded header to block checker $idsDownloaded")
       idsForDownload <- sendDownloadRequestForNewHeaders(state, source, blockIds)
       _              <- Logger[F].info(show"Send request for additional block header download $idsForDownload")
-      _ = saveDownloadRequestToCache(state.headerRequests, idsForDownload)
+      _              <- saveDownloadRequestToCache(state.headerRequests, idsForDownload)
     } yield (state, state)
 
   // response with longest possible prefix for requested ids
@@ -158,12 +161,11 @@ object RequestsProxy {
     state:    State[F],
     blockIds: NonEmptyChain[BlockId]
   ): F[Seq[BlockId]] = {
-    val availablePrefix = getAvailablePrefix(state.headerRequests, blockIds)(identity)
-
     val sentIdsOpt =
       for {
-        newIdAndHeader <- OptionT(dropKnownPrefix(availablePrefix, state.headerStore)(identity))
-        sentIds        <- sendHeaders(state, newIdAndHeader.map(_._2))
+        availablePrefix <- OptionT.liftF(getAvailablePrefix(state.headerRequests, blockIds)(identity))
+        newIdAndHeader  <- OptionT(dropKnownPrefix(availablePrefix, state.headerStore)(identity))
+        sentIds         <- sendHeaders(state, newIdAndHeader.map(_._2))
       } yield sentIds.toList.map(_.id)
 
     sentIdsOpt.getOrElse(Seq.empty)
@@ -175,7 +177,7 @@ object RequestsProxy {
     source:   HostId,
     blockIds: NonEmptyChain[BlockId]
   ): F[List[BlockId]] = {
-    val newBlockIds = blockIds.filterNot(state.headerRequests.contains)
+    val newBlockIds = blockIds.filterNot(state.headerRequests.underlying.contains)
     NonEmptyChain
       .fromChain(newBlockIds)
       .map { blockIds =>
@@ -202,7 +204,7 @@ object RequestsProxy {
       _       <- processHeaderDownloadErrors(state.peersManager, source, response)
       sentIds <- sendSuccessfulHeadersPrefix(state, successfullyDownloadedHeaders)
       _       <- Logger[F].info(show"Send headers prefix to block checker $sentIds")
-      _ = saveDownloadResultToCache(state.headerRequests, successfullyDownloadedHeaders)
+      _       <- saveDownloadResultToCache(state.headerRequests, successfullyDownloadedHeaders)
     } yield (state, state)
   }
 
@@ -273,7 +275,7 @@ object RequestsProxy {
       _           <- Logger[F].info(show"Send already downloaded bodies to block checker $downloaded")
       forDownload <- sendDownloadRequestForNewBodies(state, hostId, headers)
       _           <- Logger[F].info(show"Send request for additional block body download $forDownload")
-      _ = saveDownloadRequestToCache(state.bodyRequests, forDownload)
+      _           <- saveDownloadRequestToCache(state.bodyRequests, forDownload)
     } yield (state, state)
   }
 
@@ -284,10 +286,9 @@ object RequestsProxy {
     state:    State[F],
     blockIds: NonEmptyChain[BlockHeader]
   ): F[Seq[BlockId]] = {
-    val dataToSend = getAvailablePrefix(state.bodyRequests, blockIds)(_.id)
-
     val sentIdsOpt =
       for {
+        dataToSend        <- OptionT.liftF(getAvailablePrefix(state.bodyRequests, blockIds)(_.id))
         newBlockIdAndData <- OptionT(dropKnownPrefix(dataToSend, state.bodyStore)(_.id))
         sentIds           <- sendBodies(state, newBlockIdAndData)
       } yield sentIds.map(_.id)
@@ -301,7 +302,7 @@ object RequestsProxy {
     hostId:    HostId,
     blockData: NonEmptyChain[BlockHeader]
   ): F[List[BlockId]] = {
-    val newBlockData = blockData.filterNot(d => state.bodyRequests.contains(d.id))
+    val newBlockData = blockData.filterNot(d => state.bodyRequests.underlying.contains(d.id))
     NonEmptyChain
       .fromChain(newBlockData)
       .map { blockData =>
@@ -328,7 +329,7 @@ object RequestsProxy {
       _       <- processBlockBodyDownloadErrors(state.peersManager, source, response)
       sentIds <- sendSuccessfulBodiesPrefix(state, successfullyDownloadedBodies)
       _       <- Logger[F].info(show"Send bodies prefix to block checker $sentIds")
-      _ = saveDownloadResultToCache(state.bodyRequests, successfullyDownloadedBodies.map { case (h, b) => (h.id, b) })
+      _ <- saveDownloadResultToCache(state.bodyRequests, successfullyDownloadedBodies.map { case (h, b) => (h.id, b) })
     } yield (state, state)
   }
 
@@ -415,17 +416,26 @@ object RequestsProxy {
       _            <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockBodies(toSend)))
     } yield toSend.toList.map(_._1)
 
-  private def getAvailablePrefix[T, I](requestsMap: Cache[BlockId, Option[T]], request: NonEmptyChain[I])(
-    ItoId: I => BlockId
-  ): Seq[(I, T)] =
-    request
-      .map(id => (id, requestsMap.get(ItoId(id)).flatten))
-      .takeWhile_ { case (_, bodyOpt) => bodyOpt.isDefined }
-      .map { case (i, bodyOpt) => (i, bodyOpt.get) }
+  private def getAvailablePrefix[F[_]: Async, T, I](
+    requestsMap: CaffeineCache[F, BlockId, Option[T]],
+    request:     NonEmptyChain[I]
+  )(ItoId: I => BlockId): F[Seq[(I, T)]] =
+    for {
+      requests <- request.traverse(r => requestsMap.get(ItoId(r)).map(d => (r, d.flatten)))
+    } yield requests.takeWhile_ { case (_, bodyOpt) => bodyOpt.isDefined }.map { case (i, bodyOpt) => (i, bodyOpt.get) }
 
-  private def saveDownloadRequestToCache[T](cache: Cache[BlockId, Option[T]], ids: Seq[BlockId]) =
-    ids.map(id => cache.put(id, None))
+  // request shall be expired, there is no strict guarantee that we will receive response on the request
+  private val requestTTL = 5.seconds
 
-  private def saveDownloadResultToCache[T](cache: Cache[BlockId, Option[T]], ids: Seq[(BlockId, T)]) =
-    ids.map { case (id, data) => cache.put(id, Option(data)) }
+  private def saveDownloadRequestToCache[F[_]: Async, T](
+    cache: CaffeineCache[F, BlockId, Option[T]],
+    ids:   Seq[BlockId]
+  ) =
+    ids.traverse(cache.put(_)(None, requestTTL.some))
+
+  private def saveDownloadResultToCache[F[_]: Async, T](
+    cache:      CaffeineCache[F, BlockId, Option[T]],
+    idsAndData: Seq[(BlockId, T)]
+  ) =
+    idsAndData.traverse { case (id, data) => cache.put(id)(Option(data), None) }
 }

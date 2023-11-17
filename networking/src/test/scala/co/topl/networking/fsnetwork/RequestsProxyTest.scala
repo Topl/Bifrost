@@ -25,8 +25,11 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import scalacache.Entry
 
 import scala.collection.immutable.ListMap
+import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
+import scala.language.implicitConversions
 
 object RequestsProxyTest {
   type F[A] = IO[A]
@@ -65,6 +68,13 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
 
   val hostId: HostId = "127.0.0.1"
   val maxChainSize = 99
+
+  implicit def toEntryCache[T](cache: Cache[BlockId, T]): Cache[BlockId, Entry[T]] = {
+    val resCache: Cache[BlockId, Entry[T]] =
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[T]]()
+    cache.asMap().asScala.foreach { case (id, data) => resCache.put(id, Entry[T](data, None)) }
+    resCache
+  }
 
   test("Block header download request: downloaded prefix sent back, request for new block header shall be sent") {
     PropF.forAllF(nonEmptyChainArbOf(arbitraryHeader).arbitrary.retryUntil(_.size < maxChainSize)) {
@@ -124,7 +134,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
               for {
                 _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
                 state <- actor.send(RequestsProxy.Message.DownloadHeadersRequest(hostId, headers.map(_.id)))
-                _ = assert(headers.map(h => h.id).forall(state.headerRequests.contains))
+                _ = assert(headers.map(h => h.id).forall(state.headerRequests.underlying.contains))
               } yield ()
             }
         }
@@ -197,7 +207,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 _ = assert(
                   headerWithStatus
                     .collect { case (header, DownloadedOk) => header.id }
-                    .forall(state.headerRequests.contains)
+                    .forall(state.headerRequests.underlying.contains)
                 )
               } yield ()
             }
@@ -277,7 +287,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 _ = assert(
                   headerWithStatus
                     .collect { case (header, DownloadedOk) => header.id }
-                    .forall(state.headerRequests.contains)
+                    .forall(state.headerRequests.underlying.contains)
                 )
               } yield ()
             }
@@ -352,7 +362,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
               for {
                 _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
                 state <- actor.send(message)
-                _ = assert(ids.forall(state.bodyRequests.contains))
+                _ = assert(ids.forall(state.bodyRequests.underlying.contains))
               } yield ()
             }
         }
@@ -450,7 +460,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 _ = assert(
                   headersWithStatus
                     .collect { case (header, DownloadedOk) => header.id }
-                    .forall(state.bodyRequests.contains)
+                    .forall(state.bodyRequests.underlying.contains)
                 )
               } yield ()
             }
@@ -555,7 +565,7 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 _ = assert(
                   headersWithStatus
                     .collect { case (header, DownloadedOk) => header.id }
-                    .forall(state.bodyRequests.contains)
+                    .forall(state.bodyRequests.underlying.contains)
                 )
               } yield ()
             }
@@ -586,8 +596,8 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         .use { actor =>
           for {
             newState <- actor.send(RequestsProxy.Message.ResetRequestsProxy)
-            _ = assert(newState.bodyRequests.asMap().isEmpty)
-            _ = assert(newState.headerRequests.asMap().isEmpty)
+            _ = assert(newState.bodyRequests.underlying.asMap().isEmpty)
+            _ = assert(newState.headerRequests.underlying.asMap().isEmpty)
           } yield ()
         }
 

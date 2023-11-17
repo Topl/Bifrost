@@ -49,8 +49,13 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   val networkProperties: NetworkProperties = NetworkProperties()
 
-  val headerValidation: BlockHeaderValidationAlgebra[F] =
-    (header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F]
+  val headerValidation: BlockHeaderValidationAlgebra[F] = new BlockHeaderValidationAlgebra[F] {
+
+    override def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
+      Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F]
+
+    override def couldBeValidated(header: BlockHeader, currentHead: SlotData): F[Boolean] = true.pure[F]
+  }
 
   val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
     (block: Block) => Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
