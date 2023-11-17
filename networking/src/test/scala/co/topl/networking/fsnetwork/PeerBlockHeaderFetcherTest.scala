@@ -483,7 +483,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         RequestsProxy.Message.RemoteSlotData(hostId, lastBatch.map(_._2))
       (requestsProxy.sendNoWait _).expects(expectedSlotDataMessage).once().returning(().pure[F])
 
-      val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData] + (knownId -> knownSlotData)
+      val slotDataStoreMap = mutable.Map(knownId -> knownSlotData)
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
         slotDataStoreMap.get(id).pure[F]
@@ -561,8 +561,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           Stream.eval[F, BlockId](remoteIdAndSlotData.last._1.pure[F]).pure[F]
         }
 
-        val slotDataStoreMap = mutable.Map[BlockId, SlotData](localIdAndSlotData.toList: _*) +
-          (commonAncestor.slotId.blockId -> commonAncestor)
+        val slotDataStoreMap = mutable.Map[BlockId, SlotData](localIdAndSlotData.toList: _*)
+        slotDataStoreMap.addOne(commonAncestor.slotId.blockId -> commonAncestor)
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
         (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
           slotDataStoreMap.get(id).pure[F]
