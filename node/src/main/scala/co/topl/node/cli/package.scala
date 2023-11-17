@@ -4,18 +4,20 @@ import cats.data.EitherT
 import cats.effect.std.Console
 import cats.effect.{Async, Sync}
 import cats.implicits._
+import co.topl.blockchain.BigBang
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.syntax._
+import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.BlockId
 import co.topl.models.utility._
-import quivr.models.Ratio
+import co.topl.numerics.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
-import quivr.models.Int128
+import quivr.models.{Int128, Ratio}
 import simulacrum.typeclass
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.util.Try
 
 package object cli {
@@ -196,6 +198,25 @@ package object cli {
         .map(ByteString.copyFrom)
         .map(BlockId(_))
     }
+
+  private[cli] val DefaultProtocol =
+    ApplicationConfig.Bifrost.Protocol(
+      minAppVersion = "2.0.0",
+      fEffective = Ratio(15, 100),
+      vrfLddCutoff = 50,
+      vrfPrecision = 40,
+      vrfBaselineDifficulty = Ratio(1, 20),
+      vrfAmplitude = Ratio(1, 2),
+      // 10x private testnet default, resulting in ~50 minute epochs
+      chainSelectionKLookback = 500,
+      slotDuration = 1.seconds,
+      forwardBiasedSlotWindow = 50,
+      operationalPeriodsPerEpoch = 24,
+      kesKeyHours = 9,
+      kesKeyMinutes = 9
+    )
+
+  private[cli] val DefaultUpdateProposal = BigBang.protocolToUpdateProposal(DefaultProtocol)
 }
 
 @typeclass

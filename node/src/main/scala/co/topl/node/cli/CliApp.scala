@@ -15,7 +15,9 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
 
   private val readUserCommand =
     (
-      writeMessage[F]("Please enter a command. [ QUIT | configure | register | proposal | init-testnet]") >>
+      writeMessage[F](
+        "Please enter a command. [ QUIT | configure | register | proposal | init-testnet | init-mainnet]"
+      ) >>
         readLowercasedInput
     ).semiflatMap {
       case "" | "quit" =>
@@ -28,6 +30,8 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
         CliApp.Command.Proposal.some.widen[CliApp.Command].pure[F]
       case "init-testnet" =>
         CliApp.Command.InitTestnet.some.widen[CliApp.Command].pure[F]
+      case "init-mainnet" =>
+        CliApp.Command.InitMainnet.some.widen[CliApp.Command].pure[F]
       case v =>
         c.println(s"Invalid command: `$v`").as(none[CliApp.Command])
     }.untilDefinedM
@@ -49,6 +53,7 @@ class ConfiguredCliApp(appConfig: ApplicationConfig) {
       case CliApp.Command.Register    => RegistrationCommand[F](appConfig)
       case CliApp.Command.Proposal    => ProposalCommand[F]
       case CliApp.Command.InitTestnet => InitTestnetCommand[F](appConfig)
+      case CliApp.Command.InitMainnet => InitMainnetCommand[F](appConfig)
     }
 
 }
@@ -62,5 +67,6 @@ object CliApp {
     case object Register extends Command
     case object Proposal extends Command
     case object InitTestnet extends Command
+    case object InitMainnet extends Command
   }
 }
