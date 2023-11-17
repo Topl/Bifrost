@@ -597,61 +597,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           val knownHeadersSize = Gen.choose[Int](1, headers.size.toInt - 1).first
           val (knownIdAndHeaders, newIdAndHeaders) = idAndHeaders.toList.splitAt(knownHeadersSize)
-          val knownSlotData = knownIdAndHeaders.head._2.slotData(Ed25519VRF.precomputed())
-
-          val headerStoreData = mutable.Map.empty[BlockId, BlockHeader] ++ knownIdAndHeaders.toMap
-          (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
-            headerStoreData.contains(id).pure[F]
-          }
-          (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
-            headerStoreData.get(id).pure[F]
-          }
-          (headerStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(*, *, *)
-            .anyNumberOfTimes()
-            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
-              headerStoreData(id).pure[F]
-            }
-          val addedHeader = mutable.Map.empty[BlockId, BlockHeader]
-          (headerStore.put _).expects(*, *).rep(newIdAndHeaders.size).onCall {
-            case (id: BlockId, header: BlockHeader) =>
-              addedHeader.put(id, header)
-              headerStoreData.put(id, header)
-              ().pure[F]
-          }
-
-          (() => localChain.head).stubs().returning(knownSlotData.pure[F])
-          (headerValidation.couldBeValidated _).stubs(*, *).returning(true.pure[F])
-          (headerValidation.validate _)
-            .expects(*)
-            .rep(newIdAndHeaders.size)
-            .onCall((header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F])
-
-          val bodyStoreData = idAndHeaders.toList.toMap
-          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
-            (!bodyStoreData.contains(id)).pure[F]
-          }
-
-          (slotDataStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(*, *, *)
-            .rep(idAndHeaders.size.toInt)
-            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
-              val header = headerStoreData(id)
-              val arbSlotData = arbitrarySlotData.arbitrary.first
-              val slotData =
-                arbSlotData.copy(
-                  slotId = arbSlotData.slotId.copy(blockId = header.id),
-                  parentSlotId = arbSlotData.parentSlotId.copy(blockId = header.parentHeaderId)
-                )
-              slotData.pure[F]
-            }
-
-          val expectedHeaders = NonEmptyChain.fromSeq(idAndHeaders.toList.take(chunkSize).map(_._2)).get
-          val expectedMessage: RequestsProxy.Message =
-            RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedHeaders)
-          (requestsProxy.sendNoWait _).expects(expectedMessage).returning(().pure[F])
+          implicit val ed255: Ed25519VRF = Ed25519VRF.precomputed()
+          val knownBestSlotData = knownIdAndHeaders.last._2.slotData
 
           val bestChainForKnownAndNewIds: NonEmptyChain[SlotData] =
             idAndHeaders.map { case (id, header) =>
@@ -677,6 +624,45 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
               localSlotDataStore(id).pure[F]
             }
+
+          val headerStoreData = mutable.Map.empty[BlockId, BlockHeader] ++ knownIdAndHeaders.toMap
+          (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            headerStoreData.contains(id).pure[F]
+          }
+          (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            headerStoreData.get(id).pure[F]
+          }
+          (headerStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(*, *, *)
+            .anyNumberOfTimes()
+            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+              headerStoreData(id).pure[F]
+            }
+          val addedHeader = mutable.Map.empty[BlockId, BlockHeader]
+          (headerStore.put _).expects(*, *).rep(newIdAndHeaders.size).onCall {
+            case (id: BlockId, header: BlockHeader) =>
+              addedHeader.put(id, header)
+              headerStoreData.put(id, header)
+              ().pure[F]
+          }
+
+          (() => localChain.head).stubs().returning(knownBestSlotData.pure[F])
+          (headerValidation.couldBeValidated _).stubs(*, *).returning(true.pure[F])
+          (headerValidation.validate _)
+            .expects(*)
+            .rep(newIdAndHeaders.size)
+            .onCall((header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F])
+
+          val bodyStoreData = idAndHeaders.toList.toMap
+          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            (!bodyStoreData.contains(id)).pure[F]
+          }
+
+          val expectedHeaders = NonEmptyChain.fromSeq(idAndHeaders.toList.take(chunkSize).map(_._2)).get
+          val expectedMessage: RequestsProxy.Message =
+            RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedHeaders)
+          (requestsProxy.sendNoWait _).expects(expectedMessage).returning(().pure[F])
 
           val nextHeaders = newSlotData.toList.take(chunkSize).map(s => s.slotId.blockId)
 
