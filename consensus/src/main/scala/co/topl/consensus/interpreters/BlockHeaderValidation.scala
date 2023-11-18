@@ -74,11 +74,11 @@ object BlockHeaderValidation {
     blake2b256Resource:       Resource[F, Blake2b256]
   ) extends BlockHeaderValidationAlgebra[F] {
 
-    def couldBeValidated(header: BlockHeader, currentLocalBestBlock: SlotData): F[Boolean] =
+    def couldBeValidated(header: BlockHeader, lastProcessedBodyInChain: SlotData): F[Boolean] =
       for {
-        headerEpoch    <- clockAlgebra.epochOf(header.slot)
-        bestBlockEpoch <- clockAlgebra.epochOf(currentLocalBestBlock.slotId.slot)
-      } yield (bestBlockEpoch - headerEpoch) < 2
+        checkedHeaderEpoch <- clockAlgebra.epochOf(header.slot)
+        bestBlockEpoch     <- clockAlgebra.epochOf(lastProcessedBodyInChain.slotId.slot)
+      } yield (checkedHeaderEpoch - bestBlockEpoch) < 2
 
     def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
       if (header.id === bigBangBlockId) EitherT.rightT[F, BlockHeaderValidationFailure](header)

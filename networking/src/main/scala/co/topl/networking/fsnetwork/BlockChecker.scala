@@ -203,13 +203,28 @@ object BlockChecker {
   private def processRemoteHeaders[F[_]: Async: Logger](
     state:        State[F],
     blockHeaders: NonEmptyChain[UnverifiedBlockHeader]
-  ): F[(State[F], Response[F])] = {
-    val processedHeadersAndErrors =
+  ): F[(State[F], Response[F])] =
+    OptionT(
       Stream
         .foldable(blockHeaders)
         .covaryAll[F, UnverifiedBlockHeader]
         .evalDropWhile(knownBlockHeaderPredicate(state))
-        .evalFilter(headerCouldBeVerified(state))
+        .compile
+        .toList
+        .map(NonEmptyChain.fromSeq)
+    ).map(processNewRemoteHeaders(state, _))
+      .getOrElse((state, state).pure[F])
+      .flatten
+
+  private def processNewRemoteHeaders[F[_]: Async: Logger](
+    state:        State[F],
+    blockHeaders: NonEmptyChain[UnverifiedBlockHeader]
+  ): F[(State[F], Response[F])] = {
+    def processedHeadersAndErrors(lastProcessedBodySlot: SlotData) =
+      Stream
+        .foldable(blockHeaders)
+        .covaryAll[F, UnverifiedBlockHeader]
+        .evalFilter(headerCouldBeVerified(state, lastProcessedBodySlot))
         .evalMap(header => Async[F].timed(verifyOneBlockHeader(state)(header)))
         .evalMap { case (time, header) =>
           Logger[F].info(show"Verified header $header for ${time.toMillis}") >> header.pure[F]
@@ -231,20 +246,25 @@ object BlockChecker {
 
     val hostId = blockHeaders.head.source
     for {
-      (appliedHeaders, error) <- processedHeadersAndErrors
+      unknownBodies           <- getMissedBodiesId(state, blockHeaders.last.blockHeader.id)
+      lastProcessedBody       <- unknownBodies.map(_.head).get.pure[F] // shall always be defined
+      lastProcessedBodySlot   <- state.slotDataStore.getOrRaise(lastProcessedBody)
+      (appliedHeaders, error) <- processedHeadersAndErrors(lastProcessedBodySlot)
       newState                <- processHeaderValidationError(state, error)
       _ <-
         if (appliedHeaders.nonEmpty) {
           requestNextHeaders(newState) >>
-          requestMissedBodies(newState, hostId, appliedHeaders.lastOption.map(_.id))
+          requestMissedBodies(newState, hostId, unknownBodies)
         } else { ().pure[F] }
 
     } yield (newState, newState)
   }
 
-  private def headerCouldBeVerified[F[_]: Async: Logger](state: State[F])(header: UnverifiedBlockHeader): F[Boolean] =
-    state.localChain.head
-      .flatMap(h => state.headerValidation.couldBeValidated(header.blockHeader, h))
+  private def headerCouldBeVerified[F[_]: Async: Logger](state: State[F], lastProcessedBody: SlotData)(
+    header: UnverifiedBlockHeader
+  ): F[Boolean] =
+    state.headerValidation
+      .couldBeValidated(header.blockHeader, lastProcessedBody)
       .ifM(
         ifTrue = Logger[F].debug(show"Header ${header.blockHeader} could be validated") >> true.pure[F],
         ifFalse = Logger[F].warn(show"Header ${header.blockHeader} can't be validated, drop header") >> false.pure[F]
@@ -293,10 +313,16 @@ object BlockChecker {
       }
       .getOrElse(state.pure[F])
 
+  private def getMissedBodiesId[F[_]: Async: Logger](
+    state:        State[F],
+    bestKnownTip: BlockId
+  ): F[Option[NonEmptyChain[BlockId]]] =
+    getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize).value
+
   private def requestMissedBodies[F[_]: Async: Logger](
-    state:           State[F],
-    hostId:          HostId,
-    bestKnownTipOpt: Option[BlockId]
+    state:             State[F],
+    hostId:            HostId,
+    unknownBodyIdsOpt: Option[NonEmptyChain[BlockId]]
   ): F[Seq[BlockHeader]] = {
     def getKnownHeaderPrefix(ids: NonEmptyChain[BlockId]) =
       OptionT(
@@ -312,8 +338,7 @@ object BlockChecker {
 
     val requestMissedBodiesCommand =
       for {
-        bestKnownTip           <- OptionT.fromOption[F](bestKnownTipOpt)
-        unknownBodyIds         <- getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize)
+        unknownBodyIds         <- OptionT.fromOption[F](unknownBodyIdsOpt)
         headerForUnknownBodies <- getKnownHeaderPrefix(unknownBodyIds)
         _ <- OptionT.liftF(Logger[F].info(show"Send request to get bodies for: ${headerForUnknownBodies.map(_.id)}"))
         message = RequestsProxy.Message.DownloadBodiesRequest(hostId, headerForUnknownBodies)
@@ -443,8 +468,12 @@ object BlockChecker {
   }
 
   private def requestNextBodiesOrHeader[F[_]: Async: Logger](state: State[F], hostId: HostId): F[Unit] =
-    requestMissedBodies(state, hostId, state.bestKnownRemoteSlotDataOpt.map(_.lastId)).flatMap { requestedBodies =>
-      if (requestedBodies.isEmpty) requestNextHeaders(state) else ().pure[F]
+    state.bestKnownRemoteSlotDataOpt.map(_.lastId).traverse_ { bestId =>
+      for {
+        unknownIds   <- getMissedBodiesId(state, bestId)
+        requestedIds <- requestMissedBodies(state, hostId, unknownIds)
+        _            <- if (requestedIds.isEmpty) requestNextHeaders(state) else ().pure[F]
+      } yield ()
     }
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
