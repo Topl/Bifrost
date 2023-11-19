@@ -134,6 +134,14 @@ package object fsnetwork {
     case PingPongMessagePing(host, Left(networkError)) => show"$networkError from host $host"
   }
 
+  implicit val showPeerState: Show[PeerState] = {
+    case PeerState.Banned  => "BANNED"
+    case PeerState.Cold    => "COLD"
+    case PeerState.Warm    => "WARM"
+    case PeerState.Hot     => "HOT"
+    case PeerState.Unknown => "UNKNOWN"
+  }
+
   implicit def showPeer[F[_]]: Show[Peer[F]] = { peer: Peer[F] =>
     "Peer" +
     s" ${peer.ip}:[${peer.remoteServerPort.map(_.toString).getOrElse("")}];" +

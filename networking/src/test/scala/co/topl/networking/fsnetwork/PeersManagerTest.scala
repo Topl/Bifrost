@@ -414,6 +414,8 @@ class PeersManagerTest
             _ = assert(updatedState1.thisHostIds.contains(addedAddress1.host))
             updatedState2 <- actor.send(PeersManager.Message.UpdateThisPeerAddress(addedAddress2))
             _ = assert(updatedState2.thisHostIds.contains(addedAddress2.host))
+            _ = assert(updatedState2.peersHandler.peers(addedAddress1.asHostId).state == PeerState.Banned)
+            _ = assert(updatedState2.peersHandler.peers(addedAddress2.asHostId).state == PeerState.Banned)
           } yield ()
         }
     }
