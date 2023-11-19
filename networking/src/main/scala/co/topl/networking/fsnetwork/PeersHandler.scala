@@ -82,7 +82,7 @@ case class PeersHandler[F[_]: Async: Logger](
             peerWithRep             <- updateReputation(oldPeer, peerWithClosedTimestamp).pure[F]
             actorOpt                <- closePeerIfNecessary(peerWithClosedTimestamp, peerActorCloseAndRelease)
             newPeer                 <- peerWithRep.copy(actorOpt = actorOpt).pure[F]
-            _                       <- Logger[F].info(show"Move host $host with peer $oldPeer to new state $newPeer")
+            _                       <- Logger[F].info(show"Move $host from ${oldPeer.state} to ${newPeer.state}")
           } yield host -> newPeer
         }
 

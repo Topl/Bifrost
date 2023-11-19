@@ -148,7 +148,7 @@ object BlockChecker {
     val remoteIds: NonEmptyChain[BlockId] = remoteSlotData.map(_.slotId.blockId)
     for {
       (buildTime, fullSlotData) <- Async[F].timed(buildFullSlotDataChain(state, remoteSlotData))
-      _                         <- Logger[F].info(show"Build full slot data chain for $buildTime")
+      _                         <- Logger[F].info(show"Build full slot data chain for ${buildTime.toMillis} ms")
       _        <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
       newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
       _        <- requestNextHeaders(newState)
@@ -227,7 +227,7 @@ object BlockChecker {
         .evalFilter(headerCouldBeVerified(state, lastProcessedBodySlot))
         .evalMap(header => Async[F].timed(verifyOneBlockHeader(state)(header)))
         .evalMap { case (time, header) =>
-          Logger[F].info(show"Verified header $header for ${time.toMillis}") >> header.pure[F]
+          Logger[F].info(show"Verified header ${header.id} for ${time.toMillis} ms") >> header.pure[F]
         }
         .evalTap(header => state.headerStore.put(header.id, header))
         .map(Right.apply)
@@ -313,7 +313,7 @@ object BlockChecker {
       }
       .getOrElse(state.pure[F])
 
-  private def getMissedBodiesId[F[_]: Async: Logger](
+  private def getMissedBodiesId[F[_]: Async](
     state:        State[F],
     bestKnownTip: BlockId
   ): F[Option[NonEmptyChain[BlockId]]] =
@@ -364,7 +364,7 @@ object BlockChecker {
         .evalDropWhile(knownBlockBodyPredicate(state))
         .evalMap(headerAndBody => Async[F].timed(verifyOneBlockBody(state)(headerAndBody)))
         .evalMap { case (time, idAndBody) =>
-          Logger[F].info(show"Verified body ${idAndBody._1} for ${time.toMillis}") >> idAndBody.pure[F]
+          Logger[F].info(show"Verified body ${idAndBody._1} for ${time.toMillis} ms") >> idAndBody.pure[F]
         }
         .evalTap { case (id, block) => state.bodyStore.put(id, block.body) }
         .evalTap(applyOneBlockBody(state))

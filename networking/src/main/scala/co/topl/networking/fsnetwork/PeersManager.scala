@@ -254,7 +254,7 @@ object PeersManager {
         case (state, MoveToCold(peers))                           => coldPeer(thisActor, state, peers)
         case (state, ClosePeer(peer))                             => closePeer(thisActor, state, peer)
         case (state, BanPeer(hostId))                             => banPeer(thisActor, state, hostId)
-        case (state, UpdateThisPeerAddress(localAddress))         => addLocalAddress(state, localAddress)
+        case (state, UpdateThisPeerAddress(localAddress))         => addLocalAddress(thisActor, state, localAddress)
         case (state, newPeer: OpenedPeerConnection[F] @unchecked) => openedPeerConnection(thisActor, state, newPeer)
         case (state, AddKnownNeighbors(source, peers))            => addKnownNeighbors(state, source, peers)
         case (state, AddKnownPeers(peers))                        => addKnownPeers(state, peers)
@@ -526,6 +526,7 @@ object PeersManager {
     (state, state).pure[F]
 
   private def requestCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+    Logger[F].info(show"Known local addresses: ${state.thisHostIds}") >>
     Logger[F].info(show"Current hot peer(s) state: ${state.peersHandler.getHotPeers}") >>
     Logger[F].info(show"Current warm peer(s) state: ${state.peersHandler.getWarmPeers}") >>
     Logger[F].info(show"Current first five cold peer(s) state: ${state.peersHandler.getColdPeers.take(5)}") >>
@@ -638,12 +639,18 @@ object PeersManager {
     } yield (newState, newState)
 
   private def addLocalAddress[F[_]: Async: Logger](
+    thisActor:        PeersManagerActor[F],
     state:            State[F],
     localPeerAddress: RemoteAddress
   ): F[(State[F], Response[F])] = {
-    val newState = state.copy(thisHostIds = state.thisHostIds + localPeerAddress.host)
-    Logger[F].info(s"Added ${localPeerAddress.host} as known local address") >>
-    (newState, newState).pure[F]
+    val localId: HostId = localPeerAddress.asHostId
+    for {
+      _ <- Logger[F].info(s"Added ${localPeerAddress.host} as known local address")
+      newPeerHandler <- state.peersHandler
+        .copyWithNewHost(localId)
+        .moveToState(Set(localId), PeerState.Banned, peerReleaseAction(thisActor))
+      newState = state.copy(thisHostIds = state.thisHostIds + localPeerAddress.host, peersHandler = newPeerHandler)
+    } yield (newState, newState)
   }
 
   private def openedPeerConnection[F[_]: Async: Logger](

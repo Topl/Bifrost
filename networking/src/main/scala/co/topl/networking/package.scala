@@ -1,5 +1,6 @@
 package co.topl
 
+import co.topl.networking.fsnetwork.HostId
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.KnownHost
 import com.comcast.ip4s.{IpAddress, SocketAddress}
@@ -21,6 +22,7 @@ package object networking {
   }
 
   implicit class RemoteAddressOps(remoteAddress: RemoteAddress) {
+    def asHostId: HostId = remoteAddress.host
 
     def isSpecialHost: Boolean =
       Try {

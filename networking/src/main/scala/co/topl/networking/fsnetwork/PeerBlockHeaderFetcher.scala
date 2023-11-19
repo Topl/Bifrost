@@ -163,7 +163,7 @@ object PeerBlockHeaderFetcher {
     blockId: BlockId
   ): F[Unit] =
     for {
-      _                 <- Logger[F].info(show"Got blockId: $blockId from remote peer ${state.hostId}")
+      _                 <- Logger[F].info(show"Sync $blockId from remote peer ${state.hostId}")
       blockSlotData     <- getSlotDataFromStorageOrRemote(state)(blockId)
       newSlotDataOpt    <- getRemoteBetterSlotDataChain(state, blockSlotData).value
       _                 <- Logger[F].info(show"Build slot data chain from tip $blockId is ${newSlotDataOpt.isDefined}")
@@ -361,7 +361,7 @@ object PeerBlockHeaderFetcher {
         _                              <- Logger[F].info(show"Fetching remote header id=$blockId from peer $hostId")
         (downloadTime, headerWithNoId) <- Async[F].timed(client.getHeaderOrError(blockId, HeaderNotFoundInPeer))
         header                         <- headerWithNoId.embedId.pure[F]
-        _                              <- Logger[F].info(show"Fetched remote header id=$blockId  from peer $hostId")
+        _                              <- Logger[F].info(show"Fetched header $blockId: $header from peer $hostId")
         _ <- MonadThrow[F].raiseWhen(header.id =!= blockId)(HeaderHaveIncorrectId(blockId, header.id))
       } yield UnverifiedBlockHeader(hostId, header, downloadTime.toMillis)
 
