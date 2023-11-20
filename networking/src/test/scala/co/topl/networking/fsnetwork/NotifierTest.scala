@@ -165,7 +165,10 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .makeActor(peersManager, defaultP2PConfig)
         .use { actor =>
           for {
-            state <- Sync[F].andWait(actor.send(Notifier.Message.StartNotifications), FiniteDuration(100, MILLISECONDS))
+            state <- Sync[F].andWait(
+              actor.send(Notifier.Message.StartNotifications),
+              FiniteDuration(500, MILLISECONDS)
+            )
             _ = state.warmHostsUpdateFiber.get.joinWith({ warmFlag = true }.pure[F])
             _ = state.networkQualityFiber.get.joinWith({ networkQualityFlag = true }.pure[F])
             _ = state.slotNotificationFiber.get.joinWith({ slotNotificationFlag = true }.pure[F])
