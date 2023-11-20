@@ -32,7 +32,9 @@ class SanityCheckNodeTest extends IntegrationSuite {
           .head
           .compile
           .lastOrError
-          .timeout(1.minute)
+          // The node likely restarts in the middle of an operational period, and the linear keys become unavailable
+          // until the next operational period (which may take a minute or two)
+          .timeout(3.minute)
           .toResource
         _ <- Logger[F].info("Success").toResource
       } yield ()
