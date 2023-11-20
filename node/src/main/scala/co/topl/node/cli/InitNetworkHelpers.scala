@@ -1,29 +1,29 @@
 package co.topl.node.cli
 
-import cats.implicits._
-import cats.{MonadThrow, Show}
 import cats.data._
 import cats.effect._
 import cats.effect.std.Console
-import co.topl.blockchain.PrivateTestnet
+import cats.implicits._
+import cats.{MonadThrow, Show}
+import co.topl.blockchain._
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.box.Value.UpdateProposal
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
+import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.consensus.models.BlockId
 import co.topl.node.models.{BlockBody, FullBlock}
+import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import com.google.protobuf.duration.Duration
 import fs2.io.file.Path
 import quivr.models.{Int128, Ratio}
 
 import java.nio.charset.StandardCharsets
-import java.time.{Instant, LocalDateTime}
 import java.time.format.DateTimeFormatter
+import java.time.{Instant, LocalDateTime}
 import scala.util.Try
-import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.models.BlockId
-import co.topl.typeclasses.implicits._
 
 object InitNetworkHelpers {
 
@@ -164,45 +164,57 @@ object InitNetworkHelpers {
           fEffective <- readDefaultedOptional[F, Ratio](
             "f-effective",
             List("1/5", "15/100", "1"),
-            DefaultProtocol.fEffective.show
+            PublicTestnet.DefaultProtocol.fEffective.show
           )
-          vrfLddCutoff <- readDefaultedOptional[F, Int]("vrf-ldd-cutoff", List("50"), DefaultProtocol.vrfLddCutoff.show)
-          vrfPrecision <- readDefaultedOptional[F, Int]("vrf-precision", List("40"), DefaultProtocol.vrfPrecision.show)
+          vrfLddCutoff <- readDefaultedOptional[F, Int](
+            "vrf-ldd-cutoff",
+            List("50"),
+            PublicTestnet.DefaultProtocol.vrfLddCutoff.show
+          )
+          vrfPrecision <- readDefaultedOptional[F, Int](
+            "vrf-precision",
+            List("40"),
+            PublicTestnet.DefaultProtocol.vrfPrecision.show
+          )
           vrfBaselineDifficulty <- readDefaultedOptional[F, Ratio](
             "vrf-baseline-difficulty",
             List("1/20", "1/50"),
-            DefaultProtocol.vrfBaselineDifficulty.show
+            PublicTestnet.DefaultProtocol.vrfBaselineDifficulty.show
           )
           vrfAmplitude <- readDefaultedOptional[F, Ratio](
             "vrf-amplitude",
             List("1/2"),
-            DefaultProtocol.vrfAmplitude.show
+            PublicTestnet.DefaultProtocol.vrfAmplitude.show
           )
           chainSelectionKLookback <- readDefaultedOptional[F, Long](
             "chain-selection-k-lookback",
             List("500"),
-            DefaultProtocol.chainSelectionKLookback.show
+            PublicTestnet.DefaultProtocol.chainSelectionKLookback.show
           )
           slotDuration <- readDefaultedOptional[F, Duration](
             "slot-duration",
             List("1000 milli"),
-            DefaultProtocol.slotDuration.show
+            PublicTestnet.DefaultProtocol.slotDuration.show
           )
           forwardBiasedSlotWindow <- readDefaultedOptional[F, Long](
             "forward-biased-slot-window",
             List("50"),
-            DefaultProtocol.forwardBiasedSlotWindow.show
+            PublicTestnet.DefaultProtocol.forwardBiasedSlotWindow.show
           )
           operationalPeriodsPerEpoch <- readDefaultedOptional[F, Long](
             "operational-periods-per-epoch",
             List("2"),
-            DefaultProtocol.operationalPeriodsPerEpoch.show
+            PublicTestnet.DefaultProtocol.operationalPeriodsPerEpoch.show
           )
-          kesKeyHours <- readDefaultedOptional[F, Int]("kes-key-hours", List("9"), DefaultProtocol.kesKeyHours.show)
+          kesKeyHours <- readDefaultedOptional[F, Int](
+            "kes-key-hours",
+            List("9"),
+            PublicTestnet.DefaultProtocol.kesKeyHours.show
+          )
           kesKeyMinutes <- readDefaultedOptional[F, Int](
             "kes-key-minutes",
             List("9"),
-            DefaultProtocol.kesKeyMinutes.show
+            PublicTestnet.DefaultProtocol.kesKeyMinutes.show
           )
         } yield UpdateProposal(
           "genesis",
@@ -218,7 +230,7 @@ object InitNetworkHelpers {
           kesKeyHours.some,
           kesKeyMinutes.some
         ),
-      ifNo = StageResultT.liftF(DefaultUpdateProposal.pure[F])
+      ifNo = StageResultT.liftF(PublicTestnet.DefaultUpdateProposal.pure[F])
     )
   }
 
