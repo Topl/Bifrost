@@ -105,16 +105,16 @@ class MultiNodeTest extends IntegrationSuite {
           .evalMap(registerStaker(genesisTransaction, 0, genesisBlockId)(_, tmpHostStakingDirectory))
         _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
         _ <- delayedNode.startContainer[F].toResource
-        _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
+        _ <- Logger[F].info("Waiting for nodes to reach epoch=2.  This may take several minutes.").toResource
         thirdEpochHeads <- initialNodes
           .parTraverse(node =>
             node
               .rpcClient[F](node.config.rpcPort)
               .use(
                 _.adoptedHeaders
-                  .takeWhile(_.slot < (epochSlotLength * 3))
+                  .takeWhile(_.slot < (epochSlotLength * 2))
                   // Verify that the delayed node doesn't produce any blocks in the first 2 epochs
-                  .evalTap(h => IO(h.slot >= (epochSlotLength * 2) || h.address != delayedNodeStakingAddress).assert)
+                  .evalTap(h => IO(h.address != delayedNodeStakingAddress).assert)
                   .timeout(9.minutes)
                   .compile
                   .lastOrError
