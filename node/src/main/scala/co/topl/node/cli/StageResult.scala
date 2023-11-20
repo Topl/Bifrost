@@ -111,8 +111,8 @@ object StageResultT {
   def liftF[F[_], A](fa: F[A])(implicit F: Functor[F]): StageResultT[F, A] =
     StageResultT(fa.map(StageResult.Success(_)))
 
-  implicit def stageResultTMonadInstance[F[_]: Monad]: Monad[StageResultT[F, *]] =
-    new Monad[StageResultT[F, *]] {
+  implicit def stageResultTMonadThrowInstance[F[_]: MonadThrow]: MonadThrow[StageResultT[F, *]] =
+    new MonadThrow[StageResultT[F, *]] {
       def pure[A](x: A): StageResultT[F, A] = StageResultT.liftF(x.pure[F])
 
       def flatMap[A, B](fa: StageResultT[F, A])(f: A => StageResultT[F, B]): StageResultT[F, B] =
@@ -133,5 +133,12 @@ object StageResultT {
             case StageResult.Exit              => StageResult.exit[B].pure[F]
           }
         )
+
+      def raiseError[A](e: Throwable): StageResultT[F, A] =
+        StageResultT.liftF(MonadThrow[F].raiseError(e))
+
+      def handleErrorWith[A](fa: StageResultT[F, A])(f: Throwable => StageResultT[F, A]): StageResultT[F, A] =
+        StageResultT(fa.value.handleErrorWith(f(_).value))
+
     }
 }

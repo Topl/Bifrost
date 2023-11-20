@@ -51,6 +51,7 @@ package object cli {
     val stringifiedChoices =
       choices.map(c => if (default.contains(c)) c.toUpperCase else c).map(c => s" $c ").mkString("[", "|", "]")
     (writeMessage[F](s"$prompt $stringifiedChoices") >> readLowercasedInput[F])
+      .map(_.trim)
       .flatMap(response =>
         if (response.isEmpty) {
           default.fold(writeMessage[F]("No input provided.").as(none[String]))(d => StageResultT.liftF(d.some.pure[F]))
