@@ -59,8 +59,6 @@ class NodeAppTest extends CatsEffectSuite {
          |  p2p:
          |    bind-port: 9150
          |    public-port: 9150
-         |    network-properties:
-         |      legacy-network: false
          |  rpc:
          |    bind-port: 9151
          |  big-bang:
@@ -80,9 +78,7 @@ class NodeAppTest extends CatsEffectSuite {
          |  p2p:
          |    bind-port: 9152
          |    public-port: 9152
-         |    known-peers: localhost:9150
-         |    network-properties:
-         |      legacy-network: false
+         |    known-peers: 127.0.0.2:9150
          |  rpc:
          |    bind-port: 9153
          |  big-bang:
@@ -127,7 +123,7 @@ class NodeAppTest extends CatsEffectSuite {
           .mapN(_.race(_).map(_.merge).flatMap(_.embedNever))
           .flatMap(nodeCompletion =>
             nodeCompletion.toResource.race(for {
-              rpcClientA <- NodeGrpc.Client.make[F]("localhost", 9151, tls = false)
+              rpcClientA <- NodeGrpc.Client.make[F]("127.0.0.2", 9151, tls = false)
               rpcClientB <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
               rpcClients = List(rpcClientA, rpcClientB)
               implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
