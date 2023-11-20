@@ -39,9 +39,9 @@ package object fsnetwork {
   // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
   val chunkSize = 1
 
-  val requestCacheSize = 100
+  val requestCacheSize = 256
 
-  val blockSourceCacheSize = 512
+  val blockSourceCacheSize = 1024
 
   type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
 
