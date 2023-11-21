@@ -45,7 +45,7 @@ object TransactionGeneratorApp
         .flatMap(TransactionServiceFs2Grpc.stubResource[F])
       _      <- Logger[F].info(show"Initializing wallet")
       wallet <- genusClientResource.flatMap(GenusWalletInitializer.make[F]).use(_.initialize)
-      _      <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
+      _      <- Logger[F].info(show"Initialized wallet with spendableBoxes=${wallet.spendableBoxes}")
       // Produce a stream of Transactions from the base wallet
       targetTps = appConfig.transactionGenerator.broadcaster.tps
       _              <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")

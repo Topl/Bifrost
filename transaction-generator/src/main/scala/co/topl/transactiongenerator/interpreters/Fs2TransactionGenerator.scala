@@ -23,6 +23,8 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import quivr.models.SmallData
 
+import scala.util.Random
+
 object Fs2TransactionGenerator {
 
   /**
@@ -128,7 +130,7 @@ object Fs2TransactionGenerator {
     val inQuantity: BigInt = lvlBoxValue.quantity
     val spendableQuantity = inQuantity
     if (spendableQuantity > 0) {
-      val quantityOutput0 = spendableQuantity / 2
+      val quantityOutput0 = spendableQuantity - Random.nextLong(spendableQuantity.toLong / 2 - 1)
       List(quantityOutput0, spendableQuantity - quantityOutput0)
         .filter(_ > 0)
         .map(quantity =>
