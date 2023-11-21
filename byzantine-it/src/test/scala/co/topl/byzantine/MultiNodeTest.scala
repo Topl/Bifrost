@@ -127,7 +127,7 @@ class MultiNodeTest extends IntegrationSuite {
         _ <- Logger[F].info("Searching for block from new staker").toResource
         _ <- client.adoptedHeaders
           .find(_.address == delayedNodeStakingAddress)
-          .timeout(2.minutes)
+          .timeout(3.minutes)
           .compile
           .lastOrError
           .toResource

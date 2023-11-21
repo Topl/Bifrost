@@ -120,7 +120,7 @@ class NodeAppTest extends CatsEffectSuite {
         // Run the nodes in separate fibers, but use the fibers' outcomes as an error signal to
         // the test by racing the computation
         _ <- (launch(configALocation), launch(configBLocation))
-          .mapN(_.race(_).map(_.merge).flatMap(_.embedNever))
+          .parMapN(_.race(_).map(_.merge).flatMap(_.embedNever))
           .flatMap(nodeCompletion =>
             nodeCompletion.toResource.race(for {
               rpcClientA <- NodeGrpc.Client.make[F]("127.0.0.2", 9151, tls = false)
