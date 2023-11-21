@@ -39,13 +39,13 @@ object InitTestnetCommand {
   private[cli] val DefaultProtocol =
     ApplicationConfig.Bifrost.Protocol(
       minAppVersion = "2.0.0",
-      fEffective = Ratio(15, 100),
-      vrfLddCutoff = 50,
+      fEffective = Ratio(12997, 100000),
+      vrfLddCutoff = 15,
       vrfPrecision = 40,
-      vrfBaselineDifficulty = Ratio(1, 20),
-      vrfAmplitude = Ratio(1, 2),
-      // 10x private testnet default, resulting in ~50 minute epochs
-      chainSelectionKLookback = 500,
+      vrfBaselineDifficulty = Ratio(5, 100),
+      vrfAmplitude = Ratio(50, 100),
+      // 20x private testnet default, resulting in ~100 minute epochs
+      chainSelectionKLookback = 1000,
       slotDuration = 1.seconds,
       forwardBiasedSlotWindow = 50,
       operationalPeriodsPerEpoch = 24,

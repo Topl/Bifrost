@@ -52,7 +52,7 @@ class ChainSelectionTest extends IntegrationSuite {
       _ <- initialNodes
         .parTraverse(node => node.rpcClient[F](node.config.rpcPort, tls = false).use(_.waitForRpcStartUp))
         .toResource
-      _ <- Logger[F].info("Waiting for nodes to reach target epoch.  This may take several minutes.").toResource
+      _ <- Logger[F].info("Waiting for nodes to complete epoch=0.  This may take several minutes.").toResource
       blockHeaders <- Async[F]
         .andWait(
           initialNodes
@@ -79,23 +79,21 @@ class ChainSelectionTest extends IntegrationSuite {
         .toResource
       // Note: Launch nodes in-order so that the P2P connections properly initialize.  Once proper peer management and
       // retry logic is implemented, the relaunches can happen in parallel.
-      _ <- Stream
-        .iterable(allNodes.zip(nodesWithknownPeers))
-        .evalMap { case (node, newConfig) =>
+      _ <- allNodes
+        .zip(nodesWithknownPeers)
+        .parTraverse { case (node, newConfig) =>
           node.restartContainer[F] >> node.rpcClient[F](newConfig.rpcPort, tls = false).use(_.waitForRpcStartUp)
         }
-        .compile
-        .drain
         .toResource
       _ <- Logger[F]
-        .info("ChainSelectionTest Waiting for nodes to reach target epoch.  This may take several minutes.")
+        .info("Waiting for nodes to complete epoch=2.  This may take several minutes.")
         .toResource
       thirdEpochHeads <- allNodes
         .zip(nodesWithknownPeers)
         .parTraverse { case (node, newConfig) =>
           node
             .rpcClient[F](newConfig.rpcPort, tls = false)
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(6.minutes).compile.lastOrError)
+            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(9.minutes).compile.lastOrError)
         }
         .toResource
       _ <- Logger[F].info("Nodes have reached target epoch").toResource

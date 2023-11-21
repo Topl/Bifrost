@@ -202,7 +202,7 @@ case class TestNodeConfig(
        |    $stakesStr
        |  protocols:
        |    0:
-       |      slot-duration: 200 milli
+       |      slot-duration: 500 milli
        |genus:
        |  enable: "$genusEnabled"
        |""".stripMargin
