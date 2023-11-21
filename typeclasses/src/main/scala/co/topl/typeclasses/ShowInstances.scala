@@ -2,7 +2,7 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.brambl.models.box.Value
+import co.topl.brambl.models.box.{Box, Value}
 import co.topl.brambl.models.transaction.SpentTransactionOutput
 import co.topl.brambl.models.{GroupId, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.codecs.bytes.tetra.instances._
@@ -82,6 +82,9 @@ trait ShowInstances {
 
   implicit val showStxo: Show[SpentTransactionOutput] =
     stxo => show"Stxo(utxo=${stxo.address}, value=${stxo.value})"
+
+  implicit val showBox: Show[Box] =
+    box => show"Box(value=${box.value})"
 }
 
 object ShowInstances extends ShowInstances
