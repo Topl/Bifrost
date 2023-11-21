@@ -173,9 +173,7 @@ object BlockProducer {
     private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
       blockPacker
         .improvePackedBlock(parentId, height, untilSlot)
-        .flatMap(Iterative.run(FullBlockBody().pure[F]))
-        .productL(clock.delayedUntilSlot(untilSlot))
-        .flatMap(_.apply())
+        .flatMap(Iterative.run(FullBlockBody().pure[F])(_).use(resF => clock.delayedUntilSlot(untilSlot) >> resF))
         .flatMap(insertReward(parentId, untilSlot, _))
 
     /**
