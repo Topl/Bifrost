@@ -8,14 +8,13 @@ import co.topl.brambl.models.LockAddress
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
 import co.topl.models.utility._
-import quivr.models.Ratio
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
-import quivr.models.Int128
+import quivr.models.{Int128, Ratio}
 import simulacrum.typeclass
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 import scala.util.Try
 
 package object cli {
@@ -49,6 +48,7 @@ package object cli {
     val stringifiedChoices =
       choices.map(c => if (default.contains(c)) c.toUpperCase else c).map(c => s" $c ").mkString("[", "|", "]")
     (writeMessage[F](s"$prompt $stringifiedChoices") >> readLowercasedInput[F])
+      .map(_.trim)
       .flatMap(response =>
         if (response.isEmpty) {
           default.fold(writeMessage[F]("No input provided.").as(none[String]))(d => StageResultT.liftF(d.some.pure[F]))

@@ -137,10 +137,9 @@ class RegistrationCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implici
         )
       )
       .flatTap(key =>
-        writeFile(stakingDirectory)(persistableKesProductSecretKey.persistedBytes(key._1).toByteArray)(
-          "KES SK",
-          s"${StakingInit.KesDirectoryName}/0"
-        )
+        writeFile(stakingDirectory / StakingInit.KesDirectoryName)(
+          persistableKesProductSecretKey.persistedBytes(key._1).toByteArray
+        )("KES SK", "0")
       )
 
   private val askIfExistingNetwork: StageResultT[F, Boolean] =
