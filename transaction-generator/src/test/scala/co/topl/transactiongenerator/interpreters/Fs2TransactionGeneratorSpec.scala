@@ -36,10 +36,9 @@ class Fs2TransactionGeneratorSpec extends CatsEffectSuite {
       wallet = applyTransaction(emptyWallet)(seedTransaction)
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
-      underTest <- Fs2TransactionGenerator.make[F](wallet, 1, 10, costCalculator)
+      underTest <- Fs2TransactionGenerator.make[F](wallet, costCalculator)
       stream    <- underTest.generateTransactions
-      result    <- stream.take(500).compile.toList
-      _ = assert(result.length === 500)
+      _         <- stream.take(500).compile.count.assertEquals(500L)
     } yield ()
   }
 }

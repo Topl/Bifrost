@@ -6,7 +6,6 @@ import cats.implicits._
 import co.topl.interpreters.NodeRpcOps._
 import co.topl.byzantine.util._
 import com.spotify.docker.client.DockerClient
-import fs2._
 
 import java.time.Instant
 import org.typelevel.log4cats.Logger

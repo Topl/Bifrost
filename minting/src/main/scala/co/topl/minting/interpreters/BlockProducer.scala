@@ -47,7 +47,9 @@ object BlockProducer {
     blockPacker:      BlockPackerAlgebra[F],
     rewardCalculator: TransactionRewardCalculatorAlgebra[F]
   ): F[BlockProducerAlgebra[F]] =
-    staker.address.map(new Impl[F](_, parentHeaders, staker, clock, blockPacker, rewardCalculator))
+    (staker.address, Ref.of(0L)).mapN((address, lastUsedSlotRef) =>
+      new Impl[F](address, parentHeaders, staker, clock, blockPacker, rewardCalculator, lastUsedSlotRef)
+    )
 
   private class Impl[F[_]: Async](
     stakerAddress:    StakingAddress,
@@ -55,14 +57,20 @@ object BlockProducer {
     staker:           StakingAlgebra[F],
     clock:            ClockAlgebra[F],
     blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F]
+    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    lastUsedSlotRef:  Ref[F, Slot]
   ) extends BlockProducerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
       Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockProducer")
 
     val blocks: F[Stream[F, FullBlock]] =
-      Sync[F].delay(parentHeaders.evalFilter(isRecentParent).through(AbandonerPipe(makeChild)))
+      Sync[F].delay(
+        parentHeaders
+          .evalFilter(isRecentParent)
+          .through(AbandonerPipe(makeChild))
+          .evalTap(block => lastUsedSlotRef.set(block.header.slot))
+      )
 
     /**
      * Determines if the given SlotData is recent enough to be used as a parent for a new block.
@@ -93,7 +101,7 @@ object BlockProducer {
           show" parentSlot=${parentSlotData.slotId.slot}" +
           show" parentHeight=${parentSlotData.height}"
         ) >>
-        clock.globalSlot >>= attemptUntilCertified(parentSlotData),
+        (clock.globalSlot, lastUsedSlotRef.get.map(_ + 1)).mapN(_.max(_)) >>= attemptUntilCertified(parentSlotData),
         Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
       )
 
