@@ -17,6 +17,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{PeerConnectionChange, PeerConnectionChanges, RemoteAddress}
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -50,12 +51,12 @@ object NetworkManager {
     hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] =
     for {
-      _            <- Resource.liftK(Logger[F].info(s"Start actors network with list of peers: $initialHosts"))
+      _            <- Resource.liftK(Logger[F].info(show"Start actors network with list of peers: $initialHosts"))
       slotDuration <- Resource.liftK(clock.slotLength)
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
       peersFromStorage <- Resource.liftK(remotePeerStore.get(()).map(_.getOrElse(Seq.empty)))
-      _                <- Resource.liftK(Logger[F].info(s"Loaded from storage next known hosts: $peersFromStorage"))
+      _                <- Resource.liftK(Logger[F].info(show"Loaded from storage next known hosts: $peersFromStorage"))
       peerManager <- networkAlgebra.makePeerManger(
         thisHostId,
         networkAlgebra,
@@ -117,7 +118,7 @@ object NetworkManager {
         case PeerConnectionChanges.ConnectionEstablished(_, localAddress) =>
           peersManager.sendNoWait(PeersManager.Message.UpdateThisPeerAddress(localAddress))
         case PeerConnectionChanges.ConnectionClosed(connectedPeer, _) =>
-          Logger[F].info(s"Remote peer ${connectedPeer.remoteAddress} closing had been detected") >>
+          Logger[F].info(show"Remote peer ${connectedPeer.remoteAddress} closing had been detected") >>
           peersManager.sendNoWait(PeersManager.Message.ClosePeer(connectedPeer.remoteAddress.host))
         case PeerConnectionChanges.RemotePeerApplicationLevel(connectedPeer, appLevel) =>
           val host = connectedPeer.remoteAddress.host
@@ -130,7 +131,7 @@ object NetworkManager {
   private def buildSaveRemotePeersFunction[F[_]: Async: Logger](
     remotePeersStore: Store[F, Unit, Seq[RemotePeer]]
   ): Set[RemotePeer] => F[Unit] = { peers: Set[RemotePeer] =>
-    Logger[F].info(s"Going to save known hosts $peers to local data storage") >>
+    Logger[F].info(show"Going to save known hosts $peers to local data storage") >>
     remotePeersStore.put((), peers.toList)
   }
 

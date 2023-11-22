@@ -8,6 +8,7 @@ import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersHandler.allowedTransition
 import co.topl.networking.p2p.RemoteAddress
 import org.typelevel.log4cats.Logger
+import co.topl.networking.fsnetwork.P2PShowInstances._
 
 object PeersHandler {
 
@@ -192,7 +193,7 @@ case class PeersHandler[F[_]: Async: Logger](
       .map(peer => this.copy(peers = peers + (hostId -> peer.copy(remoteServerPort = serverPortOpt))))
       .getOrElse(this)
 
-  def copyWithUpdatedNetworkLevel(
+  def copyWithNetworkLevel(
     hostIds:          Set[HostId],
     netLevel:         Boolean,
     peerActorRelease: Peer[F] => F[Unit]

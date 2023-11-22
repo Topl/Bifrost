@@ -7,6 +7,7 @@ import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.consensus.models.BlockId
 import co.topl.models.TxRoot
 import co.topl.typeclasses.implicits._
+import co.topl.networking.fsnetwork.P2PShowInstances._
 
 sealed abstract class BlockDownloadError extends Exception {
   def notCritical: Boolean
@@ -18,7 +19,7 @@ object BlockDownloadError {
   object BlockHeaderDownloadError {
 
     case object HeaderNotFoundInPeer extends BlockHeaderDownloadError {
-      override def toString: String = "Block body has not found in peer"
+      override def toString: String = "Block body had been not found in peer"
       override val notCritical: Boolean = false
     }
 
@@ -30,11 +31,8 @@ object BlockDownloadError {
     case class UnknownError(ex: Throwable) extends BlockHeaderDownloadError {
       this.initCause(ex)
 
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        show"Unknown error during getting header from peer due next throwable $name : $message"
-      }
+      override def toString: String =
+        show"Unknown error during getting header from peer due next throwable ${ex.toString}"
       override val notCritical: Boolean = true
     }
   }
@@ -44,7 +42,7 @@ object BlockDownloadError {
   object BlockBodyOrTransactionError {
 
     case object BodyNotFoundInPeer extends BlockBodyOrTransactionError {
-      override def toString: String = "Block body has not found in peer"
+      override def toString: String = "Block body had been not found in peer"
       override val notCritical: Boolean = false
     }
 
@@ -76,11 +74,8 @@ object BlockDownloadError {
     case class UnknownError(ex: Throwable) extends BlockBodyOrTransactionError {
       this.initCause(ex)
 
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        show"Unknown error during getting block from peer due next throwable $name : $message"
-      }
+      override def toString: String =
+        show"Unknown error during getting block from peer due next throwable ${ex.toString}"
 
       override val notCritical: Boolean = true
     }

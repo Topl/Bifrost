@@ -15,6 +15,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
@@ -134,8 +135,8 @@ object PeerActor {
     val initAppLevel = false
 
     for {
-      actorName <- Resource.pure(s"Peer Actor for peer $hostId")
-      _ <- Resource.onFinalize(Logger[F].info(s"$actorName: is released, close connection") >> client.closeConnection())
+      actorName <- Resource.pure(show"Peer Actor for peer $hostId")
+      _         <- Resource.onFinalize(Logger[F].info(show"$actorName: is released") >> client.closeConnection())
 
       header <- networkAlgebra.makePeerHeaderFetcher(
         hostId,
@@ -266,18 +267,17 @@ object PeerActor {
     maxHosts: Int
   ): F[(State[F], Response[F])] = {
     for {
-      _        <- OptionT.liftF(Logger[F].debug(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
+      _        <- OptionT.liftF(Logger[F].debug(show"Request $maxHosts neighbour(s) from ${state.hostId}"))
       response <- OptionT(state.client.getRemoteKnownHosts(CurrentKnownHostsReq(maxHosts)))
       hotPeers <- OptionT
         .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
-        .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
-      _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
+        .flatTapNone(Logger[F].info(show"Got no hot peers from ${state.hostId}"))
+      _ <- OptionT.liftF(Logger[F].debug(show"Got hot peers $hotPeers from ${state.hostId}"))
       _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(state.hostId, hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
     .handleErrorWith { error =>
-      val message = Option(error.getLocalizedMessage).getOrElse("")
-      Logger[F].error(show"Error $message during getting remote peer neighbours") >>
+      Logger[F].error(show"Error ${error.toString} during getting remote peer(s) neighbours") >>
       state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
@@ -285,15 +285,14 @@ object PeerActor {
   private def getPeerServerAddress[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     val peer = state.hostId
     for {
-      _              <- OptionT.liftF(Logger[F].info(s"Request server address from $peer"))
+      _              <- OptionT.liftF(Logger[F].info(show"Request server address from $peer"))
       peerServerPort <- OptionT(state.client.remotePeerServerPort)
       message = PeersManager.Message.RemotePeerServerPort(peer, peerServerPort)
       _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
     } yield (state, state)
   }.getOrElse(state, state)
     .handleErrorWith { error =>
-      val message = Option(error.getLocalizedMessage).getOrElse("")
-      Logger[F].error(show"Error $message during getting remote peer server port") >>
+      Logger[F].error(show"Error ${error.toString} during getting remote peer server port") >>
       state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
@@ -307,8 +306,7 @@ object PeerActor {
         state.peersManager.sendNoWait(message)
       }
       .handleErrorWith { error =>
-        val message = Option(error.getLocalizedMessage).getOrElse("")
-        Logger[F].error(show"Error $message during getting remote peer network quality") >>
+        Logger[F].error(show"Error ${error.toString} during getting remote peer network quality") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 
@@ -345,8 +343,7 @@ object PeerActor {
           )
       )
       .recoverWith { case exception =>
-        val exceptionMessage = exception.getLocalizedMessage
-        Logger[F].error(s"Remote peer ${state.hostId} provide incorrect genesis information: $exceptionMessage") >>
+        Logger[F].error(show"Remote peer ${state.hostId} failed to provide correct genesis: ${exception.toString}") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       }
 
@@ -368,7 +365,7 @@ object PeerActor {
       )
       .void
       .handleErrorWith { e =>
-        Logger[F].error(e)("Common ancestor trace failed") >>
+        Logger[F].error(e)(s"Common ancestor trace for peer ${state.hostId} is failed") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 }

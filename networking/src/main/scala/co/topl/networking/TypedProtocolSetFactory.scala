@@ -150,7 +150,7 @@ object TypedProtocolSetFactory {
             (ReciprocatedTypedSubHandler(f1, f2, byteA, byteB).handlers(connectionLeader), source)
         }
 
-    def requestResponseReciprocated[F[_]: Async: Logger, Query: Transmittable, T: Transmittable](
+    def requestResponseReciprocated[F[_]: Async: Logger, Query: Transmittable: Show, T: Transmittable](
       protocol: RequestResponseProtocol[Query, T],
       fetch:    Query => F[Option[T]],
       byteA:    Byte,
@@ -291,7 +291,7 @@ object TypedProtocolSetFactory {
           multiplexerCodec
         )
 
-    def requestResponseClient[F[_]: Async: Logger, Query: Transmittable, T: Transmittable](
+    def requestResponseClient[F[_]: Async: Logger, Query: Transmittable: Show, T: Transmittable](
       protocol: RequestResponseProtocol[Query, T]
     )(implicit
       queryGetTypeTag:  NetworkTypeTag[TypedProtocol.CommonMessages.Get[Query]],
@@ -334,7 +334,7 @@ object TypedProtocolSetFactory {
             EitherT(
               Async[F].race(
                 Async[F].delayBy(
-                  Async[F].delay(new TimeoutException(s"RequestResponse failed for query=$query")),
+                  Async[F].delay(new TimeoutException(show"RequestResponse failed for query=$query")),
                   3.seconds
                 ),
                 response
