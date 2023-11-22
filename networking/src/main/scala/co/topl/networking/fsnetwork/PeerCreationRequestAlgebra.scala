@@ -9,5 +9,5 @@ abstract class PeerCreationRequestAlgebra[F[_]] {
 object PeerCreationRequestAlgebra {
 
   def apply[F[_]](peerCreationFun: DisconnectedPeer => F[Unit]): PeerCreationRequestAlgebra[F] =
-    (peer: RemoteAddress) => peerCreationFun(DisconnectedPeer(peer, (0, 0)))
+    (peer: RemoteAddress) => peerCreationFun(DisconnectedPeer(peer, None))
 }

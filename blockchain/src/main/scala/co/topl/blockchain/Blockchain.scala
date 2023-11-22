@@ -18,6 +18,7 @@ import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
 import co.topl.grpc._
 import co.topl.ledger.algebras._
@@ -57,7 +58,7 @@ object Blockchain {
     eventSourcedStates:        EventSourcedStates[F],
     validators:                Validators[F],
     _mempool:                  MempoolAlgebra[F],
-    ed25519VrfResource:        Resource[F, Ed25519VRF],
+    cryptoResources:           CryptoResources[F],
     localPeer:                 LocalPeer,
     knownPeers:                List[KnownPeer],
     rpcHost:                   String,
@@ -77,7 +78,7 @@ object Blockchain {
     eventSourcedStates,
     validators,
     _mempool,
-    ed25519VrfResource,
+    cryptoResources,
     localPeer,
     knownPeers,
     rpcHost,
@@ -101,7 +102,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   eventSourcedStates:        EventSourcedStates[F],
   validators:                Validators[F],
   _mempool:                  MempoolAlgebra[F],
-  ed25519VrfResource:        Resource[F, Ed25519VRF],
+  cryptoResources:           CryptoResources[F],
   localPeer:                 LocalPeer,
   knownPeers:                List[KnownPeer],
   rpcHost:                   String,
@@ -166,7 +167,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       peersStatusChangesTopic <- Resource.make(Topic[F, PeerConnectionChange])(_.close.void)
       _                       <- Logger[F].info(s"Received known peers from config: $knownPeers").toResource
       currentPeers            <- Ref.of[F, Set[RemoteAddress]](Set.empty[RemoteAddress]).toResource
-      initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), (0, 0)))
+      initialPeers = knownPeers.map(kp => DisconnectedPeer(RemoteAddress(kp.host, kp.port), none))
       remotePeersStream = Stream.fromQueueUnterminated[F, DisconnectedPeer](remotePeers)
       implicit0(dnsResolver: DnsResolver[F]) = new DefaultDnsResolver[F]()
       implicit0(reverseDnsResolver: ReverseDnsResolver[F]) =
@@ -229,7 +230,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           remotePeersStream,
           bridge,
           peerServerF,
-          peersStatusChangesTopic
+          peersStatusChangesTopic,
+          cryptoResources.ed25519
         )
     } yield ()
 
@@ -303,7 +305,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           dataStores.bodies
             .put(id, BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))) &>
           block.fullBody.rewardTransaction.traverse(tx => dataStores.transactions.put(tx.id, tx)) &>
-          ed25519VrfResource
+          cryptoResources.ed25519VRF
             .use(implicit e => Sync[F].delay(block.header.slotData))
             .flatTap(dataStores.slotData.put(block.header.id, _))
         }

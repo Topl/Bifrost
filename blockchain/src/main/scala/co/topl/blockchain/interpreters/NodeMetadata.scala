@@ -7,6 +7,7 @@ import co.topl.algebras.Store
 import co.topl.blockchain.algebras.NodeMetadataAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
+import co.topl.models.Bytes
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 
@@ -52,6 +53,14 @@ object NodeMetadata {
         def setStakingRegistrationBlockId(id: BlockId): F[Unit] =
           metadataStore.put(Keys.StakingRegistrationBlockId, id.value.toByteArray)
 
+        override def readP2PSK: F[Option[Bytes]] =
+          OptionT(metadataStore.get(Keys.P2PSK))
+            .map(ByteString.copyFrom)
+            .value
+
+        override def setP2PSK(id: Bytes): F[Unit] =
+          metadataStore.put(Keys.P2PSK, id.toByteArray)
+
       }
     )
 
@@ -60,5 +69,6 @@ object NodeMetadata {
     final val InitTime = Array[Byte](1)
     final val StakingRegistrationTransactionId = Array[Byte](2)
     final val StakingRegistrationBlockId = Array[Byte](3)
+    final val P2PSK = Array[Byte](4)
   }
 }

@@ -2,6 +2,7 @@ package co.topl.blockchain.algebras
 
 import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
+import co.topl.models.Bytes
 
 trait NodeMetadataAlgebra[F[_]] {
 
@@ -16,5 +17,8 @@ trait NodeMetadataAlgebra[F[_]] {
 
   def readStakingRegistrationBlockId: F[Option[BlockId]]
   def setStakingRegistrationBlockId(id: BlockId): F[Unit]
+
+  def readP2PSK: F[Option[Bytes]]
+  def setP2PSK(id: Bytes): F[Unit]
 
 }

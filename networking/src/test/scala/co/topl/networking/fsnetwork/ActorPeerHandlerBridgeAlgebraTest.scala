@@ -28,6 +28,7 @@ import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionCh
 import co.topl.node.models._
 import co.topl.quivr.runtime.DynamicContext
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import fs2.Stream
 import fs2.concurrent.Topic
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -144,7 +145,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
     withMock {
       val remotePeerPort = 9085
       val remotePeerAddress = RemoteAddress("2.2.2.2", remotePeerPort)
-      val remotePeer = DisconnectedPeer(remotePeerAddress, (0, 0))
+      val remotePeerId = ByteString.copyFrom(Array.fill(32)(1: Byte))
+      val remotePeer = DisconnectedPeer(remotePeerAddress, Some(remotePeerId))
       val remotePeers: List[DisconnectedPeer] = List(remotePeer)
       val hotPeersUpdatedFlag: AtomicBoolean = new AtomicBoolean(false)
       val pingProcessedFlag: AtomicBoolean = new AtomicBoolean(false)
@@ -163,7 +165,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       (client.getRemoteBlockIdAtHeight _)
         .expects(1, *)
         .returns(localChainMock.genesis.map(sd => Option(sd.slotId.blockId)))
-      (() => client.remotePeer).expects().once().returns(ConnectedPeer(remotePeerAddress, (0, 0)).pure[F])
+      (() => client.remotePeer).expects().once().returns(ConnectedPeer(remotePeerAddress, remotePeerId).pure[F])
 
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]

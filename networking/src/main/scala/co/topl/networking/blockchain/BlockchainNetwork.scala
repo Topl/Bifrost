@@ -5,6 +5,7 @@ import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
 import cats.effect.std.Random
+import co.topl.crypto.signing.Ed25519
 import co.topl.networking.p2p._
 import fs2._
 import fs2.concurrent.Topic
@@ -33,7 +34,8 @@ object BlockchainNetwork {
     remotePeers:             Stream[F, DisconnectedPeer],
     clientHandler:           BlockchainPeerHandlerAlgebra[F],
     serverF:                 ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
-    peersStatusChangesTopic: Topic[F, PeerConnectionChange]
+    peersStatusChangesTopic: Topic[F, PeerConnectionChange],
+    ed25519Resource:         Resource[F, Ed25519]
   ): Resource[F, P2PServer[F]] =
     for {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P.Blockchain").toResource
@@ -57,7 +59,8 @@ object BlockchainNetwork {
                   socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
                 )
             ),
-        peersStatusChangesTopic
+        peersStatusChangesTopic,
+        ed25519Resource
       )
     } yield p2pServer
 

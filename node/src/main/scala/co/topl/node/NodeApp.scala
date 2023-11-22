@@ -19,6 +19,7 @@ import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoun
 import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
+import co.topl.crypto.signing.Ed25519
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
 import co.topl.grpc.HealthCheckGrpc
@@ -33,6 +34,7 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.{FullBlock, FullBlockBody}
+import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import fs2.io.file.Path
 import kamon.Kamon
@@ -74,10 +76,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
       _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
-      localPeer = LocalPeer(
-        RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
-        (0, 0)
-      )
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- initializeData
@@ -88,6 +86,33 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .flatTapNone(IO.realTime.map(_.toMillis).flatMap(metadata.setInitTime))
         .value
         .toResource
+
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
+
+      p2pSK <- OptionT(metadata.readP2PSK)
+        .getOrElseF(
+          random
+            .nextBytes(32)
+            .flatMap(seed =>
+              cryptoResources.ed25519
+                .use(e => Sync[F].delay(e.deriveSecretKeyFromSeed(seed)))
+                .map(_.bytes)
+                .map(ByteString.copyFrom)
+            )
+            .flatTap(metadata.setP2PSK)
+        )
+        .toResource
+      p2pVK <- cryptoResources.ed25519
+        .use(e => Sync[F].delay(e.getVerificationKey(Ed25519.SecretKey(p2pSK.toByteArray))))
+        .map(_.bytes)
+        .map(ByteString.copyFrom)
+        .toResource
+
+      localPeer = LocalPeer(
+        RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
+        p2pVK,
+        p2pSK
+      )
 
       bigBangBlockId = bigBangBlock.header.id
       bigBangSlotData <- dataStores.slotData.getOrRaise(bigBangBlockId).toResource
@@ -321,8 +346,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       healthCheck    <- HealthCheck.make[F]()
       healthServices <- HealthCheckGrpc.Server.services(healthCheck.healthChecker)
 
-      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
-
       protocolConfig <- ProtocolConfiguration.make[F](
         appConfig.bifrost.protocols.map { case (slot, protocol) => protocol.nodeConfig(slot) }.toSeq
       )
@@ -369,7 +392,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           eventSourcedStates,
           validators,
           mempool,
-          cryptoResources.ed25519VRF,
+          cryptoResources,
           localPeer,
           appConfig.bifrost.p2p.knownPeers,
           appConfig.bifrost.rpc.bindHost,
