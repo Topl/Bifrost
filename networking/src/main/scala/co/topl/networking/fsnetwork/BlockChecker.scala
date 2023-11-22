@@ -16,6 +16,7 @@ import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.BlockApplyError.BodyApplyException.BodyValidationException
 import co.topl.networking.fsnetwork.BlockApplyError.{BodyApplyException, HeaderApplyException}
 import co.topl.networking.fsnetwork.BlockApplyError.HeaderApplyException.HeaderValidationException
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
@@ -204,6 +205,7 @@ object BlockChecker {
     state:        State[F],
     blockHeaders: NonEmptyChain[UnverifiedBlockHeader]
   ): F[(State[F], Response[F])] =
+    Logger[F].info(show"Start processing headers: $blockHeaders") >>
     OptionT(
       Stream
         .foldable(blockHeaders)
@@ -297,7 +299,7 @@ object BlockChecker {
       case Left(HeaderValidationException(id, hostId, error)) =>
         Logger[F].error(show"Failed to apply header $id due validation error: $error from host $hostId")
       case Left(HeaderApplyException.UnknownError(error)) =>
-        Logger[F].error(show"Failed to apply header due next error: ${error.getLocalizedMessage}")
+        Logger[F].error(show"Failed to apply header due next error: ${error.toString}")
     }
 
   private def processHeaderValidationError[F[_]: Async: Logger](
@@ -384,6 +386,7 @@ object BlockChecker {
 
     val hostId = blocks.head._2.source // TODO temporary solution
     for {
+      _                        <- Logger[F].info(show"Start processing bodies for ids: ${blocks.map(_._1.id)}")
       (appliedBlockIds, error) <- processedBlocksAndError
       stateAfterError          <- processBodyValidationError(state, error)
       newState                 <- updateState(stateAfterError, appliedBlockIds.lastOption).pure[F]

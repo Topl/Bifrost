@@ -1,11 +1,11 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.kernel.Fiber
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Fiber}
 import cats.effect.{Resource, Spawn}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.networking.fsnetwork.Notifier.Message.StartNotifications
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import fs2.Stream
 import org.typelevel.log4cats.Logger
@@ -48,7 +48,7 @@ object Notifier {
   }
 
   private def startSendingNotifications[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(s"Start notifier with config ${state.networkConfig}") >>
+    Logger[F].info(show"Start notifier with config ${state.networkConfig}") >>
     startSlotNotification[F](state)
       .flatMap(startNetworkQualityFiber[F])
       .flatMap(startWarmHostsUpdateFiber[F])

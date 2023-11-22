@@ -56,7 +56,7 @@ object PeerMempoolTransactionSync {
     val transactionFetcher = new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
     val initialState =
       State(hostId, client, transactionStore, transactionFetcher, mempool, peersManager, None)
-    val actorName = s"Mempool transaction sync for peer $hostId"
+    val actorName = show"Mempool transaction sync for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
 

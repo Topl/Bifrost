@@ -41,18 +41,18 @@ object PeerBlockHeaderFetcher {
   }
 
   case class State[F[_]](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    requestsProxy:        RequestsProxyActor[F],
-    peersManager:         PeersManagerActor[F],
-    localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, BlockId, SlotData],
-    blockIdTree:          ParentChildTree[F, BlockId],
-    fetchingFiber:        Option[Fiber[F, Throwable, Unit]],
-    clock:                ClockAlgebra[F],
-    blockHeights:         BlockHeights[F],
-    slotDataDownloadStep: Long,
-    commonAncestorF:      (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    hostId:           HostId,
+    client:           BlockchainPeerClient[F],
+    requestsProxy:    RequestsProxyActor[F],
+    peersManager:     PeersManagerActor[F],
+    localChain:       LocalChainAlgebra[F],
+    slotDataStore:    Store[F, BlockId, SlotData],
+    blockIdTree:      ParentChildTree[F, BlockId],
+    fetchingFiber:    Option[Fiber[F, Throwable, Unit]],
+    clock:            ClockAlgebra[F],
+    blockHeights:     BlockHeights[F],
+    slotDownloadStep: Long,
+    commonAncestorF:  (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -93,7 +93,7 @@ object PeerBlockHeaderFetcher {
         slotDataDownloadStep,
         commonAncestorF
       )
-    val actorName = s"Header fetcher actor for peer $hostId"
+    val actorName = show"Header fetcher actor for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
 
@@ -153,8 +153,7 @@ object PeerBlockHeaderFetcher {
     for {
       commonBlock <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
       commonSlot  <- getSlotDataFromStorageOrRemote(state)(commonBlock)
-      heights =
-        Range.Long(commonSlot.height + state.slotDataDownloadStep, endSlot.height, state.slotDataDownloadStep).toList
+      heights = Range.Long(commonSlot.height + state.slotDownloadStep, endSlot.height, state.slotDownloadStep).toList
       blockIdsToSync <- heights.traverse(state.client.getRemoteBlockIdAtHeight(_, None)).map(_.flatten.toSeq)
     } yield blockIdsToSync :+ endSlot.slotId.blockId
 
@@ -358,10 +357,10 @@ object PeerBlockHeaderFetcher {
   ): F[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])] = {
     val headerEither =
       for {
-        _                              <- Logger[F].info(show"Fetching remote header id=$blockId from peer $hostId")
+        _                              <- Logger[F].debug(show"Fetching remote header id=$blockId from peer $hostId")
         (downloadTime, headerWithNoId) <- Async[F].timed(client.getHeaderOrError(blockId, HeaderNotFoundInPeer))
         header                         <- headerWithNoId.embedId.pure[F]
-        _                              <- Logger[F].info(show"Fetched header $blockId: $header from peer $hostId")
+        _ <- Logger[F].info(show"Fetched header $blockId: $header from $hostId for ${downloadTime.toMillis} ms")
         _ <- MonadThrow[F].raiseWhen(header.id =!= blockId)(HeaderHaveIncorrectId(blockId, header.id))
       } yield UnverifiedBlockHeader(hostId, header, downloadTime.toMillis)
 
