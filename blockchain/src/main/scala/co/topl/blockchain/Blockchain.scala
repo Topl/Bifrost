@@ -267,21 +267,23 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           dataStores.headers.put(id, block.header) &>
           dataStores.bodies
             .put(id, BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))) &>
-          block.fullBody.rewardTransaction.traverse(tx => dataStores.transactions.put(tx.id, tx))
-        }
-        // Validate the local block.  If invalid, skip it "gracefully"
-        .evalFilter(validateLocalBlock(_).toOption.isDefined)
-        .evalMap(block =>
+          block.fullBody.rewardTransaction.traverse(tx => dataStores.transactions.put(tx.id, tx)) &>
           ed25519VrfResource
             .use(implicit e => Sync[F].delay(block.header.slotData))
             .flatTap(dataStores.slotData.put(block.header.id, _))
-        )
-        .evalTap(slotData =>
-          localChain
-            .isWorseThan(slotData)
-            .ifM(
-              localChain.adopt(Validated.Valid(slotData)),
-              Logger[F].warn("Skipping adoption of local block due to better local chain.")
+        }
+        // Validate the local block.  If invalid, skip it "gracefully"
+        .evalFilter(validateLocalBlock(_).toOption.isDefined)
+        .evalTap(block =>
+          dataStores.slotData
+            .getOrRaise(block.header.id)
+            .flatMap(slotData =>
+              localChain
+                .isWorseThan(slotData)
+                .ifM(
+                  localChain.adopt(Validated.Valid(slotData)),
+                  Logger[F].warn("Skipping adoption of locally-produced block due to better local chain.")
+                )
             )
         )
         .compile

@@ -85,6 +85,10 @@ trait ShowInstances {
 
   implicit val showBox: Show[Box] =
     box => show"Box(value=${box.value})"
+
+  implicit val showRatio: Show[co.topl.models.utility.Ratio] =
+    r => s"${r.numerator}/${r.denominator}"
+
 }
 
 object ShowInstances extends ShowInstances

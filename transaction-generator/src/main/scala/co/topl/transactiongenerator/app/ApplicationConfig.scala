@@ -20,8 +20,7 @@ object ApplicationConfig {
     rpc:         TransactionGenerator.Rpc,
     generator:   TransactionGenerator.Generator,
     broadcaster: TransactionGenerator.Broadcaster,
-    mempool:     TransactionGenerator.Mempool,
-    parallelism: TransactionGenerator.Parallelism
+    mempool:     TransactionGenerator.Mempool
   )
 
   object TransactionGenerator {
@@ -30,16 +29,13 @@ object ApplicationConfig {
     case class Rpc(client: String)
 
     @Lenses
-    case class Generator(dataLength: Int, maxWalletSize: Int)
+    case class Generator(dataLength: Int)
 
     @Lenses
     case class Broadcaster(tps: Double)
 
     @Lenses
     case class Mempool(period: FiniteDuration)
-
-    @Lenses
-    case class Parallelism(generateTx: Int)
   }
 
   def unsafe(config: Config): ApplicationConfig =

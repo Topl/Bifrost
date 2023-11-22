@@ -4,7 +4,7 @@ import cats.data._
 import cats.effect._
 import cats.effect.std.Console
 import cats.implicits._
-import cats.{MonadThrow, Show}
+import cats.MonadThrow
 import co.topl.blockchain._
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.models.box.Value
@@ -156,8 +156,7 @@ object InitNetworkHelpers {
     }).untilDefinedM
   }
 
-  def readProtocolSettings[F[_]: Sync: Console] = {
-    implicit val showRatio: Show[co.topl.models.utility.Ratio] = r => s"${r.numerator}/${r.denominator}"
+  def readProtocolSettings[F[_]: Sync: Console] =
     readYesNo("Do you want to customize the protocol settings?", No.some)(
       ifYes =
         for {
@@ -232,7 +231,6 @@ object InitNetworkHelpers {
         ),
       ifNo = StageResultT.liftF(PublicTestnet.DefaultUpdateProposal.pure[F])
     )
-  }
 
   def saveGenesisBlock[F[_]: Async: Console](dir: Path)(block: FullBlock): StageResultT[F, Unit] =
     StageResultT

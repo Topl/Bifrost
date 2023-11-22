@@ -51,12 +51,7 @@ object TransactionGeneratorApp
       _              <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
       costCalculator <- TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig()).pure[F]
       transactionStream <- Fs2TransactionGenerator
-        .make[F](
-          wallet,
-          appConfig.transactionGenerator.parallelism.generateTx,
-          appConfig.transactionGenerator.generator.maxWalletSize,
-          costCalculator
-        )
+        .make[F](wallet, costCalculator)
         .flatMap(_.generateTransactions)
       _ <- NodeGrpc.Client
         .make[F](clientAddress._1, clientAddress._2, clientAddress._3)

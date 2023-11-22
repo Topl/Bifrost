@@ -239,8 +239,6 @@ object Orchestrator
       transactionStream <- Fs2TransactionGenerator
         .make[F](
           wallet,
-          Runtime.getRuntime.availableProcessors(),
-          20,
           TransactionCostCalculatorInterpreter.make(TransactionCostConfig())
         )
         .flatMap(_.generateTransactions)

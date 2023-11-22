@@ -3,7 +3,6 @@ package co.topl.transactiongenerator.interpreters
 import cats.{Applicative, Monad}
 import cats.data.OptionT
 import cats.effect._
-import cats.effect.std.Queue
 import cats.implicits._
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Event
@@ -34,8 +33,6 @@ object Fs2TransactionGenerator {
    */
   def make[F[_]: Async](
     wallet:         Wallet,
-    parallelism:    Int,
-    maxWalletSize:  Int,
     costCalculator: TransactionCostCalculator[F]
   ): F[TransactionGenerator[F, Stream[F, *]]] =
     Sync[F].delay(
@@ -44,32 +41,7 @@ object Fs2TransactionGenerator {
         implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F]("TransactionGenerator")
 
         def generateTransactions: F[Stream[F, IoTransaction]] =
-          Queue
-            // Create a queue of wallets to process.  The queue is "recursive" in that processing a wallet
-            // will subsequently enqueue at least one new wallet after processing.
-            .unbounded[F, Option[Wallet]]
-            .flatTap(_.offer(wallet.some))
-            .map(queue =>
-              Stream
-                .fromQueueNoneTerminated(queue)
-                .parEvalMapUnordered(parallelism)(nextTransactionOf[F](_, costCalculator).value)
-                .evalMap {
-                  case Some((transaction, wallet)) =>
-                    // Now that we've processed the old wallet, determine if the new wallet is big
-                    // enough to split in half.
-                    Sync[F]
-                      .delay(
-                        if (wallet.spendableBoxes.size > maxWalletSize) WalletSplitter.split(wallet, 2)
-                        else Vector(wallet)
-                      )
-                      // Enqueue the updated wallet(s)
-                      .flatTap(_.map(_.some).traverse(queue.offer))
-                      // And return the transaction
-                      .as(transaction.some)
-                  case _ => queue.offer(None).as(none[IoTransaction])
-                }
-                .collect { case Some(tx) => tx }
-            )
+          Stream.unfoldEval(wallet)(nextTransactionOf[F](_, costCalculator).value).pure[F]
       }
     )
 
@@ -131,8 +103,8 @@ object Fs2TransactionGenerator {
     val spendableQuantity = inQuantity
     val outputQuantities =
       if (spendableQuantity <= 0) List.empty[BigInt]
-      else if (spendableQuantity == 1) List(BigInt(1))
-      else if (spendableQuantity == 2) List.fill(2)(BigInt(1))
+      else if (spendableQuantity == BigInt(1)) List(BigInt(1))
+      else if (spendableQuantity == BigInt(2)) List.fill(2)(BigInt(1))
       else {
         val quantityOutput0 = spendableQuantity - Random.nextLong(spendableQuantity.toLong / 2)
         List(quantityOutput0, spendableQuantity - quantityOutput0)
