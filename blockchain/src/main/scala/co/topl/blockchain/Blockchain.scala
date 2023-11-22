@@ -39,6 +39,7 @@ import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
+import co.topl.networking.fsnetwork.P2PShowInstances._
 
 import scala.jdk.CollectionConverters._
 
