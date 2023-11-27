@@ -61,6 +61,8 @@ class NodeAppTest extends CatsEffectSuite {
          |    public-port: 9150
          |  rpc:
          |    bind-port: 9151
+         |  rpc-admin:
+         |    bind-port: 9154
          |  big-bang:
          |    type: public
          |    genesis-id: ${genesisBlockId.show}
@@ -81,6 +83,8 @@ class NodeAppTest extends CatsEffectSuite {
          |    known-peers: 127.0.0.2:9150
          |  rpc:
          |    bind-port: 9153
+         |  rpc-admin:
+         |    bind-port: 9155
          |  big-bang:
          |    type: public
          |    genesis-id: ${genesisBlockId.show}
