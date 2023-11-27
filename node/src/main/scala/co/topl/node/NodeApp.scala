@@ -345,11 +345,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.p2p.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
+          appConfig.bifrost.rpcAdmin.bindHost,
+          appConfig.bifrost.rpcAdmin.bindPort,
           protocolConfig,
           genusServices ::: healthServices,
           epochData,
           appConfig.bifrost.p2p.exposeServerPort,
-          appConfig.bifrost.p2p.networkProperties
+          appConfig.bifrost.p2p.networkProperties,
+          metadata
         )
         .parProduct(genusOpt.traverse(Replicator.background[F]).void)
     } yield ()

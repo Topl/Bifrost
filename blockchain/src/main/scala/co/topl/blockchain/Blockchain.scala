@@ -6,7 +6,7 @@ import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import cats.effect.implicits._
 import co.topl.algebras._
-import co.topl.blockchain.algebras.EpochDataAlgebra
+import co.topl.blockchain.algebras.{EpochDataAlgebra, NodeMetadataAlgebra}
 import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -40,7 +40,6 @@ import io.grpc.ServerServiceDefinition
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
 import co.topl.networking.fsnetwork.P2PShowInstances._
-
 import scala.jdk.CollectionConverters._
 
 object Blockchain {
@@ -63,11 +62,14 @@ object Blockchain {
     knownPeers:                List[KnownPeer],
     rpcHost:                   String,
     rpcPort:                   Int,
+    rpcAdminHost:              String,
+    rpcAdminPort:              Int,
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
     _epochData:                EpochDataAlgebra[F],
     exposeServerPort:          Boolean,
-    networkProperties:         NetworkProperties
+    networkProperties:         NetworkProperties,
+    nodeMetadataAlgebra:       NodeMetadataAlgebra[F]
   ): Resource[F, Unit] = new BlockchainImpl[F](
     clock,
     stakerResource,
@@ -83,11 +85,14 @@ object Blockchain {
     knownPeers,
     rpcHost,
     rpcPort,
+    rpcAdminHost,
+    rpcAdminPort,
     nodeProtocolConfiguration,
     additionalGrpcServices,
     _epochData,
     exposeServerPort,
-    networkProperties
+    networkProperties,
+    nodeMetadataAlgebra
   ).resource
 
 }
@@ -107,11 +112,14 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   knownPeers:                List[KnownPeer],
   rpcHost:                   String,
   rpcPort:                   Int,
+  rpcAdminHost:              String,
+  rpcAdminPort:              Int,
   nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
   additionalGrpcServices:    List[ServerServiceDefinition],
   _epochData:                EpochDataAlgebra[F],
   exposeServerPort:          Boolean,
-  networkProperties:         NetworkProperties
+  networkProperties:         NetworkProperties,
+  nodeMetadataAlgebra:       NodeMetadataAlgebra[F]
 ) {
   implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
 
@@ -224,6 +232,18 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       _ <- Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}").toResource
     } yield ()
 
+  def adminRpc(): Resource[F, Unit] =
+    for {
+      _ <- Resource.make(Logger[F].info("Initializing Admin RPC"))(_ => Logger[F].info("Admin RPC Terminated"))
+      rpcAdminInterpreter <- ToplAdminRpcServer.make[F](nodeMetadataAlgebra)
+      adminGrpcServices   <- AdminGrpc.Server.services[F](rpcAdminInterpreter)
+      rpcAdminServer      <- AdminGrpc.Server.serve(rpcAdminHost, rpcAdminPort)(adminGrpcServices) // TODO host and port
+      _ <- Logger[F]
+        .info(s"RPC Admin Server bound at ${rpcAdminServer.getListenSockets.asScala.toList.mkString(",")}")
+        .toResource
+
+    } yield ()
+
   def blockProduction(mempool: MempoolAlgebra[F]): Resource[F, Unit] =
     for {
       _ <- Resource.make(Logger[F].info("Initializing local blocks (potential no-op)"))(_ =>
@@ -300,7 +320,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         adoptedBlockTxRebroadcaster(transactionsTopic),
         p2p(mempool, transactionsTopic),
         rpc(mempool),
-        blockProduction(mempool)
+        blockProduction(mempool),
+        adminRpc()
       ).parTupled
       _ <- Resource.never[F, Unit]
     } yield ()

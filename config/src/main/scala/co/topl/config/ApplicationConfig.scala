@@ -26,6 +26,7 @@ object ApplicationConfig {
     staking:   Bifrost.Staking,
     p2p:       Bifrost.P2P,
     rpc:       Bifrost.RPC,
+    rpcAdmin:  Bifrost.RPC,
     mempool:   Bifrost.Mempool,
     bigBang:   Bifrost.BigBang,
     protocols: Map[Slot, Bifrost.Protocol],
