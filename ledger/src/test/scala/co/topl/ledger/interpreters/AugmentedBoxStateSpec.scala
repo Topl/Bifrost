@@ -36,7 +36,7 @@ class AugmentedBoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
         for {
           parentChildTree <- ParentChildTree.FromRef.make[IO, BlockId]
-          boxState <- BoxState.make[IO](
+          (boxState, _) <- BoxState.make[IO](
             blockId0.pure[IO],
             Map(
               blockId1 ->

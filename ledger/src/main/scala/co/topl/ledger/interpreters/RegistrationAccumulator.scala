@@ -29,7 +29,7 @@ object RegistrationAccumulator {
     parentChildTree:     ParentChildTree[F, BlockId],
     currentEventChanged: BlockId => F[Unit],
     initialState:        F[State[F]]
-  ): Resource[F, RegistrationAccumulatorAlgebra[F]] =
+  ): Resource[F, (RegistrationAccumulatorAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
       eventSourcedState <- EventSourcedState.OfTree
         .make[F, State[F], BlockId](
@@ -41,11 +41,12 @@ object RegistrationAccumulator {
           currentEventChanged
         )
         .toResource
-    } yield new RegistrationAccumulatorAlgebra[F] {
+      interpreter = new RegistrationAccumulatorAlgebra[F] {
 
-      def contains(blockId: BlockId)(address: StakingAddress): F[Boolean] =
-        eventSourcedState.useStateAt(blockId)(_.contains(address))
-    }
+        def contains(blockId: BlockId)(address: StakingAddress): F[Boolean] =
+          eventSourcedState.useStateAt(blockId)(_.contains(address))
+      }
+    } yield (interpreter, eventSourcedState)
 
   /**
    * Apply the given block to the state.

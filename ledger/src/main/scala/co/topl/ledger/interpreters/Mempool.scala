@@ -28,7 +28,7 @@ object Mempool {
     clock:                  ClockAlgebra[F],
     onExpiration:           TransactionId => F[Unit],
     defaultExpirationLimit: Long
-  ): Resource[F, MempoolAlgebra[F]] =
+  ): Resource[F, (MempoolAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
       graphState <- Ref.of(MempoolGraph(Map.empty, Map.empty, Map.empty)).toResource
       expirationsState <- Resource.make(Ref.of(Map.empty[TransactionId, Fiber[F, Throwable, Unit]]))(
@@ -83,22 +83,23 @@ object Mempool {
           currentEventChanged
         )
         .toResource
-    } yield new MempoolAlgebra[F] {
+      interpreter = new MempoolAlgebra[F] {
 
-      def read(blockId: BlockId): F[MempoolGraph] =
-        eventSourcedState
-          .useStateAt(blockId)(_.get)
+        def read(blockId: BlockId): F[MempoolGraph] =
+          eventSourcedState
+            .useStateAt(blockId)(_.get)
 
-      def add(transactionId: TransactionId): F[Unit] =
-        fetchTransaction(transactionId).flatMap(addWithExpiration)
+        def add(transactionId: TransactionId): F[Unit] =
+          fetchTransaction(transactionId).flatMap(addWithExpiration)
 
-      def remove(transactionId: TransactionId): F[Unit] =
-        fetchTransaction(transactionId).flatMap(removeWithExpiration)
+        def remove(transactionId: TransactionId): F[Unit] =
+          fetchTransaction(transactionId).flatMap(removeWithExpiration)
 
-      def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =
-        eventSourcedState
-          .useStateAt(blockId)(_.get)
-          .map(_.transactions.contains(transactionId))
-    }
+        def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =
+          eventSourcedState
+            .useStateAt(blockId)(_.get)
+            .map(_.transactions.contains(transactionId))
+      }
+    } yield (interpreter, eventSourcedState)
 
 }
