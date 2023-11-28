@@ -203,7 +203,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           chainSelectionAlgebra,
           currentEventIdGetterSetters.canonicalHead.set
         )
-      mempool <- Mempool.make[F](
+      (mempool, mempoolState) <- Mempool.make[F](
         currentEventIdGetterSetters.mempool.get(),
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise,
@@ -266,17 +266,36 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               dataStores.headers.getOrRaise
             )
           )
+      (boxState, boxStateState) <- BoxState
+        .make(
+          currentEventIdGetterSetters.boxState.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.boxState.set,
+          dataStores.spendableBoxIds.pure[F]
+        )
+        .toResource
+      (registrationAccumulator, registrationAccumulatorState) <- RegistrationAccumulator
+        .make[F](
+          currentEventIdGetterSetters.registrationAccumulator.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.registrationAccumulator.set,
+          dataStores.registrationAccumulator.pure[F]
+        )
       validators <- Validators.make[F](
         cryptoResources,
         dataStores,
         bigBangBlockId,
         eligibilityCache,
-        currentEventIdGetterSetters,
-        blockIdTree,
         etaCalculation,
         consensusValidationState,
         leaderElectionThreshold,
-        clock
+        clock,
+        boxState,
+        registrationAccumulator
       )
       genusOpt <- OptionT
         .whenF(appConfig.genus.enable)(
@@ -328,6 +347,16 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       epochData <- EpochDataInterpreter
         .make[F](Sync[F].defer(localChain.head).map(_.slotId.blockId), epochDataEventSourcedState)
 
+      eventSourcedStates = EventSourcedStates[F](
+        epochDataEventSourcedState,
+        blockHeightTree,
+        consensusDataState,
+        epochBoundariesState,
+        boxStateState,
+        mempoolState,
+        registrationAccumulatorState
+      )
+
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -337,7 +366,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           localChain,
           chainSelectionAlgebra,
           blockIdTree,
-          blockHeightTree,
+          eventSourcedStates,
           validators,
           mempool,
           cryptoResources.ed25519VRF,
