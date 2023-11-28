@@ -77,7 +77,7 @@ trait P2PShowInstances {
     s" PerformanceReputationIdealValue: ${config.performanceReputationIdealValue};" ++
     s" PerformanceReputationMaxDelay: ${config.performanceReputationMaxDelay} ms;" ++
     s" RemotePeerNoveltyInSlots: ${config.remotePeerNoveltyInSlots};" ++
-    s" WarmHostsUpdateInterval: ${config.warmHostsUpdateInterval.toMillis} ms;" ++
+    s" WarmHostsUpdateInterval: ${config.peersUpdateInterval.toMillis} ms;" ++
     s" AggressiveP2PRequestInterval: ${config.aggressiveP2PRequestInterval.toMillis} ms;"
 
   implicit def showPeer[F[_]]: Show[Peer[F]] = { peer: Peer[F] =>

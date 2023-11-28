@@ -704,7 +704,7 @@ class PeersManagerTest
             preTimestamp <- System.currentTimeMillis().pure[F]
             endState     <- actor.send(PeersManager.Message.MoveToCold(NonEmptyChain(hostId)))
             _ = assert(endState.peersHandler(hostId).state == PeerState.Cold)
-            _ = assert(endState.peersHandler(hostId).closedTimestamps.size == 2)
+            _ = assert(endState.peersHandler(hostId).closedTimestamps.size == 5)
             timestamp = endState.peersHandler(hostId).closedTimestamps.last
             _ = assert(timestamp >= preTimestamp)
             _ = assert(timestamp <= System.currentTimeMillis())
@@ -3902,7 +3902,7 @@ class PeersManagerTest
     }
   }
 
-  test("Cold peers shall be cleared") {
+  test("Cold peers and close timestamps shall be cleared") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
@@ -4001,6 +4001,7 @@ class PeersManagerTest
         defaultP2PConfig.networkProperties.copy(
           maximumEligibleColdConnections = 2,
           minimumEligibleColdConnections = 1,
+          closeTimeoutWindowInMs = 20000,
           closeTimeoutFirstDelayInMs = 1000000
         )
 
@@ -4028,12 +4029,94 @@ class PeersManagerTest
         )
         .use { actor =>
           for {
-            newState <- actor.send(PeersManager.Message.UpdateWarmHosts)
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
             _ = assert(newState.peersHandler.getColdPeers.size == 4) // 1 saved + non eligible 3 cold peers
             _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler(host2Id).closedTimestamps.isEmpty)
             _ = assert(newState.peersHandler.getColdPeers.contains(host1Id))
+            _ = assert(newState.peersHandler(host1Id).closedTimestamps.isEmpty)
             _ = assert(newState.peersHandler.getColdPeers.contains(host5Id))
+            _ = assert(newState.peersHandler(host5Id).closedTimestamps.size == 1)
             _ = assert(newState.peersHandler.getColdPeers.contains(host6Id))
+            _ = assert(newState.peersHandler(host6Id).closedTimestamps.size == 1)
+          } yield ()
+        }
+    }
+  }
+
+  test("Updated remote node id shall be processed") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
+      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
+      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
+        mock[BlockHeaderToBodyValidationAlgebra[F]]
+      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
+      val mempool = mock[MempoolAlgebra[F]]
+
+      val host1IdOld = arbitraryHost.arbitrary.first
+      val host1IdNew = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val host1Peer = Peer(
+        PeerState.Warm,
+        None,
+        host1,
+        None,
+        Seq.empty,
+        remoteNetworkLevel = true,
+        0,
+        0.0,
+        0
+      )
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        host1IdOld -> host1Peer,
+        host2Id -> Peer(
+          PeerState.Cold,
+          None,
+          host2,
+          2.some,
+          Seq(0),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        )
+      )
+
+      PeersManager
+        .makeActor(
+          thisHostId,
+          networkAlgebra,
+          localChain,
+          slotDataStore,
+          transactionStore,
+          blockIdTree,
+          blockHeights,
+          mempool,
+          headerToBodyValidation,
+          defaultTransactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          defaultP2PConfig,
+          defaultHotPeerUpdater,
+          defaultPeersSaver,
+          defaultColdToWarmSelector,
+          defaultWarmToHotSelector,
+          initialPeersMap,
+          defaultCache()
+        )
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1IdOld, host1IdNew))
+            _ = assert(newState.peersHandler.peers.size == 2)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(!newState.peersHandler.peers.contains(host1IdOld))
+            _ = assert(newState.peersHandler.peers(host1IdNew) == host1Peer)
           } yield ()
         }
     }

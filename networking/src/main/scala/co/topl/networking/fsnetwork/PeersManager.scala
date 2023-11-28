@@ -192,7 +192,7 @@ object PeersManager {
     /**
      * Update warm hosts list
      */
-    case object UpdateWarmHosts extends Message
+    case object UpdatePeersTick extends Message
 
     /**
      * Add remote peer server
@@ -267,7 +267,7 @@ object PeersManager {
         case (state, newPeer: OpenedPeerConnection[F] @unchecked) => openedPeerConnection(thisActor, state, newPeer)
         case (state, AddKnownNeighbors(source, peers))            => addKnownNeighbors(state, source, peers)
         case (state, AddKnownPeers(peers))                        => addKnownPeers(state, peers)
-        case (state, UpdateWarmHosts)                             => updateWarmHosts(state)
+        case (state, UpdatePeersTick)                             => updatePeersTick(state)
         case (state, AggressiveP2PUpdate)                         => aggressiveP2PUpdate(thisActor, state)
         case (state, UpdatedReputationTick)                       => repUpdate(thisActor, state)
       }
@@ -785,10 +785,11 @@ object PeersManager {
       newState            <- state.copy(peersHandler = newPeers).pure[F]
     } yield (newState, newState)
 
-  private def updateWarmHosts[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+  private def updatePeersTick[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     for {
-      _        <- requestNeighboursFromHotPeers(state)
-      newState <- clearColdPeers(state).pure[F]
+      _                         <- requestNeighboursFromHotPeers(state)
+      stateWithUpdatedColdPeers <- clearColdPeers(state).pure[F]
+      newState                  <- clearCloseTimestamps(stateWithUpdatedColdPeers).pure[F]
     } yield (newState, newState)
 
   private def requestNeighboursFromHotPeers[F[_]: Async: Logger](state: State[F]): F[Unit] = {
@@ -822,6 +823,9 @@ object PeersManager {
       state
     }
   }
+
+  private def clearCloseTimestamps[F[_]](state: State[F]): State[F] =
+    state.copy(peersHandler = state.peersHandler.copyWithClearedTimestamps)
 
   private def aggressiveP2PUpdate[F[_]: Async: Logger](
     thisActor: PeersManagerActor[F],
