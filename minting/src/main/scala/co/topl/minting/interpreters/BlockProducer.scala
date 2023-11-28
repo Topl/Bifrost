@@ -96,23 +96,32 @@ object BlockProducer {
      */
     private def makeChild(parentSlotData: SlotData): F[FullBlock] =
       Async[F].onCancel(
-        (Logger[F].info(
-          show"Starting block attempt on" +
-          show" parentId=${parentSlotData.slotId.blockId}" +
-          show" parentSlot=${parentSlotData.slotId.slot}" +
-          show" parentHeight=${parentSlotData.height}"
-        ) >>
-        (clock.globalSlot, lastUsedSlotRef.get.map(_ + 1)).mapN(_.max(_)) >>= attemptUntilCertified(parentSlotData))
-          .handleErrorWith(e =>
-            Logger[F].error(e)(
-              show"Block production failed.  Retrying in 1 second." +
-              show" parentId=${parentSlotData.slotId.blockId}" +
-              show" parentSlot=${parentSlotData.slotId.slot}" +
-              show" parentHeight=${parentSlotData.height}"
-            ) >> Async[F].delayBy(makeChild(parentSlotData), 1.seconds)
-          ),
+        makeChildImpl(parentSlotData),
         Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
       )
+
+    private def makeChildImpl(parentSlotData: SlotData): F[FullBlock] =
+      (
+        for {
+          _ <- Logger[F].info(
+            show"Starting block attempt on" +
+            show" parentId=${parentSlotData.slotId.blockId}" +
+            show" parentSlot=${parentSlotData.slotId.slot}" +
+            show" parentHeight=${parentSlotData.height}"
+          )
+          globalSlot   <- clock.globalSlot
+          lastUsedSlot <- lastUsedSlotRef.get
+          child        <- attemptUntilCertified(parentSlotData)(globalSlot.max(lastUsedSlot + 1))
+        } yield child
+      )
+        .handleErrorWith(e =>
+          Logger[F].error(e)(
+            show"Block production failed.  Retrying in 1 second." +
+            show" parentId=${parentSlotData.slotId.blockId}" +
+            show" parentSlot=${parentSlotData.slotId.slot}" +
+            show" parentHeight=${parentSlotData.height}"
+          ) >> Async[F].delayBy(makeChildImpl(parentSlotData), 1.seconds)
+        )
 
     /**
      * Attempts to produce a new block.  If the staker is eligible but no operational key is available, the attempt

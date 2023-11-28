@@ -1,6 +1,5 @@
 package co.topl.catsutils
 
-import cats.data.EitherT
 import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.{Deferred, Ref, Resource}
