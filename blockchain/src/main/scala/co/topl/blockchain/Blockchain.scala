@@ -123,6 +123,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
     ) >>
     Stream
       .force(localChain.adoptions)
+      .dropOldest(10)
       .evalMap(id => dataStores.bodies.getOrRaise(id))
       .flatMap(b => Stream.iterable(b.transactionIds))
       .through(transactionsTopic.publish)
@@ -137,8 +138,12 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
    * we eagerly evaluate each state based on the canonical head.
    */
   private def eventSourcedStateUpdater =
+    Resource.make(Logger[F].info("Initializing Event-Sourced-State Updater"))(_ =>
+      Logger[F].info("Event-Sourced-State Updater")
+    ) >>
     Stream
       .force(localChain.adoptions)
+      .dropOldest(1)
       .evalTap(id =>
         eventSourcedStates.epochData.stateAt(id).void &>
         eventSourcedStates.blockHeights.stateAt(id).void &>
@@ -194,7 +199,13 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         )
         .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
       p2pBlockAdoptionsTopic <- Resource.make(Topic[F, BlockId])(_.close.void)
-      _ <- Stream.force(localChain.adoptions).through(p2pBlockAdoptionsTopic.publish).compile.drain.background
+      _ <- Stream
+        .force(localChain.adoptions)
+        .dropOldest(1)
+        .through(p2pBlockAdoptionsTopic.publish)
+        .compile
+        .drain
+        .background
       _ <- Logger[F].info(s"Exposing server port is ${if (exposeServerPort) "enabled" else "disabled"}").toResource
       peerServerF = BlockchainPeerServer.make(
         dataStores.slotData.get,
