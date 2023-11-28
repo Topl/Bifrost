@@ -86,7 +86,7 @@ class RegistrationAccumulatorSpec extends CatsEffectSuite with ScalaCheckEffectS
         _               <- parentChildTree.associate(blockId0, genesisBlockId).toResource
         _               <- parentChildTree.associate(blockId1, blockId0).toResource
         _               <- parentChildTree.associate(blockId2, blockId1).toResource
-        underTest <- RegistrationAccumulator.make[IO](
+        (underTest, _) <- RegistrationAccumulator.make[IO](
           genesisBlockId.pure[IO],
           Map(
             blockId0 -> BlockBody(List(tx0.id)).pure[IO],

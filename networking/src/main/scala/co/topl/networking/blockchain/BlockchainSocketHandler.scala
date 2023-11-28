@@ -13,6 +13,7 @@ import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import fs2._
 import org.typelevel.log4cats.Logger
+import co.topl.networking.fsnetwork.P2PShowInstances._
 
 object BlockchainSocketHandler {
 

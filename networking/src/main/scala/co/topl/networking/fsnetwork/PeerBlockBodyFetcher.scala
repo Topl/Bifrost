@@ -89,11 +89,12 @@ object PeerBlockBodyFetcher {
 
     val body: F[UnverifiedBlockBody] =
       for {
-        _                    <- Logger[F].info(show"Fetching remote body id=$blockId from peer ${state.hostId}")
+        _                    <- Logger[F].debug(show"Fetching remote body id=$blockId from peer ${state.hostId}")
         (downloadTime, body) <- Async[F].timed(downloadBlockBody(state, blockId))
-        _                    <- Logger[F].info(show"Fetched remote body id=$blockId from peer ${state.hostId}")
-        _                    <- checkBody(state, Block(blockHeader, body))
-        txAndDownloadTime    <- downloadingMissingTransactions(state, body)
+        _ <- Logger[F].info(show"Fetched body id=$blockId from ${state.hostId} for ${downloadTime.toMillis} ms")
+        _ <- checkBody(state, Block(blockHeader, body))
+        txAndDownloadTime <- downloadingMissingTransactions(state, body)
+        _ <- Logger[F].info(show"Download ${txAndDownloadTime.size} txs from ${state.hostId} for block $blockId")
         allTxDownloadTime = txAndDownloadTime.collect { case (_, Some(time)) => time }
       } yield UnverifiedBlockBody(state.hostId, body, downloadTime.toMillis, allTxDownloadTime)
 
