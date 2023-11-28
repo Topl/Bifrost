@@ -114,7 +114,7 @@ object BlockProducer {
         parentEpoch <- clock.epochOf(parentSlotData.slotId.slot)
         maxSlot     <- clock.epochRange(parentEpoch + 1).map(_.last)
         nextHit     <- nextEligibility(parentSlotData.slotId)(fromSlot, maxSlot)
-        _ <- Logger[F].debug(
+        _ <- Logger[F].info(
           show"Packing block for" +
           show" parentId=${parentSlotData.slotId.blockId}" +
           show" parentSlot=${parentSlotData.slotId.slot}" +
@@ -181,7 +181,15 @@ object BlockProducer {
     private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
       blockPacker
         .improvePackedBlock(parentId, height, untilSlot)
-        .flatMap(Iterative.run(FullBlockBody().pure[F])(_).use(resF => clock.delayedUntilSlot(untilSlot) >> resF))
+        .flatMap(
+          Iterative
+            .run(FullBlockBody().pure[F])(_)
+            .use(resF =>
+              clock.delayedUntilSlot(untilSlot) >>
+              Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
+              resF
+            )
+        )
         .flatMap(insertReward(parentId, untilSlot, _))
 
     /**
