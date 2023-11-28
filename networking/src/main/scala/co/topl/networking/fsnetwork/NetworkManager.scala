@@ -23,6 +23,8 @@ import com.google.protobuf.ByteString
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 
+import scala.util.Random
+
 object NetworkManager {
 
   def startNetwork[F[_]: Async: Logger](
@@ -153,7 +155,7 @@ object NetworkManager {
   ): Seq[KnownRemotePeer] = {
     val remoteAddressMap = remoteAddress.map { ra =>
       val id =
-        ra.p2pVK.map(HostId).getOrElse(HostId(ByteString.copyFrom(ra.remoteAddress.host.getBytes.take(hostIdBytesLen))))
+        ra.p2pVK.map(HostId).getOrElse(HostId(ByteString.copyFrom(Random.nextBytes(hostIdBytesLen))))
       ra.remoteAddress -> KnownRemotePeer(id, ra.remoteAddress, 0, 0)
     }.toMap
     val remotePeersMap = remotePeers.map(p => p.address -> p).toMap
