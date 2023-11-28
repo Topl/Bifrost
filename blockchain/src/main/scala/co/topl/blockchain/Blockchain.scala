@@ -18,7 +18,6 @@ import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
 import co.topl.grpc._
 import co.topl.ledger.algebras._
@@ -55,7 +54,7 @@ object Blockchain {
     localChain:                LocalChainAlgebra[F],
     chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
     blockIdTree:               ParentChildTree[F, BlockId],
-    blockHeights:              EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    eventSourcedStates:        EventSourcedStates[F],
     validators:                Validators[F],
     _mempool:                  MempoolAlgebra[F],
     ed25519VrfResource:        Resource[F, Ed25519VRF],
@@ -75,7 +74,7 @@ object Blockchain {
     localChain,
     chainSelectionAlgebra,
     blockIdTree,
-    blockHeights,
+    eventSourcedStates,
     validators,
     _mempool,
     ed25519VrfResource,
@@ -99,7 +98,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   localChain:                LocalChainAlgebra[F],
   chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
   blockIdTree:               ParentChildTree[F, BlockId],
-  blockHeights:              EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+  eventSourcedStates:        EventSourcedStates[F],
   validators:                Validators[F],
   _mempool:                  MempoolAlgebra[F],
   ed25519VrfResource:        Resource[F, Ed25519VRF],
@@ -131,6 +130,30 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       .drain
       .background
 
+  /**
+   * For each adopted block, trigger all internal event-sourced states to update.  Generally, EventSourcedStates are
+   * lazily evaluated.  In some cases, they may not be evaluated for days at a time depending on user-behavior.  Once
+   * finally triggered, this causes a major CPU burden for a period of time while the state updates.  To avoid this,
+   * we eagerly evaluate each state based on the canonical head.
+   */
+  private def eventSourcedStateUpdater =
+    Stream
+      .force(localChain.adoptions)
+      .evalTap(id =>
+        eventSourcedStates.epochData.stateAt(id).void &>
+        eventSourcedStates.blockHeights.stateAt(id).void &>
+        // This line is included but intentionally commented out due to the N-2 epoch nature of consensus data
+        // eventSourcedStates.consensusData.stateAt(id).void &>
+        eventSourcedStates.epochBoundaries.stateAt(id).void &>
+        eventSourcedStates.boxState.stateAt(id).void &>
+        eventSourcedStates.mempool.stateAt(id).void &>
+        eventSourcedStates.registrations.stateAt(id).void
+      )
+      .compile
+      .drain
+      .background
+      .void
+
   private def p2p(mempool: MempoolAlgebra[F], transactionsTopic: Topic[F, TransactionId]) =
     for {
       _           <- Resource.make(Logger[F].info("Initializing P2P"))(_ => Logger[F].info("P2P Terminated"))
@@ -160,7 +183,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           dataStores.transactions,
           dataStores.knownHosts,
           blockIdTree,
-          blockHeights,
+          eventSourcedStates.blockHeights,
           mempool,
           networkProperties,
           clock,
@@ -178,7 +201,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         dataStores.headers.get,
         dataStores.bodies.get,
         dataStores.transactions.get,
-        blockHeights,
+        eventSourcedStates.blockHeights,
         if (exposeServerPort) () => Option(localPeer.localAddress.port) else () => None,
         () => currentPeers.get,
         localChain,
@@ -210,7 +233,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           mempool,
           validators.transactionSyntax,
           localChain,
-          blockHeights,
+          eventSourcedStates.blockHeights,
           blockIdTree,
           Stream.force(localChain.adoptions).dropOldest(10),
           nodeProtocolConfiguration,
@@ -300,7 +323,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         adoptedBlockTxRebroadcaster(transactionsTopic),
         p2p(mempool, transactionsTopic),
         rpc(mempool),
-        blockProduction(mempool)
+        blockProduction(mempool),
+        eventSourcedStateUpdater
       ).parTupled
       _ <- Resource.never[F, Unit]
     } yield ()

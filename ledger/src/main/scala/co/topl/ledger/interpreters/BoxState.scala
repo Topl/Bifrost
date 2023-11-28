@@ -35,7 +35,7 @@ object BoxState {
     parentChildTree:     ParentChildTree[F, BlockId],
     currentEventChanged: BlockId => F[Unit],
     initialState:        F[State[F]]
-  ): F[BoxStateAlgebra[F]] =
+  ): F[(BoxStateAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
       eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], BlockId](
         initialState,
@@ -45,13 +45,14 @@ object BoxState {
         parentChildTree,
         currentEventChanged
       )
-    } yield new BoxStateAlgebra[F] {
+      interpreter = new BoxStateAlgebra[F] {
 
-      def boxExistsAt(blockId: BlockId)(boxId: TransactionOutputAddress): F[Boolean] =
-        eventSourcedState
-          .useStateAt(blockId)(_.get(boxId.id))
-          .map(_.exists(_.contains(boxId.index.toShort)))
-    }
+        def boxExistsAt(blockId: BlockId)(boxId: TransactionOutputAddress): F[Boolean] =
+          eventSourcedState
+            .useStateAt(blockId)(_.get(boxId.id))
+            .map(_.exists(_.contains(boxId.index.toShort)))
+      }
+    } yield (interpreter, eventSourcedState)
 
   /**
    * Apply the given block to the state.
