@@ -25,6 +25,7 @@ import fs2._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import quivr.models.SmallData
+import scala.concurrent.duration._
 
 object BlockProducer {
 
@@ -95,13 +96,21 @@ object BlockProducer {
      */
     private def makeChild(parentSlotData: SlotData): F[FullBlock] =
       Async[F].onCancel(
-        Logger[F].info(
+        (Logger[F].info(
           show"Starting block attempt on" +
           show" parentId=${parentSlotData.slotId.blockId}" +
           show" parentSlot=${parentSlotData.slotId.slot}" +
           show" parentHeight=${parentSlotData.height}"
         ) >>
-        (clock.globalSlot, lastUsedSlotRef.get.map(_ + 1)).mapN(_.max(_)) >>= attemptUntilCertified(parentSlotData),
+        (clock.globalSlot, lastUsedSlotRef.get.map(_ + 1)).mapN(_.max(_)) >>= attemptUntilCertified(parentSlotData))
+          .handleErrorWith(e =>
+            Logger[F].error(e)(
+              show"Block production failed.  Retrying in 1 second." +
+              show" parentId=${parentSlotData.slotId.blockId}" +
+              show" parentSlot=${parentSlotData.slotId.slot}" +
+              show" parentHeight=${parentSlotData.height}"
+            ) >> Async[F].delayBy(makeChild(parentSlotData), 1.seconds)
+          ),
         Async[F].defer(Logger[F].info(show"Abandoned block attempt on parentId=${parentSlotData.slotId.blockId}"))
       )
 
