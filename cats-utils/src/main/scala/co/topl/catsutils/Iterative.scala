@@ -1,9 +1,11 @@
 package co.topl.catsutils
 
+import cats.data.EitherT
 import cats.effect.implicits._
 import cats.effect.kernel.Async
 import cats.effect.{Deferred, Ref, Resource}
 import cats.implicits._
+import org.typelevel.log4cats.Logger
 
 /**
  * Represents the notion of an "iterative" process, or a process which can be continually invoked to improve upon a
@@ -26,23 +28,24 @@ object Iterative {
    * Continually invoke the given iterative on a "current state" until a signal is received to halt.  Upon receiving
    * the signal, the current best item is captured, the iterative process is cancelled, and the best item returned.
    */
-  def run[F[_]: Async, E](init: F[E])(iterative: Iterative[F, E]): Resource[F, F[E]] =
+  def run[F[_]: Async: Logger, E](init: F[E])(iterative: Iterative[F, E]): Resource[F, F[E]] =
     for {
       initialValue <- init.toResource
       // A Deferred which accepts a single signal from the outside indicating that the Iterative process should stop
       stopDeferred <- Deferred[F, Either[Throwable, Unit]].toResource
       // A ref which stores the current best result
-      result <- Ref.of(initialValue).toResource
+      result: Ref[F, E] <- Ref.of(initialValue).toResource
       _ <- fs2.Stream
         .repeatEval(
           result.get
-            .flatMap(
+            .flatTap(
               iterative
                 .improve(_)
                 .flatTap(result.set)
+                .race(stopDeferred.get)
+                .guarantee(Async[F].cede)
+                .onError { case e => Logger[F].error(e)("Iterative process failed") }
             )
-            .race(stopDeferred.get)
-            .guarantee(Async[F].cede)
         )
         .interruptWhen(stopDeferred)
         .compile
