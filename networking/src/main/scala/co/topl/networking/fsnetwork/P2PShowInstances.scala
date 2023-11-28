@@ -11,8 +11,13 @@ import co.topl.networking.fsnetwork.NetworkQualityError._
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 
 trait P2PShowInstances {
+
+  implicit val showHostId: Show[HostId] = id => show"${ByteString.copyFrom(id.id.toByteArray.take(8))}..."
+
+  implicit val showRemotePeer: Show[RemotePeer] = rp => show"RemotePeer(id=${rp.peerId} address=${rp.address})"
 
   implicit val showTransactionSyntaxError: Show[TransactionSyntaxError] =
     Show.fromToString
@@ -69,24 +74,24 @@ trait P2PShowInstances {
     s" BlockNoveltyInitialValue: ${config.blockNoveltyInitialValue};" ++
     s" BlockNoveltyReputationStep: ${config.blockNoveltyReputationStep};" ++
     s" BlockNoveltyDecoy: ${config.blockNoveltyDecoy};" ++
-    s" PerformanceReputationIdealValue: ${config.performanceReputationIdealValue}" ++
-    s" PerformanceReputationMaxDelay: ${config.performanceReputationMaxDelay} ms" ++
-    s" RemotePeerNoveltyInSlots: ${config.remotePeerNoveltyInSlots}" ++
-    s" WarmHostsUpdateInterval: ${config.warmHostsUpdateInterval.toMillis} ms" ++
-    s" AggressiveP2PRequestInterval: ${config.aggressiveP2PRequestInterval.toMillis} ms"
+    s" PerformanceReputationIdealValue: ${config.performanceReputationIdealValue};" ++
+    s" PerformanceReputationMaxDelay: ${config.performanceReputationMaxDelay} ms;" ++
+    s" RemotePeerNoveltyInSlots: ${config.remotePeerNoveltyInSlots};" ++
+    s" WarmHostsUpdateInterval: ${config.warmHostsUpdateInterval.toMillis} ms;" ++
+    s" AggressiveP2PRequestInterval: ${config.aggressiveP2PRequestInterval.toMillis} ms;"
 
   implicit def showPeer[F[_]]: Show[Peer[F]] = { peer: Peer[F] =>
     "<<< Peer" +
-    s" ${peer.ip}:[${peer.remoteServerPort.map(_.toString).getOrElse("")}];" +
+    s" ${peer.address}:[${peer.remoteServerPort.map(_.toString).getOrElse("")}];" +
     s" State is ${peer.state.toString};" +
     s" Actor is ${if (peer.actorOpt.isDefined) "present" else "absent"};" +
     s" Remote peer is ${if (peer.remoteNetworkLevel) "active" else "no active"};" +
     f" Rep: block=${peer.blockRep}%.2f, perf=${peer.perfRep}%.2f, new=${peer.newRep}, mean=${peer.reputation}%.2f;" +
-    s" With total ${peer.closedTimestamps.size} closes with timestamps ${peer.closedTimestamps}" +
+    s" With total ${peer.closedTimestamps.size} closes with timestamps ${peer.closedTimestamps};" +
     s" >>>"
   }
 
-  implicit val remotePeerShow: Show[RemotePeer] = { remotePeer: RemotePeer =>
+  implicit val remotePeerShow: Show[KnownRemotePeer] = { remotePeer: KnownRemotePeer =>
     s"Remote peer: ${remotePeer.address}"
   }
 

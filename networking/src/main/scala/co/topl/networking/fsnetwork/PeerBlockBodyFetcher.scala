@@ -16,6 +16,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError._
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.{Block, BlockBody}
 import co.topl.typeclasses.implicits._

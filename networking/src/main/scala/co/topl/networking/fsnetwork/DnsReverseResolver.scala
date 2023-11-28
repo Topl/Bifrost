@@ -13,13 +13,13 @@ import scalacache.caffeine.CaffeineCache
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 trait ReverseDnsResolver[F[_]] {
-  def reverseResolving(host: HostId): F[HostId]
+  def reverseResolving(host: String): F[String]
 }
 
 object ReverseDnsResolverInstances {
 
   class NoOpReverseResolver[F[_]: Applicative] extends ReverseDnsResolver[F] {
-    override def reverseResolving(host: HostId): F[HostId] = host.pure[F]
+    override def reverseResolving(address: String): F[String] = address.pure[F]
   }
 
   class DefaultReverseDnsResolver[F[_]: Dns: Sync] extends ReverseDnsResolver[F] {
@@ -33,23 +33,23 @@ object ReverseDnsResolverInstances {
           .build[String, Entry[String]]()
       )
 
-    override def reverseResolving(hostIdAsIp: HostId): F[HostId] =
-      cache.cachingF(hostIdAsIp)(expireAfterWriteDuration.some)(doResolve(hostIdAsIp))
+    override def reverseResolving(ip: String): F[String] =
+      cache.cachingF(ip)(expireAfterWriteDuration.some)(doResolve(ip))
 
-    private def doResolve(hostIdAsIp: HostId): F[HostId] = {
+    private def doResolve(ip: String): F[String] = {
       val resolver: Dns[F] = implicitly[Dns[F]]
       val res =
         for {
-          ip       <- OptionT.fromOption[F](IpAddress.fromString(hostIdAsIp))
+          ip       <- OptionT.fromOption[F](IpAddress.fromString(ip))
           resolved <- OptionT(resolver.reverseOption(ip))
         } yield resolved.normalized.toString
       // if we failed to get hostname then still use ip
-      res.value.map(_.getOrElse(hostIdAsIp))
+      res.value.map(_.getOrElse(ip))
     }
   }
 
-  implicit class ReverseDnsResolverSyntax[F[_]](hostId: HostId)(implicit val resolver: ReverseDnsResolver[F]) {
-    def reverseResolving(): F[HostId] = resolver.reverseResolving(hostId)
+  implicit class ReverseDnsResolverSyntax[F[_]](ip: String)(implicit val resolver: ReverseDnsResolver[F]) {
+    def reverseResolving(): F[String] = resolver.reverseResolving(ip)
   }
 }
 
@@ -65,7 +65,13 @@ object ReverseDnsResolverHTInstances {
       resolver.reverseResolving(resolvedHost.host).map(resolved => resolvedHost.copy(host = resolved))
     }
 
-  implicit def reversePeerToAddResolver[F[_]: Monad: ReverseDnsResolver]: ReverseDnsResolverHT[RemotePeer, F] =
+  implicit def reversePeerToAddResolver[F[_]: Monad: ReverseDnsResolver]: ReverseDnsResolverHT[KnownRemotePeer, F] =
+    (resolvedHost: KnownRemotePeer) => {
+      val resolver = implicitly[ReverseDnsResolverHT[RemoteAddress, F]]
+      resolver.reverseResolving(resolvedHost.address).map(resolved => resolvedHost.copy(address = resolved))
+    }
+
+  implicit def reverseRemotePeerToAddResolver[F[_]: Monad: ReverseDnsResolver]: ReverseDnsResolverHT[RemotePeer, F] =
     (resolvedHost: RemotePeer) => {
       val resolver = implicitly[ReverseDnsResolverHT[RemoteAddress, F]]
       resolver.reverseResolving(resolvedHost.address).map(resolved => resolvedHost.copy(address = resolved))

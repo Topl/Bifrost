@@ -1,9 +1,7 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.implicits._
-import cats.effect.kernel.Concurrent
 import cats.effect.{Async, Resource}
-import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -15,7 +13,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, RemoteAddress}
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange}
 import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -37,7 +35,7 @@ object ActorPeerHandlerBridgeAlgebra {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    remotePeerStore:             Store[F, Unit, Seq[RemotePeer]],
+    remotePeerStore:             Store[F, Unit, Seq[KnownRemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
     blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
@@ -46,7 +44,7 @@ object ActorPeerHandlerBridgeAlgebra {
     remotePeers:                 Seq[DisconnectedPeer],
     peersStatusChangesTopic:     Topic[F, PeerConnectionChange],
     addRemotePeer:               DisconnectedPeer => F[Unit],
-    hotPeersUpdate:              Set[RemoteAddress] => F[Unit]
+    hotPeersUpdate:              Set[RemotePeer] => F[Unit]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName("Bifrost.P2P")
 
@@ -71,7 +69,7 @@ object ActorPeerHandlerBridgeAlgebra {
         blockHeights,
         mempool,
         networkAlgebra,
-        remotePeers.map(_.remoteAddress),
+        remotePeers,
         networkProperties,
         clockAlgebra,
         PeerCreationRequestAlgebra(addRemotePeer),
@@ -79,14 +77,13 @@ object ActorPeerHandlerBridgeAlgebra {
         hotPeersUpdate
       )
 
-    networkManager.map(makeAlgebra(_))
+    networkManager.map(makeAlgebra)
   }
 
-  private def makeAlgebra[F[_]: Concurrent](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
-    (client: BlockchainPeerClient[F]) =>
+  private def makeAlgebra[F[_]](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
+    (client: BlockchainPeerClient[F], peer: ConnectedPeer) =>
       for {
-        hostId <- client.remotePeer.map(_.remoteAddress).toResource
-        _      <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(hostId, client)).toResource
+        _ <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(client, peer)).toResource
       } yield ()
   }
 }

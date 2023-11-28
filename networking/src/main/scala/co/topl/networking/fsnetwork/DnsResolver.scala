@@ -6,12 +6,14 @@ import cats.effect.Sync
 import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import cats.implicits._
+import co.topl.networking.fsnetwork.DnsResolverInstances.DnsResolverSyntax
 import co.topl.networking.p2p.RemoteAddress
+import org.typelevel.log4cats.Logger
 
 import java.time.Duration
 
 trait DnsResolver[F[_]] {
-  def resolving(host: HostId): F[Option[HostId]]
+  def resolving(host: String): F[Option[String]]
 }
 
 object DnsResolverInstances {
@@ -20,20 +22,20 @@ object DnsResolverInstances {
     val dnsCacheSize: Int = 1000
     val expireAfterWriteDuration: Duration = java.time.Duration.ofMinutes(30)
 
-    val cache: Cache[HostId, HostId] =
+    val cache: Cache[String, String] =
       Caffeine.newBuilder
         .maximumSize(dnsCacheSize)
         .expireAfterWrite(expireAfterWriteDuration)
         .build[String, String]()
 
-    override def resolving(host: HostId): F[Option[HostId]] =
+    override def resolving(host: String): F[Option[String]] =
       if (cache.contains(host)) {
         Option(cache.getIfPresent(host)).pure[F]
       } else {
         doResolve(host).flatTap(hostname => hostname.traverse(rh => Sync[F].delay(cache.put(host, rh))))
       }
 
-    private def doResolve(unresolvedHost: HostId): F[Option[HostId]] = {
+    private def doResolve(unresolvedHost: String): F[Option[String]] = {
       val resolver: Dns[F] = implicitly[Dns[F]]
 
       val res =
@@ -45,8 +47,8 @@ object DnsResolverInstances {
     }
   }
 
-  implicit class DnsResolverSyntax[F[_]](hostId: HostId)(implicit val resolver: DnsResolver[F]) {
-    def resolving(): F[Option[HostId]] = resolver.resolving(hostId)
+  implicit class DnsResolverSyntax[F[_]](hostId: String)(implicit val resolver: DnsResolver[F]) {
+    def resolving(): F[Option[String]] = resolver.resolving(hostId)
   }
 }
 
@@ -62,7 +64,17 @@ object DnsResolverHTInstances {
       resolver.resolving(unresolvedHost.host).map(_.map(resolved => unresolvedHost.copy(host = resolved)))
     }
 
-  implicit def peerToAddResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemotePeer, F] =
+  implicit def peerToAddResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[KnownRemotePeer, F] =
+    (unresolvedHost: KnownRemotePeer) => {
+      val resolver = implicitly[DnsResolverHT[RemoteAddress, F]]
+      resolver.resolving(unresolvedHost.address).map(_.map(resolved => unresolvedHost.copy(address = resolved)))
+    }
+
+  implicit def idAndPeerResolver[F[_]: Monad: DnsResolver: Logger]: DnsResolverHT[(HostId, Peer[F]), F] =
+    (idPeer: (HostId, Peer[F])) =>
+      idPeer._2.address.resolving().map(_.map(resolved => idPeer._1 -> idPeer._2.copy(address = resolved)))
+
+  implicit def remotePeerResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemotePeer, F] =
     (unresolvedHost: RemotePeer) => {
       val resolver = implicitly[DnsResolverHT[RemoteAddress, F]]
       resolver.resolving(unresolvedHost.address).map(_.map(resolved => unresolvedHost.copy(address = resolved)))

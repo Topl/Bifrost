@@ -13,8 +13,9 @@ import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
 import co.topl.typeclasses.implicits._
 import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
+import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
-import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange, RemoteAddress}
+import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange}
 import fs2.Stream
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -29,7 +30,7 @@ object BlockchainPeerServer {
     fetchTransaction:        TransactionId => F[Option[IoTransaction]],
     blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     peerServerPort:          () => Option[Int],
-    currentHotPeers:         () => F[Set[RemoteAddress]],
+    currentHotPeers:         () => F[Set[RemotePeer]],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MempoolAlgebra[F],
     newBlockIds:             Topic[F, BlockId],
@@ -99,8 +100,8 @@ object BlockchainPeerServer {
 
           override def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
             for {
-              remotePeersRemoteAddresses <- currentHotPeers().map(_.toSeq.take(req.maxCount))
-              knownHosts = remotePeersRemoteAddresses.map(ra => KnownHost(ra.host, ra.port))
+              remotePeers <- currentHotPeers().map(_.toSeq.take(req.maxCount))
+              knownHosts = remotePeers.map(rp => KnownHost(rp.peerId.id, rp.address.host, rp.address.port))
             } yield Option(CurrentKnownHostsRes(knownHosts, Seq.empty, Seq.empty))
 
           override def getPong(req: PingMessage): F[Option[PongMessage]] =

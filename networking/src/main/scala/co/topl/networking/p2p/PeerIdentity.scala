@@ -14,11 +14,10 @@ object PeerIdentity {
   /**
    * Performs a Peer-ID handshake with the remote peer to determine their "Peer ID", which is just an Ed25519 VK.
    * 1. Exchange VKs
-   * 2. If the remote peer sends a VK that matches our own, raise error
-   * 3. Exchange random 32-byte challenges
-   * 4. Sign the remote peer's challenge
-   * 5. Exchange signatures
-   * 6. Verify remote signature satisfies the locally-generated challenge with the peer's claimed VK
+   * 2. Exchange random 32-byte challenges
+   * 3. Sign the remote peer's challenge
+   * 4. Exchange signatures
+   * 5. Verify remote signature satisfies the locally-generated challenge with the peer's claimed VK
    *
    * @param localPeerSK A secret key which can generate an identity as well as prove ownership of the identity
    * @return A function which uses a Socket to return Either a failure or the remote peer's ID
@@ -41,9 +40,6 @@ object PeerIdentity {
                 .leftWiden[ExtractionException]
                 .map(_.toArray)
               remoteVKBS = ByteString.copyFrom(remoteVK)
-              _ <- EitherT
-                .cond[F](remoteVKBS != localPeerVK, (), ExtractionException.SelfConnection)
-                .leftWiden[ExtractionException]
               localChallenge <- EitherT.liftF(Random[F].nextBytes(32))
               _              <- EitherT.liftF(socket.write(Chunk.array(localChallenge)))
               remoteChallenge <- OptionT(socket.read(32))

@@ -23,12 +23,11 @@ import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebraTest._
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
-import co.topl.networking.fsnetwork.TestHelper.BlockBodyOrTransactionErrorByName
+import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, BlockBodyOrTransactionErrorByName}
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange, RemoteAddress}
 import co.topl.node.models._
 import co.topl.quivr.runtime.DynamicContext
 import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
 import fs2.Stream
 import fs2.concurrent.Topic
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -74,7 +73,7 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   val bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F] = new BodyAuthorizationValidationAlgebra[F] {
 
-    override def validate(context: IoTransaction => DynamicContext[F, HostId, Datum])(
+    override def validate(context: IoTransaction => DynamicContext[F, String, Datum])(
       blockBody: BlockBody
     ): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
       Validated.validNec[BodyAuthorizationError, BlockBody](blockBody).pure[F]
@@ -92,8 +91,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
   def createTransactionStore: F[TestStore[F, TransactionId, IoTransaction]] =
     TestStore.make[F, TransactionId, IoTransaction]
 
-  def createRemotePeerStore: F[TestStore[F, Unit, Seq[RemotePeer]]] =
-    TestStore.make[F, Unit, Seq[RemotePeer]]
+  def createRemotePeerStore: F[TestStore[F, Unit, Seq[KnownRemotePeer]]] =
+    TestStore.make[F, Unit, Seq[KnownRemotePeer]]
 
   def createBlockIdTree: F[ParentChildTree[F, BlockId]] =
     ParentChildTree.FromRef.make[F, BlockId]
@@ -136,17 +135,19 @@ object ActorPeerHandlerBridgeAlgebraTest {
 }
 
 class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  implicit val dummyDns: DnsResolver[F] = (host: HostId) => Option(host).pure[F]
-  implicit val dummyReverseDns: ReverseDnsResolver[F] = (h: HostId) => h.pure[F]
+  implicit val dummyDns: DnsResolver[F] = (host: String) => Option(host).pure[F]
+  implicit val dummyReverseDns: ReverseDnsResolver[F] = (h: String) => h.pure[F]
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = arbitraryHost.arbitrary.first
 
   test("Start network with add one network peer: adoption shall be started, peers shall be saved in the end") {
     withMock {
       val remotePeerPort = 9085
       val remotePeerAddress = RemoteAddress("2.2.2.2", remotePeerPort)
-      val remotePeerId = ByteString.copyFrom(Array.fill(32)(1: Byte))
-      val remotePeer = DisconnectedPeer(remotePeerAddress, Some(remotePeerId))
+      val remotePeerVK = arbitraryHost.arbitrary.first.id
+      val remotePeerId = HostId(remotePeerVK)
+      val remoteConnectedPeer = ConnectedPeer(remotePeerAddress, remotePeerVK)
+      val remotePeer = DisconnectedPeer(remotePeerAddress, Some(remotePeerVK))
       val remotePeers: List[DisconnectedPeer] = List(remotePeer)
       val hotPeersUpdatedFlag: AtomicBoolean = new AtomicBoolean(false)
       val pingProcessedFlag: AtomicBoolean = new AtomicBoolean(false)
@@ -165,7 +166,10 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       (client.getRemoteBlockIdAtHeight _)
         .expects(1, *)
         .returns(localChainMock.genesis.map(sd => Option(sd.slotId.blockId)))
-      (() => client.remotePeer).expects().once().returns(ConnectedPeer(remotePeerAddress, remotePeerId).pure[F])
+      (() => client.remotePeer)
+        .expects()
+        .anyNumberOfTimes()
+        .returns(ConnectedPeer(remotePeerAddress, remotePeerVK).pure[F])
 
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
@@ -202,9 +206,9 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         Sync[F].delay(peerOpenRequested.set(true))
       }
 
-      var hotPeers: Set[RemoteAddress] = Set.empty
-      val hotPeersUpdate: Set[RemoteAddress] => F[Unit] = mock[Set[RemoteAddress] => F[Unit]]
-      (hotPeersUpdate.apply _).expects(*).anyNumberOfTimes().onCall { peers: Set[RemoteAddress] =>
+      var hotPeers: Set[RemotePeer] = Set.empty
+      val hotPeersUpdate: Set[RemotePeer] => F[Unit] = mock[Set[RemotePeer] => F[Unit]]
+      (hotPeersUpdate.apply _).expects(*).anyNumberOfTimes().onCall { peers: Set[RemotePeer] =>
         (if (peers.nonEmpty) Sync[F].delay(hotPeersUpdatedFlag.set(true)) else Applicative[F].unit) *>
         (hotPeers = peers).pure[F]
       }
@@ -262,13 +266,13 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       for {
         ((algebra, remotePeersStore, mempoolAlgebra), algebraFinalizer) <- execResource.allocated
         _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(peerOpenRequested.get()))
-        (_, peerFinalizer) <- algebra.usePeer(client).allocated
+        (_, peerFinalizer) <- algebra.usePeer(client, remoteConnectedPeer).allocated
         _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(pingProcessedFlag.get()))
         _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(hotPeersUpdatedFlag.get()))
         _ <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].defer(mempoolAlgebra.size).map(_ == transactions.size))
         _ <- peerFinalizer
         _ <- algebraFinalizer
-        _ = assert(hotPeers.contains(remotePeerAddress))
+        _ = assert(hotPeers.contains(RemotePeer(remotePeerId, remotePeerAddress)))
         savedPeers <- remotePeersStore.get(()).map(_.get)
         _ = assert(savedPeers.map(_.address).contains(remotePeerAddress))
         savedPeer = savedPeers.find(_.address == remotePeerAddress).get

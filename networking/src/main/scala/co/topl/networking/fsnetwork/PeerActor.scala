@@ -270,7 +270,7 @@ object PeerActor {
       _        <- OptionT.liftF(Logger[F].debug(show"Request $maxHosts neighbour(s) from ${state.hostId}"))
       response <- OptionT(state.client.getRemoteKnownHosts(CurrentKnownHostsReq(maxHosts)))
       hotPeers <- OptionT
-        .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
+        .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemotePeer)))
         .flatTapNone(Logger[F].info(show"Got no hot peers from ${state.hostId}"))
       _ <- OptionT.liftF(Logger[F].debug(show"Got hot peers $hotPeers from ${state.hostId}"))
       _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(state.hostId, hotPeers)))

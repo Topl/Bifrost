@@ -11,8 +11,10 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
-import co.topl.node.models.BlockBody
+import co.topl.networking.p2p.RemoteAddress
+import co.topl.node.models.{BlockBody, KnownHost}
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import org.scalacheck.{Arbitrary, Gen}
 import org.scalamock.function.FunctionAdapter1
 import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
@@ -46,7 +48,43 @@ object TestHelper extends TransactionGenerator {
         addHeaderToChain(headers.append(gen.sample.get.copy(parentHeaderId = parentId)), gen, count - 1)
     }
 
-  val arbitraryHost: Arbitrary[HostId] = Arbitrary(Gen.identifier)
+  val arbitraryIpString: Arbitrary[String] = Arbitrary(
+    for {
+      first  <- Arbitrary.arbitrary[Byte]
+      second <- Arbitrary.arbitrary[Byte]
+      third  <- Arbitrary.arbitrary[Byte]
+      fourth <- Arbitrary.arbitrary[Byte]
+    } yield s"$first.$second.$third.$fourth"
+  )
+
+  val arbitraryKnownHost: Arbitrary[KnownHost] = Arbitrary(
+    for {
+      idBytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
+      host    <- arbitraryIpString.arbitrary
+      port    <- Gen.long
+    } yield KnownHost(ByteString.copyFrom(idBytes.toArray), host.take(12), port.toInt)
+  )
+
+  implicit val arbitraryRemoteAddress: Arbitrary[RemoteAddress] = Arbitrary(
+    for {
+      host <- arbitraryIpString.arbitrary
+      port <- Gen.long
+    } yield RemoteAddress(host, port.toInt)
+  )
+
+  implicit val arbitraryRemotePeer: Arbitrary[RemotePeer] = Arbitrary(
+    for {
+      idBytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
+      address <- arbitraryRemoteAddress.arbitrary
+    } yield (RemotePeer(HostId(ByteString.copyFrom(idBytes.toArray)), address))
+  )
+
+  val arbitraryHost: Arbitrary[HostId] = Arbitrary(
+    for {
+      bytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
+    } yield (HostId(ByteString.copyFrom(bytes.toArray)))
+  )
+
   type BlockBodyOrTransactionErrorByName = () => BlockBodyOrTransactionError
 
   val arbitraryHostBlockId: Arbitrary[(HostId, BlockId)] = Arbitrary(

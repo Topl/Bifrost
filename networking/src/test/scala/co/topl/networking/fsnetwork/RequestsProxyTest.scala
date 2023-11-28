@@ -17,6 +17,7 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxyTest.RequestStatus.{InProgress, NewRequest, ReceivedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.ResponseStatus.{DownloadError, DownloadedOk}
 import co.topl.networking.fsnetwork.RequestsProxyTest.{F, RequestStatus, ResponseStatus}
+import co.topl.networking.fsnetwork.TestHelper.arbitraryHost
 import co.topl.node.models.{Block, BlockBody}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -66,7 +67,7 @@ object RequestsProxyTest {
 class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with ModelGenerators {
   implicit val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = arbitraryHost.arbitrary.first
   val maxChainSize = 99
 
   implicit def toEntryCache[T](cache: Cache[BlockId, T]): Cache[BlockId, Entry[T]] = {

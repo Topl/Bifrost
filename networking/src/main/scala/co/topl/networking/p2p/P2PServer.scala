@@ -20,6 +20,8 @@ object PeerConnectionChanges {
 
   case class OutboundConnectionInitializing(remoteAddress: RemoteAddress) extends PeerConnectionChange
 
+  case class ChangedRemotePeer(oldPeer: DisconnectedPeer, newPeer: DisconnectedPeer) extends PeerConnectionChange
+
   case class ConnectionEstablished(connectedPeer: ConnectedPeer, localAddress: RemoteAddress)
       extends PeerConnectionChange
 

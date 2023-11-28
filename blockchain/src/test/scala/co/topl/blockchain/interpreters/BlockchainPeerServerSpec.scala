@@ -20,8 +20,10 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.ledger.models.MempoolGraph
 import co.topl.networking.NetworkGen._
+import co.topl.networking.fsnetwork.RemotePeer
+import co.topl.networking.fsnetwork.TestHelper.arbitraryRemotePeer
 import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
-import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange, RemoteAddress}
+import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange}
 
 import scala.concurrent.duration._
 
@@ -97,25 +99,12 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   }
 
   test("serve hot peers") {
-    PropF.forAllF { hotPeers: Set[RemoteAddress] =>
+    PropF.forAllF { hotPeers: Set[RemotePeer] =>
       withMock {
-        val f = mockFunction[F[Set[RemoteAddress]]]
+        val f = mockFunction[F[Set[RemotePeer]]]
         f.expects().once().returning(hotPeers.pure[F])
-        val expected = CurrentKnownHostsRes(hotPeers.toSeq.map(ra => KnownHost(ra.host, ra.port)))
-        for {
-          _ <- makeServer(currentHotPeers = f)
-            .use(underTest => underTest.getKnownHosts(CurrentKnownHostsReq(hotPeers.size)).assertEquals(expected.some))
-        } yield ()
-      }
-    }
-  }
-
-  test("application level notifier") {
-    PropF.forAllF { hotPeers: Set[RemoteAddress] =>
-      withMock {
-        val f = mockFunction[F[Set[RemoteAddress]]]
-        f.expects().once().returning(hotPeers.pure[F])
-        val expected = CurrentKnownHostsRes(hotPeers.toSeq.map(ra => KnownHost(ra.host, ra.port)))
+        val expected =
+          CurrentKnownHostsRes(hotPeers.toSeq.map(rp => KnownHost(rp.peerId.id, rp.address.host, rp.address.port)))
         for {
           _ <- makeServer(currentHotPeers = f)
             .use(underTest => underTest.getKnownHosts(CurrentKnownHostsReq(hotPeers.size)).assertEquals(expected.some))
@@ -126,14 +115,14 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
 
   test("serve hot peers, we have more than requested") {
     withMock {
-      val host1 = RemoteAddress("1.1.1.1", 1)
-      val host2 = RemoteAddress("2.2.2.2", 2)
+      val host1 = arbitraryRemotePeer.arbitrary.first
+      val host2 = arbitraryRemotePeer.arbitrary.first
 
-      val allPeers: Set[RemoteAddress] = Set(host1, host2)
+      val allPeers: Set[RemotePeer] = Set(host1, host2)
 
-      val f = mockFunction[F[Set[RemoteAddress]]]
+      val f = mockFunction[F[Set[RemotePeer]]]
       f.expects().once().returning(allPeers.pure[F])
-      val expected = CurrentKnownHostsRes(Seq(KnownHost(host1.host, host1.port)))
+      val expected = CurrentKnownHostsRes(Seq(KnownHost(host1.peerId.id, host1.address.host, host1.address.port)))
       for {
         _ <- makeServer(currentHotPeers = f)
           .use(underTest => underTest.getKnownHosts(CurrentKnownHostsReq(1)).assertEquals(expected.some))
@@ -253,7 +242,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     fetchTransaction:  TransactionId => F[Option[IoTransaction]] = _ => ???,
     serverPort:        () => Option[Int] = () => ???,
     connectionStatusF: F[Topic[F, PeerConnectionChange]] = Topic[F, PeerConnectionChange],
-    currentHotPeers:   () => F[Set[RemoteAddress]] = () => Set.empty[RemoteAddress].pure[F],
+    currentHotPeers:   () => F[Set[RemotePeer]] = () => Set.empty[RemotePeer].pure[F],
     blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
       mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
     localChain:         LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],

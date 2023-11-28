@@ -121,7 +121,7 @@ object Notifier {
 
     val commonAncestorTrackStream =
       Stream.awakeEvery(commonAncestorInterval).evalMap { _ =>
-        state.peersManager.sendNoWait(PeersManager.Message.PrintCommonAncestor)
+        state.peersManager.sendNoWait(PeersManager.Message.PrintP2PState)
       }
 
     if (state.commonAncestorFiber.isEmpty && commonAncestorInterval.toMillis > 0) {
