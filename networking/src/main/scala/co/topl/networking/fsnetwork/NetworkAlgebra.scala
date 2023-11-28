@@ -19,7 +19,6 @@ import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetche
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransactionSyncActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.Caffeine
 import org.typelevel.log4cats.Logger
@@ -39,8 +38,8 @@ trait NetworkAlgebra[F[_]] {
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:            P2PNetworkConfig,
-    hotPeersUpdate:              Set[RemoteAddress] => F[Unit],
-    savePeersFunction:           Set[RemotePeer] => F[Unit]
+    hotPeersUpdate:              Set[RemotePeer] => F[Unit],
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeBlockChecker(
@@ -133,8 +132,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:            P2PNetworkConfig,
-    hotPeersUpdate:              Set[RemoteAddress] => F[Unit],
-    savePeersFunction:           Set[RemotePeer] => F[Unit]
+    hotPeersUpdate:              Set[RemotePeer] => F[Unit],
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] = {
     val coldToWarm: SelectorColdToWarm[F] = new SemiRandomSelectorColdToWarm[F]()
     val warmToHot: SelectorWarmToHot[F] = new ReputationRandomBasedSelectorWarmToHot[F]()

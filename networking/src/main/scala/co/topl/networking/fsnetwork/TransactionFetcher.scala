@@ -11,6 +11,7 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import cats.implicits._
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError._
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.typeclasses.implicits.transactionIdEq
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._

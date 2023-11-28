@@ -27,6 +27,7 @@ import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransa
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
+import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, arbitraryKnownHost}
 import co.topl.node.models._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -42,7 +43,7 @@ object PeerActorTest {
 class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = arbitraryHost.arbitrary.first
 
   private val genesis = arbitrarySlotData.arbitrary.first
 
@@ -754,8 +755,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
       (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
 
-      val host1 = KnownHost("0.0.0.1", 1)
-      val host2 = KnownHost("0.0.0.2", 2)
+      val host1 = arbitraryKnownHost.arbitrary.first
+      val host2 = arbitraryKnownHost.arbitrary.first
       val hosts = Seq(host1, host2)
       (client.getRemoteKnownHosts _)
         .expects(CurrentKnownHostsReq(2))
@@ -763,7 +764,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
       (peersManager.sendNoWait _)
         .expects(
-          PeersManager.Message.AddKnownNeighbors(hostId, NonEmptyChain.fromSeq(hosts.map(_.asRemoteAddress)).get)
+          PeersManager.Message.AddKnownNeighbors(hostId, NonEmptyChain.fromSeq(hosts.map(_.asRemotePeer)).get)
         )
         .returns(Applicative[F].unit)
 

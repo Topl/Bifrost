@@ -20,7 +20,7 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSyncTest.F
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.TestHelper.BlockBodyOrTransactionErrorByName
+import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, BlockBodyOrTransactionErrorByName}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import fs2.Stream
@@ -42,7 +42,7 @@ object TransactionType {
 class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = arbitraryHost.arbitrary.first
 
   test("Transaction notification shall be started and missed transaction shall be requested") {
     withMock {

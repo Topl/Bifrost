@@ -39,7 +39,7 @@ object PeerBlockHeaderFetcherTest {
 class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = arbitraryHost.arbitrary.first
   val maxChainSize = 99
 
   test("Block header shall be downloaded by request") {

@@ -5,9 +5,11 @@ import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow}
 import co.topl.algebras.Store
+import co.topl.codecs.bytes.scodecs.valuetypes._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models._
 import co.topl.eventtree.EventSourcedState
+import co.topl.models.Bytes
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
@@ -19,7 +21,8 @@ import scodec.codecs.{cstring, double, int32}
 
 package object fsnetwork {
 
-  type HostId = String // IP address? IP address could be changed and bad for identify good peer
+  val hostIdBytesLen: Int = 32
+  case class HostId(id: Bytes) extends AnyVal
 
   type HostReputationValue =
     Double // will be more complex, to get high reputation host shall fulfill different criteria
@@ -158,13 +161,22 @@ package object fsnetwork {
   )
 
   case class RemotePeer(
+    peerId:  HostId,
+    address: RemoteAddress
+  )
+
+  case class KnownRemotePeer(
+    peerId:          HostId,
     address:         RemoteAddress,
     blockReputation: HostReputationValue,
     perfReputation:  HostReputationValue
   )
 
+  private val hostIdCodec: Codec[HostId] = byteStringCodec.as[HostId]
   private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
-  implicit val peerToAddCodec: Codec[RemotePeer] = (remoteAddressCodec :: double :: double).as[RemotePeer]
+
+  implicit val peerToAddCodec: Codec[KnownRemotePeer] =
+    (hostIdCodec :: remoteAddressCodec :: double :: double).as[KnownRemotePeer]
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
 

@@ -1,6 +1,7 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.scodecs._
+import co.topl.codecs.bytes.scodecs.valuetypes.byteStringCodec
 import co.topl.consensus.models._
 import co.topl.crypto.{models => nodeCryptoModels}
 import co.topl.models._
@@ -154,7 +155,8 @@ trait TetraScodecCodecs {
   ).as[UnsignedBlockHeader]
 
   implicit val knownHostCodec: Codec[KnownHost] = (
-    utf8_32 ::
+    byteStringCodec ::
+      utf8_32 ::
       intCodec ::
       unknownFieldSetCodec
   ).as[KnownHost]

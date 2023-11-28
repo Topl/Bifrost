@@ -15,6 +15,7 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.typeclasses.implicits._
 import fs2.Stream

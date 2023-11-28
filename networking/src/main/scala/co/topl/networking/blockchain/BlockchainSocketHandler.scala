@@ -21,7 +21,7 @@ object BlockchainSocketHandler {
    * Consumes the given Socket by applying Blockchain-specific Multiplexed Typed Protocols to serve the given application
    * functions.
    * @param peerServerF a function which creates a BlockchainPeerServer for the given ConnectedPeer
-   * @param useClient a function which consumes the BlockchainPeerClient to serve the application
+   * @param useClientAndPeer a function which consumes the BlockchainPeerClient to serve the application
    * @param peer The remote peer
    * @param leader The connection leader
    * @param reads the input stream
@@ -29,8 +29,8 @@ object BlockchainSocketHandler {
    * @return a Resource which completes when all processing has completed
    */
   def make[F[_]: Async: Logger](
-    peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
-    useClient:   BlockchainPeerClient[F] => Resource[F, Unit]
+    peerServerF:      ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
+    useClientAndPeer: (BlockchainPeerClient[F], ConnectedPeer) => Resource[F, Unit]
   )(
     peer:   ConnectedPeer,
     leader: ConnectionLeader,
@@ -40,7 +40,7 @@ object BlockchainSocketHandler {
   ): Resource[F, Unit] =
     peerServerF(peer)
       .map(server => createFactory(server, close))
-      .flatMap(_.multiplexed(useClient)(peer, leader, reads, writes))
+      .flatMap(_.multiplexed(useClientAndPeer(_, peer))(peer, leader, reads, writes))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
     protocolServer: BlockchainPeerServerAlgebra[F],

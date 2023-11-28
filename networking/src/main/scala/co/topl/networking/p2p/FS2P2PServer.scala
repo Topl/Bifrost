@@ -107,7 +107,7 @@ object FS2P2PServer {
       .drain
       .background
 
-  private def client[F[_]: Async](
+  private def client[F[_]: Async: Logger](
     remotePeers:         Stream[F, DisconnectedPeer],
     localPeer:           LocalPeer,
     extractRemotePeerId: Socket[F] => F[Bytes]
@@ -129,6 +129,7 @@ object FS2P2PServer {
                 .fromOption[F](Port.fromInt(disconnected.remoteAddress.port))
                 .getOrRaise(new IllegalArgumentException("Invalid destinationPort"))
                 .toResource
+              _ <- Logger[F].info(show"Initiate connection to ${disconnected.toString}").toResource
               socket <- Network
                 .forAsync[F]
                 .client(SocketAddress(host, port))
@@ -143,6 +144,14 @@ object FS2P2PServer {
                 peerChangesTopic.publish1(PeerConnectionChanges.ConnectionClosed(disconnected, e.some)).void
               }.toResource
               newDisconnected = disconnected.copy(p2pVK = peerId.some)
+              _ <- Logger[F].info(show"Established connection to ${newDisconnected.toString}").toResource
+              _ <-
+                if (disconnected.p2pVK != newDisconnected.p2pVK)
+                  peerChangesTopic
+                    .publish1(PeerConnectionChanges.ChangedRemotePeer(disconnected, newDisconnected))
+                    .void
+                    .toResource
+                else Resource.unit[F]
               connected = ConnectedPeer(disconnected.remoteAddress, peerId)
               localAddress <- socket.localAddress.map(_.asRemoteAddress).toResource
               _ <- peerChangesTopic
@@ -183,6 +192,8 @@ object FS2P2PServer {
           Logger[F].info(s"Outbound connection initializing with peer=$peer")
         case PeerConnectionChanges.RemotePeerApplicationLevel(peer, applicationLevelEnabled) =>
           Logger[F].info(s"Remote peer $peer application level is $applicationLevelEnabled")
+        case PeerConnectionChanges.ChangedRemotePeer(oldPeer, newPeer) =>
+          Logger[F].info(s"Remote peer $oldPeer had been changed to $newPeer")
       }
       .compile
       .drain
