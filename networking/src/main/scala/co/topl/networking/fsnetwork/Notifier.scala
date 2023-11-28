@@ -26,7 +26,7 @@ object Notifier {
     networkConfig:         P2PNetworkConfig,
     slotNotificationFiber: Option[Fiber[F, Throwable, Unit]] = None,
     networkQualityFiber:   Option[Fiber[F, Throwable, Unit]] = None,
-    warmHostsUpdateFiber:  Option[Fiber[F, Throwable, Unit]] = None,
+    peersUpdateFiber:      Option[Fiber[F, Throwable, Unit]] = None,
     commonAncestorFiber:   Option[Fiber[F, Throwable, Unit]] = None,
     aggressiveP2PFiber:    Option[Fiber[F, Throwable, Unit]] = None
   )
@@ -51,7 +51,7 @@ object Notifier {
     Logger[F].info(show"Start notifier with config ${state.networkConfig}") >>
     startSlotNotification[F](state)
       .flatMap(startNetworkQualityFiber[F])
-      .flatMap(startWarmHostsUpdateFiber[F])
+      .flatMap(startPeersUpdateFiber[F])
       .flatMap(startCommonAncestorFiber[F])
       .flatMap(startAggressiveP2PFiber[F])
       .map(newState => (newState, newState))
@@ -96,22 +96,22 @@ object Notifier {
     }
   }
 
-  private def startWarmHostsUpdateFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
-    val warmPeersUpdate = state.networkConfig.warmHostsUpdateInterval
+  private def startPeersUpdateFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
+    val peersUpdate = state.networkConfig.peersUpdateInterval
 
-    val warmHostsUpdateStream =
-      Stream.awakeEvery(warmPeersUpdate).evalMap { _ =>
-        state.peersManager.sendNoWait(PeersManager.Message.UpdateWarmHosts)
+    val peersUpdateStream =
+      Stream.awakeEvery(peersUpdate).evalMap { _ =>
+        state.peersManager.sendNoWait(PeersManager.Message.UpdatePeersTick)
       }
 
-    if (state.warmHostsUpdateFiber.isEmpty && warmPeersUpdate.toMillis > 0) {
+    if (state.peersUpdateFiber.isEmpty && peersUpdate.toMillis > 0) {
       for {
-        _     <- Logger[F].info(show"Start warm hosts update fiber")
-        fiber <- Spawn[F].start(warmHostsUpdateStream.compile.drain)
-        newState = state.copy(warmHostsUpdateFiber = Option(fiber))
+        _     <- Logger[F].info(show"Start peers update fiber")
+        fiber <- Spawn[F].start(peersUpdateStream.compile.drain)
+        newState = state.copy(peersUpdateFiber = Option(fiber))
       } yield newState
     } else {
-      Logger[F].info(show"Ignoring warm hosts update with interval $warmPeersUpdate") >>
+      Logger[F].info(show"Ignoring peers update with interval $peersUpdate") >>
       state.pure[F]
     }
   }
@@ -162,7 +162,7 @@ object Notifier {
     Logger[F].info("Stopping notification sending from Notifier actor") >>
     state.slotNotificationFiber.traverse(_.cancel) >>
     state.networkQualityFiber.traverse(_.cancel) >>
-    state.warmHostsUpdateFiber.traverse(_.cancel) >>
+    state.peersUpdateFiber.traverse(_.cancel) >>
     state.commonAncestorFiber.traverse(_.cancel) >>
     state.aggressiveP2PFiber.traverse(_.cancel).void
 

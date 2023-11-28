@@ -48,7 +48,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .atLeastOnce()
         .returns(().pure[F])
       (peersManager.sendNoWait _)
-        .expects(PeersManager.Message.UpdateWarmHosts)
+        .expects(PeersManager.Message.UpdatePeersTick)
         .atLeastOnce()
         .returns(().pure[F])
       (peersManager.sendNoWait _)
@@ -59,7 +59,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       val delay =
         Seq(
           defaultP2PConfig.slotDuration.toMillis,
-          defaultP2PConfig.warmHostsUpdateInterval.toMillis,
+          defaultP2PConfig.peersUpdateInterval.toMillis,
           defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
           defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis,
           defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
@@ -70,7 +70,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .use { actor =>
           for {
             state <- actor.send(Notifier.Message.StartNotifications)
-            _ = assert(state.warmHostsUpdateFiber.isDefined)
+            _ = assert(state.peersUpdateFiber.isDefined)
             _ = assert(state.networkQualityFiber.isDefined)
             _ = assert(state.slotNotificationFiber.isDefined)
             _ = assert(state.commonAncestorFiber.isDefined)
@@ -97,7 +97,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .atLeastOnce()
         .returns(().pure[F])
       (peersManager.sendNoWait _)
-        .expects(PeersManager.Message.UpdateWarmHosts)
+        .expects(PeersManager.Message.UpdatePeersTick)
         .atLeastOnce()
         .returns(().pure[F])
       (peersManager.sendNoWait _)
@@ -108,7 +108,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       val delay =
         Seq(
           defaultP2PConfig.slotDuration.toMillis,
-          defaultP2PConfig.warmHostsUpdateInterval.toMillis,
+          defaultP2PConfig.peersUpdateInterval.toMillis,
           defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
           defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis,
           defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
@@ -120,7 +120,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .use { actor =>
           for {
             state <- actor.send(Notifier.Message.StartNotifications)
-            _ = assert(state.warmHostsUpdateFiber.isDefined)
+            _ = assert(state.peersUpdateFiber.isDefined)
             _ = assert(state.networkQualityFiber.isDefined)
             _ = assert(state.slotNotificationFiber.isDefined)
             _ = assert(state.commonAncestorFiber.isDefined)
@@ -147,7 +147,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .atLeastOnce()
         .returns(().pure[F])
       (peersManager.sendNoWait _)
-        .expects(PeersManager.Message.UpdateWarmHosts)
+        .expects(PeersManager.Message.UpdatePeersTick)
         .atLeastOnce()
         .returns(().pure[F])
       (peersManager.sendNoWait _)
@@ -169,7 +169,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
               actor.send(Notifier.Message.StartNotifications),
               FiniteDuration(500, MILLISECONDS)
             )
-            _ = state.warmHostsUpdateFiber.get.joinWith({ warmFlag = true }.pure[F])
+            _ = state.peersUpdateFiber.get.joinWith({ warmFlag = true }.pure[F])
             _ = state.networkQualityFiber.get.joinWith({ networkQualityFlag = true }.pure[F])
             _ = state.slotNotificationFiber.get.joinWith({ slotNotificationFlag = true }.pure[F])
             _ = state.commonAncestorFiber.get.joinWith({ commonAncestorFlag = true }.pure[F])

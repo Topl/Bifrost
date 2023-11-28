@@ -50,7 +50,7 @@ case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: 
   /**
    * How often we update our list of warm hosts
    */
-  val warmHostsUpdateInterval: FiniteDuration =
+  val peersUpdateInterval: FiniteDuration =
     FiniteDuration(
       Math.ceil(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis).toInt,
       MILLISECONDS

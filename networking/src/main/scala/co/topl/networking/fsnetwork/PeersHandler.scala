@@ -92,11 +92,7 @@ case class PeersHandler[F[_]: Async: Logger](
 
   private def updateCloseTimestamps(peerToUpdate: Peer[F], newState: PeerState): Peer[F] =
     if (peerToUpdate.state.networkLevel && !newState.networkLevel) {
-      val closeTimestamp = System.currentTimeMillis()
-      val timeStampWindow = networkConfig.networkProperties.closeTimeoutWindowInMs
-      val eligibleTimestamps = peerToUpdate.closedTimestamps.filter(_ >= (closeTimestamp - timeStampWindow))
-      val newPeer = peerToUpdate.copy(closedTimestamps = eligibleTimestamps :+ closeTimestamp)
-      newPeer
+      peerToUpdate.copy(closedTimestamps = peerToUpdate.closedTimestamps :+ System.currentTimeMillis())
     } else {
       peerToUpdate
     }
@@ -224,6 +220,17 @@ case class PeersHandler[F[_]: Async: Logger](
     val filteredToRemove =
       getColdPeers.view.filterKeys(toRemove).filter(_._2.actorOpt.isEmpty).keySet
     val newPeers = peers -- filteredToRemove
+    this.copy(peers = newPeers)
+  }
+
+  def copyWithClearedTimestamps: PeersHandler[F] = {
+    val timeStampWindow = networkConfig.networkProperties.closeTimeoutWindowInMs
+    val timeNow = System.currentTimeMillis()
+
+    val newPeers = peers.map { case (id, peer) =>
+      val eligibleTimestamps = peer.closedTimestamps.filter(_ >= (timeNow - timeStampWindow))
+      id -> peer.copy(closedTimestamps = eligibleTimestamps)
+    }
     this.copy(peers = newPeers)
   }
 }
