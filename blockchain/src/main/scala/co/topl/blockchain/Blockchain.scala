@@ -17,8 +17,6 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
-import co.topl.crypto.signing.Ed25519VRF
-import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
 import co.topl.grpc._
 import co.topl.ledger.algebras._
