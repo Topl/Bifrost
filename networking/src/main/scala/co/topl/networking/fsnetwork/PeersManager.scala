@@ -769,6 +769,7 @@ object PeersManager {
   ): F[(State[F], Response[F])] = {
     for {
       resolvedPeers <- OptionT(resolveHosts(knownPeers.toList).map(NonEmptyChain.fromSeq))
+      _             <- OptionT.liftF(Logger[F].info(show"Resolve $knownPeers to $resolvedPeers"))
     } yield addKnownResolvedPeers(state, resolvedPeers)
   }.getOrElse((state, state).pure[F]).flatten
 
@@ -777,12 +778,12 @@ object PeersManager {
     knownPeers: NonEmptyChain[KnownRemotePeer]
   ): F[(State[F], Response[F])] =
     for {
-      filteredLoopback    <- knownPeers.filterNot(ra => state.thisHostIps.contains(ra.address.host)).pure[F]
-      oldPeers            <- state.peersHandler.pure[F]
-      newPeers            <- oldPeers.copyWithAddedPeers(filteredLoopback).pure[F]
-      peersHadBeenChanged <- (newPeers.peers.size != oldPeers.peers.size).pure[F]
-      _                   <- Logger[F].infoIf(peersHadBeenChanged, show"New known peers: $filteredLoopback")
-      newState            <- state.copy(peersHandler = newPeers).pure[F]
+      filteredLoopback <- knownPeers.filter(_.peerId != state.thisHostId).pure[F]
+      oldPeers         <- state.peersHandler.pure[F]
+      newPeers         <- oldPeers.copyWithAddedPeers(filteredLoopback).pure[F]
+      changedPeers     <- (newPeers.peers -- oldPeers.peers.keySet).pure[F]
+      _                <- Logger[F].infoIf(changedPeers.nonEmpty, show"New known peers: $changedPeers")
+      newState         <- state.copy(peersHandler = newPeers).pure[F]
     } yield (newState, newState)
 
   private def updatePeersTick[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
