@@ -128,6 +128,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       .through(transactionsTopic.publish)
       .compile
       .drain
+      .onError { case e => Logger[F].error(e)("Block-Tx Rebroadcaster failed") }
       .background
 
   /**
@@ -155,6 +156,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       )
       .compile
       .drain
+      .onError { case e => Logger[F].error(e)("Event-Sourced-State Updater failed") }
       .background
       .void
 
@@ -296,6 +298,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           block <- Stream.force(blockProducer.blocks)
         } yield block
       _ <- mintedBlockStream
+        .evalTap(block => Logger[F].info(show"Saving locally-produced block id=${block.header.id}"))
         .evalTap { block =>
           val id = block.header.id
           blockIdTree.associate(id, block.header.parentHeaderId) &>
@@ -323,6 +326,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         )
         .compile
         .drain
+        .onError { case e => Logger[F].error(e)("Block producer failed") }
         .background
     } yield ()
 
@@ -346,6 +350,9 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
    */
   private def validateLocalBlock(fullBlock: FullBlock) =
     (for {
+      _ <- EitherT.liftF[F, String, Unit](
+        Logger[F].info(show"Performing validation of local blockId=${fullBlock.header.id}")
+      )
       _ <- EitherT(validators.header.validate(fullBlock.header)).leftMap(_.show)
       body <- EitherT.liftF(
         Sync[F]
@@ -364,6 +371,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       _ <- EitherT(validators.bodySemantics.validate(semanticContext)(body).map(_.toEither)).leftMap(_.show)
       authContext = (tx: IoTransaction) => QuivrContext.forProposedBlock(block.header.height, block.header.slot, tx)
       _ <- EitherT(validators.bodyAuthorization.validate(authContext)(body).map(_.toEither)).leftMap(_.show)
+      _ <- EitherT.liftF[F, String, Unit](Logger[F].info(show"Local blockId=${fullBlock.header.id} is valid"))
     } yield ())
       .leftSemiflatTap(reason =>
         Logger[F].warn(show"Locally produced block id=${fullBlock.header.id} is invalid. reason=$reason") &>

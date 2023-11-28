@@ -41,6 +41,7 @@ object Iterative {
                 .improve(_)
                 .flatTap(result.set)
             )
+            .race(stopDeferred.get)
             .guarantee(Async[F].cede)
         )
         .interruptWhen(stopDeferred)

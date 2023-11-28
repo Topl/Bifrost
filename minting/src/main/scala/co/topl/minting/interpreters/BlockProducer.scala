@@ -125,6 +125,7 @@ object BlockProducer {
         timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
         blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
         eta: Eta = Sized.strictUnsafe[ByteString, Eta.Length](nextHit.cert.eta)
+        _           <- Logger[F].info("Certifying block")
         maybeHeader <- staker.certifyBlock(parentSlotData.slotId, nextHit.slot, blockMaker, eta)
         result <- OptionT
           .fromOption[F](maybeHeader)
@@ -188,6 +189,7 @@ object BlockProducer {
               clock.delayedUntilSlot(untilSlot) >>
               Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
               resF
+                .flatTap(_ => Logger[F].info(s"Captured packed block at slot=$untilSlot"))
             )
         )
         .flatMap(insertReward(parentId, untilSlot, _))
@@ -205,33 +207,43 @@ object BlockProducer {
         .foldMapM(rewardCalculator.rewardOf)
         .flatMap(rewardQuantity =>
           if (rewardQuantity > 0) {
-            staker.rewardAddress.map(rewardAddress =>
-              base.withRewardTransaction(
-                IoTransaction(datum =
-                  Datum.IoTransaction(
-                    Event
-                      .IoTransaction(schedule = Schedule(min = slot, max = slot), metadata = SmallData.defaultInstance)
+            staker.rewardAddress
+              .map(rewardAddress =>
+                base.withRewardTransaction(
+                  IoTransaction(datum =
+                    Datum.IoTransaction(
+                      Event
+                        .IoTransaction(
+                          schedule = Schedule(min = slot, max = slot),
+                          metadata = SmallData.defaultInstance
+                        )
+                    )
                   )
-                )
-                  .withInputs(
-                    List(
-                      SpentTransactionOutput(
-                        address = TransactionOutputAddress(id = TransactionId(parentBlockId.value)),
-                        attestation = Attestation.defaultInstance,
-                        value = Value.defaultInstance
+                    .withInputs(
+                      List(
+                        SpentTransactionOutput(
+                          address = TransactionOutputAddress(id = TransactionId(parentBlockId.value)),
+                          attestation = Attestation.defaultInstance,
+                          value = Value.defaultInstance
+                        )
                       )
                     )
-                  )
-                  .withOutputs(
-                    List(
-                      UnspentTransactionOutput(rewardAddress, Value.defaultInstance.withLvl(Value.LVL(rewardQuantity)))
+                    .withOutputs(
+                      List(
+                        UnspentTransactionOutput(
+                          rewardAddress,
+                          Value.defaultInstance.withLvl(Value.LVL(rewardQuantity))
+                        )
+                      )
                     )
-                  )
+                )
               )
-            )
+              .flatTap(_ => Logger[F].info(s"Collecting block reward quantity=$rewardQuantity"))
           } else {
             // To avoid dust accumulation for 0-reward blocks, don't include a reward transaction
-            base.clearRewardTransaction.pure[F]
+            base.clearRewardTransaction
+              .pure[F]
+              .flatTap(_ => Logger[F].info(s"No rewards to collect for block"))
           }
         )
 
