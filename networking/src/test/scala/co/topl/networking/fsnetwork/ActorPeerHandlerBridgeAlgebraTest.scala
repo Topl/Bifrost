@@ -169,7 +169,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       (() => client.remotePeer)
         .expects()
         .anyNumberOfTimes()
-        .returns(ConnectedPeer(remotePeerAddress, remotePeerVK).pure[F])
+        .returns(remoteConnectedPeer.pure[F])
 
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
@@ -266,7 +266,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       for {
         ((algebra, remotePeersStore, mempoolAlgebra), algebraFinalizer) <- execResource.allocated
         _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(peerOpenRequested.get()))
-        (_, peerFinalizer) <- algebra.usePeer(client, remoteConnectedPeer).allocated
+        (_, peerFinalizer) <- algebra.usePeer(client).allocated
         _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(pingProcessedFlag.get()))
         _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(hotPeersUpdatedFlag.get()))
         _ <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].defer(mempoolAlgebra.size).map(_ == transactions.size))
