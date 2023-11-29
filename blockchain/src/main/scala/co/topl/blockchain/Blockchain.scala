@@ -12,7 +12,7 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.brambl.validation._
-import co.topl.catsutils.streamAsStreamOps
+import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
 import co.topl.consensus.algebras._
@@ -353,7 +353,11 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       _ <- EitherT.liftF[F, String, Unit](
         Logger[F].info(show"Performing validation of local blockId=${fullBlock.header.id}")
       )
-      _ <- EitherT(validators.header.validate(fullBlock.header)).leftMap(_.show)
+      _ <- EitherT(
+        validators.header
+          .validate(fullBlock.header)
+          .warnIfSlow("Validate local header")
+      ).leftMap(_.show)
       body <- EitherT.liftF(
         Sync[F]
           .delay(
@@ -361,16 +365,35 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           )
       )
       block = Block(fullBlock.header, body)
-      _ <- EitherT(validators.headerToBody.validate(block)).leftMap(_.show)
-      _ <- EitherT(validators.bodySyntax.validate(body).map(_.toEither)).leftMap(_.show)
+      _ <- EitherT(
+        validators.headerToBody
+          .validate(block)
+          .warnIfSlow("Validate local header-to-body")
+      ).leftMap(_.show)
+      _ <- EitherT(
+        validators.bodySyntax
+          .validate(body)
+          .map(_.toEither)
+          .warnIfSlow("Validate local body syntax")
+      ).leftMap(_.show)
       semanticContext = StaticBodyValidationContext(
         block.header.parentHeaderId,
         block.header.height,
         block.header.slot
       )
-      _ <- EitherT(validators.bodySemantics.validate(semanticContext)(body).map(_.toEither)).leftMap(_.show)
+      _ <- EitherT(
+        validators.bodySemantics
+          .validate(semanticContext)(body)
+          .map(_.toEither)
+          .warnIfSlow("Validate local body semantics")
+      ).leftMap(_.show)
       authContext = (tx: IoTransaction) => QuivrContext.forProposedBlock(block.header.height, block.header.slot, tx)
-      _ <- EitherT(validators.bodyAuthorization.validate(authContext)(body).map(_.toEither)).leftMap(_.show)
+      _ <- EitherT(
+        validators.bodyAuthorization
+          .validate(authContext)(body)
+          .map(_.toEither)
+          .warnIfSlow("Validate local body authorization")
+      ).leftMap(_.show)
       _ <- EitherT.liftF[F, String, Unit](Logger[F].info(show"Local blockId=${fullBlock.header.id} is valid"))
     } yield ())
       .leftSemiflatTap(reason =>
