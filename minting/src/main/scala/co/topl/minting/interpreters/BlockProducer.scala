@@ -68,28 +68,9 @@ object BlockProducer {
     val blocks: F[Stream[F, FullBlock]] =
       Sync[F].delay(
         parentHeaders
-          .evalFilter(isRecentParent)
           .through(AbandonerPipe(makeChild))
           .evalTap(block => lastUsedSlotRef.set(block.header.slot))
       )
-
-    /**
-     * Determines if the given SlotData is recent enough to be used as a parent for a new block.
-     * @param parentSlotData The parent to attempt to use for a new block
-     * @return true if the parent was created within the last epoch, false otherwise
-     */
-    private def isRecentParent(parentSlotData: SlotData) =
-      (clock.globalSlot, clock.slotsPerEpoch)
-        .mapN((currentSlot, epochLength) => (currentSlot - parentSlotData.slotId.slot) < epochLength)
-        .flatTap(isRecent =>
-          if (!isRecent)
-            Logger[F].warn(
-              show"Skipping block production on parent=${parentSlotData.slotId.blockId.show}" +
-              show" because more than one epoch has elapsed since it was created." +
-              show" Awaiting new block from network peer."
-            )
-          else Applicative[F].unit
-        )
 
     /**
      * Construct a new child Block of the given parent
@@ -109,9 +90,8 @@ object BlockProducer {
             show" parentSlot=${parentSlotData.slotId.slot}" +
             show" parentHeight=${parentSlotData.height}"
           )
-          globalSlot   <- clock.globalSlot
           lastUsedSlot <- lastUsedSlotRef.get
-          child        <- attemptUntilCertified(parentSlotData)(globalSlot.max(lastUsedSlot + 1))
+          child        <- attemptUntilCertified(parentSlotData)(lastUsedSlot.max(parentSlotData.slotId.slot) + 1)
         } yield child
       )
         .handleErrorWith(e =>
