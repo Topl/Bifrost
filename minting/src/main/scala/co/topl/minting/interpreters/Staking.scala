@@ -4,6 +4,7 @@ import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.LockAddress
+import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -47,15 +48,25 @@ object Staking {
           def elect(parentSlotId: SlotId, slot: Slot): F[Option[VrfHit]] = (
             for {
               eta <- OptionT.liftF(etaCalculation.etaToBe(parentSlotId, slot))
-              relativeStake <- OptionT(consensusState.operatorRelativeStake(parentSlotId.blockId, slot)(a)).flatTapNone(
+              relativeStake <- OptionT(
+                consensusState
+                  .operatorRelativeStake(parentSlotId.blockId, slot)(a)
+                  .warnIfSlow("Local Operator Relative Stake")
+              ).flatTapNone(
                 Logger[F].debug(s"No stake at slot=$slot")
               )
               threshold <- OptionT.liftF(
-                leaderElectionValidation.getThreshold(relativeStake, slot - parentSlotId.slot)
+                leaderElectionValidation
+                  .getThreshold(relativeStake, slot - parentSlotId.slot)
+                  .warnIfSlow("Local threshold")
               )
               testProof <- OptionT.liftF(vrfCalculator.proofForSlot(slot, eta))
               rho       <- OptionT.liftF(vrfCalculator.rhoForSlot(slot, eta))
-              isLeader  <- OptionT.liftF(leaderElectionValidation.isSlotLeaderForThreshold(threshold)(rho))
+              isLeader <- OptionT.liftF(
+                leaderElectionValidation
+                  .isSlotLeaderForThreshold(threshold)(rho)
+                  .warnIfSlow("Local Operator Is Slot Leader")
+              )
               _ <- OptionT.liftF(
                 Logger[F].debug(
                   show"Eligibility at" +
