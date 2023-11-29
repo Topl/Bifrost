@@ -20,8 +20,11 @@ import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
+import com.github.benmanes.caffeine.cache.Caffeine
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+import scalacache.Entry
+import scalacache.caffeine.CaffeineCache
 
 /**
  * TODO consider to split to two separate actors
@@ -66,6 +69,7 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
+    bodyStoreCache:              CaffeineCache[F, BlockId, Boolean],
     chainSelection:              ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -100,6 +104,9 @@ object BlockChecker {
     bestChain:                   Option[BestChain] = None,
     bestKnownRemoteSlotDataHost: Option[HostId] = None
   ): Resource[F, BlockCheckerActor[F]] = {
+    val bodyContainsCache =
+      CaffeineCache(Caffeine.newBuilder.maximumSize(bodyStoreContainsCacheSize).build[BlockId, Entry[Boolean]]())
+
     val initialState =
       State(
         requestsProxy,
@@ -107,6 +114,7 @@ object BlockChecker {
         slotDataStore,
         headerStore,
         bodyStore,
+        bodyContainsCache,
         chainSelectionAlgebra,
         headerValidation,
         bodySyntaxValidation,
@@ -149,7 +157,7 @@ object BlockChecker {
     val remoteIds: NonEmptyChain[BlockId] = remoteSlotData.map(_.slotId.blockId)
     for {
       (buildTime, fullSlotData) <- Async[F].timed(buildFullSlotDataChain(state, remoteSlotData))
-      _                         <- Logger[F].info(show"Build full slot data chain for ${buildTime.toMillis} ms")
+      _        <- Logger[F].info(show"Build full slot data for len ${fullSlotData.size} in ${buildTime.toMillis} ms")
       _        <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
       newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
       _        <- requestNextHeaders(newState)
@@ -175,7 +183,8 @@ object BlockChecker {
     val missedSlotDataF = getFromChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
       getT = state.slotDataStore.getOrRaise,
-      terminateOn = sd => state.bodyStore.contains(sd.slotId.blockId)
+      terminateOn =
+        sd => state.bodyStoreCache.cachingF(sd.slotId.blockId)(None)(state.bodyStore.contains(sd.slotId.blockId))
     )(from)
 
     missedSlotDataF.map(sd => remoteSlotData.prependChain(Chain.fromSeq(sd)))
