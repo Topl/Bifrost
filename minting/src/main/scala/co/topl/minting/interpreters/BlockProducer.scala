@@ -1,6 +1,5 @@
 package co.topl.minting.interpreters
 
-import cats.Applicative
 import cats.data.OptionT
 import cats.effect._
 import cats.implicits._
