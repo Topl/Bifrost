@@ -13,7 +13,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange}
+import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange}
 import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -81,9 +81,9 @@ object ActorPeerHandlerBridgeAlgebra {
   }
 
   private def makeAlgebra[F[_]](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
-    (client: BlockchainPeerClient[F], peer: ConnectedPeer) =>
+    client: BlockchainPeerClient[F] =>
       for {
-        _ <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(client, peer)).toResource
+        _ <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(client)).toResource
       } yield ()
   }
 }

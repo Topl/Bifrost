@@ -45,13 +45,9 @@ object PeersManager {
     /**
      * Setup appropriate actor for connection to peer specified by hostId, client is created outside before
      * @param client client with already opened connection to host
-     * @param connectedPeer connected peer
      * @tparam F effect
      */
-    case class OpenedPeerConnection[F[_]](
-      client:        BlockchainPeerClient[F],
-      connectedPeer: ConnectedPeer
-    ) extends Message
+    case class OpenedPeerConnection[F[_]](client: BlockchainPeerClient[F]) extends Message
 
     /**
      * Set block checker actor, can't be done in constructor due cyclic references
@@ -195,11 +191,6 @@ object PeersManager {
     case object UpdatePeersTick extends Message
 
     /**
-     * Add remote peer server
-     */
-    case class RemotePeerServerPort(hostId: HostId, remotePeerServerPort: Int) extends Message
-
-    /**
      * Update remote peer application level status
      */
     case class RemotePeerNetworkLevel(hostId: HostId, networkLevel: Boolean) extends Message
@@ -255,9 +246,8 @@ object PeersManager {
         case (state, BlockBodyRequest(hostId, blockHeaders))      => blockDownloadRequest(state, hostId, blockHeaders)
         case (state, BlocksSource(sources))                       => blocksSourceProcessing(state, sources)
         case (state, GetNetworkQualityForWarmHosts)               => doNetworkQualityMeasure(state)
-        case (state, PrintP2PState)                               => requestCommonAncestor(state)
+        case (state, PrintP2PState)                               => printP2PState(thisActor, state)
         case (state, GetCurrentTips)                              => getCurrentTips(state)
-        case (state, RemotePeerServerPort(peer, peerServerPort))  => remotePeerServerPort(state, peer, peerServerPort)
         case (state, RemotePeerNetworkLevel(peer, level))         => remoteNetworkLevel(thisActor, state, peer, level)
         case (state, RemotePeerIdChanged(oldId, newId))           => remoteIdChanged(state, oldId, newId)
         case (state, MoveToCold(peers))                           => coldPeer(thisActor, state, peers)
@@ -534,31 +524,40 @@ object PeersManager {
     state.peersHandler.getWarmPeersWithActor.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetNetworkQuality)) >>
     (state, state).pure[F]
 
-  private def requestCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
+  private def printP2PState[F[_]: Async: Logger](
+    thisActor: PeersManagerActor[F],
+    state:     State[F]
+  ): F[(State[F], Response[F])] = {
+    val hotPeers = state.peersHandler.getHotPeers
+    val warmPeers = state.peersHandler.getWarmPeers
+    val coldPeers = state.peersHandler.getColdPeers
+
+    Logger[F].info(show"PeerId: ${state.thisHostId}") >>
+    state.localChain.head.map(head => Logger[F].info(show"Current head: ${head.slotId}")) >>
     Logger[F].info(show"Known local addresses: ${state.thisHostIps}") >>
-    Logger[F].info(show"Current hot peer(s) state: ${state.peersHandler.getHotPeers}") >>
-    Logger[F].info(show"Current warm peer(s) state: ${state.peersHandler.getWarmPeers}") >>
-    Logger[F].info(show"Current first five cold peer(s) state: ${state.peersHandler.getColdPeers.take(5)}") >>
-    Logger[F].info(show"With known cold peers: ${state.peersHandler.getColdPeers.keySet}") >>
+    Logger[F].info(show"Current (${hotPeers.size}) hot peer(s) state: $hotPeers") >>
+    Logger[F].info(show"Current (${warmPeers.size}) warm peer(s) state: $warmPeers") >>
+    Logger[F].info(show"Current first five of (${coldPeers.size}) cold peer(s) state: ${coldPeers.take(5)}") >>
+    Logger[F].info(show"With known cold peers: ${coldPeers.keySet}") >>
+    printQueueSizeInfo(thisActor, state) >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
+  }
+
+  private def printQueueSizeInfo[F[_]: Async: Logger](thisActor: PeersManagerActor[F], state: State[F]): F[Unit] =
+    for {
+      blockCheckerSize  <- state.blocksChecker.traverse(_.mailboxSize())
+      _                 <- Logger[F].info(show"BlockChecker queue size: $blockCheckerSize")
+      thisActorSize     <- thisActor.mailboxSize()
+      _                 <- Logger[F].info(show"PeersManager queue size: ${thisActorSize.some}")
+      requestsProxySize <- state.requestsProxy.traverse(_.mailboxSize())
+      _                 <- Logger[F].info(show"Requests proxy queue size: $requestsProxySize")
+    } yield ()
 
   private def getCurrentTips[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     Logger[F].info(show"Got request to get all available tips") >>
     state.peersHandler.getHotPeers.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetCurrentTip)) >>
     (state, state).pure[F]
-
-  private def remotePeerServerPort[F[_]: Async: Parallel: Logger: ReverseDnsResolver](
-    state:      State[F],
-    hostId:     HostId,
-    serverPort: Int
-  ): F[(State[F], Response[F])] =
-    for {
-      _               <- Logger[F].info(show"For peer $hostId received server address: $serverPort")
-      newPeersHandler <- state.peersHandler.copyWithUpdatedServerPort(hostId, serverPort.some).pure[F]
-      newState        <- state.copy(peersHandler = newPeersHandler).pure[F]
-      _               <- updateExternalHotPeersList(newState)
-    } yield (newState, newState)
 
   private def remoteNetworkLevel[F[_]: Async: Logger](
     thisActor:          PeersManagerActor[F],
@@ -674,10 +673,33 @@ object PeersManager {
     state:     State[F],
     setupPeer: OpenedPeerConnection[F]
   ): F[(State[F], Response[F])] = {
-    val hostId: HostId = HostId(setupPeer.connectedPeer.p2pVK)
-    val address: String = setupPeer.connectedPeer.remoteAddress.host
-    val client: BlockchainPeerClient[F] = setupPeer.client
+    for {
+      connectedPeer <- OptionT.liftF(setupPeer.client.remotePeer)
+      client        <- OptionT.some[F](setupPeer.client)
+      hostId        <- OptionT.some[F](HostId(connectedPeer.p2pVK))
+      _ <- OptionT
+        .when[F, Unit](state.thisHostId != hostId)(())
+        .flatTapNone(Logger[F].info(show"Decline connection ${connectedPeer.toString} because it is self-connection"))
+      _ <- OptionT
+        .when[F, Unit](state.peersHandler.hostIsNotBanned(hostId))(())
+        .flatTapNone(
+          Logger[F].warn(show"Actor for $hostId was not created because peer is banned. Connection will be closed") >>
+          client.closeConnection()
+        )
+      _ <- OptionT
+        .when[F, Unit](state.peersHandler.haveNoActorForHost(hostId))(())
+        .flatTapNone(Logger[F].error(show"Try to open connection to already opened peer $hostId"))
+      newState <- OptionT.liftF(createActor(hostId, state, client, connectedPeer, thisActor))
+    } yield (newState, newState)
+  }.getOrElse((state, state))
 
+  private def createActor[F[_]: Async: Logger](
+    hostId:        HostId,
+    state:         State[F],
+    client:        BlockchainPeerClient[F],
+    connectedPeer: ConnectedPeer,
+    thisActor:     PeersManagerActor[F]
+  ): F[State[F]] = {
     require(state.requestsProxy.isDefined)
 
     def setupPeerActor: F[PeerActor[F]] =
@@ -702,41 +724,25 @@ object PeersManager {
           )
         )
 
-    if (state.thisHostId != hostId) {
-      if (state.peersHandler.hostIsNotBanned(hostId)) {
-        if (state.peersHandler.haveNoActorForHost(hostId)) {
-          for {
-            _         <- Logger[F].info(show"Going to create actor for handling connection to remote peer $hostId")
-            peerActor <- setupPeerActor
-            // shall do in two step, for case of incoming connection from already known cold peer
-            newPeerHandler <-
-              state.peersHandler
-                .copyWithNewHost(hostId, address)
-                .copyWithNewPeerActor(hostId, peerActor)
-                // clear port in case if expose server port is not allowed by remote peer
-                .copyWithUpdatedServerPort(hostId, None)
-                .pure[F]
+    for {
+      _ <- Logger[F].info(show"Going to create actor for handling connection to remote peer $hostId")
 
-            peerState = newPeerHandler.get(hostId).get.state
-            _ <- peerActor.sendNoWait(PeerActor.Message.UpdateState(peerState.networkLevel, peerState.applicationLevel))
-            _ <- peerActor.sendNoWait(PeerActor.Message.GetNetworkQuality)
-            _ <- peerActor.sendNoWait(PeerActor.Message.GetPeerServerAddress)
-
-            newState = state.copy(peersHandler = newPeerHandler)
-          } yield (newState, newState)
-        } else {
-          Logger[F].error(show"Try to open connection to already opened peer $hostId") >>
-          (state, state).pure[F]
-        }
-      } else {
-        Logger[F].warn(show"Actor for $hostId was not created because peer is banned. Connection will be closed") >>
-        client.closeConnection() >>
-        (state, state).pure[F]
+      peerActor <- setupPeerActor
+      remotePeerServerPort <- client.remotePeerServerPort.handleErrorWith { e =>
+        Logger[F].error(e)(s"Failed to get remote server port from $connectedPeer set port to None") >>
+        Option.empty[Int].pure[F]
       }
-    } else {
-      Logger[F].info(show"Decline connection ${setupPeer.connectedPeer.toString} because it is self-connection") >>
-      (state, state).pure[F]
-    }
+      _ <- Logger[F].info(show"Received remote server port ${remotePeerServerPort} from $hostId")
+
+      newPeerHandler <-
+        state.peersHandler
+          .copyWithUpdatedPeer(hostId, connectedPeer.remoteAddress.host, remotePeerServerPort, peerActor)
+          .pure[F]
+
+      peerState = newPeerHandler.get(hostId).get.state
+      _ <- peerActor.sendNoWait(PeerActor.Message.UpdateState(peerState.networkLevel, peerState.applicationLevel))
+      _ <- peerActor.sendNoWait(PeerActor.Message.GetNetworkQuality)
+    } yield state.copy(peersHandler = newPeerHandler)
   }
 
   private def resolveHosts[T: Show, F[_]: Async: Parallel: Logger](

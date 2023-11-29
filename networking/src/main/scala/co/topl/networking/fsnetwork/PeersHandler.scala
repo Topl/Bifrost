@@ -130,12 +130,18 @@ case class PeersHandler[F[_]: Async: Logger](
       case None => this
     }
 
-  def copyWithNewHost(host: HostId, address: String): PeersHandler[F] = {
+  def copyWithUpdatedPeer(
+    host:      HostId,
+    address:   String,
+    port:      Option[Int],
+    peerActor: PeerActor[F]
+  ): PeersHandler[F] = {
     val peerToAdd =
       peers.get(host) match {
         case None =>
-          host -> Peer(PeerState.Cold, None, address, None, Seq.empty, remoteNetworkLevel = false, 0.0, 0.0, 0)
-        case Some(peer) => host -> peer
+          host -> Peer(PeerState.Cold, peerActor.some, address, port, Seq.empty, remoteNetworkLevel = false, 0, 0, 0)
+        case Some(peer) =>
+          host -> peer.copy(address = address, remoteServerPort = port, actorOpt = peerActor.some)
       }
     this.copy(peers = peers + peerToAdd)
   }
@@ -192,12 +198,6 @@ case class PeersHandler[F[_]: Async: Logger](
 
     this.copy(peers = peers ++ newPeers)
   }
-
-  def copyWithUpdatedServerPort(hostId: HostId, serverPortOpt: Option[Int]): PeersHandler[F] =
-    peers
-      .get(hostId)
-      .map(peer => this.copy(peers = peers + (hostId -> peer.copy(remoteServerPort = serverPortOpt))))
-      .getOrElse(this)
 
   def copyWithNetworkLevel(
     hostIds:          Set[HostId],

@@ -7,15 +7,15 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure}
 import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
+import co.topl.models.utility.byteStringToByteVector
 import co.topl.networking.fsnetwork.NetworkQualityError._
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
-import com.google.protobuf.ByteString
 
 trait P2PShowInstances {
 
-  implicit val showHostId: Show[HostId] = id => show"${ByteString.copyFrom(id.id.toByteArray.take(8))}..."
+  implicit val showHostId: Show[HostId] = id => show"${id.id.toBase58.take(8)}..."
 
   implicit val showRemotePeer: Show[RemotePeer] = rp => show"RemotePeer(id=${rp.peerId} address=${rp.address})"
 
