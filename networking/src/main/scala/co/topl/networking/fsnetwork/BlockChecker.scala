@@ -6,6 +6,7 @@ import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
+import co.topl.catsutils.faAsFAClockOps
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
@@ -156,8 +157,8 @@ object BlockChecker {
   ): F[State[F]] = {
     val remoteIds: NonEmptyChain[BlockId] = remoteSlotData.map(_.slotId.blockId)
     for {
-      (buildTime, fullSlotData) <- Async[F].timed(buildFullSlotDataChain(state, remoteSlotData))
-      _        <- Logger[F].info(show"Build full slot data for len ${fullSlotData.size} in ${buildTime.toMillis} ms")
+      fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
+        .logDurationRes(fullSlotData => show"Build full slot data for len=${fullSlotData.size}")
       _        <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
       newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
       _        <- requestNextHeaders(newState)
@@ -236,10 +237,10 @@ object BlockChecker {
         .foldable(blockHeaders)
         .covaryAll[F, UnverifiedBlockHeader]
         .evalFilter(headerCouldBeVerified(state, lastProcessedBodySlot))
-        .evalMap(header => Async[F].timed(verifyOneBlockHeader(state)(header)))
-        .evalMap { case (time, header) =>
-          Logger[F].info(show"Verified header ${header.id} for ${time.toMillis} ms") >> header.pure[F]
-        }
+        .evalMap(header =>
+          verifyOneBlockHeader(state)(header)
+            .logDuration(show"Verified header ${header.blockHeader.id}")
+        )
         .evalTap(header => state.headerStore.put(header.id, header))
         .map(Right.apply)
         .handleErrorWith {
@@ -276,6 +277,7 @@ object BlockChecker {
   ): F[Boolean] =
     state.headerValidation
       .couldBeValidated(header.blockHeader, lastProcessedBody)
+      .warnIfSlow(show"Header-Is-Verifiable blockId=${header.blockHeader.id}")
       .ifM(
         ifTrue = Logger[F].debug(show"Header ${header.blockHeader} could be validated") >> true.pure[F],
         ifFalse = Logger[F].warn(show"Header ${header.blockHeader} can't be validated, drop header") >> false.pure[F]
@@ -296,7 +298,11 @@ object BlockChecker {
   )(unverifiedBlockHeader: UnverifiedBlockHeader): F[BlockHeader] = {
     val id = unverifiedBlockHeader.blockHeader.id
     Logger[F].debug(show"Validating remote header id=$id") >>
-    EitherT(state.headerValidation.validate(unverifiedBlockHeader.blockHeader))
+    EitherT(
+      state.headerValidation
+        .validate(unverifiedBlockHeader.blockHeader)
+        .warnIfSlow(show"Header Verification blockId=$id")
+    )
       .leftMap(HeaderValidationException(id, unverifiedBlockHeader.source, _))
       .rethrowT
   }
@@ -373,10 +379,10 @@ object BlockChecker {
         .foldable(blocks)
         .covaryAll[F, (BlockHeader, UnverifiedBlockBody)]
         .evalDropWhile(knownBlockBodyPredicate(state))
-        .evalMap(headerAndBody => Async[F].timed(verifyOneBlockBody(state)(headerAndBody)))
-        .evalMap { case (time, idAndBody) =>
-          Logger[F].info(show"Verified body ${idAndBody._1} for ${time.toMillis} ms") >> idAndBody.pure[F]
-        }
+        .evalMap(headerAndBody =>
+          verifyOneBlockBody(state)(headerAndBody)
+            .logDuration(show"Verified body ${headerAndBody._1.id}")
+        )
         .evalTap { case (id, block) => state.bodyStore.put(id, block.body) }
         .evalTap(applyOneBlockBody(state))
         .map { case (id, _) => Right(id) }
@@ -466,15 +472,28 @@ object BlockChecker {
   ): EitherT[F, NonEmptyChain[BodyValidationError], (BlockId, Block)] = {
     val header = block.header
     val body = block.body
+    val id = header.id
 
     for {
       _ <- EitherT.liftF(Logger[F].debug(show"Validating syntax of body id=$blockId"))
-      _ <- EitherT(state.bodySyntaxValidation.validate(body).map(_.toEither))
+      _ <- EitherT(
+        state.bodySyntaxValidation
+          .validate(body)
+          .map(_.toEither)
+          .warnIfSlow(show"Body Syntax Validation blockId=$id")
+      )
       _ <- EitherT.liftF(Logger[F].debug(show"Validating semantics of body id=$blockId"))
       validationContext = StaticBodyValidationContext(header.parentHeaderId, header.height, header.slot)
-      _ <- EitherT(state.bodySemanticValidation.validate(validationContext)(body).map(_.toEither))
+      _ <- EitherT(
+        state.bodySemanticValidation
+          .validate(validationContext)(body)
+          .map(_.toEither)
+          .warnIfSlow(show"Body Semantics Validation blockId=$id")
+      )
       _ <- EitherT.liftF(Logger[F].debug(show"Validating authorization of body id=$blockId"))
-      authValidation = state.bodyAuthorizationValidation.validate(QuivrContext.forConstructedBlock(header, _))(body)
+      authValidation = state.bodyAuthorizationValidation
+        .validate(QuivrContext.forConstructedBlock(header, _))(body)
+        .warnIfSlow(show"Body Authorization Validation blockId=$id")
       _ <- EitherT(authValidation.map(_.toEither.leftMap(e => e: NonEmptyChain[BodyValidationError])))
     } yield (blockId, block)
   }

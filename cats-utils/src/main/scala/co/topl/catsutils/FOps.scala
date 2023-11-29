@@ -27,7 +27,24 @@ class FAClockOps[F[_], A](val fa: F[A]) extends AnyVal {
       .timed(fa)
       .flatMap { case (duration, result) =>
         Logger[F]
-          .trace(show"$operationName duration=$duration")
+          .info(show"$operationName duration=${duration.toMillis}ms")
+          .as(result)
+      }
+
+  /**
+   * Wraps the `fa` with a timer that measures the execution length of `fa`.  The resulting duration is logged as
+   * a `trace`.
+   * @param operationNameF A function which returns an operation name when given the result value
+   * @return `fa` that is wrapped with a timer+log
+   */
+  def logDurationRes(
+    operationNameF: A => String
+  )(implicit fMonad: Monad[F], fClock: Clock[F], fLogger: Logger[F]): F[A] =
+    Clock[F]
+      .timed(fa)
+      .flatMap { case (duration, result) =>
+        Logger[F]
+          .info(show"${operationNameF(result)} duration=${duration.toMillis}ms")
           .as(result)
       }
 
