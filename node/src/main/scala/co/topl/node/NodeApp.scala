@@ -34,13 +34,13 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.{FullBlock, FullBlockBody}
+import co.topl.version.VersionReplicator
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import fs2.io.file.Path
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-
 import java.time.Instant
 
 object NodeApp extends AbstractNodeApp
@@ -380,6 +380,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         registrationAccumulatorState
       )
 
+      softwareVersion <- OptionT
+        .whenF(appConfig.bifrost.versionInfo.enable)(
+          VersionReplicator.make[F](metadata, appConfig.bifrost.versionInfo.uri)
+        )
+        .value
+
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -404,6 +410,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.p2p.networkProperties
         )
         .parProduct(genusOpt.traverse(Replicator.background[F]).void)
+        .parProduct(
+          softwareVersion.traverse(VersionReplicator.background[F](_, appConfig.bifrost.versionInfo.period)).void
+        )
     } yield ()
 
   private def makeEpochBoundariesState(
