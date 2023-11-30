@@ -350,9 +350,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       healthCheck    <- HealthCheck.make[F]()
       healthServices <- HealthCheckGrpc.Server.services(healthCheck.healthChecker)
 
-      protocolConfig <- ProtocolConfiguration.make[F](
-        appConfig.bifrost.protocols.map { case (slot, protocol) => protocol.nodeConfig(slot) }.toSeq
-      )
+      protocolConfig <- ProtocolConfiguration.make[F](List(bigBangProtocol.nodeConfig(0)))
 
       transactionRewardCalculator <- TransactionRewardCalculator.make[F]
 
