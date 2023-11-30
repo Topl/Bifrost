@@ -1,6 +1,8 @@
 package co.topl.genus
 
+import cats.Parallel
 import cats.effect._
+import cats.effect.implicits._
 import co.topl.algebras._
 import co.topl.genusLibrary.algebras._
 import co.topl.genusLibrary.interpreter._
@@ -46,7 +48,8 @@ object Genus {
         .evalTap(db => orientThread.delay(db.makeActive()))
 
       rpcInterpreter   <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = false)
-      nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
+      fetchConcurrency <- Sync[F].delay(Runtime.getRuntime.availableProcessors()).toResource
+      nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter, fetchConcurrency)
 
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
       blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
