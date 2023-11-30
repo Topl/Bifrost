@@ -25,6 +25,11 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
   private val blockId1 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(1)))
   private val blockId2 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(2)))
 
+  val chainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
+    override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compareTo(y.height).pure[F]
+    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = ???
+  }
+
   test("store the head of the local canonical tine") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
       val initialHead =
@@ -35,8 +40,6 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           eta.data,
           0
         )
-
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
       LocalChain
         .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
@@ -54,8 +57,6 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           eta.data,
           0
         )
-
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
       val newHead =
         SlotData(
@@ -82,8 +83,6 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           eta.data,
           0
         )
-
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
       val newHead =
         SlotData(
@@ -123,8 +122,6 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         etaGen.first.data,
         1
       )
-
-    val chainSelection: ChainSelectionAlgebra[F, SlotData] = (a, b) => a.height.compareTo(b.height).pure[F]
 
     LocalChain
       .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)

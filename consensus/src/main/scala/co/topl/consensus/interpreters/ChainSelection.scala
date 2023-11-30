@@ -67,6 +67,15 @@ object ChainSelection {
     implicit private val logger: Logger[F] =
       Slf4jLogger.getLoggerFromName("Bifrost.ChainSelection")
 
+    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = {
+      val densitySelection = (currentHeight - commonHeight) > kLookback
+      if (densitySelection) {
+        (commonHeight + sWindow).pure[F]
+      } else {
+        Math.min(currentHeight + kLookback, proposedHeight).pure[F]
+      }
+    }
+
     override def compare(x: SlotData, y: SlotData): F[Int] =
       if (x === y) 0.pure[F]
       else

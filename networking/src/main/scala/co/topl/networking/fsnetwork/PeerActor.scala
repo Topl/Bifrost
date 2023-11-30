@@ -122,7 +122,6 @@ object PeerActor {
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    slotDataDownloadStep:        Long,
     commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
@@ -141,7 +140,6 @@ object PeerActor {
         slotDataStore,
         blockIdTree,
         blockHeights,
-        slotDataDownloadStep,
         commonAncestorF
       )
       body <- networkAlgebra.makePeerBodyFetcher(
