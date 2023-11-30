@@ -29,7 +29,7 @@ class NodeBlockFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
   private val toplRpc: NodeRpc[F, Stream[F, *]] = mock[NodeRpc[F, Stream[F, *]]]
 
-  private val nodeBlockFetcher = NodeBlockFetcher.make[F](toplRpc)
+  private val nodeBlockFetcher = NodeBlockFetcher.make[F](toplRpc, 1)
 
   test("On no block at given height, a None should be returned") {
     PropF.forAllF { height: Long =>
@@ -66,6 +66,11 @@ class NodeBlockFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
         (toplRpc.fetchBlockHeader _)
           .expects(blockId)
           .returning(Option.empty[BlockHeader].pure[F])
+          .once()
+
+        (toplRpc.fetchBlockBody _)
+          .expects(blockId)
+          .returning(BlockBody().some.pure[F])
           .once()
 
         val res = for {

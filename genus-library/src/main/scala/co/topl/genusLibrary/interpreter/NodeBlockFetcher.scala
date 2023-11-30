@@ -1,10 +1,12 @@
 package co.topl.genusLibrary.interpreter
 
 import cats.data.{EitherT, OptionT}
-import cats.effect.Resource
-import cats.effect.kernel.Async
+import cats.effect._
+import cats.effect.implicits._
+import EitherT._
 import cats.implicits._
 import co.topl.algebras.NodeRpc
+import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.NodeBlockFetcherAlgebra
@@ -18,7 +20,8 @@ import scala.collection.immutable.ListSet
 object NodeBlockFetcher {
 
   def make[F[_]: Async: Logger](
-    toplRpc: NodeRpc[F, Stream[F, *]]
+    toplRpc:          NodeRpc[F, Stream[F, *]],
+    fetchConcurrency: Int
   ): Resource[F, NodeBlockFetcherAlgebra[F, Stream[F, *]]] =
     Resource.pure {
 
@@ -30,7 +33,7 @@ object NodeBlockFetcher {
               // If start height is one, then the range would be [1, 2, 3, ...]
               .range(startHeight, endHeight)
               .covary[F]
-              .evalMap(fetch)
+              .parEvalMap(fetchConcurrency)(fetch)
               .takeWhile(_.exists(_.nonEmpty), takeFailure = true)
               .evalMapFilter {
                 case Left(ex) =>
@@ -56,22 +59,30 @@ object NodeBlockFetcher {
                 Option.empty[BlockData].asRight[GE].pure[F]
             }
 
-        // TODO: TSDK-186 | Do calls concurrently.
-        override def fetch(blockId: BlockId): F[Either[GE, BlockData]] = (
-          for {
-            header <- OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE)
-            body   <- OptionT(toplRpc.fetchBlockBody(blockId)).toRight(GEs.BodyNotFound(blockId): GE)
-            transactions <- body.transactionIds.traverse(id =>
-              OptionT(toplRpc.fetchTransaction(id))
-                .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
-            )
-            reward <- body.rewardTransactionId.traverse(id =>
-              OptionT(toplRpc.fetchTransaction(id))
-                .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
-            )
-            fullBody = FullBlockBody(transactions, reward)
-          } yield BlockData(header, fullBody)
-        ).value
+        override def fetch(blockId: BlockId): F[Either[GE, BlockData]] =
+          (
+            OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE),
+            OptionT(toplRpc.fetchBlockBody(blockId))
+              .toRight(GEs.BodyNotFound(blockId): GE)
+              .flatMap(body =>
+                (
+                  fs2.Stream
+                    .iterable[EitherT[F, GE, *], TransactionId](body.transactionIds)
+                    .parEvalMap(fetchConcurrency)(id =>
+                      OptionT(toplRpc.fetchTransaction(id))
+                        .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
+                    )
+                    .compile
+                    .toList,
+                  body.rewardTransactionId.traverse(id =>
+                    OptionT(toplRpc.fetchTransaction(id))
+                      .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
+                  )
+                ).parMapN((transactions, reward) => FullBlockBody(transactions, reward))(
+                  catsDataParallelForEitherTWithParallelEffect2
+                )
+              )
+          ).parMapN(BlockData(_, _))(catsDataParallelForEitherTWithParallelEffect2).value
 
         def fetchHeight(): F[Option[Long]] =
           (for {
