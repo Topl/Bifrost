@@ -12,6 +12,7 @@ import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInt
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
 import co.topl.buildinfo.node.BuildInfo
+import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
@@ -41,6 +42,8 @@ import fs2.io.file.Path
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+
+import scala.concurrent.duration._
 import java.time.Instant
 
 object NodeApp extends AbstractNodeApp
@@ -386,6 +389,13 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           VersionReplicator.make[F](metadata, appConfig.bifrost.versionInfo.uri)
         )
         .value
+
+      _ <- Logger[F].info(show"Updating EventSourcedStates to id=$canonicalHeadId").toResource
+      _ <- eventSourcedStates
+        .updateTo(canonicalHeadId)
+        .logDuration("EventSourcedStates Update")
+        .warnIfSlow("EventSourcedStates Update", 5.seconds)
+        .toResource
 
       // Finally, run the program
       _ <- Blockchain
