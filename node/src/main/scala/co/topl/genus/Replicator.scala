@@ -43,7 +43,7 @@ object Replicator {
           genus.nodeBlockFetcher.fetch(startHeight = graphCurrentHeight + 1, endHeight = nodeLatestHeight + 3)
         )
         .evalTap(blockData =>
-          Logger[F].info(s"Inserting block data ${blockData.header.id.show} height=${blockData.header.height}")
+          Logger[F].info(s"Inserting block ${blockData.header.id.show} height=${blockData.header.height}")
         )
         .evalMap(genus.blockUpdater.insert)
         .rethrow ++
