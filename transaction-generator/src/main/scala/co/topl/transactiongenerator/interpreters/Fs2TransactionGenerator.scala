@@ -53,36 +53,82 @@ object Fs2TransactionGenerator {
     wallet:         Wallet,
     costCalculator: TransactionCostCalculator[F]
   ): OptionT[F, (IoTransaction, Wallet)] =
+    (if (wallet.spendableBoxes.size < 5) generateExpandingTransaction(wallet, costCalculator)
+     else generateConsolidatingTransaction(wallet, costCalculator))
+      .map(transaction => transaction -> applyTransaction(wallet)(transaction))
+
+  private def generateExpandingTransaction[F[_]: Async: Logger](
+    wallet:         Wallet,
+    costCalculator: TransactionCostCalculator[F]
+  ): OptionT[F, IoTransaction] =
     pickInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
       for {
         predicate <- Attestation.Predicate(inputBox.lock.getPredicate, Nil).pure[F]
         unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
         inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
-        outputs   <- createOutputs[F](inputBox)
-        timestamp <- Async[F].realTimeInstant
-        schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
-        datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
-        unprovenTransaction <- applyFee(costCalculator)(
-          IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+        outputs           <- createOutputs[F](inputBox)
+        provenTransaction <- formTransaction(costCalculator)(inputs, outputs)
+      } yield provenTransaction
+    }
+
+  private def generateConsolidatingTransaction[F[_]: Async: Logger](
+    wallet:         Wallet,
+    costCalculator: TransactionCostCalculator[F]
+  ): OptionT[F, IoTransaction] =
+    OptionT
+      .pure[F](
+        wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.sortBy(_._2.value.getLvl.quantity: BigInt).take(4)
+      )
+      .filter(_.nonEmpty)
+      .map(_.map { case (inputBoxId, inputBox) =>
+        SpentTransactionOutput(
+          inputBoxId,
+          Attestation(Attestation.Value.Predicate(Attestation.Predicate(inputBox.lock.getPredicate, Nil))),
+          inputBox.value
         )
-        _     <- Logger[F].info(show"Spending ${unprovenTransaction.inputs.mkString_(", ")}")
-        proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
-        provenTransaction = unprovenTransaction
-          .copy(
-            inputs = unprovenTransaction.inputs.map(
-              _.copy(attestation =
-                Attestation(
-                  Attestation.Value.Predicate(
-                    predicate.copy(responses = List(proof))
-                  )
+      })
+      .semiflatMap(inputs =>
+        formTransaction(costCalculator)(
+          inputs,
+          List(
+            UnspentTransactionOutput(
+              HeightLockOneSpendingAddress,
+              Value.defaultInstance.withLvl(
+                Value.LVL(
+                  inputs.foldMap(_.value.getLvl.quantity: BigInt)
                 )
               )
             )
           )
-          .embedId
-        updatedWallet = applyTransaction(wallet)(provenTransaction)
-      } yield (provenTransaction, updatedWallet)
-    }
+        )
+      )
+
+  private def formTransaction[F[_]: Async: Logger](
+    costCalculator: TransactionCostCalculator[F]
+  )(inputs: Seq[SpentTransactionOutput], outputs: Seq[UnspentTransactionOutput]) =
+    for {
+      timestamp <- Async[F].realTimeInstant
+      schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
+      datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
+      unprovenTransaction <- applyFee(costCalculator)(
+        IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+      )
+      _     <- Logger[F].info(show"Spending ${unprovenTransaction.inputs.mkString_(", ")}")
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      provenTransaction = unprovenTransaction
+        .copy(
+          inputs = unprovenTransaction.inputs.map(i =>
+            i.copy(attestation =
+              Attestation(
+                Attestation.Value.Predicate(
+                  i.attestation.getPredicate.copy(responses = List(proof))
+                )
+              )
+            )
+          )
+        )
+        .embedId
+    } yield provenTransaction
 
   /**
    * Selects a spendable box from the wallet
