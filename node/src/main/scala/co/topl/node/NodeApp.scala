@@ -168,6 +168,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           .pure[F]
           .rethrow
           .toResource
+      _ <- Logger[F].info(s"Protocol settings=$bigBangProtocol").toResource
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
         bigBangProtocol.vrfPrecision,
@@ -454,8 +455,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
-      leaderElectionThreshold = LeaderElectionValidation
-        .make[F](vrfConfig, blake2b512Resource, exp, log1p)
+      base = LeaderElectionValidation.make[F](vrfConfig, blake2b512Resource, exp, log1p)
+      leaderElectionThreshold <- LeaderElectionValidation.makeCached(base)
     } yield leaderElectionThreshold
 
   /**

@@ -76,11 +76,6 @@ object PeerActor {
      * Request to get remote host's hot connections
      */
     case class GetHotPeersFromPeer(maxHosts: Int) extends Message
-
-    /**
-     * Get peer server address
-     */
-    case object GetPeerServerAddress extends Message
   }
 
   case class State[F[_]](
@@ -111,7 +106,6 @@ object PeerActor {
     case (state, GetNetworkQuality)                           => getNetworkQuality(state)
     case (state, PrintCommonAncestor)                         => printCommonAncestor(state)
     case (state, GetHotPeersFromPeer(maxHosts))               => getHotPeersOfCurrentPeer(state, maxHosts)
-    case (state, GetPeerServerAddress)                        => getPeerServerAddress(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -278,21 +272,6 @@ object PeerActor {
   }.getOrElse((state, state))
     .handleErrorWith { error =>
       Logger[F].error(show"Error ${error.toString} during getting remote peer(s) neighbours") >>
-      state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
-      (state, state).pure[F]
-    }
-
-  private def getPeerServerAddress[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
-    val peer = state.hostId
-    for {
-      _              <- OptionT.liftF(Logger[F].info(show"Request server address from $peer"))
-      peerServerPort <- OptionT(state.client.remotePeerServerPort)
-      message = PeersManager.Message.RemotePeerServerPort(peer, peerServerPort)
-      _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
-    } yield (state, state)
-  }.getOrElse(state, state)
-    .handleErrorWith { error =>
-      Logger[F].error(show"Error ${error.toString} during getting remote peer server port") >>
       state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }

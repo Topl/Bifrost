@@ -157,7 +157,7 @@ object RequestsProxy {
   // response with longest possible prefix for requested ids
   // where corresponding block header is already downloaded for each block id
   // also drop any data which is already in header storage
-  private def sendAlreadyDownloadedHeadersToBlockChecker[F[_]: Async](
+  private def sendAlreadyDownloadedHeadersToBlockChecker[F[_]: Async: Logger](
     state:    State[F],
     blockIds: NonEmptyChain[BlockId]
   ): F[Seq[BlockId]] = {
@@ -398,13 +398,15 @@ object RequestsProxy {
     sendMessage.getOrElse(Seq.empty[BlockHeader])
   }
 
-  private def sendHeaders[F[_]: Async](
+  private def sendHeaders[F[_]: Async: Logger](
     state:  State[F],
     toSend: NonEmptyChain[UnverifiedBlockHeader]
   ): OptionT[F, NonEmptyChain[BlockHeader]] =
     for {
-      blockChecker <- OptionT.fromOption[F](state.blockCheckerOpt)
-      _            <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(toSend)))
+      blockChecker <- OptionT
+        .fromOption[F](state.blockCheckerOpt)
+        .flatTapNone(Logger[F].error(show"Failed to find block checker in Requests Proxy"))
+      _ <- OptionT.liftF(blockChecker.sendNoWait(BlockChecker.Message.RemoteBlockHeaders(toSend)))
     } yield toSend.map(_.blockHeader)
 
   private def sendBodies[F[_]: Async](

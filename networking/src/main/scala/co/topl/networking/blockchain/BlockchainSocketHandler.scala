@@ -30,7 +30,7 @@ object BlockchainSocketHandler {
    */
   def make[F[_]: Async: Logger](
     peerServerF:      ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
-    useClientAndPeer: (BlockchainPeerClient[F], ConnectedPeer) => Resource[F, Unit]
+    useClientAndPeer: BlockchainPeerClient[F] => Resource[F, Unit]
   )(
     peer:   ConnectedPeer,
     leader: ConnectionLeader,
@@ -40,7 +40,7 @@ object BlockchainSocketHandler {
   ): Resource[F, Unit] =
     peerServerF(peer)
       .map(server => createFactory(server, close))
-      .flatMap(_.multiplexed(useClientAndPeer(_, peer))(peer, leader, reads, writes))
+      .flatMap(_.multiplexed(useClientAndPeer)(peer, leader, reads, writes))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
     protocolServer: BlockchainPeerServerAlgebra[F],

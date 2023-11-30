@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.Applicative
 import cats.data.NonEmptyChain
 import cats.effect.IO
 import cats.implicits._
@@ -75,6 +76,46 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
       Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[T]]()
     cache.asMap().asScala.foreach { case (id, data) => resCache.put(id, Entry[T](data, None)) }
     resCache
+  }
+
+  test("Block header download request after download request") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+
+      val header = arbitraryHeader.arbitrary.first
+
+      (peersManager.sendNoWait _).expects(*).anyNumberOfTimes().returns(Applicative[F].unit)
+      (headerStore.contains _).expects(*).anyNumberOfTimes().returns(true.pure[F])
+      (blockChecker.sendNoWait _).expects(*).anyNumberOfTimes().returns(Applicative[F].unit)
+
+      RequestsProxy
+        .makeActor(peersManager, headerStore, bodyStore)
+        .use { actor =>
+          for {
+            _      <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
+            state1 <- actor.send(RequestsProxy.Message.DownloadHeadersRequest(hostId, NonEmptyChain.one(header.id)))
+            _ = assert(state1.headerRequests.underlying.asMap.get(header.id).value.isEmpty)
+            state2 <- actor.send(
+              RequestsProxy.Message.DownloadHeadersResponse(
+                hostId,
+                NonEmptyChain.one(
+                  (
+                    header.id,
+                    Either
+                      .right[BlockHeaderDownloadError, UnverifiedBlockHeader](UnverifiedBlockHeader(hostId, header, 0))
+                  )
+                )
+              )
+            )
+            _ = assert(state2.headerRequests.underlying.asMap.get(header.id).value.get.blockHeader == header)
+            state3 <- actor.send(RequestsProxy.Message.DownloadHeadersRequest(hostId, NonEmptyChain.one(header.id)))
+            _ = assert(state3.headerRequests.underlying.asMap.get(header.id).value.get.blockHeader == header)
+          } yield ()
+        }
+    }
   }
 
   test("Block header download request: downloaded prefix sent back, request for new block header shall be sent") {

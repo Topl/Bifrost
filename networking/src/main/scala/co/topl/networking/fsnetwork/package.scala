@@ -33,6 +33,7 @@ package object fsnetwork {
 
   val requestCacheSize = 256
 
+  val bodyStoreContainsCacheSize = 32768
   val blockSourceCacheSize = 1024
 
   type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
