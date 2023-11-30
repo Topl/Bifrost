@@ -374,6 +374,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       epochData <- EpochDataInterpreter
         .make[F](Sync[F].defer(localChain.head).map(_.slotId.blockId), epochDataEventSourcedState)
 
+      softwareVersion <- OptionT
+        .whenF(appConfig.bifrost.versionInfo.enable)(
+          VersionReplicator.make[F](metadata, appConfig.bifrost.versionInfo.uri)
+        )
+        .value
+
       eventSourcedStates = EventSourcedStates[F](
         epochDataEventSourcedState,
         blockHeightTree,
@@ -383,12 +389,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         mempoolState,
         registrationAccumulatorState
       )
-
-      softwareVersion <- OptionT
-        .whenF(appConfig.bifrost.versionInfo.enable)(
-          VersionReplicator.make[F](metadata, appConfig.bifrost.versionInfo.uri)
-        )
-        .value
 
       _ <- Logger[F].info(show"Updating EventSourcedStates to id=$canonicalHeadId").toResource
       _ <- eventSourcedStates
