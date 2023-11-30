@@ -260,7 +260,6 @@ object Dependencies {
     Seq(
       "com.orientechnologies" % "orientdb-core"   % orientDbVersion,
       "com.orientechnologies" % "orientdb-server" % orientDbVersion,
-      "com.orientechnologies" % "orientdb-client" % orientDbVersion,
       "com.orientechnologies" % "orientdb-tools"  % orientDbVersion,
       "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude ("commons-beanutils", "commons-beanutils") exclude ("commons-beanutils", "commons-beanutils-core"),
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
