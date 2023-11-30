@@ -47,8 +47,9 @@ object Genus {
         .eval(Async[F].delay(orientdb.getNoTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
-      rpcInterpreter   <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = false)
-      fetchConcurrency <- Sync[F].delay(Runtime.getRuntime.availableProcessors()).toResource
+      rpcInterpreter <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = false)
+      // Use parallelism of at least 4, but if there are more cores available, use all of them
+      fetchConcurrency <- Sync[F].delay(Runtime.getRuntime.availableProcessors().max(4)).toResource
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter, fetchConcurrency)
 
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
