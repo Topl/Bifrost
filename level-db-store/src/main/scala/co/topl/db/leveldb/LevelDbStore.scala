@@ -27,25 +27,32 @@ object LevelDbStore {
     Sync[F].delay {
       new Store[F, Key, Value] {
         def put(id: Key, t: Value): F[Unit] =
-          useDb(_.put(id.persistedBytes.toByteArray, t.persistedBytes.toByteArray))
+          (Sync[F].delay(id.persistedBytes.toByteArray), Sync[F].delay(t.persistedBytes.toByteArray)).tupled
+            .flatMap { case (idB, tB) => useDb(_.put(idB, tB)) }
 
         def remove(id: Key): F[Unit] =
-          useDb(_.delete(id.persistedBytes.toByteArray))
+          Sync[F].delay(id.persistedBytes.toByteArray).flatMap(idB => useDb(_.delete(idB)))
 
         def get(id: Key): F[Option[Value]] =
-          OptionT(useDb(db => Option(db.get(id.persistedBytes.toByteArray))))
-            .semiflatMap(array =>
-              ByteString
-                .copyFrom(array)
-                .decodePersisted[Value]
-                .leftMap(new InputMismatchException(_))
-                .toEitherT[F]
-                .rethrowT
+          Sync[F]
+            .delay(id.persistedBytes.toByteArray)
+            .flatMap(idB =>
+              OptionT(useDb(db => Option(db.get(idB))))
+                .semiflatMap(array =>
+                  ByteString
+                    .copyFrom(array)
+                    .decodePersisted[Value]
+                    .leftMap(new InputMismatchException(_))
+                    .toEitherT[F]
+                    .rethrowT
+                )
+                .value
             )
-            .value
 
         def contains(id: Key): F[Boolean] =
-          OptionT(useDb(db => Option(db.get(id.persistedBytes.toByteArray)))).isDefined
+          Sync[F]
+            .delay(id.persistedBytes.toByteArray)
+            .flatMap(idB => useDb(_.get(idB) != null))
 
         /**
          * Use the instance of the DB within a blocking F context
