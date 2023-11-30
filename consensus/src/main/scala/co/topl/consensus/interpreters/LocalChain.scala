@@ -29,6 +29,8 @@ object LocalChain {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.LocalChain")
 
+        override val chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]] = chainSelection.pure[F]
+
         def isWorseThan(newHead: SlotData): F[Boolean] =
           head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
 

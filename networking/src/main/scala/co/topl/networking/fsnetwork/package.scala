@@ -32,6 +32,7 @@ package object fsnetwork {
   val chunkSize = 1
 
   val requestCacheSize = 256
+  val slotIdResponseCacheSize = 2048
 
   val bodyStoreContainsCacheSize = 32768
   val blockSourceCacheSize = 1024

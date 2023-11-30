@@ -44,8 +44,12 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   val genesisSlotData: SlotData = arbitrarySlotData.arbitrary.first.copy(height = 0)
 
-  val chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] =
-    (x: SlotData, y: SlotData) => x.height.compare(y.height).pure[F]
+  val defaultChainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
+    override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+
+    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
+      proposedHeight.pure[F]
+  }
 
   val networkProperties: NetworkProperties = NetworkProperties()
 
@@ -99,6 +103,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   def createEmptyLocalChain: LocalChainAlgebra[F] = new LocalChainAlgebra[F] {
     private var currentHead: SlotData = genesisSlotData
+
+    override val chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]] = defaultChainSelectionAlgebra.pure[F]
 
     override def isWorseThan(newHead: SlotData): F[Boolean] =
       (newHead.height > currentHead.height).pure[F]
@@ -238,7 +244,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
           .make(
             hostId,
             localChain,
-            chainSelectionAlgebra,
+            defaultChainSelectionAlgebra,
             headerValidation,
             headerToBodyValidation,
             defaultTxSyntaxValidator,

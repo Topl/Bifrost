@@ -42,18 +42,17 @@ object PeerBlockHeaderFetcher {
   }
 
   case class State[F[_]](
-    hostId:           HostId,
-    client:           BlockchainPeerClient[F],
-    requestsProxy:    RequestsProxyActor[F],
-    peersManager:     PeersManagerActor[F],
-    localChain:       LocalChainAlgebra[F],
-    slotDataStore:    Store[F, BlockId, SlotData],
-    blockIdTree:      ParentChildTree[F, BlockId],
-    fetchingFiber:    Option[Fiber[F, Throwable, Unit]],
-    clock:            ClockAlgebra[F],
-    blockHeights:     BlockHeights[F],
-    slotDownloadStep: Long,
-    commonAncestorF:  (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    hostId:          HostId,
+    client:          BlockchainPeerClient[F],
+    requestsProxy:   RequestsProxyActor[F],
+    peersManager:    PeersManagerActor[F],
+    localChain:      LocalChainAlgebra[F],
+    slotDataStore:   Store[F, BlockId, SlotData],
+    blockIdTree:     ParentChildTree[F, BlockId],
+    fetchingFiber:   Option[Fiber[F, Throwable, Unit]],
+    clock:           ClockAlgebra[F],
+    blockHeights:    BlockHeights[F],
+    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -67,17 +66,16 @@ object PeerBlockHeaderFetcher {
   }
 
   def makeActor[F[_]: Async: Logger](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    requestsProxy:        RequestsProxyActor[F],
-    peersManager:         PeersManagerActor[F],
-    localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, BlockId, SlotData],
-    blockIdTree:          ParentChildTree[F, BlockId],
-    clock:                ClockAlgebra[F],
-    blockHeights:         BlockHeights[F],
-    slotDataDownloadStep: Long,
-    commonAncestorF:      (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    hostId:          HostId,
+    client:          BlockchainPeerClient[F],
+    requestsProxy:   RequestsProxyActor[F],
+    peersManager:    PeersManagerActor[F],
+    localChain:      LocalChainAlgebra[F],
+    slotDataStore:   Store[F, BlockId, SlotData],
+    blockIdTree:     ParentChildTree[F, BlockId],
+    clock:           ClockAlgebra[F],
+    blockHeights:    BlockHeights[F],
+    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
       State(
@@ -91,7 +89,6 @@ object PeerBlockHeaderFetcher {
         None,
         clock,
         blockHeights,
-        slotDataDownloadStep,
         commonAncestorF
       )
     val actorName = show"Header fetcher actor for peer $hostId"
@@ -152,11 +149,18 @@ object PeerBlockHeaderFetcher {
     endSlot: SlotData
   ): F[Seq[BlockId]] =
     for {
-      commonBlock <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
-      commonSlot  <- getSlotDataFromStorageOrRemote(state)(commonBlock)
-      heights = Range.Long(commonSlot.height + state.slotDownloadStep, endSlot.height, state.slotDownloadStep).toList
-      blockIdsToSync <- heights.traverse(state.client.getRemoteBlockIdAtHeight(_, None)).map(_.flatten.toSeq)
-    } yield blockIdsToSync :+ endSlot.slotId.blockId
+      commonBlock           <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
+      commonSlotHeight      <- getSlotDataFromStorageOrRemote(state)(commonBlock).map(_.height)
+      currentHeight         <- state.localChain.head.map(_.height)
+      endSlotHeight         <- endSlot.height.pure[F]
+      chainSelectionAlgebra <- state.localChain.chainSelectionAlgebra
+      requestedHeight <- chainSelectionAlgebra.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
+      message =
+        show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostId} :" ++
+          show" commonSlotHeight=$commonSlotHeight, requestedHeight=$requestedHeight"
+      _              <- Logger[F].info(message)
+      blockIdsToSync <- state.client.getRemoteBlockIdAtHeight(requestedHeight, None)
+    } yield blockIdsToSync.toSeq
 
   private def getRemoteSlotDataByBlockId[F[_]: Async: Logger](
     state:   State[F],

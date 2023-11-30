@@ -6,7 +6,7 @@ import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, SlotId}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.BlockDownloadError.{BlockBodyOrTransactionError, BlockHeaderDownloadError}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
@@ -60,12 +60,13 @@ object RequestsProxy {
   }
 
   case class State[F[_]](
-    peersManager:    PeersManagerActor[F],
-    blockCheckerOpt: Option[BlockCheckerActor[F]],
-    headerStore:     Store[F, BlockId, BlockHeader],
-    bodyStore:       Store[F, BlockId, BlockBody],
-    headerRequests:  CaffeineCache[F, BlockId, Option[UnverifiedBlockHeader]],
-    bodyRequests:    CaffeineCache[F, BlockId, Option[UnverifiedBlockBody]]
+    peersManager:     PeersManagerActor[F],
+    blockCheckerOpt:  Option[BlockCheckerActor[F]],
+    headerStore:      Store[F, BlockId, BlockHeader],
+    bodyStore:        Store[F, BlockId, BlockBody],
+    headerRequests:   CaffeineCache[F, BlockId, Option[UnverifiedBlockHeader]],
+    bodyRequests:     CaffeineCache[F, BlockId, Option[UnverifiedBlockBody]],
+    slotDataResponse: CaffeineCache[F, SlotId, Unit]
   )
 
   type Response[F[_]] = State[F]
@@ -91,7 +92,9 @@ object RequestsProxy {
     headerRequests: Cache[BlockId, Entry[Option[UnverifiedBlockHeader]]] =
       Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockHeader]]](),
     bodyRequests: Cache[BlockId, Entry[Option[UnverifiedBlockBody]]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockBody]]]()
+      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockBody]]](),
+    slotDataResponse: Cache[SlotId, Entry[Unit]] =
+      Caffeine.newBuilder.maximumSize(slotIdResponseCacheSize).build[SlotId, Entry[Unit]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
       State(
@@ -100,7 +103,8 @@ object RequestsProxy {
         headerStore,
         bodyStore,
         CaffeineCache(headerRequests),
-        CaffeineCache(bodyRequests)
+        CaffeineCache(bodyRequests),
+        CaffeineCache(slotDataResponse)
       )
     val actorName = "Requests proxy actor"
     Actor.make(actorName, initialState, getFsm[F])
@@ -122,14 +126,21 @@ object RequestsProxy {
       _ <- state.bodyRequests.doRemoveAll
     } yield (state, state)
 
-  private def processRemoteSlotData[F[_]: Async](
+  private def processRemoteSlotData[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
     slotData: NonEmptyChain[SlotData]
   ): F[(State[F], Response[F])] = {
-    val message = BlockChecker.Message.RemoteSlotData(source, slotData)
-    state.blockCheckerOpt.traverse_(blockChecker => blockChecker.sendNoWait(message)) >>
-    (state, state).pure[F]
+    val processedSlotId = slotData.last.slotId
+    if (state.slotDataResponse.underlying.contains(processedSlotId)) {
+      Logger[F].info(show"Ignore already send slot data with last id $processedSlotId") >>
+      (state, state).pure[F]
+    } else {
+      val message = BlockChecker.Message.RemoteSlotData(source, slotData)
+      state.slotDataResponse.put(processedSlotId)(()) >>
+      state.blockCheckerOpt.traverse_(blockChecker => blockChecker.sendNoWait(message)) >>
+      (state, state).pure[F]
+    }
   }
 
   private def resendBadKLookbackSlotData[F[_]: Async: Logger](

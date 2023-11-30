@@ -41,4 +41,6 @@ trait LocalChainAlgebra[F[_]] {
    * The first block (SlotData) in the chain
    */
   def genesis: F[SlotData]
+
+  def chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]]
 }

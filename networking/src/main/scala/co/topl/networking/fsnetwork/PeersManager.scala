@@ -532,7 +532,7 @@ object PeersManager {
     val warmPeers = state.peersHandler.getWarmPeers
     val coldPeers = state.peersHandler.getColdPeers
 
-    Logger[F].info(show"PeerId: ${state.thisHostId}") >>
+    Logger[F].info(show"This peer id: ${state.thisHostId}") >>
     state.localChain.head.map(head => Logger[F].info(show"Current head: ${head.slotId}")) >>
     Logger[F].info(show"Known local addresses: ${state.thisHostIps}") >>
     Logger[F].info(show"Current (${hotPeers.size}) hot peer(s) state: $hotPeers") >>
@@ -719,7 +719,6 @@ object PeersManager {
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
             state.mempool,
-            state.p2pNetworkConfig.networkProperties.slotDataDownloadStep,
             commonAncestor
           )
         )
