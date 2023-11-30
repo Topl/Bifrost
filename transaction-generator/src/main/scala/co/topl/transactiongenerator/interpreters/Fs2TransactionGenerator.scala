@@ -77,7 +77,7 @@ object Fs2TransactionGenerator {
   ): OptionT[F, IoTransaction] =
     OptionT
       .pure[F](
-        wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.sortBy(_._2.value.getLvl.quantity: BigInt).take(4)
+        wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.sortBy(_._2.value.getLvl.quantity: BigInt).take(15)
       )
       .filter(_.nonEmpty)
       .map(_.map { case (inputBoxId, inputBox) =>
