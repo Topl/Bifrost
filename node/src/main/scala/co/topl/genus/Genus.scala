@@ -1,6 +1,5 @@
 package co.topl.genus
 
-import cats.Parallel
 import cats.effect._
 import cats.effect.implicits._
 import co.topl.algebras._
