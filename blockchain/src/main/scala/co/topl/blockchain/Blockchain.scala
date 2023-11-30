@@ -139,21 +139,12 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
    */
   private def eventSourcedStateUpdater =
     Resource.make(Logger[F].info("Initializing Event-Sourced-State Updater"))(_ =>
-      Logger[F].info("Event-Sourced-State Updater")
+      Logger[F].info("Event-Sourced-State Updater Terminated")
     ) >>
     Stream
       .force(localChain.adoptions)
       .dropOldest(1)
-      .evalTap(id =>
-        eventSourcedStates.epochData.stateAt(id).void &>
-        eventSourcedStates.blockHeights.stateAt(id).void &>
-        // This line is included but intentionally commented out due to the N-2 epoch nature of consensus data
-        // eventSourcedStates.consensusData.stateAt(id).void &>
-        eventSourcedStates.epochBoundaries.stateAt(id).void &>
-        eventSourcedStates.boxState.stateAt(id).void &>
-        eventSourcedStates.mempool.stateAt(id).void &>
-        eventSourcedStates.registrations.stateAt(id).void
-      )
+      .evalTap(eventSourcedStates.updateTo)
       .compile
       .drain
       .onError { case e => Logger[F].error(e)("Event-Sourced-State Updater failed") }

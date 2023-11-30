@@ -2,14 +2,18 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.effect.{Deferred, IO}
+import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.networking.{NetworkTypeTag, Parties}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
+import org.typelevel.log4cats.Logger
 
 class NotificationProtocolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
   import NotificationProtocolSpec._
+
+  implicit private val logger: Logger[F] = new NoOpLogger[F]
 
   test("run messages") {
     withMock {
