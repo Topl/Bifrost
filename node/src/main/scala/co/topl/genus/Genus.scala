@@ -1,6 +1,7 @@
 package co.topl.genus
 
 import cats.effect._
+import cats.effect.implicits._
 import co.topl.algebras._
 import co.topl.genusLibrary.algebras._
 import co.topl.genusLibrary.interpreter._
@@ -45,8 +46,10 @@ object Genus {
         .eval(Async[F].delay(orientdb.getNoTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
-      rpcInterpreter   <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = false)
-      nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter)
+      rpcInterpreter <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = false)
+      // Use parallelism of at least 4, but if there are more cores available, use all of them
+      fetchConcurrency <- Sync[F].delay(Runtime.getRuntime.availableProcessors().max(4)).toResource
+      nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter, fetchConcurrency)
 
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)
       blockFetcher       <- GraphBlockFetcher.make(vertexFetcher)
