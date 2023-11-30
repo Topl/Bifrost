@@ -8,10 +8,10 @@ object Dependencies {
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.2"
   val fs2Version = "3.9.3"
-  val logback = "1.4.11"
-  val orientDbVersion = "3.2.24"
-  val ioGrpcVersion = "1.59.0"
-  val http4sVersion = "0.23.23"
+  val logback = "1.4.13"
+  val orientDbVersion = "3.2.25"
+  val ioGrpcVersion = "1.59.1"
+  val http4sVersion = "0.23.24"
   val protobufSpecsVersion = "2.0.0-beta1" // scala-steward:off
   val bramblScVersion = "2.0.0-alpha7+10-9ae3b5ba-SNAPSHOT" // scala-steward:off
 
@@ -58,7 +58,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.2.1"
+    "org.typelevel" %% "mouse"     % "1.2.2"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
@@ -74,7 +74,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.76"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.77"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -103,7 +103,7 @@ object Dependencies {
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.1"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
   val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
 
   val http4s = Seq(
