@@ -22,15 +22,16 @@ object ApplicationConfig {
 
   @Lenses
   case class Bifrost(
-    data:      Bifrost.Data,
-    staking:   Bifrost.Staking,
-    p2p:       Bifrost.P2P,
-    rpc:       Bifrost.RPC,
-    mempool:   Bifrost.Mempool,
-    bigBang:   Bifrost.BigBang,
-    protocols: Map[Slot, Bifrost.Protocol],
-    cache:     Bifrost.Cache,
-    ntp:       Bifrost.Ntp
+    data:        Bifrost.Data,
+    staking:     Bifrost.Staking,
+    p2p:         Bifrost.P2P,
+    rpc:         Bifrost.RPC,
+    mempool:     Bifrost.Mempool,
+    bigBang:     Bifrost.BigBang,
+    protocols:   Map[Slot, Bifrost.Protocol],
+    cache:       Bifrost.Cache,
+    ntp:         Bifrost.Ntp,
+    versionInfo: Bifrost.VersionInfo
   )
 
   object Bifrost {
@@ -162,6 +163,9 @@ object ApplicationConfig {
 
     @Lenses
     case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
+
+    @Lenses
+    case class VersionInfo(enable: Boolean, uri: String, period: FiniteDuration)
 
   }
 
