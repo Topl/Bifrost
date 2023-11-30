@@ -68,6 +68,11 @@ class NodeBlockFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
           .returning(Option.empty[BlockHeader].pure[F])
           .once()
 
+        (toplRpc.fetchBlockBody _)
+          .expects(blockId)
+          .returning(BlockBody().some.pure[F])
+          .once()
+
         val res = for {
           fetcher <- nodeBlockFetcher
           _ <- assertIO(
