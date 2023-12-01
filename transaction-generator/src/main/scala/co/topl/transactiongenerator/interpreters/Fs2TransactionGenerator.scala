@@ -46,48 +46,103 @@ object Fs2TransactionGenerator {
     )
 
   /**
-   * Given a _current_ wallet, produce a new Transaction and new Wallet.  The generated transaction
-   * will spend a random input from the wallet and produce two new outputs
+   * Given a _current_ wallet, produce a new Transaction and new Wallet.  If the wallet is small, create extra UTxOs.
+   * If the wallet is large, consolidate UTxOs.
    */
   private def nextTransactionOf[F[_]: Async: Logger](
     wallet:         Wallet,
     costCalculator: TransactionCostCalculator[F]
   ): OptionT[F, (IoTransaction, Wallet)] =
-    pickInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
+    (if (wallet.spendableBoxes.size < 5) generateExpandingTransaction(wallet, costCalculator)
+     else generateConsolidatingTransaction(wallet, costCalculator))
+      .map(transaction => transaction -> applyTransaction(wallet)(transaction))
+
+  /**
+   * Constructs a Transaction which attempts to split a UTxO into two
+   */
+  private def generateExpandingTransaction[F[_]: Async: Logger](
+    wallet:         Wallet,
+    costCalculator: TransactionCostCalculator[F]
+  ): OptionT[F, IoTransaction] =
+    pickSingleInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
       for {
         predicate <- Attestation.Predicate(inputBox.lock.getPredicate, Nil).pure[F]
         unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
         inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
-        outputs   <- createOutputs[F](inputBox)
-        timestamp <- Async[F].realTimeInstant
-        schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
-        datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
-        unprovenTransaction <- applyFee(costCalculator)(
-          IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+        outputs           <- createManyOutputs[F](inputBox)
+        provenTransaction <- formTransaction(costCalculator)(inputs, outputs)
+      } yield provenTransaction
+    }
+
+  /**
+   * Constructs a Transaction which attempts to consolidate several UTxOs into one
+   */
+  private def generateConsolidatingTransaction[F[_]: Async: Logger](
+    wallet:         Wallet,
+    costCalculator: TransactionCostCalculator[F]
+  ): OptionT[F, IoTransaction] =
+    OptionT
+      .pure[F](
+        wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.sortBy(_._2.value.getLvl.quantity: BigInt).take(15)
+      )
+      .filter(_.nonEmpty)
+      .map(_.map { case (inputBoxId, inputBox) =>
+        SpentTransactionOutput(
+          inputBoxId,
+          Attestation(Attestation.Value.Predicate(Attestation.Predicate(inputBox.lock.getPredicate, Nil))),
+          inputBox.value
         )
-        _     <- Logger[F].info(show"Spending ${unprovenTransaction.inputs.mkString_(", ")}")
-        proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
-        provenTransaction = unprovenTransaction
-          .copy(
-            inputs = unprovenTransaction.inputs.map(
-              _.copy(attestation =
-                Attestation(
-                  Attestation.Value.Predicate(
-                    predicate.copy(responses = List(proof))
-                  )
+      })
+      .semiflatMap(inputs =>
+        formTransaction(costCalculator)(
+          inputs,
+          List(
+            UnspentTransactionOutput(
+              HeightLockOneSpendingAddress,
+              Value.defaultInstance.withLvl(
+                Value.LVL(
+                  inputs.foldMap(_.value.getLvl.quantity: BigInt)
                 )
               )
             )
           )
-          .embedId
-        updatedWallet = applyTransaction(wallet)(provenTransaction)
-      } yield (provenTransaction, updatedWallet)
-    }
+        )
+      )
 
   /**
-   * Selects a spendable box from the wallet
+   * Constructs a proven Transaction from the given inputs and outputs
    */
-  private def pickInput[F[_]: Applicative](wallet: Wallet): OptionT[F, (TransactionOutputAddress, Box)] =
+  private def formTransaction[F[_]: Async: Logger](
+    costCalculator: TransactionCostCalculator[F]
+  )(inputs: Seq[SpentTransactionOutput], outputs: Seq[UnspentTransactionOutput]) =
+    for {
+      timestamp <- Async[F].realTimeInstant
+      schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
+      datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
+      unprovenTransaction <- applyFee(costCalculator)(
+        IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
+      )
+      _     <- Logger[F].info(show"Spending ${unprovenTransaction.inputs.mkString_(", ")}")
+      proof <- Prover.heightProver[F].prove((), unprovenTransaction.signable)
+      provenTransaction = unprovenTransaction
+        .copy(
+          inputs = unprovenTransaction.inputs.map(i =>
+            i.copy(attestation =
+              Attestation(
+                Attestation.Value.Predicate(
+                  i.attestation.getPredicate.copy(responses = List(proof))
+                )
+              )
+            )
+          )
+        )
+        .embedId
+    } yield provenTransaction
+
+  /**
+   * Selects a single spendable box from the wallet
+   */
+  private def pickSingleInput[F[_]: Applicative](wallet: Wallet): OptionT[F, (TransactionOutputAddress, Box)] =
     OptionT.fromOption[F](
       wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.maximumByOption(_._2.value.getLvl.quantity: BigInt)
     )
@@ -95,7 +150,7 @@ object Fs2TransactionGenerator {
   /**
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
    */
-  private def createOutputs[F[_]: Applicative](
+  private def createManyOutputs[F[_]: Applicative](
     inputBox: Box
   ): F[List[UnspentTransactionOutput]] = {
     val lvlBoxValue = inputBox.value.getLvl
