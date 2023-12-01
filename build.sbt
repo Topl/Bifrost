@@ -610,7 +610,7 @@ lazy val levelDbStore = project
   )
   .dependsOn(
     byteCodecs,
-    algebras,
+    algebras % "compile->compile;test->test",
     catsUtils
   )
 
