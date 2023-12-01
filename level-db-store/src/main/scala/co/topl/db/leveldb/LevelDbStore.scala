@@ -107,7 +107,7 @@ object LevelDbStore {
       .flatMap(factories =>
         List(this.getClass.getClassLoader, ClassLoader.getSystemClassLoader)
           .zip(factories)
-          .traverseFilter { case (loader, factoryName) =>
+          .collectFirstSomeM { case (loader, factoryName) =>
             OptionT(
               Sync[F]
                 .fromTry(
@@ -119,7 +119,7 @@ object LevelDbStore {
                 }
             ).map(factoryName -> _).value
           }
-          .map(_.headOption.toRight(new RuntimeException(s"Could not load any of the factory classes: $factories")))
+          .map(_.toRight(new RuntimeException(s"Could not load any of the factory classes: $factories")))
       )
       .rethrow
       .flatTap {
