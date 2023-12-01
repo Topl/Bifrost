@@ -1,12 +1,14 @@
 package co.topl.db.leveldb
 
 import cats.effect.{IO, Resource}
+import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.codecs.bytes.typeclasses.implicits._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import scodec.{codecs, Codec}
-
 import fs2.io.file.{Files, Path}
+import org.typelevel.log4cats.Logger
+
 import java.util.InputMismatchException
 
 //noinspection ScalaStyle
@@ -17,9 +19,11 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
   import SpecKey._
   import SpecValue._
 
+  implicit val logger: Logger[F] = new NoOpLogger[F]
+
   ResourceFixture[Path](Resource.make(Files[F].createTempDirectory)(Files[F].deleteRecursively))
     .test("Save, Contains, Read, Delete") { testPath =>
-      LevelDbStore.makeDb[F](testPath).use { dbUnderTest =>
+      LevelDbStore.makeFactory[F].flatMap(LevelDbStore.makeDb[F](testPath, _)).use { dbUnderTest =>
         for {
           underTest <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
           key = SpecKey("test1")
@@ -50,7 +54,7 @@ class LevelDbStoreSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
   ResourceFixture[Path](Resource.make(Files[F].createTempDirectory)(Files[F].deleteRecursively))
     .test("Malformed data throws exceptions") { testPath =>
-      LevelDbStore.makeDb[F](testPath).use { dbUnderTest =>
+      LevelDbStore.makeFactory[F].flatMap(LevelDbStore.makeDb[F](testPath, _)).use { dbUnderTest =>
         for {
           underTest <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
           key = SpecKey("test1")
