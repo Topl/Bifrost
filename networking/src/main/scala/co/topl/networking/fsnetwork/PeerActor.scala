@@ -22,7 +22,7 @@ import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetche
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransactionSyncActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
@@ -116,6 +116,7 @@ object PeerActor {
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
+    bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
     blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
@@ -138,6 +139,7 @@ object PeerActor {
         peersManager,
         localChain,
         slotDataStore,
+        bodyStore,
         blockIdTree,
         blockHeights,
         commonAncestorF

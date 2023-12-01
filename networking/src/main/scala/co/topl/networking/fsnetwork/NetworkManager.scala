@@ -65,6 +65,7 @@ object NetworkManager {
         networkAlgebra,
         localChain,
         slotDataStore,
+        bodyStore,
         transactionStore,
         blockIdTree,
         blockHeights,

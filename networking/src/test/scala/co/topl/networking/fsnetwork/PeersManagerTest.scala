@@ -27,6 +27,7 @@ import co.topl.networking.fsnetwork.PeersManagerTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, arbitraryIpString}
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -56,6 +57,8 @@ class PeersManagerTest
   val defaultColdToWarmSelector: SelectorColdToWarm[F] =
     (coldHosts: Map[HostId, Peer[F]], countToReceive: Int) =>
       coldHosts.toSeq.sortBy(_._2.remoteServerPort).take(countToReceive).map(_._1).toSet
+
+  def defaultBodyStorage: Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]]
 
   val defaultWarmToHotSelector: SelectorWarmToHot[F] =
     new SelectorWarmToHot[F]() {
@@ -176,6 +179,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -281,6 +285,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -394,6 +399,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -472,6 +478,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -540,6 +547,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -626,6 +634,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -702,6 +711,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -769,6 +779,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -926,6 +937,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1031,6 +1043,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1129,6 +1142,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1226,6 +1240,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1397,6 +1412,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1464,6 +1480,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1614,6 +1631,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1676,7 +1694,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1694,7 +1712,7 @@ class PeersManagerTest
       (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnection).returns(Applicative[F].unit)
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -1714,6 +1732,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1772,7 +1791,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1798,6 +1817,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1923,6 +1943,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -1975,7 +1996,7 @@ class PeersManagerTest
       val host1Ra = RemoteAddress("1", 1)
       val peer1 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer1))
       (peer1.sendNoWait _)
@@ -1992,7 +2013,7 @@ class PeersManagerTest
       val host2Ra = RemoteAddress("2", 2)
       val peer2 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host2Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host2Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -2009,7 +2030,7 @@ class PeersManagerTest
       val host3Ra = RemoteAddress("3", 3)
       val peer3 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host3Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host3Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer3))
       (peer3.sendNoWait _)
@@ -2031,7 +2052,7 @@ class PeersManagerTest
       val host5Ra = RemoteAddress("5", 5)
       val peer5 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host5Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host5Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer5))
       (peer5.sendNoWait _)
@@ -2067,6 +2088,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2176,6 +2198,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2329,6 +2352,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2397,6 +2421,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2479,6 +2504,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2615,6 +2641,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2694,6 +2721,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2815,6 +2843,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -2946,6 +2975,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3025,6 +3055,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3146,6 +3177,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3210,6 +3242,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3276,6 +3309,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3340,6 +3374,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3404,6 +3439,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3470,6 +3506,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3538,6 +3575,7 @@ class PeersManagerTest
             networkAlgebra,
             localChain,
             slotDataStore,
+            defaultBodyStorage,
             transactionStore,
             blockIdTree,
             blockHeights,
@@ -3685,6 +3723,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3751,6 +3790,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3885,6 +3925,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,
@@ -3968,6 +4009,7 @@ class PeersManagerTest
           networkAlgebra,
           localChain,
           slotDataStore,
+          defaultBodyStorage,
           transactionStore,
           blockIdTree,
           blockHeights,

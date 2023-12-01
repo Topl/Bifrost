@@ -23,6 +23,7 @@ import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.ReverseDnsResolverHTInstances._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
@@ -212,6 +213,7 @@ object PeersManager {
     peersHandler:                PeersHandler[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
+    bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
     blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
@@ -269,6 +271,7 @@ object PeersManager {
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
+    bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
     blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
@@ -294,6 +297,7 @@ object PeersManager {
         PeersHandler(initialPeers, p2pConfig),
         localChain,
         slotDataStore,
+        bodyStore,
         transactionStore,
         blockIdTree,
         blockHeights,
@@ -713,6 +717,7 @@ object PeersManager {
             thisActor,
             state.localChain,
             state.slotDataStore,
+            state.bodyStore,
             state.transactionStore,
             state.blockIdTree,
             state.blockHeights,
