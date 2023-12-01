@@ -8,6 +8,7 @@ import co.topl.algebras.SoftwareVersionAlgebra
 import co.topl.blockchain.algebras.NodeMetadataAlgebra
 import org.http4s.ember.client.EmberClientBuilder
 import fs2.Stream
+import fs2.io.net.Network
 import org.typelevel.log4cats.Logger
 import scala.concurrent.duration._
 import io.circe.parser._
@@ -23,7 +24,8 @@ object VersionReplicator {
         override def fetchSoftwareVersion(): F[String] =
           OptionT(nodeMetadataAlgebra.readAppVersion).getOrElse("Undefined")
 
-        override def fetchLatestSoftwareVersion(): F[String] =
+        override def fetchLatestSoftwareVersion(): F[String] = {
+          implicit val networkF: Network[F] = Network.forAsync
           EmberClientBuilder
             .default[F]
             .build
@@ -35,6 +37,7 @@ object VersionReplicator {
                 .map(_.\\("tag_name").headOption.map(_.noSpaces).getOrElse("Undefined"))
                 .merge
             )
+        }
       }
     }
 
