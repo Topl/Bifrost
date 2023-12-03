@@ -10,11 +10,11 @@ import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyn
 import co.topl.models.utility.byteStringToByteVector
 import co.topl.networking.fsnetwork.NetworkQualityError._
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
+import co.topl.networking.p2p.RemoteAddress.showRemoteAddress
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
 
 trait P2PShowInstances {
-
   implicit val showHostId: Show[HostId] = id => show"${id.id.toBase58.take(8)}..."
 
   implicit val showRemotePeer: Show[RemotePeer] = rp => show"RemotePeer(id=${rp.peerId} address=${rp.address})"
@@ -69,23 +69,26 @@ trait P2PShowInstances {
   implicit val showNetworkProperties: Show[NetworkProperties] = prop => plainClassAsString(prop)
 
   implicit val showNetworkConfig: Show[P2PNetworkConfig] = config =>
-    show"Network properties: ${config.networkProperties};" ++
-    s" Slot duration: ${config.slotDuration.toMillis} ms;" ++
-    s" BlockNoveltyInitialValue: ${config.blockNoveltyInitialValue};" ++
-    s" BlockNoveltyReputationStep: ${config.blockNoveltyReputationStep};" ++
-    s" BlockNoveltyDecoy: ${config.blockNoveltyDecoy};" ++
-    s" PerformanceReputationIdealValue: ${config.performanceReputationIdealValue};" ++
-    s" PerformanceReputationMaxDelay: ${config.performanceReputationMaxDelay} ms;" ++
-    s" RemotePeerNoveltyInSlots: ${config.remotePeerNoveltyInSlots};" ++
-    s" WarmHostsUpdateInterval: ${config.peersUpdateInterval.toMillis} ms;" ++
-    s" AggressiveP2PRequestInterval: ${config.aggressiveP2PRequestInterval.toMillis} ms;"
+    show"Network properties=${config.networkProperties};" ++
+    s" Slot duration=${config.slotDuration.toMillis} ms;" ++
+    s" BlockNoveltyInitialValue=${config.blockNoveltyInitialValue};" ++
+    s" BlockNoveltyReputationStep=${config.blockNoveltyReputationStep};" ++
+    s" BlockNoveltyDecoy=${config.blockNoveltyDecoy};" ++
+    s" PerformanceReputationIdealValue=${config.performanceReputationIdealValue};" ++
+    s" PerformanceReputationMaxDelay=${config.performanceReputationMaxDelay} ms;" ++
+    s" RemotePeerNoveltyInSlots=${config.remotePeerNoveltyInSlots};" ++
+    s" WarmHostsUpdateInterval=${config.peersUpdateInterval.toMillis} ms;" ++
+    s" AggressiveP2PRequestInterval=${config.aggressiveP2PRequestInterval.toMillis} ms;"
 
   implicit def showPeer[F[_]]: Show[Peer[F]] = { peer: Peer[F] =>
+    val connectionAddress = peer.connectedAddress.map(ra => show"$ra").getOrElse("absent")
+    val serverAddress = peer.asServer.map(rp => show"$rp").getOrElse("absent")
     "<<< Peer" +
-    s" ${peer.address}:[${peer.remoteServerPort.map(_.toString).getOrElse("")}];" +
-    s" State is ${peer.state.toString};" +
-    s" Actor is ${if (peer.actorOpt.isDefined) "present" else "absent"};" +
-    s" Remote peer is ${if (peer.remoteNetworkLevel) "active" else "no active"};" +
+    show" Connected address=$connectionAddress;" +
+    show" Server address=$serverAddress;" +
+    s" State=${peer.state.toString};" +
+    s" Actor=${if (peer.actorOpt.isDefined) "present" else "absent"};" +
+    s" Remote peer=${if (peer.remoteNetworkLevel) "active" else "no active"};" +
     f" Rep: block=${peer.blockRep}%.2f, perf=${peer.perfRep}%.2f, new=${peer.newRep}, mean=${peer.reputation}%.2f;" +
     s" With total ${peer.closedTimestamps.size} closes with timestamps ${peer.closedTimestamps};" +
     s" >>>"

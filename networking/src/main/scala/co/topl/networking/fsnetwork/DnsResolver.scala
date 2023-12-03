@@ -6,9 +6,7 @@ import cats.effect.Sync
 import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import cats.implicits._
-import co.topl.networking.fsnetwork.DnsResolverInstances.DnsResolverSyntax
 import co.topl.networking.p2p.RemoteAddress
-import org.typelevel.log4cats.Logger
 
 import java.time.Duration
 
@@ -69,10 +67,6 @@ object DnsResolverHTInstances {
       val resolver = implicitly[DnsResolverHT[RemoteAddress, F]]
       resolver.resolving(unresolvedHost.address).map(_.map(resolved => unresolvedHost.copy(address = resolved)))
     }
-
-  implicit def idAndPeerResolver[F[_]: Monad: DnsResolver: Logger]: DnsResolverHT[(HostId, Peer[F]), F] =
-    (idPeer: (HostId, Peer[F])) =>
-      idPeer._2.address.resolving().map(_.map(resolved => idPeer._1 -> idPeer._2.copy(address = resolved)))
 
   implicit def remotePeerResolver[F[_]: Monad: DnsResolver]: DnsResolverHT[RemotePeer, F] =
     (unresolvedHost: RemotePeer) => {

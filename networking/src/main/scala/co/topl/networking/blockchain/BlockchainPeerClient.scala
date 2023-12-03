@@ -26,9 +26,9 @@ trait BlockchainPeerClient[F[_]] {
   def remotePeer: F[ConnectedPeer]
 
   /**
-   * Port of remote peer for inbound connections
+   * Representation of remote peer which is ready for incoming connections
    */
-  def remotePeerServerPort: F[Option[Int]]
+  def remotePeerAsServer: F[Option[KnownHost]]
 
   /**
    * A Source of block IDs that were adopted by the remote node

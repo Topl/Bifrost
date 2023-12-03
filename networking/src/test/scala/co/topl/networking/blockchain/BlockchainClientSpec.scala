@@ -30,7 +30,7 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
         val client = new BlockchainPeerClient[F] {
           def remotePeer: F[ConnectedPeer] = ???
 
-          def remotePeerServerPort: F[Option[Int]] = ???
+          def remotePeerAsServer: F[Option[KnownHost]] = ???
 
           def remotePeerAdoptions: F[Stream[F, BlockId]] = ???
 
