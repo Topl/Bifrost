@@ -97,10 +97,6 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
    */
   private val promptP2P =
     for {
-      exposeServerPort <- readOptionalParameter[F, Boolean](
-        "Allow Ingress P2P Traffic",
-        List("true", "false")
-      )
       host <- readOptionalParameter[F, String](
         "P2P Bind Host",
         List("0.0.0.0", "localhost")
@@ -108,6 +104,14 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       port <- readOptionalParameter[F, Int](
         "P2P Bind Port",
         List("9084")
+      )
+      publicHost <- readOptionalParameter[F, String](
+        "P2P exposed server host",
+        List(host.getOrElse("127.0.0.1"))
+      )
+      publicPort <- readOptionalParameter[F, Int](
+        "P2P exposed server port",
+        List(port.map(_.toString).getOrElse("9084"))
       )
       peers <-
         OptionT(
@@ -118,15 +122,15 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
         )
           .map(_.split(",").toList)
           .value
-    } yield (exposeServerPort, host, port, peers)
+    } yield (host, port, publicHost, publicPort, peers)
 
   private val promptSettings =
     for {
-      dataDir                                            <- promptDataDir
-      (stakingDir, stakingRewardAddress)                 <- promptStakingSettings
-      (genesisBlockId, genesisSourcePath)                <- promptGenesis
-      (rpcHost, rpcPort, enableGenus)                    <- promptRpc
-      (p2pAllowIngress, p2pHost, p2pPort, p2pKnownPeers) <- promptP2P
+      dataDir                                                         <- promptDataDir
+      (stakingDir, stakingRewardAddress)                              <- promptStakingSettings
+      (genesisBlockId, genesisSourcePath)                             <- promptGenesis
+      (rpcHost, rpcPort, enableGenus)                                 <- promptRpc
+      (p2pHost, p2pPort, p2pPublicHost, p2pPublicPort, p2pKnownPeers) <- promptP2P
     } yield ConfigureCommandInput(
       dataDir,
       stakingDir,
@@ -136,9 +140,10 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       rpcHost,
       rpcPort,
       enableGenus,
-      p2pAllowIngress,
       p2pHost,
       p2pPort,
+      p2pPublicHost,
+      p2pPublicPort,
       p2pKnownPeers
     )
 
@@ -216,9 +221,10 @@ private[cli] case class ConfigureCommandInput(
   rpcHost:              Option[String],
   rpcPort:              Option[Int],
   enableGenus:          Option[Boolean],
-  p2pExposeServerPort:  Option[Boolean],
   p2pBindHost:          Option[String],
   p2pBindPort:          Option[Int],
+  p2pPublicHost:        Option[String],
+  p2pPublicPort:        Option[Int],
   p2pKnownPeers:        Option[List[String]]
 ) {
 
@@ -253,10 +259,11 @@ private[cli] case class ConfigureCommandInput(
               .dropNullValues,
             "p2p" -> Json
               .obj(
-                "bind-host"          -> p2pBindHost.asJson,
-                "bind-port"          -> p2pBindPort.asJson,
-                "expose-server-port" -> p2pExposeServerPort.asJson,
-                "known-peers"        -> p2pKnownPeers.map(_.mkString(",")).asJson
+                "bind-host"   -> p2pBindHost.asJson,
+                "bind-port"   -> p2pBindPort.asJson,
+                "public-host" -> p2pPublicHost.asJson,
+                "public-port" -> p2pPublicPort.asJson,
+                "known-peers" -> p2pKnownPeers.map(_.mkString(",")).asJson
               )
               .dropNullValues
           )

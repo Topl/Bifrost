@@ -389,10 +389,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         slotDataStoreMap.put(id, slotData).pure[F].void
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -500,10 +500,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap.put(id, slotData).pure[F].void
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -606,10 +606,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         slotDataStoreMap.contains(id).pure[F]
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -707,10 +707,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap.put(id, slotData).pure[F].void
         }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -954,10 +954,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         slotDataStoreMap.put(id, slotData).pure[F].void
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -1055,10 +1055,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         slotDataStoreMap.put(id, slotData).pure[F].void
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -1155,10 +1155,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         slotDataStoreMap.put(id, slotData).pure[F].void
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 
@@ -1255,10 +1255,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         slotDataStoreMap.put(id, slotData).pure[F].void
       }
       (slotDataStore
-        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
         .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId]) =>
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
           slotDataStoreMap(id).pure[F]
         }
 

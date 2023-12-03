@@ -17,13 +17,14 @@ import org.scalacheck.effect.PropF
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.generators.ModelGenerators.arbitraryIoTransaction
 import co.topl.ledger.models.MempoolGraph
 import co.topl.networking.NetworkGen._
 import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.networking.fsnetwork.TestHelper.arbitraryRemotePeer
 import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
 import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange}
+import co.topl.networking.fsnetwork.TestHelper._
 
 import scala.concurrent.duration._
 
@@ -86,13 +87,13 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   }
 
   test("serve this peer address") {
-    PropF.forAllF { serverPort: Int =>
+    PropF.forAllF { asServer: KnownHost =>
       withMock {
-        val f = mockFunction[Option[Int]]
-        f.expects().once().returning(Option(serverPort))
+        val f = mockFunction[Option[KnownHost]]
+        f.expects().once().returning(Option(asServer))
         for {
-          _ <- makeServer(serverPort = f)
-            .use(underTest => underTest.serverPort.assertEquals(serverPort.some))
+          _ <- makeServer(asServer = f)
+            .use(underTest => underTest.peerAsServer.assertEquals(asServer.some))
         } yield ()
       }
     }
@@ -240,7 +241,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     fetchHeader:       BlockId => F[Option[BlockHeader]] = _ => ???,
     fetchBody:         BlockId => F[Option[BlockBody]] = _ => ???,
     fetchTransaction:  TransactionId => F[Option[IoTransaction]] = _ => ???,
-    serverPort:        () => Option[Int] = () => ???,
+    asServer:          () => Option[KnownHost] = () => ???,
     connectionStatusF: F[Topic[F, PeerConnectionChange]] = Topic[F, PeerConnectionChange],
     currentHotPeers:   () => F[Set[RemotePeer]] = () => Set.empty[RemotePeer].pure[F],
     blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
@@ -260,7 +261,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             fetchBody,
             fetchTransaction,
             blockHeights,
-            serverPort,
+            asServer,
             currentHotPeers,
             localChain,
             mempool,

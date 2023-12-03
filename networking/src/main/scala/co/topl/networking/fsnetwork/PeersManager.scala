@@ -23,7 +23,7 @@ import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.ReverseDnsResolverHTInstances._
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, KnownHost}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
@@ -579,12 +579,10 @@ object PeersManager {
     state: State[F]
   )(implicit res: ReverseDnsResolverHT[RemotePeer, F]): F[Unit] =
     for {
-      hotPeersServers <- state.peersHandler.getHotPeers
-        .flatMap { case (id, peer) => peer.asRemoteAddress.map(RemotePeer(id, _)) }
-        .pure[F]
-      _ <- Logger[F].debug(show"Going to resolve ip(s) to hostnames for hot peers ${hotPeersServers.toList}")
+      hotPeersServers <- state.peersHandler.getHotPeers.values.flatMap(_.asServer).pure[F]
+      _               <- Logger[F].debug(show"Resolve ip(s) to hostnames for hot peers ${hotPeersServers.toList}")
       hotPeersAsHosts <- hotPeersServers.toSeq.parTraverse(_.reverseResolving())
-      _               <- Logger[F].debug(show"Going to update hot peers hostnames $hotPeersAsHosts")
+      _               <- Logger[F].debug(show"Update hot peers hostnames $hotPeersAsHosts")
       _               <- state.hotPeersUpdate(hotPeersAsHosts.toSet)
     } yield ()
 
@@ -693,11 +691,11 @@ object PeersManager {
       _ <- OptionT
         .when[F, Unit](state.peersHandler.haveNoActorForHost(hostId))(())
         .flatTapNone(Logger[F].error(show"Try to open connection to already opened peer $hostId"))
-      newState <- OptionT.liftF(createActor(hostId, state, client, connectedPeer, thisActor))
+      newState <- OptionT.liftF(updateStateByNewConnection(hostId, state, client, connectedPeer, thisActor))
     } yield (newState, newState)
   }.getOrElse((state, state))
 
-  private def createActor[F[_]: Async: Logger](
+  private def updateStateByNewConnection[F[_]: Async: Logger](
     hostId:        HostId,
     state:         State[F],
     client:        BlockchainPeerClient[F],
@@ -732,15 +730,17 @@ object PeersManager {
       _ <- Logger[F].info(show"Going to create actor for handling connection to remote peer $hostId")
 
       peerActor <- setupPeerActor
-      remotePeerServerPort <- client.remotePeerServerPort.handleErrorWith { e =>
-        Logger[F].error(e)(s"Failed to get remote server port from $connectedPeer set port to None") >>
-        Option.empty[Int].pure[F]
-      }
-      _ <- Logger[F].info(show"Received remote server port ${remotePeerServerPort} from $hostId")
+      remotePeerAsServer <- client.remotePeerAsServer
+        .handleErrorWith { e =>
+          Logger[F].error(e)(s"Failed to get remote peer as server from $connectedPeer") >>
+          Option.empty[KnownHost].pure[F]
+        }
+        .map(_.map(kh => RemotePeer(HostId(kh.id), RemoteAddress(kh.host, kh.port))))
+      _ <- Logger[F].info(show"Received remote peer as server $remotePeerAsServer from $hostId")
 
       newPeerHandler <-
         state.peersHandler
-          .copyWithUpdatedPeer(hostId, connectedPeer.remoteAddress.host, remotePeerServerPort, peerActor)
+          .copyWithUpdatedPeer(hostId, connectedPeer.remoteAddress, remotePeerAsServer, peerActor)
           .pure[F]
 
       peerState = newPeerHandler.get(hostId).get.state
@@ -823,7 +823,7 @@ object PeersManager {
   // we do NOT work here with cold peers which are present but had been closed recently. That allow us to not remove
   // cold peer which are no eligible to move to warm status
   private def clearColdPeers[F[_]](state: State[F]): State[F] = {
-    val eligibleColdPeers = getEligibleColdPeers(state).filter(_._2.remoteServerPort.isDefined)
+    val eligibleColdPeers = getEligibleColdPeers(state).filter(_._2.asServer.isDefined)
     if (eligibleColdPeers.size > state.p2pNetworkConfig.networkProperties.maximumEligibleColdConnections) {
       val minimumColdConnections = state.p2pNetworkConfig.networkProperties.minimumEligibleColdConnections
       val savedCold =
@@ -901,7 +901,7 @@ object PeersManager {
     val minimumHotConnections = state.p2pNetworkConfig.networkProperties.minimumHotConnections
 
     val lackHotPeersCount =
-      minimumHotConnections - state.peersHandler.getHotPeers.count(_._2.remoteServerPort.isDefined)
+      minimumHotConnections - state.peersHandler.getHotPeers.count(_._2.asServer.isDefined)
 
     val warmToHot =
       state.warmToHotSelector.select(state.peersHandler.getWarmPeersWithActor, lackHotPeersCount)
@@ -931,7 +931,7 @@ object PeersManager {
     val eligibleColdPeers =
       getEligibleColdPeers(state).filter { case (_, peer) =>
         // we shall be able to establish connection or have already established connection
-        peer.remoteServerPort.isDefined || peer.actorOpt.isDefined
+        peer.asServer.isDefined || peer.actorOpt.isDefined
       }
     val coldToWarm: Set[HostId] = state.coldToWarmSelector.select(eligibleColdPeers, lackWarmPeersCount)
 
@@ -947,20 +947,18 @@ object PeersManager {
     state:        State[F],
     hostsToCheck: Set[HostId]
   ): F[Unit] = {
-    val addressesToOpen: Seq[(HostId, Peer[F])] =
+    val addressesToOpen: Seq[RemotePeer] =
       hostsToCheck
-        .flatMap(id => state.peersHandler.get(id).map(id -> _))
-        .filter { case (_, p) => p.haveNoConnection && p.state.isActive && p.remoteServerPort.isDefined }
+        .flatMap(id => state.peersHandler.get(id))
+        .filter(p => p.haveNoConnection && p.state.isActive && p.asServer.isDefined)
+        .flatMap(_.asServer)
         .toSeq
 
     for {
       resolved <- resolveHosts(addressesToOpen)
-      filtered <- resolved.filter { case (id, _) => state.peersHandler.haveNoActorForHost(id) }.pure[F]
-      _        <- Logger[F].infoIf(filtered.nonEmpty, show"Going to open connection to next peers: $filtered")
-      toOpen <- filtered
-        .flatMap { case (id, peer) => peer.asRemoteAddress.map(DisconnectedPeer(_, id.id.some)) }
-        .pure[F]
-      _ <- toOpen.traverse(state.newPeerCreationAlgebra.requestNewPeerCreation)
+      _        <- Logger[F].infoIf(resolved.nonEmpty, show"Going to open connection to next peers: $resolved")
+      toOpen   <- resolved.map(rp => DisconnectedPeer(rp.address, rp.peerId.id.some)).pure[F]
+      _        <- toOpen.traverse(state.newPeerCreationAlgebra.requestNewPeerCreation)
     } yield ()
   }
 

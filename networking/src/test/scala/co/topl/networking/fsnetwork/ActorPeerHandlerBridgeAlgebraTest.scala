@@ -198,7 +198,9 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
           }
       }
 
-      (() => client.remotePeerServerPort).expects().returns(Option(remotePeerPort).pure[F])
+      (() => client.remotePeerAsServer)
+        .expects()
+        .returns(Option(KnownHost(remotePeerVK, remotePeerAddress.host, remotePeerAddress.port)).pure[F])
       (client.getRemoteKnownHosts _)
         .expects(*)
         .anyNumberOfTimes()
