@@ -122,12 +122,17 @@ case class PeersHandler[F[_]: Async: Logger](
       peer.actorOpt.pure[F]
     }
 
-  def copyWithUpdatedId(oldId: HostId, newId: HostId): PeersHandler[F] =
-    peers.get(oldId) match {
-      case Some(peer) =>
-        val newPeers = (peers - oldId) + (newId -> peer)
-        this.copy(peers = newPeers)
-      case None => this
+  def copyWithUpdatedId(oldId: HostId, newId: HostId, peerActorRelease: Peer[F] => F[Unit]): F[PeersHandler[F]] =
+    (peers.get(oldId), peers.get(newId)) match {
+      case (Some(oldPeer), None) =>
+        val newPeers = (peers - oldId) + (newId -> oldPeer)
+        this.copy(peers = newPeers).pure[F]
+      case (Some(oldPeer), Some(_)) =>
+        val newPeers = peers - oldId
+        Logger[F].warn(show"Failed to change id from $oldId to $newId because peer already exist, close $oldId") >>
+        peerActorRelease(oldPeer) >>
+        this.copy(peers = newPeers).pure[F]
+      case (None, _) => Async[F].pure(this)
     }
 
   def copyWithUpdatedPeer(
@@ -155,15 +160,6 @@ case class PeersHandler[F[_]: Async: Logger](
       }
     this.copy(peers = peers + peerToAdd)
   }
-
-  def copyWithNewPeerActor(hostId: HostId, peerActor: PeerActor[F]): PeersHandler[F] =
-    peers
-      .get(hostId)
-      .map { peer =>
-        val hostAndPeer = hostId -> peer.copy(actorOpt = Option(peerActor))
-        this.copy(peers = peers + hostAndPeer)
-      }
-      .getOrElse(this)
 
   def copyWithAddedPeers(newPeers: Chain[KnownRemotePeer]): PeersHandler[F] = {
     val peersToAdd: Map[HostId, Peer[F]] =

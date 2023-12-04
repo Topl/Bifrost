@@ -251,7 +251,7 @@ object PeersManager {
         case (state, PrintP2PState)                               => printP2PState(thisActor, state)
         case (state, GetCurrentTips)                              => getCurrentTips(state)
         case (state, RemotePeerNetworkLevel(peer, level))         => remoteNetworkLevel(thisActor, state, peer, level)
-        case (state, RemotePeerIdChanged(oldId, newId))           => remoteIdChanged(state, oldId, newId)
+        case (state, RemotePeerIdChanged(oldId, newId))           => remoteIdChanged(thisActor, state, oldId, newId)
         case (state, MoveToCold(peers))                           => coldPeer(thisActor, state, peers)
         case (state, ClosePeer(peer))                             => closePeer(thisActor, state, peer)
         case (state, BanPeer(hostId))                             => banPeer(thisActor, state, hostId)
@@ -287,6 +287,9 @@ object PeersManager {
     initialPeers:                Map[HostId, Peer[F]],
     blockSource:                 Cache[BlockId, Set[HostId]]
   ): Resource[F, PeersManagerActor[F]] = {
+    val selfBannedPeer =
+      thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0)
+
     val initialState =
       PeersManager.State[F](
         thisHostId,
@@ -294,7 +297,7 @@ object PeersManager {
         networkAlgebra,
         blocksChecker = None,
         requestsProxy = None,
-        PeersHandler(initialPeers, p2pConfig),
+        PeersHandler(initialPeers + selfBannedPeer, p2pConfig),
         localChain,
         slotDataStore,
         bodyStore,
@@ -587,17 +590,17 @@ object PeersManager {
     } yield ()
 
   private def remoteIdChanged[F[_]: Async: Logger](
-    state: State[F],
-    oldId: HostId,
-    newId: HostId
-  ): F[(State[F], Response[F])] = {
+    thisActor: PeersManagerActor[F],
+    state:     State[F],
+    oldId:     HostId,
+    newId:     HostId
+  ): F[(State[F], Response[F])] =
     // TODO move to COLD state?
-    val newPeersHandler = state.peersHandler.copyWithUpdatedId(oldId, newId)
-    val newState = state.copy(peersHandler = newPeersHandler)
-
-    Logger[F].info(show"Changed peer $oldId to $newId") >>
-    (newState, newState).pure[F]
-  }
+    for {
+      _               <- Logger[F].info(show"Try to change peer $oldId to $newId")
+      newPeersHandler <- state.peersHandler.copyWithUpdatedId(oldId, newId, peerReleaseAction(thisActor))
+      newState        <- state.copy(peersHandler = newPeersHandler).pure[F]
+    } yield (newState, newState)
 
   private def coldPeer[F[_]: Async: Logger](
     thisActor: PeersManagerActor[F],
@@ -681,7 +684,10 @@ object PeersManager {
       hostId        <- OptionT.some[F](HostId(connectedPeer.p2pVK))
       _ <- OptionT
         .when[F, Unit](state.thisHostId != hostId)(())
-        .flatTapNone(Logger[F].info(show"Decline connection ${connectedPeer.toString} because it is self-connection"))
+        .flatTapNone(
+          Logger[F].info(show"Decline connection ${connectedPeer.toString} because it is self-connection") >>
+          client.closeConnection()
+        )
       _ <- OptionT
         .when[F, Unit](state.peersHandler.hostIsNotBanned(hostId))(())
         .flatTapNone(
