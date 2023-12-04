@@ -44,6 +44,8 @@ object ApplicationConfigOps {
         cmdArgs.runtime.rpcBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindPort))),
         cmdArgs.runtime.p2pBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindHost))),
         cmdArgs.runtime.p2pBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindPort))),
+        cmdArgs.runtime.p2pPublicHost.map(v => createF(GenLens[ApplicationConfig](_.bifrost.p2p.publicHost))(v.some)),
+        cmdArgs.runtime.p2pPublicPort.map(v => createF(GenLens[ApplicationConfig](_.bifrost.p2p.publicPort))(v.some)),
         cmdArgs.runtime.knownPeers
           .map(parseKnownPeers)
           .map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.knownPeers))),

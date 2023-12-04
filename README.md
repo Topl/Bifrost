@@ -37,6 +37,8 @@ Bifrost accepts the following command line arguments:
   --rpcBindPort <int>         The port to bind to for the RPC layer (i.e. 9085)
   --p2pBindHost <str>         The hostname to bind to for the P2P layer (i.e. localhost or 0.0.0.0)
   --p2pBindPort <int>         The port to bind to for the P2P layer (i.e. 9084)
+  --p2pPublicHost <str>       The hostname to bind for incoming connections for the P2P layer (i.e. localhost or 0.0.0.0)
+  --p2pPublicPort <int>       The port to bind for incoming connections for the P2P layer (i.e. 9084)
   --knownPeers <str>          A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)
   --testnetTimestamp <long>   A UTC Unix epoch timestamp (ms) to use when seeding a private testnet.
   --testnetStakerCount <int>  The number of stakers to initialize.
