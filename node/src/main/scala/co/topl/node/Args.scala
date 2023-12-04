@@ -60,6 +60,14 @@ object Args {
     )
     p2pBindPort: Option[Int] = None,
     @arg(
+      doc = "The hostname to bind for incoming connections for the P2P layer (i.e. localhost or 0.0.0.0)"
+    )
+    p2pPublicHost: Option[String] = None,
+    @arg(
+      doc = "The port to bind for incoming connections for the P2P layer (i.e. 9084)"
+    )
+    p2pPublicPort: Option[Int] = None,
+    @arg(
       doc = "A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)"
     )
     knownPeers:  Option[String] = None,
