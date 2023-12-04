@@ -30,7 +30,15 @@ object Args {
       doc = "An optional flag to enable debug mode on this node."
     )
     debug: Flag,
-    cli:   Boolean = false
+    @arg(
+      doc = "An optional flag to run the CLI/Shell instead of regular node operations."
+    )
+    cli: Boolean = false,
+    @arg(
+      doc = "An optional flag to run in no-op mode.  The application will sit idle until terminated.  This is useful" +
+        " for creating backups of the node's data."
+    )
+    idle: Boolean = false
   )
 
   @main @Lenses
@@ -109,6 +117,8 @@ object Args {
 
   def parse(args: Seq[String]): Args =
     if (args.headOption.contains("cli")) parserArgs.constructOrThrow(args.tail).focus(_.startup.cli).replace(true)
+    else if (args.headOption.contains("idle"))
+      parserArgs.constructOrThrow(args.tail).focus(_.startup.idle).replace(true)
     else parserArgs.constructOrThrow(args)
 
   implicit val showArgs: Show[Args] = {
