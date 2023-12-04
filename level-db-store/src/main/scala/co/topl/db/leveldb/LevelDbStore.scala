@@ -98,12 +98,17 @@ object LevelDbStore {
   private val nativeFactory = "org.fusesource.leveldbjni.JniDBFactory"
   private val javaFactory = "org.iq80.leveldb.impl.Iq80DBFactory"
 
-  def makeFactory[F[_]: Sync: Logger]: Resource[F, DBFactory] =
+  def makeFactory[F[_]: Sync: Logger](useJni: Boolean = true): Resource[F, DBFactory] =
     Sync[F]
-      .delay(System.getProperty("os.name").toLowerCase().indexOf("mac") >= 0)
-      // As LevelDB-JNI has problems on Mac (see https://github.com/ergoplatform/ergo/issues/1067),
-      // we are using only pure-Java LevelDB on Mac
-      .map(isMac => if (isMac) List(javaFactory) else List(nativeFactory, javaFactory))
+      .delay {
+        if (useJni) {
+          // As LevelDB-JNI has problems on Mac (see https://github.com/ergoplatform/ergo/issues/1067),
+          // we are using only pure-Java LevelDB on Mac
+          val isMac = System.getProperty("os.name").toLowerCase().indexOf("mac") >= 0
+          if (isMac) List(javaFactory) else List(nativeFactory, javaFactory)
+        } else
+          List(javaFactory)
+      }
       .flatMap(factories =>
         List(this.getClass.getClassLoader, ClassLoader.getSystemClassLoader)
           .zip(factories)
@@ -124,8 +129,13 @@ object LevelDbStore {
       .rethrow
       .flatTap {
         case (`javaFactory`, _) =>
-          Logger[F].warn("Using the pure java LevelDB implementation which is still experimental")
-        case (name, factory) => Logger[F].info(s"Loaded $name with $factory")
+          Logger[F].warn(
+            "Using the pure java LevelDB implementation which is experimental and slower than the native implementation."
+          )
+        case _ => ().pure[F]
+      }
+      .flatTap { case (name, factory) =>
+        Logger[F].info(s"Loaded $name with $factory")
       }
       .map(_._2)
       .toResource
