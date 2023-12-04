@@ -129,8 +129,13 @@ object LevelDbStore {
       .rethrow
       .flatTap {
         case (`javaFactory`, _) =>
-          Logger[F].warn("Using the pure java LevelDB implementation which is still experimental")
-        case (name, factory) => Logger[F].info(s"Loaded $name with $factory")
+          Logger[F].warn(
+            "Using the pure java LevelDB implementation which is experimental and slower than the native implementation."
+          )
+        case _ => ().pure[F]
+      }
+      .flatTap { case (name, factory) =>
+        Logger[F].info(s"Loaded $name with $factory")
       }
       .map(_._2)
       .toResource
