@@ -62,8 +62,8 @@ class FAClockOps[F[_], A](val fa: F[A]) extends AnyVal {
     fLogger: Logger[F]
   ): F[A] =
     fs2.Stream
-      .eval[F, A](fa)
-      .mergeHaltL[F, A](
+      .eval(fa)
+      .concurrently(
         fs2.Stream
           .eval[F, FiniteDuration](fAsync.realTime)
           .evalTap(_ => fAsync.delayBy(().pure[F], threshold))
@@ -72,10 +72,11 @@ class FAClockOps[F[_], A](val fa: F[A]) extends AnyVal {
               .awakeEvery[F](logTick)
               .evalTap(_ =>
                 fAsync.realTime
-                  .flatMap(now => Logger[F].warn(s"$operationName is slow.  Elapsed duration=${now - start}"))
+                  .flatMap(now =>
+                    Logger[F].warn(s"$operationName is slow.  Elapsed duration=${(now - start).toMillis}ms")
+                  )
               )
-              .filter(_ => false)
-          ) >> fs2.Stream.never[F]
+          )
       )
       .compile
       .lastOrError

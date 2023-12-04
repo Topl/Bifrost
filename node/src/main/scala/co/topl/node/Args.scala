@@ -30,7 +30,15 @@ object Args {
       doc = "An optional flag to enable debug mode on this node."
     )
     debug: Flag,
-    cli:   Boolean = false
+    @arg(
+      doc = "An optional flag to run the CLI/Shell instead of regular node operations."
+    )
+    cli: Boolean = false,
+    @arg(
+      doc = "An optional flag to run in no-op mode.  The application will sit idle until terminated.  This is useful" +
+        " for creating backups of the node's data."
+    )
+    idle: Boolean = false
   )
 
   @main @Lenses
@@ -39,6 +47,10 @@ object Args {
       doc = "The directory to use when saving/reading blockchain data"
     )
     dataDir: Option[String],
+    @arg(
+      doc = "The type of data storage to use. Valid options: `levelDb-jni` (default), `levelDb-java`"
+    )
+    databaseType: Option[String],
     @arg(
       doc = "The directory of the block producer's staking keys"
     )
@@ -59,6 +71,14 @@ object Args {
       doc = "The port to bind to for the P2P layer (i.e. 9084)"
     )
     p2pBindPort: Option[Int] = None,
+    @arg(
+      doc = "The hostname to bind for incoming connections for the P2P layer (i.e. localhost or 0.0.0.0)"
+    )
+    p2pPublicHost: Option[String] = None,
+    @arg(
+      doc = "The port to bind for incoming connections for the P2P layer (i.e. 9084)"
+    )
+    p2pPublicPort: Option[Int] = None,
     @arg(
       doc = "A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)"
     )
@@ -101,6 +121,8 @@ object Args {
 
   def parse(args: Seq[String]): Args =
     if (args.headOption.contains("cli")) parserArgs.constructOrThrow(args.tail).focus(_.startup.cli).replace(true)
+    else if (args.headOption.contains("idle"))
+      parserArgs.constructOrThrow(args.tail).focus(_.startup.idle).replace(true)
     else parserArgs.constructOrThrow(args)
 
   implicit val showArgs: Show[Args] = {

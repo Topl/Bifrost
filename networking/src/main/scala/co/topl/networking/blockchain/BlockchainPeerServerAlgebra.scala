@@ -10,7 +10,7 @@ import fs2._
  * Serves local blockchain data to a remote peer
  */
 trait BlockchainPeerServerAlgebra[F[_]] {
-  def serverPort: F[Option[Int]]
+  def peerAsServer: F[Option[KnownHost]]
   def localBlockAdoptions: F[Stream[F, BlockId]]
   def localTransactionNotifications: F[Stream[F, TransactionId]]
   def getLocalSlotData(id:              BlockId): F[Option[SlotData]]

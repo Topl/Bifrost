@@ -37,7 +37,7 @@ object ApplicationConfig {
   object Bifrost {
 
     @Lenses
-    case class Data(directory: String)
+    case class Data(directory: String, databaseType: String)
 
     @Lenses
     case class Staking(directory: String, rewardAddress: LockAddress)
@@ -46,10 +46,9 @@ object ApplicationConfig {
     case class P2P(
       bindHost:          String,
       bindPort:          Int,
-      publicHost:        String,
-      publicPort:        Int,
+      publicHost:        Option[String],
+      publicPort:        Option[Int],
       knownPeers:        List[KnownPeer],
-      exposeServerPort:  Boolean,
       networkProperties: NetworkProperties
     )
 

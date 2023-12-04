@@ -36,8 +36,14 @@ object DataStoresInit {
    */
   def create[F[_]: Async: Logger](appConfig: ApplicationConfig)(genesisId: BlockId): Resource[F, DataStores[F]] =
     for {
-      dataDir        <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
-      levelDbFactory <- LevelDbStore.makeFactory[F]
+      dataDir <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
+      databaseType <- appConfig.bifrost.data.databaseType
+        .pure[F]
+        .ensure(new IllegalArgumentException(s"Invalid databaseType=${appConfig.bifrost.data.databaseType}"))(dbType =>
+          Set(DatabaseTypes.LevelDbJni, DatabaseTypes.LevelDbJava).contains(dbType)
+        )
+        .toResource
+      levelDbFactory <- LevelDbStore.makeFactory[F](useJni = databaseType == DatabaseTypes.LevelDbJni)
       _              <- Files.forAsync[F].createDirectories(dataDir).toResource
       _              <- Logger[F].info(show"Using dataDir=$dataDir").toResource
       parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir, levelDbFactory)(
@@ -212,5 +218,10 @@ object DataStoresInit {
         (bigBangBlock.header.height, bigBangBlock.header.parentHeaderId)
       )
     } yield ()
+
+  object DatabaseTypes {
+    final val LevelDbJni = "levelDb-jni"
+    final val LevelDbJava = "levelDb-java"
+  }
 
 }

@@ -59,8 +59,9 @@ class MultiNodeTest extends IntegrationSuite {
                 bigBang,
                 totalNodeCount - 1,
                 index,
-                if (index == 0) Nil else List(s"MultiNodeTest-node${index - 1}"),
-                exposeServerPort = if (index == 1) false else true
+                List(s"MultiNodeTest-node0"),
+                serverHost = if (index == 1) s"MultiNodeTest-node$index".some else None,
+                serverPort = if (index == 1) 9085.some else None
               )
             )
           )
@@ -88,7 +89,7 @@ class MultiNodeTest extends IntegrationSuite {
           bigBang,
           totalNodeCount - 1,
           -1,
-          List("MultiNodeTest-node1"),
+          List("MultiNodeTest-node0"),
           stakingBindSourceDir = tmpHostStakingDirectory.toString.some
         )
         delayedNodeName = s"MultiNodeTest-node${totalNodeCount - 1}"

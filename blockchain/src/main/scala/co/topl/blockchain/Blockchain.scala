@@ -29,7 +29,7 @@ import co.topl.networking.fsnetwork.DnsResolverInstances.DefaultDnsResolver
 import co.topl.networking.fsnetwork.ReverseDnsResolverInstances.{DefaultReverseDnsResolver, NoOpReverseResolver}
 import co.topl.networking.fsnetwork._
 import co.topl.networking.p2p._
-import co.topl.node.models.{Block, BlockBody, FullBlock}
+import co.topl.node.models.{Block, BlockBody, FullBlock, KnownHost}
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.Dns
 import fs2.concurrent.Topic
@@ -64,7 +64,7 @@ object Blockchain {
     nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
     additionalGrpcServices:    List[ServerServiceDefinition],
     _epochData:                EpochDataAlgebra[F],
-    exposeServerPort:          Boolean,
+    peerAsServer:              Option[KnownPeer],
     networkProperties:         NetworkProperties
   ): Resource[F, Unit] = new BlockchainImpl[F](
     clock,
@@ -84,7 +84,7 @@ object Blockchain {
     nodeProtocolConfiguration,
     additionalGrpcServices,
     _epochData,
-    exposeServerPort,
+    peerAsServer,
     networkProperties
   ).resource
 
@@ -108,7 +108,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
   additionalGrpcServices:    List[ServerServiceDefinition],
   _epochData:                EpochDataAlgebra[F],
-  exposeServerPort:          Boolean,
+  peerAsServer:              Option[KnownPeer],
   networkProperties:         NetworkProperties
 ) {
   implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
@@ -198,14 +198,14 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         .compile
         .drain
         .background
-      _ <- Logger[F].info(s"Exposing server port is ${if (exposeServerPort) "enabled" else "disabled"}").toResource
+      _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.map(_.toString).getOrElse("")}").toResource
       peerServerF = BlockchainPeerServer.make(
         dataStores.slotData.get,
         dataStores.headers.get,
         dataStores.bodies.get,
         dataStores.transactions.get,
         eventSourcedStates.blockHeights,
-        if (exposeServerPort) () => Option(localPeer.localAddress.port) else () => None,
+        () => peerAsServer.map(kp => KnownHost(localPeer.p2pVK, kp.host, kp.port)),
         () => currentPeers.get,
         localChain,
         mempool,

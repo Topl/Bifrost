@@ -29,7 +29,7 @@ object BlockchainPeerServer {
     fetchBody:               BlockId => F[Option[BlockBody]],
     fetchTransaction:        TransactionId => F[Option[IoTransaction]],
     blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
-    peerServerPort:          () => Option[Int],
+    peerServerPort:          () => Option[KnownHost],
     currentHotPeers:         () => F[Set[RemotePeer]],
     localChain:              LocalChainAlgebra[F],
     mempool:                 MempoolAlgebra[F],
@@ -51,7 +51,7 @@ object BlockchainPeerServer {
               .getLoggerFromName[F]("P2P.BlockchainPeerServer")
               .withModifiedString(value => show"peer=${peer.remoteAddress} $value")
 
-          override def serverPort: F[Option[Int]] = peerServerPort().pure[F]
+          override def peerAsServer: F[Option[KnownHost]] = peerServerPort().pure[F]
 
           /**
            * Serves a stream containing the current head ID plus a stream of block IDs adopted in the local chain.

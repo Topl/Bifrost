@@ -54,10 +54,10 @@ object TestHelper extends TransactionGenerator {
       second <- Arbitrary.arbitrary[Byte]
       third  <- Arbitrary.arbitrary[Byte]
       fourth <- Arbitrary.arbitrary[Byte]
-    } yield s"$first.$second.$third.$fourth"
+    } yield s"${first & 0xff}.${second & 0xff}.${third & 0xff}.${fourth & 0xff}" // & 0xFF -- to unsigned byte
   )
 
-  val arbitraryKnownHost: Arbitrary[KnownHost] = Arbitrary(
+  implicit val arbitraryKnownHost: Arbitrary[KnownHost] = Arbitrary(
     for {
       idBytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
       host    <- arbitraryIpString.arbitrary

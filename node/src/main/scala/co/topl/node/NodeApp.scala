@@ -16,6 +16,7 @@ import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
+import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
@@ -58,6 +59,7 @@ abstract class AbstractNodeApp
 
   def run(cmdArgs: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     if (cmdArgs.startup.cli) new ConfiguredCliApp(appConfig).run
+    else if (cmdArgs.startup.idle) new IdleApp(appConfig).run
     else new ConfiguredNodeApp(cmdArgs, appConfig).run
 }
 
@@ -395,6 +397,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .warnIfSlow("EventSourcedStates Update", 5.seconds)
         .toResource
 
+      p2pConfig = appConfig.bifrost.p2p
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -409,14 +412,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           mempool,
           cryptoResources,
           localPeer,
-          appConfig.bifrost.p2p.knownPeers,
+          p2pConfig.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
           genusServices ::: healthServices,
           epochData,
-          appConfig.bifrost.p2p.exposeServerPort,
-          appConfig.bifrost.p2p.networkProperties
+          (p2pConfig.publicHost, p2pConfig.publicPort).mapN(KnownPeer),
+          p2pConfig.networkProperties
         )
         .parProduct(genusOpt.traverse(Replicator.background[F]).void)
         .parProduct(
