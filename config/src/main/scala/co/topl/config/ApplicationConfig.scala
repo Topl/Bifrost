@@ -37,7 +37,7 @@ object ApplicationConfig {
   object Bifrost {
 
     @Lenses
-    case class Data(directory: String)
+    case class Data(directory: String, databaseType: String)
 
     @Lenses
     case class Staking(directory: String, rewardAddress: LockAddress)

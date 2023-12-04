@@ -39,6 +39,7 @@ object ApplicationConfigOps {
     val simpleArgApplications =
       List[Option[ApplicationConfig => ApplicationConfig]](
         cmdArgs.runtime.dataDir.map(createF(GenLens[ApplicationConfig](_.bifrost.data.directory))),
+        cmdArgs.runtime.databaseType.map(createF(GenLens[ApplicationConfig](_.bifrost.data.databaseType))),
         cmdArgs.runtime.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
         cmdArgs.runtime.rpcBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindHost))),
         cmdArgs.runtime.rpcBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindPort))),

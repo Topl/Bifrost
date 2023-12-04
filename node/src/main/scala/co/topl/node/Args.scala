@@ -48,6 +48,10 @@ object Args {
     )
     dataDir: Option[String],
     @arg(
+      doc = "The type of data storage to use. Valid options: `levelDb-jni` (default), `levelDb-java`"
+    )
+    databaseType: Option[String],
+    @arg(
       doc = "The directory of the block producer's staking keys"
     )
     stakingDir: Option[String],
