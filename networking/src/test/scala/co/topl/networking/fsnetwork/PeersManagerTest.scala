@@ -3512,9 +3512,11 @@ class PeersManagerTest
               actor.send(buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id)))
             _ = assert(newState1.peersHandler.peers(host1Id).state == PeerState.Cold)
 
-            newState2 <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1Id, host2Id))
+            newState2 <- actor.send(PeersManager.Message.RemotePeerIdChanged(host2Id, host1Id))
             _ = assert(newState2.peersHandler.peers.size == (1 + 1)) // +1 because of self-banned peer
-            _ = assert(newState2.peersHandler.getHotPeers.contains(host2Id))
+            _ = assert(newState2.peersHandler.getHotPeers.contains(host1Id))
+            _ = assert(newState2.peersHandler.peers(host1Id).actorOpt == host2PeerActor.some)
+            _ = assert(!newState2.peersHandler.peers.contains(host2Id))
           } yield ()
         }
     }

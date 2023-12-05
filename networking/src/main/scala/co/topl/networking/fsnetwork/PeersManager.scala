@@ -738,7 +738,7 @@ object PeersManager {
       peerActor <- setupPeerActor
       remotePeerAsServer <- client.remotePeerAsServer
         .handleErrorWith { e =>
-          Logger[F].error(e)(s"Failed to get remote peer as server from $connectedPeer") >>
+          Logger[F].error(e)(show"Failed to get remote peer as server from $connectedPeer") >>
           Option.empty[KnownHost].pure[F]
         }
         .map(_.map(kh => RemotePeer(HostId(kh.id), RemoteAddress(kh.host, kh.port))))
@@ -962,8 +962,9 @@ object PeersManager {
 
     for {
       resolved <- resolveHosts(addressesToOpen)
-      _        <- Logger[F].infoIf(resolved.nonEmpty, show"Going to open connection to next peers: $resolved")
-      toOpen   <- resolved.map(rp => DisconnectedPeer(rp.address, rp.peerId.id.some)).pure[F]
+      filtered <- resolved.map(rp => rp.address -> rp).toMap.values.toSeq.pure[F]
+      _        <- Logger[F].infoIf(filtered.nonEmpty, show"Going to open connection to next peers: $filtered")
+      toOpen   <- filtered.map(rp => DisconnectedPeer(rp.address, rp.peerId.id.some)).pure[F]
       _        <- toOpen.traverse(state.newPeerCreationAlgebra.requestNewPeerCreation)
     } yield ()
   }

@@ -344,7 +344,7 @@ object PeerActor {
       )
       .void
       .handleErrorWith { e =>
-        Logger[F].error(e)(s"Common ancestor trace for peer ${state.hostId} is failed") >>
+        Logger[F].error(e)(show"Common ancestor trace for peer ${state.hostId} is failed") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 }
