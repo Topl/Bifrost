@@ -124,15 +124,19 @@ case class PeersHandler[F[_]: Async: Logger](
 
   def copyWithUpdatedId(oldId: HostId, newId: HostId, peerActorRelease: Peer[F] => F[Unit]): F[PeersHandler[F]] =
     (peers.get(oldId), peers.get(newId)) match {
-      case (Some(oldPeer), None) =>
-        val newPeers = (peers - oldId) + (newId -> oldPeer)
+      case (Some(peerForOldId), None) =>
+        val newPeers = (peers - oldId) + (newId -> peerForOldId)
         this.copy(peers = newPeers).pure[F]
-      case (Some(oldPeer), Some(_)) =>
-        val newPeers = peers - oldId
-        Logger[F].warn(show"Failed to change id from $oldId to $newId because peer already exist, close $oldId") >>
-        peerActorRelease(oldPeer) >>
+      case (Some(peerForOldId), Some(outdatedPeer)) =>
+        val newPeers = (peers - oldId) + (newId -> peerForOldId)
+        Logger[F].warn(
+          show"Change id from $oldId to $newId but peer for $newId already exist, close outdated peer for $newId first"
+        ) >>
+        peerActorRelease(outdatedPeer) >>
         this.copy(peers = newPeers).pure[F]
-      case (None, _) => Async[F].pure(this)
+      case (None, _) =>
+        Logger[F].error(show"Try to change id from $oldId to $newId but $oldId is not exist") >>
+        Async[F].pure(this)
     }
 
   def copyWithUpdatedPeer(

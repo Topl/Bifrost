@@ -10,6 +10,7 @@ import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyn
 import co.topl.models.utility.byteStringToByteVector
 import co.topl.networking.fsnetwork.NetworkQualityError._
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
+import co.topl.networking.p2p.ConnectedPeer
 import co.topl.networking.p2p.RemoteAddress.showRemoteAddress
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
@@ -18,6 +19,8 @@ trait P2PShowInstances {
   implicit val showHostId: Show[HostId] = id => show"${id.id.toBase58.take(8)}..."
 
   implicit val showRemotePeer: Show[RemotePeer] = rp => show"RemotePeer(id=${rp.peerId} address=${rp.address})"
+
+  implicit val showConnectedPeer: Show[ConnectedPeer] = cp => cp.toString
 
   implicit val showTransactionSyntaxError: Show[TransactionSyntaxError] =
     Show.fromToString
