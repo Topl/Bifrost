@@ -13,7 +13,7 @@ tags:
 ```sh
 mkdir .bifrost
 sudo chown  1001 .bifrost
-docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-alpha10
+docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
 docker ps
 docker logs -f bifrost-tetra
 ```
@@ -40,13 +40,13 @@ Note: Latest is currently tagged to Dion, our previous version of Bifrost. To us
 Run in terminal
 
 ```sh
-docker run -it --rm -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-alpha10
+docker run -it --rm -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
 ```
 
 Run in background
 
 ```sh
-docker run -d --name bifrost-tetra -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-alpha10
+docker run -d --name bifrost-tetra -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
 ```
 
 Run with volume to persist data
@@ -54,7 +54,7 @@ Run with volume to persist data
 ```sh
 mkdir .bifrost
 sudo chown  1001 .bifrost
-docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-alpha10
+docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
 ```
 
 Interact with the node

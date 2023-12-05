@@ -27,13 +27,13 @@ Locate the latest version from https://github.com/Topl/Project-Bifrost/releases/
 ex:
 
 ```sh
-wget https://github.com/Topl/Bifrost/releases/download/v2.0.0-alpha10/bifrost-node-2.0.0-alpha10.jar 
+wget https://github.com/Topl/Bifrost/releases/download/v2.0.0-beta0/bifrost-node-2.0.0-beta0.jar 
 ```
 
 Run
 
 ```sh
-java -jar bifrost-node-2.0.0-alpha10.jar
+java -jar bifrost-node-2.0.0-beta0.jar
 ```
 
 To see other options, use --help.

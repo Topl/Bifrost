@@ -110,6 +110,7 @@ def assemblySettings(main: String) = Seq(
       case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
       case PathList("module-info.java")                => MergeStrategy.discard
       case PathList("local.conf")                      => MergeStrategy.discard
+      case "META-INF/io.netty.versions.properties"     => MergeStrategy.last
       case "META-INF/truffle/instrument"               => MergeStrategy.concat
       case "META-INF/truffle/language"                 => MergeStrategy.rename
       case x if x.contains("google/protobuf")          => MergeStrategy.last
