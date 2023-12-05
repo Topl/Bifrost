@@ -1,22 +1,24 @@
 package co.topl.networking.fsnetwork
 
-import co.topl.networking.p2p.RemoteAddress
 import scala.util.Random
 
 abstract class SelectorWarmToHot[F[_]] {
-  def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress]
+  def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId]
 }
 
 class ReputationRandomBasedSelectorWarmToHot[F[_]] extends SelectorWarmToHot[F] {
 
-  def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
-    val random: Set[RemoteAddress] =
-      Random.shuffle(hosts.flatMap(_.asRemoteAddress)).take(countToReceive)
+  def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] = {
+    val random: Seq[HostId] =
+      Random.shuffle(hosts.keySet).take(countToReceive).toSeq
 
-    val reputation: Set[RemoteAddress] =
-      hosts.toSeq.sortBy(_.overallReputation).takeRight(countToReceive).flatMap(_.asRemoteAddress).toSet
+    val perfReputation: Seq[HostId] =
+      hosts.toSeq.sortBy(_._2.perfRep).takeRight(countToReceive).map(_._1)
 
-    Random.shuffle(random ++ reputation).take(countToReceive)
+    val blockReputation: Seq[HostId] =
+      hosts.toSeq.sortBy(_._2.blockRep).takeRight(countToReceive).map(_._1)
+
+    Random.shuffle(random ++ perfReputation ++ blockReputation).take(countToReceive).toSet
   }
 
 }

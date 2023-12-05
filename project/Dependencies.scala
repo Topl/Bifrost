@@ -3,17 +3,17 @@ import sbt._
 object Dependencies {
 
   val circeVersion = "0.14.6"
-  val kamonVersion = "2.6.5"
+  val kamonVersion = "2.6.6"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.2"
-  val fs2Version = "3.9.2"
-  val logback = "1.4.11"
-  val orientDbVersion = "3.2.23"
-  val ioGrpcVersion = "1.59.0"
-  val http4sVersion = "0.23.23"
-  val protobufSpecsVersion = "2.0.0-alpha5" // scala-steward:off
-  val bramblScVersion = "2.0.0-alpha7" // scala-steward:off
+  val fs2Version = "3.9.3"
+  val logback = "1.4.14"
+  val orientDbVersion = "3.2.25"
+  val ioGrpcVersion = "1.59.1"
+  val http4sVersion = "0.23.24"
+  val protobufSpecsVersion = "2.0.0-beta1" // scala-steward:off
+  val bramblScVersion = "2.0.0-beta1" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -58,7 +58,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.2.1"
+    "org.typelevel" %% "mouse"     % "1.2.2"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
@@ -74,7 +74,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.76"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.77"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -84,7 +84,7 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.10",
-    "org.scodec" %% "scodec-bits" % "1.1.37",
+    "org.scodec" %% "scodec-bits" % "1.1.38",
     "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
@@ -103,7 +103,7 @@ object Dependencies {
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
   val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
 
   val http4s = Seq(
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.28.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.29.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -260,7 +260,6 @@ object Dependencies {
     Seq(
       "com.orientechnologies" % "orientdb-core"   % orientDbVersion,
       "com.orientechnologies" % "orientdb-server" % orientDbVersion,
-      "com.orientechnologies" % "orientdb-client" % orientDbVersion,
       "com.orientechnologies" % "orientdb-tools"  % orientDbVersion,
       "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude ("commons-beanutils", "commons-beanutils") exclude ("commons-beanutils", "commons-beanutils-core"),
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",

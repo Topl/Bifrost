@@ -87,7 +87,7 @@ object BlockchainProtocols {
   /**
    * Request address for incoming connections from remote peer
    */
-  object RemotePeerServerPort extends RequestResponseProtocol[Unit, Int]
+  object RemotePeerServer extends RequestResponseProtocol[Unit, KnownHost]
 
   /**
    * Notify peer about remote application status

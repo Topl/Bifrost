@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96" fill="none">
+  <path d="M68.0195 84.7003L88.0395 64.6803V30.8203" stroke="var(--ifm-font-color-base)" stroke-width="2" stroke-miterlimit="10" stroke-dasharray="2 2"></path>
+  <path d="M93.6999 36.4803L88.0399 30.8203L82.3799 36.4803" stroke="var(--ifm-font-color-base)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M28.02 84.7003L8 64.6803V30.8203" stroke="var(--ifm-font-color-base)" stroke-width="2" stroke-miterlimit="10" stroke-dasharray="2 2"></path>
+  <path d="M2.33984 36.4803L7.99984 30.8203L13.6598 36.4803" stroke="var(--ifm-font-color-base)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M76.04 2.82031V59.6803L56 79.7203V96.0003" stroke="var(--ifm-color-primary)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M81.6999 8.48031L76.0399 2.82031L70.3799 8.48031" stroke="var(--ifm-color-primary)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M20 2.82031V59.6803L40.04 79.7203V96.0003" stroke="var(--ifm-color-primary)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M14.3398 8.48031L19.9998 2.82031L25.6598 8.48031" stroke="var(--ifm-color-primary)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M68 48.0002C68 49.7402 67.78 51.4202 67.36 53.0202C65.18 52.9002 63.02 53.9802 61.86 56.0002C60.7 58.0002 60.84 60.4202 62.02 62.2402C59.64 64.6002 56.66 66.3602 53.34 67.2602C52.34 65.3202 50.34 64.0002 48 64.0002C45.66 64.0002 43.66 65.3202 42.66 67.2602C39.34 66.3602 36.36 64.6002 33.98 62.2402C35.16 60.4202 35.3 58.0002 34.14 56.0002C32.98 53.9802 30.82 52.9002 28.64 53.0202C28.22 51.4202 28 49.7402 28 48.0002C28 46.2602 28.22 44.5802 28.64 42.9802C30.82 43.1002 32.98 42.0202 34.14 40.0002C35.3 37.9802 35.18 35.5802 33.98 33.7602C36.36 31.4002 39.34 29.6402 42.66 28.7402C43.66 30.6802 45.68 32.0002 48 32.0002C50.32 32.0002 52.34 30.6802 53.34 28.7402C56.66 29.6402 59.64 31.4002 62.02 33.7602C60.82 35.5802 60.7 37.9802 61.86 40.0002C63.02 42.0002 65.18 43.0802 67.36 42.9802C67.78 44.5802 68 46.2602 68 48.0002V48.0002Z" stroke="var(--ifm-color-primary)" stroke-width="2" stroke-miterlimit="10"></path>
+  <path d="M48 54C51.3137 54 54 51.3137 54 48C54 44.6863 51.3137 42 48 42C44.6863 42 42 44.6863 42 48C42 51.3137 44.6863 54 48 54Z" stroke="var(--ifm-font-color-base)" stroke-width="2" stroke-miterlimit="10"></path>
+</svg>

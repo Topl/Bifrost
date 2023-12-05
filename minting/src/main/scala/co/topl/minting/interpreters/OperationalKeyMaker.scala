@@ -10,7 +10,7 @@ import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.LeaderElectionValidationAlgebra
-import co.topl.consensus.algebras.{ConsensusValidationStateAlgebra, EtaCalculationAlgebra}
+import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing._
 import co.topl.minting.algebras._
@@ -23,6 +23,7 @@ import co.topl.typeclasses.implicits._
 import com.google.common.primitives.Longs
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import java.util.UUID
 
@@ -36,7 +37,7 @@ object OperationalKeyMaker {
    * @param etaCalculation An EtaCalculation interpreter is needed to determine the eta to use when determining VRF ineligibilities.
    * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
    */
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async](
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,
@@ -44,7 +45,6 @@ object OperationalKeyMaker {
     clock:                       ClockAlgebra[F],
     vrfCalculator:               VrfCalculatorAlgebra[F],
     leaderElection:              LeaderElectionValidationAlgebra[F],
-    etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
     kesProductResource:          Resource[F, KesProduct],
     ed25519Resource:             Resource[F, Ed25519]
@@ -57,7 +57,8 @@ object OperationalKeyMaker {
           clock.operationalPeriodRange(activationOperationalPeriod).map(_.start).flatMap(clock.delayedUntilSlot)
         )
         .toResource
-      stateRef <- Ref.of(none[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]).toResource
+      stateRef                     <- Ref.of(none[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]).toResource
+      implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("OperationalKeyMaker").toResource
       impl = new Impl[F](
         activationOperationalPeriod,
         address,
@@ -66,7 +67,6 @@ object OperationalKeyMaker {
         clock,
         vrfCalculator,
         leaderElection,
-        etaCalculation,
         consensusState,
         kesProductResource,
         ed25519Resource,
@@ -82,14 +82,13 @@ object OperationalKeyMaker {
     clock:                       ClockAlgebra[F],
     vrfCalculator:               VrfCalculatorAlgebra[F],
     leaderElection:              LeaderElectionValidationAlgebra[F],
-    etaCalculation:              EtaCalculationAlgebra[F],
     consensusState:              ConsensusValidationStateAlgebra[F],
     kesProductResource:          Resource[F, KesProduct],
     ed25519Resource:             Resource[F, Ed25519],
     stateRef:                    Ref[F, Option[(Long, Map[Long, Deferred[F, Option[OperationalKeyOut]]])]]
   ) extends OperationalKeyMakerAlgebra[F] {
 
-    def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId): F[Option[OperationalKeyOut]] =
+    def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId, eta: Eta): F[Option[OperationalKeyOut]] =
       clock
         .operationalPeriodOf(slot)
         .flatMap(operationalPeriod =>
@@ -102,9 +101,9 @@ object OperationalKeyMaker {
                   .flatMapF(relativeStake =>
                     consumeEvolvePersist(
                       (operationalPeriod - activationOperationalPeriod).toInt,
-                      parentSlotId,
                       slot,
-                      relativeStake
+                      relativeStake,
+                      eta
                     )
                   )
                   .semiflatTap(newKeys => stateRef.set((operationalPeriod -> newKeys).some))
@@ -123,9 +122,9 @@ object OperationalKeyMaker {
      */
     private[interpreters] def consumeEvolvePersist(
       timeStep:      Int,
-      parentSlotId:  SlotId,
       slot:          Slot,
-      relativeStake: Ratio
+      relativeStake: Ratio,
+      eta:           Eta
     ): F[Option[Map[Slot, Deferred[F, Option[OperationalKeyOut]]]]] =
       MonadCancelThrow[F].uncancelable(_ =>
         (
@@ -163,7 +162,7 @@ object OperationalKeyMaker {
               _ <- secureStore.write(UUID.randomUUID().toString, updated)
             } yield ()
             res <- OptionT.liftF(
-              prepareOperationalPeriodKeys(currentPeriodKey, slot, parentSlotId, relativeStake)(onComplete)
+              prepareOperationalPeriodKeys(currentPeriodKey, slot, relativeStake, eta)(onComplete)
             )
           } yield res
         ).value
@@ -172,18 +171,15 @@ object OperationalKeyMaker {
     /**
      * Using some KES parent, construct the linear keys for the upcoming operational period.  A linear key is constructed
      * for each slot for which we _might_ be eligible for VRF.
-     *
-     * @param parentSlotId Used for Eta lookup when determining ineligible VRF slots
      */
     private[interpreters] def prepareOperationalPeriodKeys(
       parentSK:      SecretKeyKesProduct,
       fromSlot:      Slot,
-      parentSlotId:  SlotId,
-      relativeStake: Ratio
+      relativeStake: Ratio,
+      eta:           Eta
     )(onComplete: => F[Unit]): F[Map[Slot, Deferred[F, Option[OperationalKeyOut]]]] =
       for {
         epoch                  <- clock.epochOf(fromSlot)
-        eta                    <- etaCalculation.etaToBe(parentSlotId, fromSlot)
         operationalPeriod      <- clock.operationalPeriodOf(fromSlot)
         operationalPeriodSlots <- clock.operationalPeriodRange(operationalPeriod).map(_.toList)
         _ <- Logger[F].info(

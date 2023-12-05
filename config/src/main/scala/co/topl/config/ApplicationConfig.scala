@@ -22,21 +22,22 @@ object ApplicationConfig {
 
   @Lenses
   case class Bifrost(
-    data:      Bifrost.Data,
-    staking:   Bifrost.Staking,
-    p2p:       Bifrost.P2P,
-    rpc:       Bifrost.RPC,
-    mempool:   Bifrost.Mempool,
-    bigBang:   Bifrost.BigBang,
-    protocols: Map[Slot, Bifrost.Protocol],
-    cache:     Bifrost.Cache,
-    ntp:       Bifrost.Ntp
+    data:        Bifrost.Data,
+    staking:     Bifrost.Staking,
+    p2p:         Bifrost.P2P,
+    rpc:         Bifrost.RPC,
+    mempool:     Bifrost.Mempool,
+    bigBang:     Bifrost.BigBang,
+    protocols:   Map[Slot, Bifrost.Protocol],
+    cache:       Bifrost.Cache,
+    ntp:         Bifrost.Ntp,
+    versionInfo: Bifrost.VersionInfo
   )
 
   object Bifrost {
 
     @Lenses
-    case class Data(directory: String)
+    case class Data(directory: String, databaseType: String)
 
     @Lenses
     case class Staking(directory: String, rewardAddress: LockAddress)
@@ -45,29 +46,33 @@ object ApplicationConfig {
     case class P2P(
       bindHost:          String,
       bindPort:          Int,
-      publicHost:        String,
-      publicPort:        Int,
+      publicHost:        Option[String],
+      publicPort:        Option[Int],
       knownPeers:        List[KnownPeer],
       networkProperties: NetworkProperties
     )
 
     case class NetworkProperties(
+      useHostNames:                         Boolean = false,
       pingPongInterval:                     FiniteDuration = FiniteDuration(90, SECONDS),
-      expectedSlotsPerBlock:                Double = 5.0, // TODO shall be calculated?
+      expectedSlotsPerBlock:                Double = 15.0, // TODO shall be calculated?
       maxPerformanceDelayInSlots:           Double = 2.0,
       remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
       minimumBlockProvidingReputationPeers: Int = 2,
-      minimumPerformanceReputationPeers:    Int = 1,
+      minimumPerformanceReputationPeers:    Int = 2,
       minimumRequiredReputation:            Double = 0.66,
-      minimumHotConnections:                Int = 3,
-      minimumWarmConnections:               Int = 6,
+      minimumEligibleColdConnections:       Int = 50,
+      maximumEligibleColdConnections:       Int = 100,
+      minimumHotConnections:                Int = 7,
       maximumWarmConnections:               Int = 12,
       warmHostsUpdateEveryNBlock:           Double = 4.0,
       commonAncestorTrackInterval:          FiniteDuration = FiniteDuration(10, SECONDS),
       // we could try to connect to remote peer again after
       // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
       closeTimeoutFirstDelayInMs: Long = 1000,
-      closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24 // 1 day
+      closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24, // 1 day
+      aggressiveP2P:              Boolean = true, // always try to found new good remote peers
+      aggressiveP2PCount:         Int = 2 // how many new connection will be opened
     )
 
     case class KnownPeer(host: String, port: Int)
@@ -156,6 +161,9 @@ object ApplicationConfig {
 
     @Lenses
     case class Ntp(server: String, refreshInterval: FiniteDuration, timeout: FiniteDuration)
+
+    @Lenses
+    case class VersionInfo(enable: Boolean, uri: String, period: FiniteDuration)
 
   }
 

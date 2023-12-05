@@ -12,13 +12,16 @@ import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInt
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
 import co.topl.buildinfo.node.BuildInfo
+import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
+import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
 import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
+import co.topl.crypto.signing.Ed25519
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.genus._
 import co.topl.grpc.HealthCheckGrpc
@@ -33,13 +36,15 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
 import co.topl.node.models.{FullBlock, FullBlockBody}
+import co.topl.version.VersionReplicator
+import com.google.protobuf.ByteString
 import com.typesafe.config.Config
-import fs2.io.file.{Files, Path}
+import fs2.io.file.Path
 import kamon.Kamon
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import io.grpc.ServerServiceDefinition
 
+import scala.concurrent.duration._
 import java.time.Instant
 
 object NodeApp extends AbstractNodeApp
@@ -47,14 +52,19 @@ object NodeApp extends AbstractNodeApp
 abstract class AbstractNodeApp
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = a => IO.delay(Args.parse(a)),
-      createConfig = IOBaseApp.createTypesafeConfig,
+      createConfig = IOBaseApp.createTypesafeConfig(_, AbstractNodeApp.ConfigFileEnvironmentVariable.some),
       parseConfig = (args, conf) => IO.delay(ApplicationConfigOps.unsafe(args, conf)),
       preInitFunction = config => IO.delay(if (config.kamon.enable) Kamon.init())
     ) {
 
   def run(cmdArgs: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     if (cmdArgs.startup.cli) new ConfiguredCliApp(appConfig).run
+    else if (cmdArgs.startup.idle) new IdleApp(appConfig).run
     else new ConfiguredNodeApp(cmdArgs, appConfig).run
+}
+
+object AbstractNodeApp {
+  final val ConfigFileEnvironmentVariable = "BIFROST_CONFIG_FILE"
 }
 
 class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
@@ -71,10 +81,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
       _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
-      localPeer = LocalPeer(
-        RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
-        (0, 0)
-      )
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- initializeData
@@ -86,12 +92,38 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .value
         .toResource
 
+      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
+
+      p2pSK <- OptionT(metadata.readP2PSK)
+        .getOrElseF(
+          random
+            .nextBytes(32)
+            .flatMap(seed =>
+              cryptoResources.ed25519
+                .use(e => Sync[F].delay(e.deriveSecretKeyFromSeed(seed)))
+                .map(_.bytes)
+                .map(ByteString.copyFrom)
+            )
+            .flatTap(metadata.setP2PSK)
+        )
+        .toResource
+      p2pVK <- cryptoResources.ed25519
+        .use(e => Sync[F].delay(e.getVerificationKey(Ed25519.SecretKey(p2pSK.toByteArray))))
+        .map(_.bytes)
+        .map(ByteString.copyFrom)
+        .toResource
+
+      localPeer = LocalPeer(
+        RemoteAddress(appConfig.bifrost.p2p.bindHost, appConfig.bifrost.p2p.bindPort),
+        p2pVK,
+        p2pSK
+      )
+
       bigBangBlockId = bigBangBlock.header.id
       bigBangSlotData <- dataStores.slotData.getOrRaise(bigBangBlockId).toResource
-      _               <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId").toResource
+      _ <- Logger[F].info(show"Big Bang Block id=$bigBangBlockId timestamp=${bigBangBlock.header.timestamp}").toResource
 
       stakingDir = Path(interpolateBlockId(bigBangBlockId)(appConfig.bifrost.staking.directory))
-      _ <- Files[F].createDirectories(stakingDir).toResource
       _ <- Logger[F].info(show"Using stakingDir=$stakingDir").toResource
 
       currentEventIdGetterSetters = new CurrentEventIdGetterSetters[F](dataStores.currentEventIds)
@@ -99,7 +131,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       canonicalHeadId       <- currentEventIdGetterSetters.canonicalHead.get().toResource
       canonicalHeadSlotData <- dataStores.slotData.getOrRaise(canonicalHeadId).toResource
       canonicalHead         <- dataStores.headers.getOrRaise(canonicalHeadId).toResource
-      _                     <- Logger[F].info(show"Canonical head id=$canonicalHeadId").toResource
+      _ <- Logger[F]
+        .info(
+          show"Canonical head" +
+          show" id=$canonicalHeadId" +
+          show" height=${canonicalHeadSlotData.height}" +
+          show" slot=${canonicalHeadSlotData.slotId.slot}"
+        )
+        .toResource
 
       blockIdTree <- ParentChildTree.FromReadWrite
         .make[F, BlockId](
@@ -134,6 +173,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           .pure[F]
           .rethrow
           .toResource
+      _ <- Logger[F].info(s"Protocol settings=$bigBangProtocol").toResource
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
         bigBangProtocol.vrfPrecision,
@@ -151,9 +191,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         ntpClockSkewer
       )
       globalSlot <- clock.globalSlot.toResource
-      _ <- Logger[F]
-        .info(show"globalSlot=$globalSlot canonicalHeadSlot=${canonicalHeadSlotData.slotId.slot}")
-        .toResource
+      _          <- Logger[F].info(show"globalSlot=$globalSlot").toResource
       etaCalculation <-
         EtaCalculation
           .make(
@@ -196,7 +234,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           chainSelectionAlgebra,
           currentEventIdGetterSetters.canonicalHead.set
         )
-      mempool <- Mempool.make[F](
+      (mempool, mempoolState) <- Mempool.make[F](
         currentEventIdGetterSetters.mempool.get(),
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise,
@@ -210,6 +248,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         OptionT
           .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
           .filter(identity)
+          .flatTapNone(Logger[F].warn("Staking directory is empty.  Continuing in relay-only mode.").toResource)
           .semiflatMap { _ =>
             val blockFinder = (transactionId: TransactionId) =>
               BlockFinder
@@ -258,64 +297,62 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               dataStores.headers.getOrRaise
             )
           )
+      (boxState, boxStateState) <- BoxState
+        .make(
+          currentEventIdGetterSetters.boxState.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.boxState.set,
+          dataStores.spendableBoxIds.pure[F]
+        )
+        .toResource
+      (registrationAccumulator, registrationAccumulatorState) <- RegistrationAccumulator
+        .make[F](
+          currentEventIdGetterSetters.registrationAccumulator.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.registrationAccumulator.set,
+          dataStores.registrationAccumulator.pure[F]
+        )
       validators <- Validators.make[F](
         cryptoResources,
         dataStores,
         bigBangBlockId,
         eligibilityCache,
-        currentEventIdGetterSetters,
-        blockIdTree,
         etaCalculation,
         consensusValidationState,
         leaderElectionThreshold,
-        clock
+        clock,
+        boxState,
+        registrationAccumulator
       )
-      additionalGrpcServices <-
-        for {
-          genusServices <-
-            if (appConfig.genus.enable) {
-              (
-                for {
-                  genus <- Genus
-                    .make[F](
-                      appConfig.bifrost.rpc.bindHost,
-                      appConfig.bifrost.rpc.bindPort,
-                      Some(appConfig.genus.orientDbDirectory)
-                        .filterNot(_.isEmpty)
-                        .getOrElse(dataStores.baseDirectory./("orient-db").toString),
-                      appConfig.genus.orientDbPassword
-                    )
-                  _ <- Replicator.background(genus)
-                  definitions <-
-                    GenusGrpc.Server.services(
-                      genus.blockFetcher,
-                      genus.transactionFetcher,
-                      genus.vertexFetcher,
-                      genus.valueFetcher
-                    )
-                } yield definitions
-              )
-                .recoverWith { case e =>
-                  Logger[F]
-                    .warn(e)("Failed to start Genus server, continuing without it")
-                    .void
-                    .as(Nil)
-                    .toResource
-                }
-            } else
-              Resource.pure[F, List[ServerServiceDefinition]](Nil)
-          healthCheck <- HealthCheck
-            .make[F]()
-          healthServices <- HealthCheckGrpc.Server.services(
-            healthCheck.healthChecker
-          )
-        } yield (genusServices ::: healthServices)
-
-      implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
-
-      protocolConfig <- ProtocolConfiguration.make[F](
-        appConfig.bifrost.protocols.map { case (slot, protocol) => protocol.nodeConfig(slot) }.toSeq
+      genusOpt <- OptionT
+        .whenF(appConfig.genus.enable)(
+          Genus
+            .make[F](
+              appConfig.bifrost.rpc.bindHost,
+              appConfig.bifrost.rpc.bindPort,
+              Some(appConfig.genus.orientDbDirectory)
+                .filterNot(_.isEmpty)
+                .getOrElse(dataStores.baseDirectory./("orient-db").toString),
+              appConfig.genus.orientDbPassword
+            )
+        )
+        .value
+      genusServices <- genusOpt.toList.flatTraverse(genus =>
+        GenusGrpc.Server.services(
+          genus.blockFetcher,
+          genus.transactionFetcher,
+          genus.vertexFetcher,
+          genus.valueFetcher
+        )
       )
+      healthCheck    <- HealthCheck.make[F]()
+      healthServices <- HealthCheckGrpc.Server.services(healthCheck.healthChecker)
+
+      protocolConfig <- ProtocolConfiguration.make[F](List(bigBangProtocol.nodeConfig(0)))
 
       transactionRewardCalculator <- TransactionRewardCalculator.make[F]
 
@@ -337,6 +374,30 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       epochData <- EpochDataInterpreter
         .make[F](Sync[F].defer(localChain.head).map(_.slotId.blockId), epochDataEventSourcedState)
 
+      softwareVersion <- OptionT
+        .whenF(appConfig.bifrost.versionInfo.enable)(
+          VersionReplicator.make[F](metadata, appConfig.bifrost.versionInfo.uri)
+        )
+        .value
+
+      eventSourcedStates = EventSourcedStates[F](
+        epochDataEventSourcedState,
+        blockHeightTree,
+        consensusDataState,
+        epochBoundariesState,
+        boxStateState,
+        mempoolState,
+        registrationAccumulatorState
+      )
+
+      _ <- Logger[F].info(show"Updating EventSourcedStates to id=$canonicalHeadId").toResource
+      _ <- eventSourcedStates
+        .updateTo(canonicalHeadId)
+        .logDuration("EventSourcedStates Update")
+        .warnIfSlow("EventSourcedStates Update", 5.seconds)
+        .toResource
+
+      p2pConfig = appConfig.bifrost.p2p
       // Finally, run the program
       _ <- Blockchain
         .make[F](
@@ -346,18 +407,23 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           localChain,
           chainSelectionAlgebra,
           blockIdTree,
-          blockHeightTree,
+          eventSourcedStates,
           validators,
           mempool,
-          cryptoResources.ed25519VRF,
+          cryptoResources,
           localPeer,
-          appConfig.bifrost.p2p.knownPeers,
+          p2pConfig.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
           protocolConfig,
-          additionalGrpcServices,
+          genusServices ::: healthServices,
           epochData,
-          appConfig.bifrost.p2p.networkProperties
+          (p2pConfig.publicHost, p2pConfig.publicPort).mapN(KnownPeer),
+          p2pConfig.networkProperties
+        )
+        .parProduct(genusOpt.traverse(Replicator.background[F]).void)
+        .parProduct(
+          softwareVersion.traverse(VersionReplicator.background[F](_, appConfig.bifrost.versionInfo.period)).void
         )
     } yield ()
 
@@ -400,8 +466,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
-      leaderElectionThreshold = LeaderElectionValidation
-        .make[F](vrfConfig, blake2b512Resource, exp, log1p)
+      base = LeaderElectionValidation.make[F](vrfConfig, blake2b512Resource, exp, log1p)
+      leaderElectionThreshold <- LeaderElectionValidation.makeCached(base)
     } yield leaderElectionThreshold
 
   /**
@@ -459,12 +525,17 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   body         <- dataStores.bodies.getOrRaise(publicBigBang.genesisId).toResource
                   transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
                 } yield FullBlock(header, FullBlockBody(transactions)),
-                for {
-                  reader               <- DataReaders.fromSourcePath[F](publicBigBang.sourcePath)
-                  headerBodyValidation <- BlockHeaderToBodyValidation.make[F]().toResource
-                  bigBangBlock <- BigBang.fromRemote(reader)(headerBodyValidation)(publicBigBang.genesisId).toResource
-                  _            <- DataStoresInit.initialize(dataStores, bigBangBlock).toResource
-                } yield bigBangBlock
+                DataReaders
+                  .fromSourcePath[F](publicBigBang.sourcePath)
+                  .use(reader =>
+                    BlockHeaderToBodyValidation
+                      .make[F]()
+                      .flatMap(
+                        BigBang.fromRemote(reader)(_)(publicBigBang.genesisId)
+                      )
+                      .flatTap(DataStoresInit.initialize(dataStores, _))
+                  )
+                  .toResource
               )
               .tupleRight(dataStores)
           )

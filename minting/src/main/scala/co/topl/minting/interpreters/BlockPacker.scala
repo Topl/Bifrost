@@ -108,6 +108,7 @@ object BlockPacker {
            * Step through each transaction in the mempool, and remove any transaction sub-trees that are not (currently) authorized
            */
           private def filterValidTransactions(graph: MempoolGraph): F[FullBlockBody] =
+            Logger[F].debug("Validating available transactions") >>
             graph.transactions.values.toList
               .foldLeftM(graph) { case (graph, transaction) =>
                 if (graph.transactions.contains(transaction.id))
@@ -137,6 +138,7 @@ object BlockPacker {
            * be removed from the graph since they can't be applied to the chain yet.
            */
           private def pruneUnresolvedTransactions(graph: MempoolGraph): F[FullBlockBody] =
+            Logger[F].debug("Discarding transactions which spend unknown/unspendable UTxOs") >>
             graph.unresolved.toList
               .traverseFilter { case (id, indices) =>
                 val transaction = graph.transactions(id)
@@ -158,6 +160,7 @@ object BlockPacker {
            * Some of the "unresolved" transactions of the mempool may be double-spends, so prune away the lower-value sub-graphs.
            */
           private def stripDoubleSpendUnresolved(graph: MempoolGraph): F[FullBlockBody] =
+            Logger[F].debug("Discarding lower-value double-spend transactions") >>
             Sync[F]
               .delay(
                 graph.unresolved.toList
@@ -310,6 +313,7 @@ object BlockPacker {
            * from the returned graph
            */
           private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]): F[MempoolGraph] =
+            Logger[F].debug("Searching for double-spend transactions") >>
             spenders.toList
               .map(graph.transactions)
               .traverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))

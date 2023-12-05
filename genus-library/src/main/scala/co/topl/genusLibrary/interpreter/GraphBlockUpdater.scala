@@ -45,7 +45,10 @@ object GraphBlockUpdater {
               case Some(_) => insertBlock(block)
               case _ =>
                 Logger[F].info(s"Block parent ${block.header.parentHeaderId.show} not found on Genus, inserting it") >>
-                EitherT(nodeBlockFetcher.fetch(block.header.parentHeaderId)).flatMapF(insert).value
+                EitherT(nodeBlockFetcher.fetch(block.header.parentHeaderId))
+                  .flatMapF(insert)
+                  .flatMapF(_ => insertBlock(block))
+                  .value
             }.value
 
           }

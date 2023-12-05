@@ -13,6 +13,7 @@ import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import fs2._
 import org.typelevel.log4cats.Logger
+import co.topl.networking.fsnetwork.P2PShowInstances._
 
 object BlockchainSocketHandler {
 
@@ -20,7 +21,7 @@ object BlockchainSocketHandler {
    * Consumes the given Socket by applying Blockchain-specific Multiplexed Typed Protocols to serve the given application
    * functions.
    * @param peerServerF a function which creates a BlockchainPeerServer for the given ConnectedPeer
-   * @param useClient a function which consumes the BlockchainPeerClient to serve the application
+   * @param useClientAndPeer a function which consumes the BlockchainPeerClient to serve the application
    * @param peer The remote peer
    * @param leader The connection leader
    * @param reads the input stream
@@ -28,8 +29,8 @@ object BlockchainSocketHandler {
    * @return a Resource which completes when all processing has completed
    */
   def make[F[_]: Async: Logger](
-    peerServerF: ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
-    useClient:   BlockchainPeerClient[F] => Resource[F, Unit]
+    peerServerF:      ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
+    useClientAndPeer: BlockchainPeerClient[F] => Resource[F, Unit]
   )(
     peer:   ConnectedPeer,
     leader: ConnectionLeader,
@@ -39,7 +40,7 @@ object BlockchainSocketHandler {
   ): Resource[F, Unit] =
     peerServerF(peer)
       .map(server => createFactory(server, close))
-      .flatMap(_.multiplexed(useClient)(peer, leader, reads, writes))
+      .flatMap(_.multiplexed(useClientAndPeer)(peer, leader, reads, writes))
 
   private[blockchain] def createFactory[F[_]: Async: Logger](
     protocolServer: BlockchainPeerServerAlgebra[F],
@@ -128,9 +129,9 @@ object BlockchainSocketHandler {
       )
 
     val remotePeerServerF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Unit, Int](
-        BlockchainProtocols.RemotePeerServerPort,
-        _ => protocolServer.serverPort,
+      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Unit, KnownHost](
+        BlockchainProtocols.RemotePeerServer,
+        _ => protocolServer.peerAsServer,
         21: Byte,
         22: Byte
       )
@@ -161,7 +162,7 @@ object BlockchainSocketHandler {
         (appLevelNotifyHandlers, appNotifyCallback)                <- notifyRemoteAppLevelF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
-          val remotePeerServerPort: F[Option[Int]] = peerServerCallback(())
+          val remotePeerAsServer: F[Option[KnownHost]] = peerServerCallback(())
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
           val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
             remoteTransactionIdsSource.pure[F]

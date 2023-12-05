@@ -1,7 +1,7 @@
 package co.topl.minting.algebras
 
 import co.topl.minting.models.OperationalKeyOut
-import co.topl.models.Slot
+import co.topl.models.{Eta, Slot}
 import co.topl.consensus.models.SlotId
 
 /**
@@ -9,5 +9,5 @@ import co.topl.consensus.models.SlotId
  * it for some particular slot on demand
  */
 trait OperationalKeyMakerAlgebra[F[_]] {
-  def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId): F[Option[OperationalKeyOut]]
+  def operationalKeyForSlot(slot: Slot, parentSlotId: SlotId, eta: Eta): F[Option[OperationalKeyOut]]
 }

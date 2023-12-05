@@ -47,7 +47,7 @@ class PeerBlockBodyFetcherTest
     with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
-  val hostId: HostId = "127.0.0.1"
+  val hostId: HostId = arbitraryHost.arbitrary.first
 
   val maxChainSize = 99
 

@@ -44,6 +44,7 @@ trait StakingAlgebra[F[_]] {
   def certifyBlock(
     parentSlotId:         SlotId,
     slot:                 Slot,
-    unsignedBlockBuilder: UnsignedBlockHeader.PartialOperationalCertificate => UnsignedBlockHeader
+    unsignedBlockBuilder: UnsignedBlockHeader.PartialOperationalCertificate => UnsignedBlockHeader,
+    eta:                  Eta
   ): F[Option[BlockHeader]]
 }

@@ -1,5 +1,7 @@
+import com.typesafe.sbt.packager.docker.{DockerChmodType, ExecCmd}
 import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
+import NativePackagerHelper.*
 
 val scala213 = "2.13.12"
 
@@ -51,7 +53,7 @@ lazy val commonSettings = Seq(
 
 lazy val dockerSettings = Seq(
   dockerBaseImage := "eclipse-temurin:11-jre",
-  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(true)(_.toBoolean),
+  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(false)(_.toBoolean),
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),
@@ -60,14 +62,26 @@ lazy val dockerSettings = Seq(
       alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
-  }
+  },
+  dockerAliases ++= (
+    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean)) Seq(
+      DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
+      DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
+    ) else Seq()
+  )
 )
 
 lazy val nodeDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes ++= Seq("/bifrost-data", "/bifrost-staking", "/bifrost-config"),
-    Docker / packageName := "bifrost-node"
+    Docker / packageName := "bifrost-node",
+    dockerExposedVolumes += "/bifrost",
+    dockerExposedVolumes += "/bifrost-staking",
+    dockerEnvVars ++= Map(
+      "BIFROST_APPLICATION_DATA_DIR" -> "/bifrost/data/{genesisBlockId}",
+      "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost-staking/{genesisBlockId}",
+      "BIFROST_CONFIG_FILE" -> "/bifrost/config/user.yaml"
+    )
   )
 
 lazy val networkDelayerDockerSettings =
@@ -96,6 +110,7 @@ def assemblySettings(main: String) = Seq(
       case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
       case PathList("module-info.java")                => MergeStrategy.discard
       case PathList("local.conf")                      => MergeStrategy.discard
+      case "META-INF/io.netty.versions.properties"     => MergeStrategy.last
       case "META-INF/truffle/instrument"               => MergeStrategy.concat
       case "META-INF/truffle/language"                 => MergeStrategy.rename
       case x if x.contains("google/protobuf")          => MergeStrategy.last
@@ -596,7 +611,7 @@ lazy val levelDbStore = project
   )
   .dependsOn(
     byteCodecs,
-    algebras,
+    algebras % "compile->compile;test->test",
     catsUtils
   )
 

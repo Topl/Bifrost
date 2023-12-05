@@ -39,7 +39,8 @@ object ToplRpcServer {
     case TransactionSyntaxError.InvalidProofType(_, _)       => "InvalidProofType"
     case TransactionSyntaxError.InvalidSchedule(s) =>
       show"InvalidSchedule(creation=${s.timestamp},maximumSlot=${s.max},minimumSlot=${s.min})"
-    case TransactionSyntaxError.InvalidDataLength => "InvalidDataLength"
+    case TransactionSyntaxError.InvalidDataLength        => "InvalidDataLength"
+    case TransactionSyntaxError.InvalidUpdateProposal(_) => "InvalidUpdateProposal"
   }
 
   /**

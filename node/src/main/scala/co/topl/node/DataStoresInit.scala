@@ -18,11 +18,12 @@ import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
 import co.topl.models.utility._
-import co.topl.networking.fsnetwork.RemotePeer
+import co.topl.networking.fsnetwork.KnownRemotePeer
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
+import org.iq80.leveldb.DBFactory
 import org.typelevel.log4cats.Logger
 
 object DataStoresInit {
@@ -36,67 +37,74 @@ object DataStoresInit {
   def create[F[_]: Async: Logger](appConfig: ApplicationConfig)(genesisId: BlockId): Resource[F, DataStores[F]] =
     for {
       dataDir <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
-      _       <- Files.forAsync[F].createDirectories(dataDir).toResource
-      _       <- Logger[F].info(show"Using dataDir=$dataDir").toResource
-      parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir)(
+      databaseType <- appConfig.bifrost.data.databaseType
+        .pure[F]
+        .ensure(new IllegalArgumentException(s"Invalid databaseType=${appConfig.bifrost.data.databaseType}"))(dbType =>
+          Set(DatabaseTypes.LevelDbJni, DatabaseTypes.LevelDbJava).contains(dbType)
+        )
+        .toResource
+      levelDbFactory <- LevelDbStore.makeFactory[F](useJni = databaseType == DatabaseTypes.LevelDbJni)
+      _              <- Files.forAsync[F].createDirectories(dataDir).toResource
+      _              <- Logger[F].info(show"Using dataDir=$dataDir").toResource
+      parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir, levelDbFactory)(
         "parent-child-tree",
         appConfig.bifrost.cache.parentChildTree,
         _.value
       )
-      currentEventIds <- makeDb[F, Byte, BlockId](dataDir)("current-event-ids")
-      slotDataStore <- makeCachedDb[F, BlockId, ByteString, SlotData](dataDir)(
+      currentEventIds <- makeDb[F, Byte, BlockId](dataDir, levelDbFactory)("current-event-ids")
+      slotDataStore <- makeCachedDb[F, BlockId, ByteString, SlotData](dataDir, levelDbFactory)(
         "slot-data",
         appConfig.bifrost.cache.slotData,
         _.value
       )
-      blockHeaderStore <- makeCachedDb[F, BlockId, ByteString, BlockHeader](dataDir)(
+      blockHeaderStore <- makeCachedDb[F, BlockId, ByteString, BlockHeader](dataDir, levelDbFactory)(
         "block-headers",
         appConfig.bifrost.cache.headers,
         _.value
       )
-      blockBodyStore <- makeCachedDb[F, BlockId, ByteString, BlockBody](dataDir)(
+      blockBodyStore <- makeCachedDb[F, BlockId, ByteString, BlockBody](dataDir, levelDbFactory)(
         "block-bodies",
         appConfig.bifrost.cache.bodies,
         _.value
       )
-      transactionStore <- makeCachedDb[F, TransactionId, ByteString, IoTransaction](dataDir)(
+      transactionStore <- makeCachedDb[F, TransactionId, ByteString, IoTransaction](dataDir, levelDbFactory)(
         "transactions",
         appConfig.bifrost.cache.transactions,
         _.value
       )
-      spendableBoxIdsStore <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](dataDir)(
+      spendableBoxIdsStore <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](dataDir, levelDbFactory)(
         "spendable-box-ids",
         appConfig.bifrost.cache.spendableBoxIds,
         _.value
       )
-      epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir)(
+      epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
         "epoch-boundaries",
         appConfig.bifrost.cache.epochBoundaries,
         Long.box
       )
-      operatorStakesStore <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir)(
+      operatorStakesStore <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir, levelDbFactory)(
         "operator-stakes",
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
-      activeStakeStore   <- makeDb[F, Unit, BigInt](dataDir)("active-stake")
-      inactiveStakeStore <- makeDb[F, Unit, BigInt](dataDir)("inactive-stake")
+      activeStakeStore   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("active-stake")
+      inactiveStakeStore <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("inactive-stake")
       registrationsStore <- makeCachedDb[
         F,
         StakingAddress,
         StakingAddress,
         ActiveStaker
-      ](dataDir)(
+      ](dataDir, levelDbFactory)(
         "registrations",
         appConfig.bifrost.cache.registrations,
         identity
       )
-      blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir)(
+      blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
         "block-heights",
         appConfig.bifrost.cache.blockHeightTree,
         Long.box
       )
-      epochDataStore <- makeCachedDb[F, Long, java.lang.Long, EpochData](dataDir)(
+      epochDataStore <- makeCachedDb[F, Long, java.lang.Long, EpochData](dataDir, levelDbFactory)(
         "epoch-data",
         appConfig.bifrost.cache.epochData,
         Long.box
@@ -106,13 +114,13 @@ object DataStoresInit {
         StakingAddress,
         StakingAddress,
         Unit
-      ](dataDir)(
+      ](dataDir, levelDbFactory)(
         "registration-accumulator",
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
-      knownRemotePeersStore <- makeDb[F, Unit, Seq[RemotePeer]](dataDir)("known-remote-peers")
-      metadataStore         <- makeDb[F, Array[Byte], Array[Byte]](dataDir)("metadata")
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownRemotePeer]](dataDir, levelDbFactory)("known-remote-peers")
+      metadataStore         <- makeDb[F, Array[Byte], Array[Byte]](dataDir, levelDbFactory)("metadata")
 
       dataStores = DataStores(
         dataDir,
@@ -136,17 +144,20 @@ object DataStoresInit {
       )
     } yield dataStores
 
-  private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path)(
+  private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path, dbFactory: DBFactory)(
     name: String
   ): Resource[F, Store[F, Key, Value]] =
-    LevelDbStore.makeDb[F](dataDir / name).evalMap(LevelDbStore.make[F, Key, Value])
+    LevelDbStore.makeDb[F](dataDir / name, dbFactory).evalMap(LevelDbStore.make[F, Key, Value])
 
-  private def makeCachedDb[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](dataDir: Path)(
+  private def makeCachedDb[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](
+    dataDir:   Path,
+    dbFactory: DBFactory
+  )(
     name:         String,
     cacheConfig:  ApplicationConfig.Bifrost.Cache.CacheConfig,
     makeCacheKey: Key => CacheKey
   ): Resource[F, Store[F, Key, Value]] =
-    makeDb[F, Key, Value](dataDir)(name)
+    makeDb[F, Key, Value](dataDir, dbFactory)(name)
       .evalMap(underlying =>
         CacheStore.make[F, Key, CacheKey, Value](
           underlying.pure[F],
@@ -207,5 +218,10 @@ object DataStoresInit {
         (bigBangBlock.header.height, bigBangBlock.header.parentHeaderId)
       )
     } yield ()
+
+  object DatabaseTypes {
+    final val LevelDbJni = "levelDb-jni"
+    final val LevelDbJava = "levelDb-java"
+  }
 
 }

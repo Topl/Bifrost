@@ -39,11 +39,14 @@ object ApplicationConfigOps {
     val simpleArgApplications =
       List[Option[ApplicationConfig => ApplicationConfig]](
         cmdArgs.runtime.dataDir.map(createF(GenLens[ApplicationConfig](_.bifrost.data.directory))),
+        cmdArgs.runtime.databaseType.map(createF(GenLens[ApplicationConfig](_.bifrost.data.databaseType))),
         cmdArgs.runtime.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
         cmdArgs.runtime.rpcBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindHost))),
         cmdArgs.runtime.rpcBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindPort))),
         cmdArgs.runtime.p2pBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindHost))),
         cmdArgs.runtime.p2pBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindPort))),
+        cmdArgs.runtime.p2pPublicHost.map(v => createF(GenLens[ApplicationConfig](_.bifrost.p2p.publicHost))(v.some)),
+        cmdArgs.runtime.p2pPublicPort.map(v => createF(GenLens[ApplicationConfig](_.bifrost.p2p.publicPort))(v.some)),
         cmdArgs.runtime.knownPeers
           .map(parseKnownPeers)
           .map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.knownPeers))),

@@ -50,9 +50,12 @@ object SchedulerClock {
 
         override def slotToTimestamps(slot: Slot): F[NumericRange.Inclusive[Long]] =
           Sync[F].delay {
-            val startTimestamp = startTime + (slot * _slotLength.toMillis)
-            val endTimestamp = startTimestamp + (_slotLength.toMillis - 1)
-            NumericRange.inclusive(startTimestamp, endTimestamp, 1L)
+            if (slot == 0L) (0L to startTime)
+            else {
+              val startTimestamp = startTime + (slot * _slotLength.toMillis)
+              val endTimestamp = startTimestamp + (_slotLength.toMillis - 1)
+              NumericRange.inclusive(startTimestamp, endTimestamp, 1L)
+            }
           }
 
         override val forwardBiasedSlotWindow: F[Slot] = _forwardBiasedSlotWindow.pure[F]

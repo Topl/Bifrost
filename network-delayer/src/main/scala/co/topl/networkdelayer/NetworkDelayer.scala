@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 object NetworkDelayer
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => IO.delay(Args.parserArgs.constructOrThrow(args)),
-      createConfig = IOBaseApp.createTypesafeConfig,
+      createConfig = IOBaseApp.createTypesafeConfig(_),
       parseConfig = (_: Args, conf) => IO.delay(ApplicationConfig.unsafe(conf))
     ) {
 

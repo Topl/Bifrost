@@ -6,6 +6,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Queue
 import cats.implicits._
 import co.topl.networking._
+import org.typelevel.log4cats.Logger
 
 /**
  * Captures the domain of state transitions for some typed protocol.  The domain is used by an "applier" to handle
@@ -67,6 +68,8 @@ case class TypedProtocolInstance[F[_]] private (
       }
       .value
 
+  final private val MessageQueueSize = 16
+
   /**
    * Produces an "Applier" which enqueues each message.  A background fiber processes these queues in the background
    * depending on the current "agent".
@@ -76,10 +79,12 @@ case class TypedProtocolInstance[F[_]] private (
    */
   def applier[S: NetworkTypeTag](
     initialState: S
-  )(onComplete: Either[Throwable, Unit] => F[Unit])(implicit asyncF: Async[F]): Resource[F, MessageApplier] =
+  )(
+    onComplete: Either[Throwable, Unit] => F[Unit]
+  )(implicit asyncF: Async[F], loggerF: Logger[F]): Resource[F, MessageApplier] =
     for {
-      aQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
-      bQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](16))
+      aQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](MessageQueueSize))
+      bQueue <- Resource.eval(Queue.bounded[F, (Any, NetworkTypeTag[_])](MessageQueueSize))
       _ <- Async[F].background(
         backgroundProcessor(initialState)(aQueue, bQueue).attempt.flatTap(onComplete)
       )
@@ -91,6 +96,9 @@ case class TypedProtocolInstance[F[_]] private (
             case Parties.A => aQueue
             case Parties.B => bQueue
           }
+        queue.size.flatTap(size =>
+          Async[F].whenA(size >= MessageQueueSize)(Logger[F].info("Backpressure in typed protocol"))
+        ) >>
         queue.offer((message, implicitly[NetworkTypeTag[Message]]))
       }
     }

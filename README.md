@@ -11,7 +11,7 @@ Docker containers for each release are available via [Github Container Repositor
 We encourage all production deployments of Bifrost to make use of our Docker releases.
 
 ### Release Versioning
-Tetra-eon releases of Bifrost are currently versioned on an incrementing alpha version (i.e. `2.0.0-alpha0`, `2.0.0-alpha1`).  Once the implementation reaches a stable point, we will adopt [semantic versioning](https://semver.org/) with respect to the protocol consensus mechanism.
+Tetra-eon releases of Bifrost are currently versioned on an incrementing beta version (i.e. `2.0.0-beta0`, `2.0.0-beta1`).  Once the implementation reaches a stable point, we will adopt [semantic versioning](https://semver.org/) with respect to the protocol consensus mechanism.
 We chose to use semantic versioning because blockchains must maintain strict binary compatibility with all previous consensus, application, and network messages to allow trustless bootstrapping of new network participants from genesis.
 
 We apply the following rules to our MAJOR.MINOR.PATCH versions:
@@ -28,19 +28,37 @@ Command Line Reference
 ----------
 Bifrost accepts the following command line arguments:
 ```
-  --config <str>              Zero or more config files (.conf, .json, .yaml) to apply to the node. Config files stack such that the last config file takes precedence. To specify an internal resource, prefix the value with "resource://".
-  --logbackFile <str>         An optional path to a logback.xml file to override the logging configuration of the node.
-  --debug                     An optional flag to enable debug mode on this node.
+  --cli <bool>                An optional flag to run the CLI/Shell instead of regular node
+                              operations.
+  --config <str>              Zero or more config files (.conf, .json, .yaml) to apply to the node.
+                              Config files stack such that the last config file takes precedence. To
+                              specify an internal resource, prefix the value with "resource://".
   --dataDir <str>             The directory to use when saving/reading blockchain data
-  --stakingDir <str>          The directory of the block producer's staking keys
-  --rpcBindHost <str>         The hostname to bind to for the RPC layer (i.e. localhost or 0.0.0.0)
-  --rpcBindPort <int>         The port to bind to for the RPC layer (i.e. 9085)
+  --databaseType <str>        The type of data storage to use. Valid options: `levelDb-jni`
+                              (default), `levelDb-java`
+  --debug                     An optional flag to enable debug mode on this node.
+  --disableGenus              Disables the Genus server and Genus gRPC services
+  --idle <bool>               An optional flag to run in no-op mode. The application will sit idle
+                              until terminated. This is useful for creating backups of the node's
+                              data.
+  --knownPeers <str>          A comma-delimited list of host:port values to connect to at launch
+                              (i.e. 1.2.3.4:9084,5.6.7.8:9084)
+  --logbackFile <str>         An optional path to a logback.xml file to override the logging
+                              configuration of the node.
+  --orientDbDir <str>         The directory to use when saving/reading graph data
+  --orientDbPassword <str>    The password to use when connecting to OrientDB
   --p2pBindHost <str>         The hostname to bind to for the P2P layer (i.e. localhost or 0.0.0.0)
   --p2pBindPort <int>         The port to bind to for the P2P layer (i.e. 9084)
-  --knownPeers <str>          A comma-delimited list of host:port values to connect to at launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)
-  --testnetTimestamp <long>   A UTC Unix epoch timestamp (ms) to use when seeding a private testnet.
+  --p2pPublicHost <str>       The hostname to bind for incoming connections for the P2P layer (i.e.
+                              localhost or 0.0.0.0)
+  --p2pPublicPort <int>       The port to bind for incoming connections for the P2P layer (i.e.
+                              9084)
+  --rpcBindHost <str>         The hostname to bind to for the RPC layer (i.e. localhost or 0.0.0.0)
+  --rpcBindPort <int>         The port to bind to for the RPC layer (i.e. 9085)
+  --stakingDir <str>          The directory of the block producer's staking keys
   --testnetStakerCount <int>  The number of stakers to initialize.
   --testnetStakerIndex <int>  The index of the staker to launch.
+  --testnetTimestamp <long>   A UTC Unix epoch timestamp (ms) to use when seeding a private testnet.
 ```
 You may also view `sbt "node/run --help"` for more information.
 
@@ -53,14 +71,14 @@ Running
 -------------------
 The easiest way to run a Bifrost node is to use the official Docker image.  To run a Bifrost node using Docker:
 
-`docker run toplprotocol/bifrost-node:2.0.0-alpha6`
-- `2.0.0-alpha6` can be substituted with the desired version
+`docker run toplprotocol/bifrost-node:2.0.0-beta0`
+- `2.0.0-beta0` can be substituted with the desired version
 
 CLI / Shell
 -------------------
 Bifrost contains a built-in CLI that offers utilities for node operation. The CLI is available by passing `cli` as the first argument to the program. The CLI is interactive and will prompt for input as needed.
 
-For example, if using Docker, run `docker run toplprotocol/bifrost-node:2.0.0-alpha6 cli`.
+For example, if using Docker, run `docker run toplprotocol/bifrost-node:2.0.0-beta0 cli`.
 
 Development
 -------------------

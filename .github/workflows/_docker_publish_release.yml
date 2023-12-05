@@ -1,4 +1,4 @@
-name: Publish Docker Image (Public)
+name: Publish Docker Image (Release)
 
 on:
   workflow_call:
@@ -30,4 +30,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push images to registries
-        run: DOCKER_PUBLISH_LATEST_TAG=false sbt node/Docker/publish
+        run: DOCKER_PUBLISH_LATEST_TAG=true sbt node/Docker/publish

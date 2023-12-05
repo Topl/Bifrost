@@ -10,7 +10,6 @@ import co.topl.algebras.SynchronizationTraversalStep
 import co.topl.algebras.SynchronizationTraversalSteps
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.services.BlockData
-import co.topl.genusLibrary.model.GE
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats.Logger
@@ -43,7 +42,9 @@ object Replicator {
         .force[F, BlockData](
           genus.nodeBlockFetcher.fetch(startHeight = graphCurrentHeight + 1, endHeight = nodeLatestHeight + 3)
         )
-        .evalTap(blockData => Logger[F].info(s"Inserting block data ${blockData.header.id.show}"))
+        .evalTap(blockData =>
+          Logger[F].info(s"Inserting block ${blockData.header.id.show} height=${blockData.header.height}")
+        )
         .evalMap(genus.blockUpdater.insert)
         .rethrow ++
       fs2.Stream
@@ -53,17 +54,20 @@ object Replicator {
         .evalMap {
           case SynchronizationTraversalSteps.Applied(blockId) =>
             EitherT(genus.nodeBlockFetcher.fetch(blockId))
-              .semiflatTap(blockData => Logger[F].info(s"Inserting block ${blockData.header.id.show}"))
+              .semiflatTap(blockData =>
+                Logger[F].info(s"Inserting block ${blockData.header.id.show} height=${blockData.header.height}")
+              )
               .flatMapF(genus.blockUpdater.insert)
               .value
           case SynchronizationTraversalSteps.Unapplied(blockId) =>
             EitherT(genus.nodeBlockFetcher.fetch(blockId))
-              .semiflatTap(blockData => Logger[F].info(s"Deleting block ${blockData.header.id.show}"))
+              .semiflatTap(blockData =>
+                Logger[F].info(s"Deleting block ${blockData.header.id.show} height=${blockData.header.height}")
+              )
               .flatMapF(genus.blockUpdater.remove)
               .value
         }
         .rethrow
-        .recover(_ => ().asRight[GE])
 
     } yield ()
 }

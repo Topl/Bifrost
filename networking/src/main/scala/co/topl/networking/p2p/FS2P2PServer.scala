@@ -3,7 +3,10 @@ package co.topl.networking.p2p
 import cats.data.OptionT
 import cats.effect.{Async, Resource}
 import cats.effect.implicits._
+import cats.effect.std.Random
 import cats.implicits._
+import co.topl.crypto.signing.Ed25519
+import co.topl.models.Bytes
 import co.topl.networking.SocketAddressOps
 import com.comcast.ip4s._
 import fs2.Stream
@@ -14,21 +17,26 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object FS2P2PServer {
 
-  def make[F[_]: Async](
+  def make[F[_]: Async: Random](
     host:                    String,
     port:                    Int,
     localPeer:               LocalPeer,
     remotePeers:             Stream[F, DisconnectedPeer],
     peerHandler:             (ConnectedPeer, Socket[F]) => Resource[F, Unit],
-    peersStatusChangesTopic: Topic[F, PeerConnectionChange]
+    peersStatusChangesTopic: Topic[F, PeerConnectionChange],
+    ed25519Resource:         Resource[F, Ed25519]
   ): Resource[F, P2PServer[F]] =
     for {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P").toResource
       _                            <- eventLogger(peersStatusChangesTopic)
       sockets                      <- socketsStream[F](host, port)
-      _                            <- server(sockets)(peersStatusChangesTopic, peerHandler)
-      _                            <- client(remotePeers, localPeer)(peersStatusChangesTopic, peerHandler)
-      _                            <- Logger[F].info(s"Bound P2P at host=$host port=$port").toResource
+      idExtractor <- PeerIdentity
+        .extractor(Ed25519.SecretKey(localPeer.p2pSK.toByteArray), ed25519Resource)
+        .map(f => (socket: Socket[F]) => f(socket).rethrow)
+        .toResource
+      _ <- server(sockets)(peersStatusChangesTopic, peerHandler, idExtractor)
+      _ <- client(remotePeers, localPeer, idExtractor)(peersStatusChangesTopic, peerHandler)
+      _ <- Logger[F].info(s"Bound P2P at host=$host port=$port").toResource
     } yield new P2PServer[F] {
 
       def peerChanges: F[Topic[F, PeerConnectionChange]] =
@@ -53,43 +61,56 @@ object FS2P2PServer {
     } yield Network.forAsync[F].server(parsedHost.some, parsedPort.some)
 
   private def server[F[_]: Async](sockets: Stream[F, Socket[F]])(
-    peerChangesTopic: Topic[F, PeerConnectionChange],
-    peerHandler:      (ConnectedPeer, Socket[F]) => Resource[F, Unit]
+    peerChangesTopic:    Topic[F, PeerConnectionChange],
+    peerHandler:         (ConnectedPeer, Socket[F]) => Resource[F, Unit],
+    extractRemotePeerId: Socket[F] => F[Bytes]
   ) =
     sockets
-      .evalMap(socket =>
-        socket.remoteAddress
-          .map(address => ConnectedPeer(address.asRemoteAddress, (0, 0)))
-          .tupleRight(socket)
-      )
-      .evalTap { case (peer, socket) =>
+      .evalMap(socket => socket.remoteAddress.map(_.asRemoteAddress).tupleRight(socket))
+      .evalTap { case (remoteAddress, socket) =>
         for {
           localAddress <- socket.localAddress.map(_.asRemoteAddress)
           _ <- peerChangesTopic.publish1(
-            PeerConnectionChanges.InboundConnectionInitializing(peer.remoteAddress, localAddress)
+            PeerConnectionChanges.InboundConnectionInitializing(remoteAddress, localAddress)
           )
         } yield ()
       }
-      .map { case (peer, socket) =>
-        Stream.resource(
-          for {
-            localAddress <- socket.localAddress.map(_.asRemoteAddress).toResource
-            _ <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(peer, localAddress)).toResource
-            result <- peerHandler(peer, socket).attempt
-            _ <- peerChangesTopic
-              .publish1(PeerConnectionChanges.ConnectionClosed(peer, result.swap.toOption))
-              .toResource
-          } yield ()
-        )
+      .map { case (remoteAddress, socket) =>
+        Stream
+          .resource(
+            for {
+              localAddress <- socket.localAddress.map(_.asRemoteAddress).toResource
+              peerId <- extractRemotePeerId(socket).onError { case e =>
+                peerChangesTopic
+                  .publish1(PeerConnectionChanges.ConnectionClosed(DisconnectedPeer(remoteAddress, none), e.some))
+                  .void
+              }.toResource
+              peer = ConnectedPeer(remoteAddress, peerId)
+              disconnectedPeer = DisconnectedPeer(remoteAddress, peerId.some)
+              _ <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(peer, localAddress)).toResource
+              _ <- peerHandler(peer, socket)
+                .onError { case e =>
+                  peerChangesTopic
+                    .publish1(PeerConnectionChanges.ConnectionClosed(disconnectedPeer, e.some))
+                    .void
+                    .toResource
+                }
+              _ <- peerChangesTopic
+                .publish1(PeerConnectionChanges.ConnectionClosed(disconnectedPeer, none))
+                .toResource
+            } yield ()
+          )
+          .voidError
       }
       .parJoinUnbounded
       .compile
       .drain
       .background
 
-  private def client[F[_]: Async](
-    remotePeers: Stream[F, DisconnectedPeer],
-    localPeer:   LocalPeer
+  private def client[F[_]: Async: Logger](
+    remotePeers:         Stream[F, DisconnectedPeer],
+    localPeer:           LocalPeer,
+    extractRemotePeerId: Socket[F] => F[Bytes]
   )(peerChangesTopic: Topic[F, PeerConnectionChange], peerHandler: (ConnectedPeer, Socket[F]) => Resource[F, Unit]) =
     remotePeers
       .filterNot(_.remoteAddress == localPeer.localAddress)
@@ -97,32 +118,58 @@ object FS2P2PServer {
         peerChangesTopic.publish1(PeerConnectionChanges.OutboundConnectionInitializing(disconnectedPeer.remoteAddress))
       )
       .map(disconnected =>
-        Stream.resource(
-          for {
-            host <- OptionT
-              .fromOption[F](Host.fromString(disconnected.remoteAddress.host))
-              .getOrRaise(new IllegalArgumentException("Invalid destinationHost"))
-              .toResource
-            port <- OptionT
-              .fromOption[F](Port.fromInt(disconnected.remoteAddress.port))
-              .getOrRaise(new IllegalArgumentException("Invalid destinationPort"))
-              .toResource
-            socketEither <- Network.forAsync[F].client(SocketAddress(host, port)).attempt
-            connected = ConnectedPeer(disconnected.remoteAddress, disconnected.coordinate)
-            result <- socketEither match {
-              case Left(error) => Resource.pure[F, Either[Throwable, Unit]](Either.left[Throwable, Unit](error))
-              case Right(socket) =>
-                socket.localAddress
-                  .map(_.asRemoteAddress)
-                  .flatMap(a => peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(connected, a)))
-                  .toResource >>
-                peerHandler(connected, socket).attempt
-            }
-            _ <- peerChangesTopic
-              .publish1(PeerConnectionChanges.ConnectionClosed(connected, result.swap.toOption))
-              .toResource
-          } yield ()
-        )
+        Stream
+          .resource(
+            for {
+              host <- OptionT
+                .fromOption[F](Host.fromString(disconnected.remoteAddress.host))
+                .getOrRaise(new IllegalArgumentException("Invalid destinationHost"))
+                .toResource
+              port <- OptionT
+                .fromOption[F](Port.fromInt(disconnected.remoteAddress.port))
+                .getOrRaise(new IllegalArgumentException("Invalid destinationPort"))
+                .toResource
+              _ <- Logger[F].info(show"Initiate connection to ${disconnected.toString}").toResource
+              socket <- Network
+                .forAsync[F]
+                .client(SocketAddress(host, port))
+                .onError { case e =>
+                  peerChangesTopic
+                    .publish1(PeerConnectionChanges.ConnectionClosed(disconnected, e.some))
+                    .void
+                    .toResource
+                }
+              // TODO: Compare against disconnectedPeer.p2pVK?
+              peerId <- extractRemotePeerId(socket).onError { case e =>
+                peerChangesTopic.publish1(PeerConnectionChanges.ConnectionClosed(disconnected, e.some)).void
+              }.toResource
+              newDisconnected = disconnected.copy(p2pVK = peerId.some)
+              _ <- Logger[F].info(show"Established connection to ${newDisconnected.toString}").toResource
+              _ <-
+                if (disconnected.p2pVK != newDisconnected.p2pVK)
+                  peerChangesTopic
+                    .publish1(PeerConnectionChanges.ChangedRemotePeer(disconnected, newDisconnected))
+                    .void
+                    .toResource
+                else Resource.unit[F]
+              connected = ConnectedPeer(disconnected.remoteAddress, peerId)
+              localAddress <- socket.localAddress.map(_.asRemoteAddress).toResource
+              _ <- peerChangesTopic
+                .publish1(PeerConnectionChanges.ConnectionEstablished(connected, localAddress))
+                .toResource
+              _ <- peerHandler(connected, socket)
+                .onError { case e =>
+                  peerChangesTopic
+                    .publish1(PeerConnectionChanges.ConnectionClosed(newDisconnected, e.some))
+                    .void
+                    .toResource
+                }
+              _ <- peerChangesTopic
+                .publish1(PeerConnectionChanges.ConnectionClosed(newDisconnected, none))
+                .toResource
+            } yield ()
+          )
+          .voidError
       )
       .parJoinUnbounded
       .compile
@@ -145,6 +192,8 @@ object FS2P2PServer {
           Logger[F].info(s"Outbound connection initializing with peer=$peer")
         case PeerConnectionChanges.RemotePeerApplicationLevel(peer, applicationLevelEnabled) =>
           Logger[F].info(s"Remote peer $peer application level is $applicationLevelEnabled")
+        case PeerConnectionChanges.ChangedRemotePeer(oldPeer, newPeer) =>
+          Logger[F].info(s"Remote peer $oldPeer had been changed to $newPeer")
       }
       .compile
       .drain

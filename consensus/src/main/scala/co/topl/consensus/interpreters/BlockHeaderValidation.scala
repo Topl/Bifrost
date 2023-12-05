@@ -4,6 +4,7 @@ import cats.data._
 import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.implicits._
+import co.topl.algebras.ClockAlgebra.implicits.clockAsClockOps
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
@@ -72,6 +73,12 @@ object BlockHeaderValidation {
     ed25519Resource:          Resource[F, Ed25519],
     blake2b256Resource:       Resource[F, Blake2b256]
   ) extends BlockHeaderValidationAlgebra[F] {
+
+    def couldBeValidated(header: BlockHeader, lastProcessedBodyInChain: SlotData): F[Boolean] =
+      for {
+        checkedHeaderEpoch <- clockAlgebra.epochOf(header.slot)
+        bestBlockEpoch     <- clockAlgebra.epochOf(lastProcessedBodyInChain.slotId.slot)
+      } yield (checkedHeaderEpoch - bestBlockEpoch) < 2
 
     def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
       if (header.id === bigBangBlockId) EitherT.rightT[F, BlockHeaderValidationFailure](header)
@@ -359,6 +366,9 @@ object BlockHeaderValidation {
         .map(implicit cache =>
           new BlockHeaderValidationAlgebra[F] {
 
+            def couldBeValidated(header: BlockHeader, currentHead: SlotData): F[Boolean] =
+              underlying.couldBeValidated(header, currentHead)
+
             def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
               cache
                 .cachingF(header.id)(ttl = None)(
@@ -368,6 +378,7 @@ object BlockHeaderValidation {
                 )
                 .as(header.asRight[BlockHeaderValidationFailure])
                 .recover { case w: WrappedFailure => w.failure.asLeft[BlockHeader] }
+
           }
         )
 

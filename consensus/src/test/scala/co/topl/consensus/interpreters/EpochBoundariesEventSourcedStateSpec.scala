@@ -64,11 +64,11 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
           )
 
         _ <- underTest.useStateAt(slotData.last.slotId.blockId)(state =>
-          state.getOrRaise(0).assertEquals(slotData(1).slotId.blockId) >>
-          state.getOrRaise(1).assertEquals(slotData(3).slotId.blockId) >>
-          state.getOrRaise(2).assertEquals(slotData(5).slotId.blockId) >>
-          state.getOrRaise(3).assertEquals(slotData(7).slotId.blockId) >>
-          state.getOrRaise(4).assertEquals(slotData(9).slotId.blockId)
+          state.getOrRaise(-1).assertEquals(slotData(0).slotId.blockId) >>
+          state.getOrRaise(0).assertEquals(slotData(2).slotId.blockId) >>
+          state.getOrRaise(1).assertEquals(slotData(4).slotId.blockId) >>
+          state.getOrRaise(2).assertEquals(slotData(6).slotId.blockId) >>
+          state.getOrRaise(3).assertEquals(slotData(8).slotId.blockId)
         )
 
       } yield ()
@@ -104,7 +104,7 @@ class EpochBoundariesEventSourcedStateSpec extends CatsEffectSuite with ScalaChe
           )
 
         _ <- underTest.useStateAt(slotData.last.slotId.blockId)(state =>
-          state.get(-1).assertEquals(None) >>
+          state.get(-1).assertEquals(slotData.head.slotId.blockId.some) >>
           state.get(2).assertEquals(None)
         )
 

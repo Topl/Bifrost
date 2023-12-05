@@ -1,13 +1,12 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.kernel.Fiber
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Fiber}
 import cats.effect.{Resource, Spawn}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.networking.fsnetwork.Notifier.Message.StartNotifications
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
@@ -24,12 +23,12 @@ object Notifier {
 
   case class State[F[_]](
     peersManager:          PeersManagerActor[F],
-    reputationAggregator:  ReputationAggregatorActor[F],
     networkConfig:         P2PNetworkConfig,
     slotNotificationFiber: Option[Fiber[F, Throwable, Unit]] = None,
     networkQualityFiber:   Option[Fiber[F, Throwable, Unit]] = None,
-    warmHostsUpdateFiber:  Option[Fiber[F, Throwable, Unit]] = None,
-    commonAncestorFiber:   Option[Fiber[F, Throwable, Unit]] = None
+    peersUpdateFiber:      Option[Fiber[F, Throwable, Unit]] = None,
+    commonAncestorFiber:   Option[Fiber[F, Throwable, Unit]] = None,
+    aggressiveP2PFiber:    Option[Fiber[F, Throwable, Unit]] = None
   )
 
   type Response[F[_]] = State[F]
@@ -40,35 +39,35 @@ object Notifier {
   }
 
   def makeActor[F[_]: Async: Logger](
-    peersManager:         PeersManagerActor[F],
-    reputationAggregator: ReputationAggregatorActor[F],
-    p2pNetworkConfig:     P2PNetworkConfig
+    peersManager:     PeersManagerActor[F],
+    p2pNetworkConfig: P2PNetworkConfig
   ): Resource[F, NotifierActor[F]] = {
-    val initialState = State(peersManager, reputationAggregator, p2pNetworkConfig)
+    val initialState = State(peersManager, p2pNetworkConfig)
     val actorName = "Notifier actor"
     Actor.makeWithFinalize(actorName, initialState, getFsm, finalizer[F])
   }
 
   private def startSendingNotifications[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    Logger[F].info(s"Start notifier with config ${state.networkConfig}") >>
+    Logger[F].info(show"Start notifier with config ${state.networkConfig}") >>
     startSlotNotification[F](state)
       .flatMap(startNetworkQualityFiber[F])
-      .flatMap(startWarmHostsUpdateFiber[F])
+      .flatMap(startPeersUpdateFiber[F])
       .flatMap(startCommonAncestorFiber[F])
+      .flatMap(startAggressiveP2PFiber[F])
       .map(newState => (newState, newState))
 
   private def startSlotNotification[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
     val slotDuration = state.networkConfig.slotDuration
 
-    val sendPingStream =
+    val updateReputationStream =
       Stream.awakeEvery(slotDuration).evalMap { _ =>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.ReputationUpdateTick)
+        state.peersManager.sendNoWait(PeersManager.Message.UpdatedReputationTick)
       }
 
     if (state.slotNotificationFiber.isEmpty && slotDuration.toMillis > 0) {
       for {
         _     <- Logger[F].info(show"Start slot notification fiber")
-        fiber <- Spawn[F].start(sendPingStream.compile.drain)
+        fiber <- Spawn[F].start(updateReputationStream.compile.drain)
         newState = state.copy(slotNotificationFiber = Option(fiber))
       } yield newState
     } else {
@@ -97,22 +96,22 @@ object Notifier {
     }
   }
 
-  private def startWarmHostsUpdateFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
-    val warmPeersUpdate = state.networkConfig.warmHostsUpdateInterval
+  private def startPeersUpdateFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
+    val peersUpdate = state.networkConfig.peersUpdateInterval
 
-    val warmHostsUpdateStream =
-      Stream.awakeEvery(warmPeersUpdate).evalMap { _ =>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.UpdateWarmHosts)
+    val peersUpdateStream =
+      Stream.awakeEvery(peersUpdate).evalMap { _ =>
+        state.peersManager.sendNoWait(PeersManager.Message.UpdatePeersTick)
       }
 
-    if (state.warmHostsUpdateFiber.isEmpty && warmPeersUpdate.toMillis > 0) {
+    if (state.peersUpdateFiber.isEmpty && peersUpdate.toMillis > 0) {
       for {
-        _     <- Logger[F].info(show"Start warm hosts update fiber")
-        fiber <- Spawn[F].start(warmHostsUpdateStream.compile.drain)
-        newState = state.copy(warmHostsUpdateFiber = Option(fiber))
+        _     <- Logger[F].info(show"Start peers update fiber")
+        fiber <- Spawn[F].start(peersUpdateStream.compile.drain)
+        newState = state.copy(peersUpdateFiber = Option(fiber))
       } yield newState
     } else {
-      Logger[F].info(show"Ignoring warm hosts update with interval $warmPeersUpdate") >>
+      Logger[F].info(show"Ignoring peers update with interval $peersUpdate") >>
       state.pure[F]
     }
   }
@@ -122,7 +121,7 @@ object Notifier {
 
     val commonAncestorTrackStream =
       Stream.awakeEvery(commonAncestorInterval).evalMap { _ =>
-        state.peersManager.sendNoWait(PeersManager.Message.PrintCommonAncestor)
+        state.peersManager.sendNoWait(PeersManager.Message.PrintP2PState)
       }
 
     if (state.commonAncestorFiber.isEmpty && commonAncestorInterval.toMillis > 0) {
@@ -137,11 +136,34 @@ object Notifier {
     }
   }
 
+  private def startAggressiveP2PFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
+    val newHotPeerConnectionInterval = state.networkConfig.aggressiveP2PRequestInterval
+
+    val aggressiveP2PStream =
+      Stream.awakeEvery(newHotPeerConnectionInterval).evalMap { _ =>
+        state.peersManager.sendNoWait(PeersManager.Message.AggressiveP2PUpdate)
+      }
+
+    val aggressiveP2PEnabled = state.networkConfig.networkProperties.aggressiveP2P
+
+    if (state.aggressiveP2PFiber.isEmpty && aggressiveP2PEnabled && newHotPeerConnectionInterval.toMillis > 0) {
+      for {
+        _     <- Logger[F].info(show"Start aggressive P2P fiber")
+        fiber <- Spawn[F].start(aggressiveP2PStream.compile.drain)
+        newState = state.copy(aggressiveP2PFiber = Option(fiber))
+      } yield newState
+    } else {
+      Logger[F].info(show"Ignoring aggressive P2P fiber with interval $newHotPeerConnectionInterval") >>
+      state.pure[F]
+    }
+  }
+
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info("Stopping notification sending from Notifier actor") >>
-    state.slotNotificationFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.networkQualityFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.warmHostsUpdateFiber.map(_.cancel).getOrElse(().pure[F]) >>
-    state.commonAncestorFiber.map(_.cancel).getOrElse(().pure[F])
+    state.slotNotificationFiber.traverse(_.cancel) >>
+    state.networkQualityFiber.traverse(_.cancel) >>
+    state.peersUpdateFiber.traverse(_.cancel) >>
+    state.commonAncestorFiber.traverse(_.cancel) >>
+    state.aggressiveP2PFiber.traverse(_.cancel).void
 
 }

@@ -1,5 +1,6 @@
 package co.topl
 
+import co.topl.networking.fsnetwork.{HostId, RemotePeer}
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.KnownHost
 import com.comcast.ip4s.{IpAddress, SocketAddress}
@@ -17,7 +18,7 @@ package object networking {
     ByteBuffer.allocate(4).putInt(value).array()
 
   implicit class KnownHostOps(knownHost: KnownHost) {
-    def asRemoteAddress: RemoteAddress = RemoteAddress(knownHost.host, knownHost.port)
+    def asRemotePeer: RemotePeer = RemotePeer(HostId(knownHost.id), RemoteAddress(knownHost.host, knownHost.port))
   }
 
   implicit class RemoteAddressOps(remoteAddress: RemoteAddress) {

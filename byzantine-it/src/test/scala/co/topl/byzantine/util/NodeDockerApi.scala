@@ -63,9 +63,11 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
       _ <- Files
         .forAsync[F]
         .tempDirectory
-        .use(tmpConfigDir =>
+        .use(tmpDir =>
           for {
-            tmpConfigFile <- (tmpConfigDir / "node.yaml").pure[F]
+            tmpConfigDir  <- (tmpDir / "config").pure[F]
+            _             <- Files.forAsync[F].createDirectories(tmpConfigDir)
+            tmpConfigFile <- (tmpConfigDir / "user.yaml").pure[F]
             tmpLogFile    <- (tmpConfigDir / "logback.xml").pure[F]
             _ <- Stream
               .chunk(Chunk.array(configYaml.getBytes(StandardCharsets.UTF_8)))
@@ -77,7 +79,7 @@ class NodeDockerApi(containerId: String)(implicit dockerClient: DockerClient) {
               .through(Files.forAsync[F].writeAll(tmpLogFile))
               .compile
               .drain
-            _ <- copyDirectoryIntoContainer(tmpConfigDir, Path("/bifrost-config"))
+            _ <- copyDirectoryIntoContainer(tmpDir, Path("/bifrost"))
           } yield ()
         )
     } yield ()

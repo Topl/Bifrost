@@ -27,6 +27,8 @@ object BodySemanticErrors {
   ) extends BodySemanticError
 
   case class TransactionRegistrationError(transaction: IoTransaction) extends BodySemanticError
+
+  case class RewardTransactionError(transaction: IoTransaction) extends BodySemanticError
 }
 
 sealed trait BodySyntaxError extends BodyValidationError

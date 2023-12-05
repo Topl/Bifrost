@@ -15,14 +15,14 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.PeerActor.Message._
 import co.topl.networking.fsnetwork.PeerBlockBodyFetcher.PeerBlockBodyFetcherActor
 import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.PeerBlockHeaderFetcherActor
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSync.PeerMempoolTransactionSyncActor
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
-import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 
@@ -76,27 +76,22 @@ object PeerActor {
      * Request to get remote host's hot connections
      */
     case class GetHotPeersFromPeer(maxHosts: Int) extends Message
-
-    /**
-     * Get peer server address
-     */
-    case object GetPeerServerAddress extends Message
   }
 
   case class State[F[_]](
-    hostId:               HostId,
-    client:               BlockchainPeerClient[F],
-    reputationAggregator: ReputationAggregatorActor[F],
-    blockHeaderActor:     PeerBlockHeaderFetcherActor[F],
-    blockBodyActor:       PeerBlockBodyFetcherActor[F],
-    mempoolSync:          PeerMempoolTransactionSyncActor[F],
-    peersManager:         PeersManagerActor[F],
-    localChain:           LocalChainAlgebra[F],
-    slotDataStore:        Store[F, BlockId, SlotData],
-    blockHeights:         EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
-    networkLevel:         Boolean,
-    applicationLevel:     Boolean,
-    genesisBlockId:       BlockId
+    hostId:           HostId,
+    client:           BlockchainPeerClient[F],
+    blockHeaderActor: PeerBlockHeaderFetcherActor[F],
+    blockBodyActor:   PeerBlockBodyFetcherActor[F],
+    mempoolSync:      PeerMempoolTransactionSyncActor[F],
+    peersManager:     PeersManagerActor[F],
+    localChain:       LocalChainAlgebra[F],
+    slotDataStore:    Store[F, BlockId, SlotData],
+    blockHeights:     BlockHeights[F],
+    networkLevel:     Boolean,
+    applicationLevel: Boolean,
+    genesisBlockId:   BlockId,
+    commonAncestorF:  (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -111,7 +106,6 @@ object PeerActor {
     case (state, GetNetworkQuality)                           => getNetworkQuality(state)
     case (state, PrintCommonAncestor)                         => printCommonAncestor(state)
     case (state, GetHotPeersFromPeer(maxHosts))               => getHotPeersOfCurrentPeer(state, maxHosts)
-    case (state, GetPeerServerAddress)                        => getPeerServerAddress(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -119,23 +113,24 @@ object PeerActor {
     networkAlgebra:              NetworkAlgebra[F],
     client:                      BlockchainPeerClient[F],
     requestsProxy:               RequestsProxyActor[F],
-    reputationAggregator:        ReputationAggregatorActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
+    bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
     blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-    mempool:                     MempoolAlgebra[F]
+    mempool:                     MempoolAlgebra[F],
+    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
     val initAppLevel = false
 
     for {
-      actorName <- Resource.pure(s"Peer Actor for peer $hostId")
-      _ <- Resource.onFinalize(Logger[F].info(s"$actorName: is released, close connection") >> client.closeConnection())
+      actorName <- Resource.pure(show"Peer Actor for peer $hostId")
+      _         <- Resource.onFinalize(Logger[F].info(show"$actorName: is released") >> client.closeConnection())
 
       header <- networkAlgebra.makePeerHeaderFetcher(
         hostId,
@@ -144,7 +139,10 @@ object PeerActor {
         peersManager,
         localChain,
         slotDataStore,
-        blockIdTree
+        bodyStore,
+        blockIdTree,
+        blockHeights,
+        commonAncestorF
       )
       body <- networkAlgebra.makePeerBodyFetcher(
         hostId,
@@ -161,14 +159,13 @@ object PeerActor {
         transactionSyntaxValidation,
         transactionStore,
         mempool,
-        reputationAggregator
+        peersManager
       )
 
       genesisSlotData <- localChain.genesis.toResource
       initialState = State(
         hostId,
         client,
-        reputationAggregator,
         header,
         body,
         mempoolSync,
@@ -178,7 +175,8 @@ object PeerActor {
         blockHeights,
         initNetworkLevel,
         initAppLevel,
-        genesisSlotData.slotId.blockId
+        genesisSlotData.slotId.blockId,
+        commonAncestorF
       )
       _     <- verifyGenesisAgreement(initialState).toResource
       actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
@@ -263,35 +261,18 @@ object PeerActor {
     maxHosts: Int
   ): F[(State[F], Response[F])] = {
     for {
-      _        <- OptionT.liftF(Logger[F].debug(s"Request $maxHosts neighbour(s) from ${state.hostId}"))
+      _        <- OptionT.liftF(Logger[F].debug(show"Request $maxHosts neighbour(s) from ${state.hostId}"))
       response <- OptionT(state.client.getRemoteKnownHosts(CurrentKnownHostsReq(maxHosts)))
       hotPeers <- OptionT
-        .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemoteAddress)))
-        .flatTapNone(Logger[F].info(s"Got no hot peers from ${state.hostId}"))
-      _ <- OptionT.liftF(Logger[F].debug(s"Got hot peers $hotPeers from ${state.hostId}"))
+        .fromOption[F](NonEmptyChain.fromSeq(response.hotHosts.map(_.asRemotePeer)))
+        .flatTapNone(Logger[F].info(show"Got no hot peers from ${state.hostId}"))
+      _ <- OptionT.liftF(Logger[F].debug(show"Got hot peers $hotPeers from ${state.hostId}"))
       _ <- OptionT.liftF(state.peersManager.sendNoWait(PeersManager.Message.AddKnownNeighbors(state.hostId, hotPeers)))
     } yield (state, state)
   }.getOrElse((state, state))
     .handleErrorWith { error =>
-      val message = Option(error.getLocalizedMessage).getOrElse("")
-      Logger[F].error(show"Error $message during getting remote peer neighbours") >>
-      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
-      (state, state).pure[F]
-    }
-
-  private def getPeerServerAddress[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
-    val peer = state.hostId
-    for {
-      _              <- OptionT.liftF(Logger[F].info(s"Request server address from $peer"))
-      peerServerPort <- OptionT(state.client.remotePeerServerPort)
-      message = PeersManager.Message.RemotePeerServerPort(peer, peerServerPort)
-      _ <- OptionT.liftF(state.peersManager.sendNoWait(message))
-    } yield (state, state)
-  }.getOrElse(state, state)
-    .handleErrorWith { error =>
-      val message = Option(error.getLocalizedMessage).getOrElse("")
-      Logger[F].error(show"Error $message during getting remote peer server port") >>
-      state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId)) >>
+      Logger[F].error(show"Error ${error.toString} during getting remote peer(s) neighbours") >>
+      state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
       (state, state).pure[F]
     }
 
@@ -299,14 +280,13 @@ object PeerActor {
     getPing(state).value
       .flatMap { res =>
         val message =
-          ReputationAggregator.Message.PingPongMessagePing(state.hostId, res)
-        Logger[F].info(show"From host ${state.hostId}: $message") >>
-        state.reputationAggregator.sendNoWait(message)
+          PeersManager.Message.PingPongMessagePing(state.hostId, res)
+        Logger[F].debug(show"From host ${state.hostId}: $message") >>
+        state.peersManager.sendNoWait(message)
       }
       .handleErrorWith { error =>
-        val message = Option(error.getLocalizedMessage).getOrElse("")
-        Logger[F].error(show"Error $message during getting remote peer network quality") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+        Logger[F].error(show"Error ${error.toString} during getting remote peer network quality") >>
+        state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 
   private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
@@ -342,23 +322,20 @@ object PeerActor {
           )
       )
       .recoverWith { case exception =>
-        val exceptionMessage = exception.getLocalizedMessage
-        Logger[F].error(s"Remote peer ${state.hostId} provide incorrect genesis information: $exceptionMessage") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+        Logger[F].error(show"Remote peer ${state.hostId} failed to provide correct genesis: ${exception.toString}") >>
+        state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       }
 
   private def printCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
-    state.client
-      .findCommonAncestor(
-        getLocalBlockIdAtHeight(state.localChain, state.blockHeights),
-        () => state.localChain.head.map(_.height)
-      )
+    state
+      .commonAncestorF(state.client, state.blockHeights, state.localChain)
       .flatTap(ancestor =>
         state.slotDataStore
           .getOrRaise(ancestor)
           .flatMap(slotData =>
             Logger[F].info(
               show"Traced common ancestor to" +
+              show" peer=${state.hostId}" +
               show" id=$ancestor" +
               show" height=${slotData.height}" +
               show" slot=${slotData.slotId.slot}"
@@ -367,17 +344,7 @@ object PeerActor {
       )
       .void
       .handleErrorWith { e =>
-        Logger[F].error(e)("Common ancestor trace failed") >>
-        state.reputationAggregator.sendNoWait(ReputationAggregator.Message.NonCriticalErrorForHost(state.hostId))
+        Logger[F].error(e)(show"Common ancestor trace for peer ${state.hostId} is failed") >>
+        state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
-
-  private def getLocalBlockIdAtHeight[F[_]: Async](
-    localChain:   LocalChainAlgebra[F],
-    blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
-  )(height: Long) =
-    OptionT(
-      localChain.head
-        .map(_.slotId.blockId)
-        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
-    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
 }

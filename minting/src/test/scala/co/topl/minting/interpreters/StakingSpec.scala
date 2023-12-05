@@ -21,6 +21,7 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import scodec.bits._
+import co.topl.models.ModelGenerators.GenHelper
 
 class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -122,8 +123,9 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (parentSlotId: SlotId, slot: Slot) =>
       withMock {
         val operationalKeyMaker = mock[OperationalKeyMakerAlgebra[F]]
+        val eta = etaGen.first
         (operationalKeyMaker.operationalKeyForSlot _)
-          .expects(slot, parentSlotId)
+          .expects(slot, parentSlotId, eta)
           .once()
           .returning(Option.empty[OperationalKeyOut].pure[F])
 
@@ -144,7 +146,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             )
 
           _ <- staking
-            .certifyBlock(parentSlotId, slot, _ => throw new NotImplementedError("unsignedBlockBuilder"))
+            .certifyBlock(parentSlotId, slot, _ => throw new NotImplementedError("unsignedBlockBuilder"), eta)
             .assertEquals(None)
             .toResource
         } yield ()

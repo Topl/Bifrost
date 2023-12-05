@@ -11,9 +11,9 @@ trait NumberOps {
   implicit def intAsInt128(int: Int): Int128 =
     BigInt(int)
 
-  implicit def protoRatioToRatio(ratio: co.topl.node.models.Ratio): Ratio =
+  implicit def protoRatioToRatio(ratio: quivr.models.Ratio): Ratio =
     Ratio(ratio.numerator: BigInt, ratio.denominator: BigInt)
 
-  implicit def ratioToProtoRatio(ratio: Ratio): co.topl.node.models.Ratio =
-    co.topl.node.models.Ratio(ratio.numerator: Int128, ratio.denominator: Int128)
+  implicit def ratioToProtoRatio(ratio: Ratio): quivr.models.Ratio =
+    quivr.models.Ratio(ratio.numerator: Int128, ratio.denominator: Int128)
 }

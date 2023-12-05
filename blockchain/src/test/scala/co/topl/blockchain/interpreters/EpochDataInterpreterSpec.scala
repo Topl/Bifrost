@@ -3,18 +3,18 @@ package co.topl.blockchain.interpreters
 import cats.data.OptionT
 import cats.effect.{IO, Sync}
 import cats.implicits._
-import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.brambl.common.ContainsImmutable
 import co.topl.brambl.models.box.{Attestation, Value}
 import co.topl.brambl.models.{Datum, LockAddress, LockId, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.models.transaction.{IoTransaction, SpentTransactionOutput, UnspentTransactionOutput}
-import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.TetraScodecCodecs
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.interpreters.{ConsensusDataEventSourcedState, EpochBoundariesEventSourcedState}
 import co.topl.consensus.models._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.interpreters.SchedulerClock
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.node.models.{BlockBody, FullBlock, FullBlockBody}
 import co.topl.numerics.implicits._
@@ -27,14 +27,16 @@ import quivr.models.Int128
 import co.topl.models._
 import co.topl.models.utility._
 import co.topl.proto.node.EpochData
-import scala.collection.immutable.NumericRange
+
+import java.time.Instant
+import scala.concurrent.duration._
 
 class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
 
   private val lvlValue: Value =
-    Value().withLvl(Value.LVL(Int128(ByteString.copyFrom(BigInt(100).toByteArray))))
+    Value.defaultInstance.withLvl(Value.LVL(Int128(ByteString.copyFrom(BigInt(100).toByteArray))))
 
   private val emptyLockAddress =
     LockAddress(id = LockId(zeroBytes(32)))
@@ -77,13 +79,8 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           _               <- parentChildTree.associate(block4.header.id, block3.header.id).toResource
           _               <- parentChildTree.associate(block5.header.id, block4.header.id).toResource
           state           <- TestStore.make[F, Epoch, EpochData].toResource
-          clock = mock[ClockAlgebra[F]]
-          _ = (() => clock.slotsPerEpoch).expects().anyNumberOfTimes().returning(10L.pure[F])
-          _ = (clock
-            .slotToTimestamps(_: Slot))
-            .expects(*)
-            .anyNumberOfTimes()
-            .onCall((slot: Slot) => NumericRange.inclusive[Long](slot * 1000, (slot + 1) * 1000 - 1, 1).pure[F])
+          clock <- SchedulerClock
+            .make[F](1000.milli, 10L, 1L, Instant.ofEpochMilli(genesisBlock.header.timestamp), 0L, () => 0L.pure[F])
           headerStore      <- TestStore.make[F, BlockId, BlockHeader].toResource
           bodyStore        <- TestStore.make[F, BlockId, BlockBody].toResource
           transactionStore <- TestStore.make[F, TransactionId, IoTransaction].toResource
@@ -105,15 +102,17 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           _ = (epochBoundaryEss
             .useStateAt(_: BlockId)(_: EpochBoundariesEventSourcedState.EpochBoundaries[F] => F[BlockId]))
             .expects(*, *)
-            .twice()
-            .onCall { case (_: BlockId, f: (EpochBoundariesEventSourcedState.EpochBoundaries[F] => F[BlockId])) =>
-              TestStore
-                .make[F, Epoch, BlockId]
-                .flatTap(_.put(0, block2.header.id))
-                .flatTap(_.put(1, block3.header.id))
-                .flatTap(_.put(2, block4.header.id))
-                .flatTap(_.put(3, block5.header.id))
-                .flatMap(f)
+            .anyNumberOfTimes()
+            .onCall {
+              case (_: BlockId, f: (EpochBoundariesEventSourcedState.EpochBoundaries[F] => F[BlockId]) @unchecked) =>
+                TestStore
+                  .make[F, Epoch, BlockId]
+                  .flatTap(_.put(-1, genesisBlock.header.id))
+                  .flatTap(_.put(0, block2.header.id))
+                  .flatTap(_.put(1, block3.header.id))
+                  .flatTap(_.put(2, block4.header.id))
+                  .flatTap(_.put(3, block5.header.id))
+                  .flatMap(f)
             }
           consensusDataEss = mock[EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
             F
@@ -121,41 +120,53 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           _ = (consensusDataEss
             .useStateAt(_: BlockId)(_: ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]))
             .expects(genesisBlock.header.id, *)
-            .repeat(2)
-            .onCall { case (_: BlockId, f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)])) =>
-              (
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 40)),
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 0))
-              )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
-                .flatMap(f)
+            .repeat(3)
+            .onCall {
+              case (
+                    _: BlockId,
+                    f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]) @unchecked
+                  ) =>
+                (
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 40)),
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 0))
+                )
+                  .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
+                  .flatMap(f)
             }
           _ = (consensusDataEss
             .useStateAt(_: BlockId)(_: ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]))
             .expects(block2.header.id, *)
             .once()
-            .onCall { case (_: BlockId, f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)])) =>
-              (
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20)),
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20))
-              )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
-                .flatMap(f)
+            .onCall {
+              case (
+                    _: BlockId,
+                    f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]) @unchecked
+                  ) =>
+                (
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20)),
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 20))
+                )
+                  .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
+                  .flatMap(f)
             }
           _ = (consensusDataEss
             .useStateAt(_: BlockId)(_: ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]))
             .expects(block3.header.id, *)
             .once()
-            .onCall { case (_: BlockId, f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)])) =>
-              (
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 30)),
-                TestStore.make[F, Unit, BigInt].flatTap(_.put((), 10))
-              )
-                .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
-                .flatMap(f)
+            .onCall {
+              case (
+                    _: BlockId,
+                    f: (ConsensusDataEventSourcedState.ConsensusData[F] => F[(BigInt, BigInt)]) @unchecked
+                  ) =>
+                (
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 30)),
+                  TestStore.make[F, Unit, BigInt].flatTap(_.put((), 10))
+                )
+                  .mapN(ConsensusDataEventSourcedState.ConsensusData(_, _, null))
+                  .flatMap(f)
             }
           ess <- EpochDataEventSourcedState.make[F](
-            BlockId(zeroBytes(32)).pure[F],
+            genesisBlock.header.parentHeaderId.pure[F],
             genesisBlock.header.id,
             parentChildTree,
             _ => IO.unit,
@@ -170,23 +181,41 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           )
           canonicalHeadRef <- IO.ref(block5.header.id).toResource
           underTest        <- EpochDataInterpreter.make[F](Sync[F].defer(canonicalHeadRef.get), ess)
+          expectedDataMinus1 =
+            EpochData(
+              epoch = -1,
+              eon = 1,
+              era = 0,
+              isComplete = true,
+              startHeight = 1,
+              endHeight = 1,
+              startSlot = 0,
+              endSlot = 0,
+              startTimestamp = 0,
+              endTimestamp = 0,
+              transactionCount = 1,
+              totalTransactionReward = 50,
+              activeStake = 40,
+              inactiveStake = 0,
+              dataBytes = blockSize(genesisBlock)
+            )
           expectedData0 =
             EpochData(
               epoch = 0,
               eon = 1,
               era = 0,
               isComplete = true,
-              startHeight = 1,
+              startHeight = 2,
               endHeight = 2,
-              startSlot = 0,
-              endSlot = 9,
-              startTimestamp = 0,
-              endTimestamp = 9999,
-              transactionCount = 3,
-              totalTransactionReward = 150,
+              startSlot = 1,
+              endSlot = 10,
+              startTimestamp = 1000,
+              endTimestamp = 10999,
+              transactionCount = 2,
+              totalTransactionReward = 100,
               activeStake = 40,
               inactiveStake = 0,
-              dataBytes = blockSize(genesisBlock) + blockSize(block2)
+              dataBytes = blockSize(block2)
             )
           expectedData1 = EpochData(
             epoch = 1,
@@ -195,10 +224,10 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             isComplete = true,
             startHeight = 3,
             endHeight = 3,
-            startSlot = 10,
-            endSlot = 19,
-            startTimestamp = 10000,
-            endTimestamp = 19999,
+            startSlot = 11,
+            endSlot = 20,
+            startTimestamp = 11000,
+            endTimestamp = 20999,
             transactionCount = 1,
             totalTransactionReward = 50,
             activeStake = 40,
@@ -212,10 +241,10 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             isComplete = true,
             startHeight = 4,
             endHeight = 4,
-            startSlot = 20,
-            endSlot = 29,
-            startTimestamp = 20000,
-            endTimestamp = 29999,
+            startSlot = 21,
+            endSlot = 30,
+            startTimestamp = 21000,
+            endTimestamp = 30999,
             transactionCount = 2,
             totalTransactionReward = 100,
             activeStake = 20,
@@ -229,10 +258,10 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             isComplete = false,
             startHeight = 5,
             endHeight = 5,
-            startSlot = 30,
-            endSlot = 39,
-            startTimestamp = 30000,
-            endTimestamp = 39999,
+            startSlot = 31,
+            endSlot = 40,
+            startTimestamp = 31000,
+            endTimestamp = 40999,
             transactionCount = 1,
             totalTransactionReward = 50,
             activeStake = 30,
@@ -240,42 +269,25 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             dataBytes = blockSize(block5)
           )
           _ <- List(
-            0 -> expectedData0,
-            1 -> expectedData1,
-            2 -> expectedData2,
-            3 -> expectedData3,
-            2 -> expectedData2,
-            1 -> expectedData1,
-            0 -> expectedData0
+            -1 -> expectedDataMinus1,
+            0  -> expectedData0,
+            1  -> expectedData1,
+            2  -> expectedData2,
+            3  -> expectedData3,
+            2  -> expectedData2,
+            1  -> expectedData1,
+            0  -> expectedData0
           ).traverse { case (i, expectedData) =>
             OptionT(underTest.dataOf(i)).getOrRaise(new NoSuchElementException).assertEquals(expectedData).toResource
           }
 
           // Verify the "unapply" functionality works
           _ <- canonicalHeadRef.set(genesisBlock.header.id).toResource
-          altExpectedData0 =
-            EpochData(
-              epoch = 0,
-              eon = 1,
-              era = 0,
-              isComplete = false,
-              startHeight = 1,
-              endHeight = 1,
-              startSlot = 0,
-              endSlot = 9,
-              startTimestamp = 0,
-              endTimestamp = 9999,
-              transactionCount = 1,
-              totalTransactionReward = 50,
-              activeStake = 40,
-              inactiveStake = 0,
-              dataBytes = blockSize(genesisBlock)
-            )
-          _ <- OptionT(underTest.dataOf(0))
+          _ <- OptionT(underTest.dataOf(-1))
             .getOrRaise(new NoSuchElementException)
-            .assertEquals(altExpectedData0)
+            .assertEquals(expectedDataMinus1)
             .toResource
-          _ <- underTest.dataOf(1).assertEquals(None).toResource
+          _ <- underTest.dataOf(0).assertEquals(None).toResource
         } yield ()
       testResource.use_
     }
@@ -287,7 +299,7 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
       parentSlot = -1,
       txRoot = zeroBytes(32),
       bloomFilter = zeroBytes(256),
-      timestamp = System.currentTimeMillis(),
+      timestamp = 0L,
       height = 1,
       slot = 0,
       eligibilityCertificate = eligibilityCertificate,

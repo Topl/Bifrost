@@ -123,9 +123,6 @@ object DockerSupport {
       environment: Map[String, String],
       config:      TestNodeConfig
     ): ContainerConfig = {
-      val configDirectory = "/bifrost-config"
-      val stakingDirectory = "/bifrost-staking"
-      val dataDirectory = "/bifrost-data"
       val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
       val exposedPorts: Seq[String] = List(config.rpcPort, config.p2pPort, config.jmxRemotePort).map(_.toString)
       val env =
@@ -138,10 +135,8 @@ object DockerSupport {
           "-Dcom.sun.management.jmxremote.ssl=false",
           "-Dcom.sun.management.jmxremote.local.only=false",
           "-Dcom.sun.management.jmxremote.authenticate=false",
-          "--config",
-          "/bifrost-config/node.yaml",
           "--logbackFile",
-          "/bifrost-config/logback.xml",
+          "/bifrost/config/logback.xml",
           "--debug"
         )
 
@@ -152,21 +147,17 @@ object DockerSupport {
               HostConfig.Bind
                 .builder()
                 .from(sourceDir)
-                .to(stakingDirectory)
+                .to("/bifrost-staking")
                 .selinuxLabeling(true)
                 .build()
             )
           )
           .build()
 
-      val volumes =
-        List(configDirectory, dataDirectory) ++ Option.when(config.stakingBindSourceDir.isEmpty)(stakingDirectory)
-
       ContainerConfig
         .builder()
         .image(bifrostImage)
         .env(env: _*)
-        .volumes(volumes: _*)
         .cmd(cmd: _*)
         .hostname(name)
         .hostConfig(hostConfig)
@@ -186,7 +177,9 @@ case class TestNodeConfig(
   p2pPort:              Int = 9085,
   jmxRemotePort:        Int = 9083,
   genusEnabled:         Boolean = false,
-  stakingBindSourceDir: Option[String] = None
+  stakingBindSourceDir: Option[String] = None,
+  serverHost: Option[String] = None,
+  serverPort: Option[Int] = None
 ) {
 
   def yaml: String = {
@@ -195,16 +188,14 @@ case class TestNodeConfig(
     )
     s"""
        |bifrost:
-       |  data:
-       |    directory: /bifrost-data
-       |  staking:
-       |    directory: /bifrost-staking
        |  rpc:
        |    bind-host: 0.0.0.0
        |    port: "$rpcPort"
        |  p2p:
        |    bind-host: 0.0.0.0
+       |    ${serverHost.map(sh => s"public-host: $sh").getOrElse("")}
        |    port: "$p2pPort"
+       |    ${serverPort.map(sp => s"public-port: $sp").getOrElse("")}
        |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
        |  big-bang:
        |    staker-count: $stakerCount
@@ -213,7 +204,7 @@ case class TestNodeConfig(
        |    $stakesStr
        |  protocols:
        |    0:
-       |      slot-duration: 200 milli
+       |      slot-duration: 500 milli
        |genus:
        |  enable: "$genusEnabled"
        |""".stripMargin

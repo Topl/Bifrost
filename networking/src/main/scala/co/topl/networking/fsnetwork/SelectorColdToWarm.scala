@@ -1,37 +1,34 @@
 package co.topl.networking.fsnetwork
 
-import co.topl.networking.p2p.RemoteAddress
-
+import scala.annotation.tailrec
 import scala.util.Random
 
 abstract class SelectorColdToWarm[F[_]] {
-  def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress]
+  def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId]
 }
 
-class SemiRandomSelectorColdToWarm[F[_]](closeTimeoutFirstDelayInMs: Long) extends SelectorColdToWarm[F] {
+class SemiRandomSelectorColdToWarm[F[_]] extends SelectorColdToWarm[F] {
 
-  def select(hosts: Set[Peer[F]], countToReceive: Int): Set[RemoteAddress] = {
-    val currentTimestamp = System.currentTimeMillis()
+  @tailrec
+  final override def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] = {
+    val randomPeers: Seq[HostId] =
+      Random.shuffle(hosts).take(countToReceive).keys.toSeq
 
-    val eligibleColdPeers = hosts.filter { p =>
-      val timestamps = p.closedTimestamps
-      val lastClose = timestamps.lastOption.getOrElse(0L)
-      val totalCloses = timestamps.size
-      val nonEligibleWindow = totalCloses * totalCloses * closeTimeoutFirstDelayInMs
-      currentTimestamp.toDouble >= (lastClose + nonEligibleWindow)
-    }
-
-    val randomPeers: Set[RemoteAddress] =
-      Random.shuffle(eligibleColdPeers).take(countToReceive).flatMap(_.asRemoteAddress)
-
-    val reputationPeers: Set[RemoteAddress] =
-      eligibleColdPeers.toSeq
-        .sortBy(peer => (peer.lastKnownBlockProvidingReputation + peer.lastKnownPerformanceReputation))
+    val reputationPeers: Seq[HostId] =
+      hosts.toSeq
+        .sortBy { case (_, peer) => peer.blockRep + peer.perfRep }
         .takeRight(countToReceive)
-        .flatMap(_.asRemoteAddress)
-        .toSet
+        .map(_._1)
 
-    Random.shuffle(randomPeers ++ reputationPeers).take(countToReceive)
+    // take double reputation peers according to simulation
+    val res =
+      Random.shuffle(randomPeers ++ reputationPeers ++ reputationPeers).take(countToReceive).toSet
+
+    if (res.size == countToReceive || res.size == hosts.size) {
+      res
+    } else {
+      select(hosts, countToReceive)
+    }
   }
 
 }

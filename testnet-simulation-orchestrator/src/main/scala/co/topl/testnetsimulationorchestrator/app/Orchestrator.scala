@@ -8,6 +8,7 @@ import cats.implicits._
 import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
 import co.topl.common.application.IOBaseApp
 import co.topl.interpreters.MultiNodeRpc
 import co.topl.consensus.models.BlockHeader
@@ -15,13 +16,15 @@ import co.topl.models.utility._
 import co.topl.testnetsimulationorchestrator.algebras.DataPublisher
 import co.topl.testnetsimulationorchestrator.interpreters.{GcpCsvDataPublisher, K8sSimulationController}
 import co.topl.testnetsimulationorchestrator.models.{AdoptionDatum, BlockDatum, TransactionDatum}
-import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, ToplRpcWalletInitializer}
+import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, GenusWalletInitializer}
 import fs2._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.consensus.models.BlockId
+import co.topl.genus.services.TransactionServiceFs2Grpc
 import co.topl.grpc.NodeGrpc
+import co.topl.transactiongenerator.models.Wallet
 import co.topl.typeclasses.implicits._
 import com.typesafe.config.Config
 
@@ -30,7 +33,7 @@ import scala.concurrent.duration._
 object Orchestrator
     extends IOBaseApp[Args, ApplicationConfig](
       createArgs = args => IO.delay(Args.parserArgs.constructOrThrow(args)),
-      createConfig = IOBaseApp.createTypesafeConfig,
+      createConfig = IOBaseApp.createTypesafeConfig(_),
       parseConfig = (_, conf) => IO.delay(ApplicationConfig.unsafe(conf))
     ) {
 
@@ -54,33 +57,30 @@ object Orchestrator
   /**
    * Resources required to run this simulation and cleanup
    */
-  private def resources(appConfig: ApplicationConfig): Resource[F, (Publisher, NodeRpcs)] =
-    // Allocate the K8sSimulationController resource first
-    K8sSimulationController
-      .resource[F](appConfig.simulationOrchestrator.kubernetes.namespace)
-      // In addition, run the "terminate" operation to tear down the k8s namespace regardless of the outcome of the simulation
-      .flatMap(c =>
-        Resource.onFinalize(
-          Logger[F].info("Terminating testnet") >>
-          c.terminate
+  private def resources(appConfig: ApplicationConfig): Resource[F, (Publisher, NodeRpcs, Wallet)] =
+    for {
+      // Allocate the K8sSimulationController resource first
+      k8s <- K8sSimulationController.resource[F](appConfig.simulationOrchestrator.kubernetes.namespace)
+      _   <- Resource.onFinalize(Logger[F].info("Terminating testnet") >> k8s.terminate)
+      csvPublisher <- GcpCsvDataPublisher.make[F](
+        appConfig.simulationOrchestrator.publish.bucket,
+        s"${appConfig.simulationOrchestrator.publish.filePrefix}${System.currentTimeMillis()}/"
+      )
+      nodeConfigs = appConfig.simulationOrchestrator.nodes
+      nodeRpcClients <- nodeConfigs
+        .parTraverse(n =>
+          NodeGrpc.Client
+            .make[F](n.host, n.port, tls = false)
+            .evalTap(awaitNodeReady(n.name, _))
+            .tupleLeft(n.name)
         )
-      )
-      .productR(
-        (
-          GcpCsvDataPublisher.make[F](
-            appConfig.simulationOrchestrator.publish.bucket,
-            s"${appConfig.simulationOrchestrator.publish.filePrefix}${System.currentTimeMillis()}/"
-          ),
-          appConfig.simulationOrchestrator.nodes
-            .parTraverse(n =>
-              NodeGrpc.Client
-                .make[F](n.host, n.port, tls = false)
-                .evalTap(awaitNodeReady(n.name, _))
-                .tupleLeft(n.name)
-            )
-            .map(_.toMap)
-        ).tupled
-      )
+        .map(_.toMap)
+      genusClient <- co.topl.grpc
+        .makeChannel[F](nodeConfigs.head.host, nodeConfigs.head.port, tls = false)
+        .flatMap(TransactionServiceFs2Grpc.stubResource[F])
+      walletInitializer <- GenusWalletInitializer.make(genusClient)
+      wallet            <- walletInitializer.initialize.toResource
+    } yield (csvPublisher, nodeRpcClients, wallet)
 
   private def awaitNodeReady(name: NodeName, client: NodeRpc[F, Stream[F, *]]) =
     Logger[F].info(show"Awaiting readiness of node=$name") >>
@@ -104,10 +104,10 @@ object Orchestrator
     Logger[F].info(show"Node node=$name is ready")
 
   private def runSimulation(appConfig: ApplicationConfig): F[Unit] =
-    resources(appConfig).use { case (publisher, nodes) =>
+    resources(appConfig).use { case (publisher, nodes, wallet) =>
       for {
         // Launch the background fiber which broadcasts Transactions to all nodes
-        transactionBroadcasterFiber <- transactionBroadcaster(appConfig)(nodes)
+        transactionBroadcasterFiber <- transactionBroadcaster(appConfig)(nodes, wallet)
         // Listen to the block adoptions of all nodes.
         nodeHeaderAdoptions <- fetchHeaderAdoptions(appConfig)(nodes)
         // Now that the chain has reached the target height, we can stop broadcasting the transactions
@@ -223,26 +223,23 @@ object Orchestrator
   /**
    * Creates a background-running Fiber which generates and broadcasts transactions to the nodes until the Fiber is canceled.
    */
-  private def transactionBroadcaster(appConfig: ApplicationConfig)(nodes: NodeRpcs): IO[Fiber[IO, Throwable, Unit]] =
+  private def transactionBroadcaster(
+    appConfig: ApplicationConfig
+  )(nodes: NodeRpcs, wallet: Wallet): IO[Fiber[IO, Throwable, Unit]] =
     for {
       // Assemble a base wallet of available UTxOs
       _                            <- Logger[F].info(show"Initializing wallet")
       implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F]
       // Combine the Node RPCs into one interface
       client <- MultiNodeRpc.make[F, List](nodes.values.toList)
-      wallet <- ToplRpcWalletInitializer
-        // Parallelism value = 1, because the testnet launches from genesis so this process should be instant
-        .make[F](client, 1, 1)
-        .flatMap(_.initialize)
-      _ <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
+      _      <- Logger[F].info(show"Initialized wallet with spendableBoxCount=${wallet.spendableBoxes.size}")
       // Produce a stream of Transactions from the base wallet
       targetTps = appConfig.simulationOrchestrator.scenario.transactionsPerSecond
       _ <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
       transactionStream <- Fs2TransactionGenerator
         .make[F](
           wallet,
-          Runtime.getRuntime.availableProcessors(),
-          20
+          TransactionCostCalculatorInterpreter.make(TransactionCostConfig())
         )
         .flatMap(_.generateTransactions)
       // Build the stream

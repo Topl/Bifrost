@@ -4,6 +4,7 @@ import co.topl.byzantine.util._
 import com.spotify.docker.client.DockerClient
 import org.typelevel.log4cats.Logger
 import co.topl.interpreters.NodeRpcOps._
+import scala.concurrent.duration._
 
 class SanityCheckNodeTest extends IntegrationSuite {
 
@@ -25,7 +26,16 @@ class SanityCheckNodeTest extends IntegrationSuite {
         // Restart the container to verify that it is able to reload from disk
         _ <- node1.restartContainer[F].toResource
         _ <- node1Client.waitForRpcStartUp.toResource
-        _ <- fs2.Stream.force(node1Client.synchronizationTraversal()).drop(1).head.compile.lastOrError.toResource
+        _ <- fs2.Stream
+          .force(node1Client.synchronizationTraversal())
+          .drop(1)
+          .head
+          .compile
+          .lastOrError
+          // The node likely restarts in the middle of an operational period, and the linear keys become unavailable
+          // until the next operational period (which may take a minute or two)
+          .timeout(3.minute)
+          .toResource
         _ <- Logger[F].info("Success").toResource
       } yield ()
 

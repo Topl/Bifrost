@@ -21,6 +21,10 @@ object OIndexable {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
+    implicit val blockHeightHeader: OIndexable[BlockHeader] = new OIndexable[BlockHeader] {
+      override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.NOTUNIQUE
+    }
+
     implicit val ioTransaction: OIndexable[IoTransaction] = new OIndexable[IoTransaction] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
