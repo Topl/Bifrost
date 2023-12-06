@@ -41,7 +41,7 @@ object Staking {
         val _rewardAddress = rewardAddress
         new StakingAlgebra[F] {
           implicit private val logger: SelfAwareStructuredLogger[F] =
-            Slf4jLogger.getLoggerFromClass[F](Staking.getClass)
+            Slf4jLogger.getLoggerFromName[F]("Bifrost.Staking")
           val address: F[StakingAddress] = a.pure[F]
           val rewardAddress: F[LockAddress] = _rewardAddress.pure[F]
 
@@ -67,16 +67,14 @@ object Staking {
                   .isSlotLeaderForThreshold(threshold)(rho)
                   .warnIfSlow("Local Operator Is Slot Leader")
               )
-              _ <- OptionT.liftF(
-                Logger[F].debug(
-                  show"Eligibility at" +
-                  show" slot=$slot" +
-                  show" parentId=${parentSlotId.blockId}" +
-                  show" parentSlot=${parentSlotId.slot}" +
-                  show" eligible=$isLeader" +
-                  show" relativeStake=$relativeStake"
-                )
-              )
+              logMessage = show"Eligibility at" +
+                show" slot=$slot" +
+                show" parentId=${parentSlotId.blockId}" +
+                show" parentSlot=${parentSlotId.slot}" +
+                show" eligible=$isLeader" +
+                show" relativeStake=$relativeStake" +
+                show" stakingAddress=$a"
+              _ <- OptionT.liftF(if (isLeader) Logger[F].info(logMessage) else Logger[F].debug(logMessage))
               vrfHit <- OptionT
                 .whenF[F, VrfHit](isLeader)(
                   blake2b256Resource

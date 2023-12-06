@@ -76,4 +76,28 @@ object LeaderElectionValidation {
       }
     )
 
+  /**
+   * The threshold calculation should return a constant value for any slotDiff exceeding the lddCutoff
+   * @param alg The underlying interpreter
+   * @param lddCutoff The VRF's lddCutoff parameter
+   * @return a re-interpreted LeaderElectionValidationAlgebra
+   */
+  def makeWithCappedSlotDiff[F[_]](
+    alg:       LeaderElectionValidationAlgebra[F],
+    lddCutoff: Long
+  ): LeaderElectionValidationAlgebra[F] =
+    new LeaderElectionValidationAlgebra[F] {
+
+      /**
+       * If slotDiff > lddCutoff, substitute (lddCutoff + 1) for the slotDiff since the result should
+       * always be constant
+       */
+      def getThreshold(relativeStake: Ratio, slotDiff: Epoch): F[Ratio] =
+        if (slotDiff > lddCutoff) alg.getThreshold(relativeStake, lddCutoff + 1)
+        else alg.getThreshold(relativeStake, slotDiff)
+
+      def isSlotLeaderForThreshold(threshold: Ratio)(rho: Rho): F[Boolean] =
+        alg.isSlotLeaderForThreshold(threshold)(rho)
+    }
+
 }

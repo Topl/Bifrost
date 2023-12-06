@@ -172,8 +172,30 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           )
           .pure[F]
           .rethrow
+          .flatMap(protocol =>
+            appConfig.bifrost
+              .protocols(0)
+              .epochLengthOverride
+              .foldLeftM(
+                protocol
+              )((protocol, lengthOverride) =>
+                Logger[F].warn(s"Overriding epoch length to $lengthOverride slots") >>
+                protocol
+                  .copy(epochLengthOverride = appConfig.bifrost.protocols(0).epochLengthOverride)
+                  .pure[F]
+              )
+          )
+          .flatTap(p => p.validation.leftMap(new IllegalArgumentException(_)).pure[F].rethrow)
           .toResource
-      _ <- Logger[F].info(s"Protocol settings=$bigBangProtocol").toResource
+      _ <- Logger[F]
+        .info(
+          s"Protocol" +
+          s" epochLength=${bigBangProtocol.epochLength}" +
+          s" operationalPeriodLength=${bigBangProtocol.operationalPeriodLength}" +
+          s" chainSelectionSWindow=${bigBangProtocol.chainSelectionSWindow}" +
+          s" settings=$bigBangProtocol"
+        )
+        .toResource
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
         bigBangProtocol.vrfPrecision,
@@ -267,21 +289,27 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   fs2.Stream.force(localChain.adoptions)
                 )(transactionId)
                 .flatMap(dataStores.headers.getOrRaise)
-            StakingInit
-              .makeStakingFromDisk(
-                stakingDir,
-                appConfig.bifrost.staking.rewardAddress,
-                clock,
-                etaCalculation,
-                consensusValidationState,
-                leaderElectionThreshold,
-                cryptoResources,
-                bigBangProtocol,
-                vrfConfig,
-                bigBangBlock.header.version,
-                blockFinder,
-                metadata,
-                dataStores.headers.get
+            // Construct a separate threshold calcualtor instance with a separate cache to avoid
+            // polluting the staker's cache with remote block eligibilities
+            makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
+              .flatMap(leaderElectionThreshold =>
+                StakingInit
+                  .makeStakingFromDisk(
+                    stakingDir,
+                    appConfig.bifrost.staking.rewardAddress,
+                    clock,
+                    etaCalculation,
+                    consensusValidationState,
+                    leaderElectionThreshold,
+                    cryptoResources,
+                    bigBangProtocol,
+                    vrfConfig,
+                    bigBangBlock.header.version,
+                    blockFinder,
+                    metadata,
+                    dataStores.headers.get,
+                    bigBangBlock
+                  )
               )
           }
           .value
@@ -467,7 +495,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
       base = LeaderElectionValidation.make[F](vrfConfig, blake2b512Resource, exp, log1p)
-      leaderElectionThreshold <- LeaderElectionValidation.makeCached(base)
+      leaderElectionThresholdCached <- LeaderElectionValidation.makeCached(base)
+      leaderElectionThreshold = LeaderElectionValidation.makeWithCappedSlotDiff(
+        leaderElectionThresholdCached,
+        vrfConfig.lddCutoff
+      )
     } yield leaderElectionThreshold
 
   /**
