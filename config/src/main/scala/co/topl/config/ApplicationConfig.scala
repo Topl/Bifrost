@@ -114,14 +114,15 @@ object ApplicationConfig {
       forwardBiasedSlotWindow:    Slot,
       operationalPeriodsPerEpoch: Long,
       kesKeyHours:                Int,
-      kesKeyMinutes:              Int
+      kesKeyMinutes:              Int,
+      epochLengthOverride:        Option[Long]
     ) {
 
       val chainSelectionSWindow: Long =
         (Ratio(chainSelectionKLookback, 4L) * fEffective.inverse).round.toLong
 
       val epochLength: Long =
-        chainSelectionKLookback * 6
+        epochLengthOverride.getOrElse(((Ratio(chainSelectionKLookback) * fEffective.inverse) * 3).round.toLong)
 
       val operationalPeriodLength: Long =
         epochLength / operationalPeriodsPerEpoch
@@ -134,6 +135,16 @@ object ApplicationConfig {
         slotDurationMillis = slotDuration.toMillis,
         epochLength = epochLength
       )
+
+      def validation: Either[String, Unit] =
+        for {
+          _ <- Either.cond(epochLength % 3L == 0, (), s"Epoch length=$epochLength must be divisible by 3")
+          _ <- Either.cond(
+            epochLength % operationalPeriodsPerEpoch == 0,
+            (),
+            s"Epoch length=$epochLength must be divisible by $operationalPeriodsPerEpoch"
+          )
+        } yield ()
     }
 
     @Lenses

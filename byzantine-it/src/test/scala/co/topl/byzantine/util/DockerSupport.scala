@@ -178,8 +178,8 @@ case class TestNodeConfig(
   jmxRemotePort:        Int = 9083,
   genusEnabled:         Boolean = false,
   stakingBindSourceDir: Option[String] = None,
-  serverHost: Option[String] = None,
-  serverPort: Option[Int] = None
+  serverHost:           Option[String] = None,
+  serverPort:           Option[Int] = None
 ) {
 
   def yaml: String = {
@@ -205,9 +205,15 @@ case class TestNodeConfig(
        |  protocols:
        |    0:
        |      slot-duration: 500 milli
+       |      chain-selection-k-lookback: 6
+       |      operational-periods-per-epoch: 2
        |genus:
        |  enable: "$genusEnabled"
        |""".stripMargin
   }
 
+}
+
+object TestNodeConfig {
+  val epochSlotLength: Long = 150 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
 }

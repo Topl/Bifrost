@@ -44,7 +44,6 @@ class MultiNodeTest extends IntegrationSuite {
   require(totalNodeCount >= 3)
 
   test("Multiple nodes launch and maintain consensus for three epochs") {
-    val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
     val resource =
       for {
@@ -113,7 +112,7 @@ class MultiNodeTest extends IntegrationSuite {
               .rpcClient[F](node.config.rpcPort)
               .use(
                 _.adoptedHeaders
-                  .takeWhile(_.slot < (epochSlotLength * 2))
+                  .takeWhile(_.slot < (TestNodeConfig.epochSlotLength * 2))
                   // Verify that the delayed node doesn't produce any blocks in the first 2 epochs
                   .evalTap(h => IO(h.address != delayedNodeStakingAddress).assert)
                   .timeout(9.minutes)

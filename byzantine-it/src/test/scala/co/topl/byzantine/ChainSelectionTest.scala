@@ -24,7 +24,6 @@ class ChainSelectionTest extends IntegrationSuite {
   override def munitTimeout: Duration = 12.minutes
 
   test("Disconnected nodes can forge independently and later sync up to a proper chain") {
-    val epochSlotLength: Long = 6 * 50 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
     val bigBang = Instant.now().plusSeconds(30)
     val stakes = List(BigInt(500), BigInt(400), BigInt(300)).some
     val config0 =
@@ -58,7 +57,13 @@ class ChainSelectionTest extends IntegrationSuite {
             .parTraverse(node =>
               node
                 .rpcClient[F](node.config.rpcPort, tls = false)
-                .use(_.adoptedHeaders.takeWhile(_.slot < epochSlotLength).timeout(4.minutes).compile.lastOrError)
+                .use(
+                  _.adoptedHeaders
+                    .takeWhile(_.slot < TestNodeConfig.epochSlotLength)
+                    .timeout(4.minutes)
+                    .compile
+                    .lastOrError
+                )
             ),
           5.seconds
         )
@@ -92,7 +97,13 @@ class ChainSelectionTest extends IntegrationSuite {
         .parTraverse { case (node, newConfig) =>
           node
             .rpcClient[F](newConfig.rpcPort, tls = false)
-            .use(_.adoptedHeaders.takeWhile(_.slot < (epochSlotLength * 3)).timeout(9.minutes).compile.lastOrError)
+            .use(
+              _.adoptedHeaders
+                .takeWhile(_.slot < (TestNodeConfig.epochSlotLength * 3))
+                .timeout(9.minutes)
+                .compile
+                .lastOrError
+            )
         }
         .toResource
       _ <- Logger[F].info("Nodes have reached target epoch").toResource
