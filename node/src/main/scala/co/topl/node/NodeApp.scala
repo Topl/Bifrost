@@ -185,6 +185,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   .pure[F]
               )
           )
+          .flatTap(p => p.validation.leftMap(new IllegalArgumentException(_)).pure[F].rethrow)
           .toResource
       _ <- Logger[F]
         .info(
