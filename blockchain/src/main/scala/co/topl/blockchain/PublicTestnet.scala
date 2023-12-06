@@ -9,15 +9,15 @@ object PublicTestnet {
   val DefaultProtocol: ApplicationConfig.Bifrost.Protocol =
     ApplicationConfig.Bifrost.Protocol(
       minAppVersion = "2.0.0",
-      fEffective = co.topl.models.utility.Ratio(13, 100),
+      fEffective = co.topl.models.utility.Ratio(12, 100),
       vrfLddCutoff = 15,
       vrfPrecision = 40,
       vrfBaselineDifficulty = co.topl.models.utility.Ratio(5, 100),
       vrfAmplitude = co.topl.models.utility.Ratio(50, 100),
-      chainSelectionKLookback = 1066,
+      chainSelectionKLookback = 5184,
       slotDuration = 1.seconds,
       forwardBiasedSlotWindow = 50,
-      operationalPeriodsPerEpoch = 26,
+      operationalPeriodsPerEpoch = 25,
       kesKeyHours = 9,
       kesKeyMinutes = 9,
       epochLengthOverride = None

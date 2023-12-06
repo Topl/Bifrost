@@ -157,15 +157,15 @@ object PrivateTestnet {
   val DefaultProtocol: ApplicationConfig.Bifrost.Protocol =
     ApplicationConfig.Bifrost.Protocol(
       minAppVersion = "2.0.0",
-      fEffective = Ratio(13, 100),
+      fEffective = Ratio(12, 100),
       vrfLddCutoff = 15,
       vrfPrecision = 40,
       vrfBaselineDifficulty = Ratio(5, 100),
       vrfAmplitude = Ratio(50, 100),
-      chainSelectionKLookback = 1066,
+      chainSelectionKLookback = 5184,
       slotDuration = 1.seconds,
       forwardBiasedSlotWindow = 50,
-      operationalPeriodsPerEpoch = 26,
+      operationalPeriodsPerEpoch = 25,
       kesKeyHours = 9,
       kesKeyMinutes = 9,
       epochLengthOverride = None

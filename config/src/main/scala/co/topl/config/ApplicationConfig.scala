@@ -138,11 +138,11 @@ object ApplicationConfig {
 
       def validation: Either[String, Unit] =
         for {
-          _ <- Either.cond(epochLength % 3L == 0, (), "Epoch length must be divisible by 3")
+          _ <- Either.cond(epochLength % 3L == 0, (), s"Epoch length=$epochLength must be divisible by 3")
           _ <- Either.cond(
             epochLength % operationalPeriodsPerEpoch == 0,
             (),
-            "Epoch length must be divisible by operationalPeriodsPerEpoch"
+            s"Epoch length=$epochLength must be divisible by $operationalPeriodsPerEpoch"
           )
         } yield ()
     }
