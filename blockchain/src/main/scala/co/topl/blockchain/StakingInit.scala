@@ -18,6 +18,7 @@ import co.topl.consensus.models._
 import co.topl.interpreters.CatsSecureStore
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters.{OperationalKeyMaker, Staking, VrfCalculator}
+import co.topl.node.models.FullBlock
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString
 import fs2.Chunk
@@ -69,10 +70,17 @@ object StakingInit {
     protocolVersion:          ProtocolVersion,
     blockFinder:              TransactionId => F[BlockHeader],
     metadata:                 NodeMetadataAlgebra[F],
-    fetchHeader:              BlockId => F[Option[BlockHeader]]
+    fetchHeader:              BlockId => F[Option[BlockHeader]],
+    genesisBlock:             FullBlock
   ): Resource[F, StakingAlgebra[F]] =
     for {
-      _       <- Logger[F].info(show"Loading registered staker from disk at path=$stakingDir").toResource
+      _ <- Logger[F].info(show"Loading registered staker from disk at path=$stakingDir").toResource
+      genesisNetworkId = genesisBlock.fullBody.transactions.flatMap(_.outputs).map(_.address).head.network
+      _ <- Async[F]
+        .raiseWhen(genesisNetworkId != rewardAddress.network)(
+          new IllegalArgumentException("Configured staking rewardAddress belongs to a different network")
+        )
+        .toResource
       kesPath <- Sync[F].delay(stakingDir / KesDirectoryName).toResource
       _ <- Files
         .forAsync[F]

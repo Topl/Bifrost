@@ -307,7 +307,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                     bigBangBlock.header.version,
                     blockFinder,
                     metadata,
-                    dataStores.headers.get
+                    dataStores.headers.get,
+                    bigBangBlock
                   )
               )
           }
