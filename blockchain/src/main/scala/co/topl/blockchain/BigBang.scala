@@ -196,7 +196,8 @@ object BigBang {
       forwardBiasedSlotWindow,
       operationalPeriodsPerEpoch,
       kesKeyHours,
-      kesKeyMinutes
+      kesKeyMinutes,
+      None
     )
 
   def protocolToValue(protocol: ApplicationConfig.Bifrost.Protocol): Value =

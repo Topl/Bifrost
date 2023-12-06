@@ -172,8 +172,29 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           )
           .pure[F]
           .rethrow
+          .flatMap(protocol =>
+            appConfig.bifrost
+              .protocols(0)
+              .epochLengthOverride
+              .foldLeftM(
+                protocol
+              )((protocol, lengthOverride) =>
+                Logger[F].warn(s"Overriding epoch length to $lengthOverride slots") >>
+                protocol
+                  .copy(epochLengthOverride = appConfig.bifrost.protocols(0).epochLengthOverride)
+                  .pure[F]
+              )
+          )
           .toResource
-      _ <- Logger[F].info(s"Protocol settings=$bigBangProtocol").toResource
+      _ <- Logger[F]
+        .info(
+          s"Protocol" +
+          s" epochLength=${bigBangProtocol.epochLength}" +
+          s" operationalPeriodLength=${bigBangProtocol.operationalPeriodLength}" +
+          s" chainSelectionSWindow=${bigBangProtocol.chainSelectionSWindow}" +
+          s" settings=$bigBangProtocol"
+        )
+        .toResource
       vrfConfig = VrfConfig(
         bigBangProtocol.vrfLddCutoff,
         bigBangProtocol.vrfPrecision,

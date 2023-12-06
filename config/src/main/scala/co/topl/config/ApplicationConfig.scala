@@ -114,14 +114,15 @@ object ApplicationConfig {
       forwardBiasedSlotWindow:    Slot,
       operationalPeriodsPerEpoch: Long,
       kesKeyHours:                Int,
-      kesKeyMinutes:              Int
+      kesKeyMinutes:              Int,
+      epochLengthOverride:        Option[Long]
     ) {
 
       val chainSelectionSWindow: Long =
         (Ratio(chainSelectionKLookback, 4L) * fEffective.inverse).round.toLong
 
       val epochLength: Long =
-        chainSelectionKLookback * 6
+        epochLengthOverride.getOrElse(((Ratio(chainSelectionKLookback) * fEffective.inverse) * 3).round.toLong)
 
       val operationalPeriodLength: Long =
         epochLength / operationalPeriodsPerEpoch
