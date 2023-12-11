@@ -7,6 +7,14 @@ tags:
   - Getting started
 ---
 
+## gRPC Endpoint
+
+https://toplnet.topl.co:443
+
+## P2P
+
+https://toplnet.topl.co:9085
+
 ## How to Connect
 
 In this example, we will be using Docker to run the node.
@@ -21,7 +29,9 @@ A full example of connecting to the node:
 mkdir .bifrost
 sudo chown 1001 .bifrost -R -v; sudo chgrp 0 .bifrost -R -v
 
-docker run --name bifrost -d -v $(pwd)/.bifrost:/bifrost -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1 --knownPeers toplnet.topl.co:9085 --disableGenus --config https://raw.githubusercontent.com/Topl/Genesis/main/toplnet/config.yaml
+docker run --name bifrost-toplnet -d -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1 \
+    --knownPeers toplnet.topl.co:9085 \
+    --config https://raw.githubusercontent.com/Topl/Genesis/main/toplnet/config.yaml
 ```
 
 Alternatively, you can use Docker-Compose to manage the volumes for you instead. This will include Genus:
