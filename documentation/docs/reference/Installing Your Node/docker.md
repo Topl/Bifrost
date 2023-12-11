@@ -16,8 +16,7 @@ sudo chown 1001 .bifrost -R -v; sudo chgrp 0 .bifrost -R -v
 
 docker run --name bifrost -d -v $(pwd)/.bifrost:/bifrost -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1 --knownPeers toplnet.topl.co:9085 --disableGenus --config https://raw.githubusercontent.com/Topl/Genesis/main/toplnet/config.yaml
 
-docker ps
-docker logs -f bifrost-tetra
+docker logs -f bifrost
 ```
 
 ## Ubuntu
