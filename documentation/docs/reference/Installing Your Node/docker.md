@@ -12,8 +12,10 @@ tags:
 
 ```sh
 mkdir .bifrost
-sudo chown  1001 .bifrost
-docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
+sudo chown 1001 .bifrost -R -v; sudo chgrp 0 .bifrost -R -v
+
+docker run --name bifrost -d -v $(pwd)/.bifrost:/bifrost -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1 --knownPeers toplnet.topl.co:9085 --disableGenus --config https://raw.githubusercontent.com/Topl/Genesis/main/toplnet/config.yaml
+
 docker ps
 docker logs -f bifrost-tetra
 ```
@@ -40,13 +42,13 @@ Note: Latest is currently tagged to Dion, our previous version of Bifrost. To us
 Run in terminal
 
 ```sh
-docker run -it --rm -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
+docker run -it --rm -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1
 ```
 
 Run in background
 
 ```sh
-docker run -d --name bifrost-tetra -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
+docker run -d --name bifrost-tetra -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1
 ```
 
 Run with volume to persist data
@@ -54,7 +56,7 @@ Run with volume to persist data
 ```sh
 mkdir .bifrost
 sudo chown  1001 .bifrost
-docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta0
+docker run -d --name bifrost-tetra -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1
 ```
 
 Interact with the node
