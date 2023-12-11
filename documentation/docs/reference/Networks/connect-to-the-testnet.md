@@ -7,6 +7,14 @@ tags:
   - Getting started
 ---
 
+## gRPC Endpoint
+
+https://testnet.topl.co:443
+
+## P2P
+
+https://testnet.topl.co:9085
+
 ## How to Connect
 
 In this example, we will be using Docker to run the node.
@@ -18,7 +26,7 @@ The testnet configs are hosted on GitHub https://github.com/Topl/Genesis_Testnet
 A full example of connecting to the node:
 
 ```
-docker run -p 9085:9085 -p 9084:9084 toplprotocol/bifrost-node:2.0.0-beta0 \
+docker run --name bifrost-testnet -p 9085:9085 -p 9084:9084 toplprotocol/bifrost-node:2.0.0-beta1 \
     --knownPeers testnet.topl.co:9085 \
     --config https://raw.githubusercontent.com/Topl/Genesis_Testnets/main/testnet2/config.yaml
 ```

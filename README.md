@@ -71,14 +71,14 @@ Running
 -------------------
 The easiest way to run a Bifrost node is to use the official Docker image.  To run a Bifrost node using Docker:
 
-`docker run toplprotocol/bifrost-node:2.0.0-beta0`
+`docker run toplprotocol/bifrost-node:2.0.0-beta1`
 - `2.0.0-beta0` can be substituted with the desired version
 
 CLI / Shell
 -------------------
 Bifrost contains a built-in CLI that offers utilities for node operation. The CLI is available by passing `cli` as the first argument to the program. The CLI is interactive and will prompt for input as needed.
 
-For example, if using Docker, run `docker run toplprotocol/bifrost-node:2.0.0-beta0 cli`.
+For example, if using Docker, run `docker run toplprotocol/bifrost-node:2.0.0-beta1 cli`.
 
 Development
 -------------------

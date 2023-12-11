@@ -66,11 +66,11 @@ const config = {
             sidebarId: 'referenceSidebar',
             label: 'Reference',
           },
-         {
-           type: 'docSidebar',
-           sidebarId: 'tutorialsSidebar',
-           label: 'Tutorials',
-         },
+        //  {
+        //    type: 'docSidebar',
+        //    sidebarId: 'tutorialsSidebar',
+        //    label: 'Tutorials',
+        //  },
          {
            type: 'docSidebar',
            sidebarId: 'conceptsSidebar',
