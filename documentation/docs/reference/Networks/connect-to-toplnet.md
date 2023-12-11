@@ -34,7 +34,7 @@ docker run --name bifrost-toplnet -d -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p
     --config https://raw.githubusercontent.com/Topl/Genesis/main/toplnet/config.yaml
 ```
 
-Alternatively, you can use Docker-Compose to manage the volumes for you instead. This will include Genus:
+Alternatively, you can use Docker-Compose to manage the volumes for you instead. This will include `gRPC-web` as a proxy for accessing Genus on port `9086`:
 
 ```
 wget https://raw.githubusercontent.com/Topl/Genesis/docker-compose/toplnet/docker-compose.yaml && docker compose up -d --pull always && docker compose logs -f node
