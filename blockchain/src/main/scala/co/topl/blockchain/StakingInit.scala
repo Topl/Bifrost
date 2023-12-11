@@ -141,9 +141,8 @@ object StakingInit {
     protocol:                 ApplicationConfig.Bifrost.Protocol,
     vrfConfig:                VrfConfig,
     protocolVersion:          ProtocolVersion,
-    blockFinder:              TransactionId => F[BlockHeader],
-    metadata:                 NodeMetadataAlgebra[F],
-    fetchHeader:              BlockId => F[Option[BlockHeader]]
+    localChain: LocalChainAlgebra[F],
+    consensusState: ConsensusValidationStateAlgebra[F]
   ): Resource[F, StakingAlgebra[F]] =
     for {
       registrationHeader <-

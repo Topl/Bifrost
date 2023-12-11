@@ -1,9 +1,12 @@
 package co.topl.consensus.interpreters
 
+import cats.data.OptionT
 import cats.implicits._
 import cats.{Applicative, MonadThrow}
 import co.topl.algebras.ClockAlgebra.implicits._
 import co.topl.algebras._
+import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.algebras.ConsensusValidationStateAlgebra
 import co.topl.consensus.models.{ActiveStaker, BlockId, StakingAddress}
 import co.topl.eventtree.EventSourcedState
@@ -23,7 +26,8 @@ object ConsensusValidationState {
     consensusDataEventSourcedState: EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[
       F
     ], BlockId],
-    clock: ClockAlgebra[F]
+    clock:            ClockAlgebra[F],
+    fetchTransaction: TransactionId => F[IoTransaction]
   ): F[ConsensusValidationStateAlgebra[F]] =
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {
@@ -33,7 +37,11 @@ object ConsensusValidationState {
         def staker(currentBlockId: BlockId, slot: Slot)(
           address: StakingAddress
         ): F[Option[ActiveStaker]] =
-          useStateAtTargetBoundary(currentBlockId, slot)(_.stakers.get(address))
+          OptionT(useStateAtTargetBoundary(currentBlockId, slot)(_.stakers.get(address)))
+            .flatMapF(a => fetchTransaction(a.id).map(_.outputs.get(a.index)))
+            .subflatMap(_.value.value.topl)
+            .subflatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
+            .value
 
         /**
          * Determines the N-2 epoch from the given block, then determines the final block ID of the N-2 epoch.  That
