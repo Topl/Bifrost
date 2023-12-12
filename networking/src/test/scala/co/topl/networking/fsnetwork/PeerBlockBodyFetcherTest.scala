@@ -498,6 +498,66 @@ class PeerBlockBodyFetcherTest
     }
   }
 
+  test("Block bodies shall return error if Unknown error") {
+    withMock {
+      val client = mock[BlockchainPeerClient[F]]
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
+      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
+
+      val (transaction, body) = arbitraryTxAndBlock.arbitrary.first
+
+      val header: BlockHeader =
+        ModelGenerators.arbitraryHeader.arbitrary.first.copy(txRoot = body.merkleTreeRootHash.data).embedId
+
+      (client.getRemoteBody _).expects(header.id).anyNumberOfTimes().returns(body.some.pure[F])
+
+      val exception = new RuntimeException()
+      (transactionStore.contains _).expects(*).anyNumberOfTimes().returning(Async[F].delay(throw exception))
+
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(transaction.id, *, *)
+        .anyNumberOfTimes()
+        .onCall {
+          case (_: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            transaction.pure[F]
+        }
+
+      (headerToBodyValidation.validate _).expects(*).once().onCall { block: Block =>
+        Either.right[BlockHeaderToBodyValidationFailure, Block](block).pure[F]
+      }
+
+      val txError = NonEmptyChain.one(EmptyInputs)
+      val txSyntaxValidator: TransactionSyntaxVerifier[F] =
+        (_: IoTransaction) => Either.left(txError).pure[F]
+
+      val expectedMessage =
+        RequestsProxy.Message.DownloadBodiesResponse(
+          hostId,
+          NonEmptyChain.one(
+            (
+              header,
+              Either.left[BlockBodyOrTransactionError, UnverifiedBlockBody](
+                BlockBodyOrTransactionError.UnknownError(exception)
+              )
+            )
+          )
+        )
+      (requestsProxy.sendNoWait _)
+        .expects(expectedMessage)
+        .returning(().pure[F])
+
+      PeerBlockBodyFetcher
+        .makeActor(hostId, client, requestsProxy, transactionStore, headerToBodyValidation, txSyntaxValidator)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerBlockBodyFetcher.Message.DownloadBlocks(NonEmptyChain.one(header)))
+          } yield ()
+        }
+    }
+  }
+
   test("Block bodies shall not return error if reward transaction have no inputs") {
     withMock {
       val client = mock[BlockchainPeerClient[F]]

@@ -181,7 +181,7 @@ object BlockChecker {
     remoteSlotData: NonEmptyChain[SlotData]
   ): F[NonEmptyChain[SlotData]] = {
     val from = remoteSlotData.head.parentSlotId.blockId
-    val missedSlotDataF = getFromChainUntil[F, SlotData](
+    val missedSlotDataF = prependOnChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
       getT = state.slotDataStore.getOrRaise,
       terminateOn =
@@ -242,7 +242,7 @@ object BlockChecker {
             .logDuration(show"Verified header ${header.blockHeader.id}")
         )
         .evalTap(header => state.headerStore.put(header.id, header))
-        .map(Right.apply)
+        .map(Right.apply[HeaderApplyException, BlockHeader])
         .handleErrorWith {
           case e: HeaderValidationException => Stream.emit(Left(e: HeaderApplyException))
           case e                            => Stream.emit(Left(HeaderApplyException.UnknownError(e)))
@@ -326,7 +326,9 @@ object BlockChecker {
         case HeaderValidationException(blockId, source, _) =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.InvalidateBlockId(source, blockId)) >>
           invalidateBlockId(state, NonEmptyChain.one(blockId))
-        case _ => state.pure[F] // TODO any error message for underlying exception?
+        case e =>
+          Logger[F].error(show"Header apply error: ${e.toString}") >>
+          state.pure[F]
       }
       .getOrElse(state.pure[F])
 
@@ -399,7 +401,7 @@ object BlockChecker {
           (successfullyProcessed, error)
         }
 
-    val hostId = blocks.head._2.source // TODO temporary solution
+    val hostId = blocks.head._2.source // fallback in case if block source cache will be purged
     for {
       _                        <- Logger[F].info(show"Start processing bodies for ids: ${blocks.map(_._1.id)}")
       (appliedBlockIds, error) <- processedBlocksAndError
@@ -461,7 +463,9 @@ object BlockChecker {
         case BodyValidationException(blockId, source, _) =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.InvalidateBlockId(source, blockId)) >>
           invalidateBlockId(state, NonEmptyChain.one(blockId))
-        case _ => state.pure[F] // TODO any error message for underlying exception?
+        case e =>
+          Logger[F].error(show"Body apply error: ${e.toString}") >>
+          state.pure[F]
       }
       .getOrElse(state.pure[F])
 

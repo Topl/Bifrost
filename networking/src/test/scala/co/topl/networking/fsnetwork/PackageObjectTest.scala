@@ -43,7 +43,7 @@ class PackageObjectTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         }
 
       for {
-        data <- getFromChainUntil[F, BlockId](
+        data <- prependOnChainUntil[F, BlockId](
           getSlotDataFromT = storage.getOrRaise,
           getT = id => id.pure[F],
           terminateOn = id => (!storageData.contains(id)).pure[F]
@@ -75,7 +75,7 @@ class PackageObjectTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         }
 
       for {
-        data <- getFromChainUntil[F, BlockId](
+        data <- prependOnChainUntil[F, BlockId](
           getSlotDataFromT = storage.getOrRaise,
           getT = id => id.pure[F],
           terminateOn = id => (!storageData.contains(id)).pure[F]

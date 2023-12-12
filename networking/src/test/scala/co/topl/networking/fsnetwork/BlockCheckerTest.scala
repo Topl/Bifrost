@@ -492,7 +492,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     }
   }
 
-  test("RemoteBlockHeader: Do not verify already known headers, request bodies, do not request next headers") {
+  test("RemoteBlockHeader: Do not verify already known headers, request bodies, request next headers") {
     PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary) {
       headers: NonEmptyChain[BlockHeader] =>
         withMock {
@@ -521,7 +521,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             headerStoreData.get(id).pure[F]
           }
           (headerStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .getOrRaise(_: BlockId)(_: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked))
             .expects(*, *, *)
             .anyNumberOfTimes()
             .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
@@ -574,124 +574,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra
-            )
-            .use { actor =>
-              for {
-                _ <- actor.send(BlockChecker.Message.RemoteBlockHeaders(message))
-                _ = assert(newIdAndHeaders.map(_._1).forall(k => addedHeader.contains(k)))
-              } yield ()
-            }
-        }
-    }
-  }
-
-  test("RemoteBlockHeader: Do not verify known headers, request bodies, request next headers because best chain") {
-    PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(2, maxChainSize)).arbitrary) {
-      headers: NonEmptyChain[BlockHeader] =>
-        withMock {
-          val requestsProxy = mock[RequestsProxyActor[F]]
-          val localChain = mock[LocalChainAlgebra[F]]
-          val slotDataStore = mock[Store[F, BlockId, SlotData]]
-          val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val bodyStore = mock[Store[F, BlockId, BlockBody]]
-          val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
-          val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
-          val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
-          val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
-
-          val idAndHeaders = headers.map(h => (h.id, h))
-
-          val knownHeadersSize = Gen.choose[Int](1, headers.size.toInt - 1).first
-          val (knownIdAndHeaders, newIdAndHeaders) = idAndHeaders.toList.splitAt(knownHeadersSize)
-          val knownBestSlotData = knownIdAndHeaders.last._2.slotData
-
-          val bestChainForKnownAndNewIds: NonEmptyChain[SlotData] =
-            idAndHeaders.map { case (id, header) =>
-              val parentId = header.parentHeaderId
-              val slotId = SlotId(blockId = id)
-              val parentSlotId = SlotId(blockId = parentId)
-              arbitrarySlotData.arbitrary.first.copy(slotId = slotId, parentSlotId = parentSlotId)
-            }
-
-          val newSlotData: Chain[SlotData] = {
-            val arSlot = arbitraryLinkedSlotDataChain.arbitrary.retryUntil(c => c.size > 1 && c.size < 10).first
-            arSlot.head.copy(parentSlotId = bestChainForKnownAndNewIds.last.slotId) +: arSlot.tail
-          }
-
-          val bestChain = bestChainForKnownAndNewIds.appendChain(newSlotData)
-
-          val idAndSlotData = bestChain.map(s => (s.slotId.blockId, s))
-          val localSlotDataStore = idAndSlotData.toList.toMap
-          (slotDataStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(*, *, *)
-            .anyNumberOfTimes()
-            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
-              localSlotDataStore(id).pure[F]
-            }
-
-          val headerStoreData = mutable.Map.empty[BlockId, BlockHeader] ++ knownIdAndHeaders.toMap
-          (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
-            headerStoreData.contains(id).pure[F]
-          }
-          (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
-            headerStoreData.get(id).pure[F]
-          }
-          (headerStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(*, *, *)
-            .anyNumberOfTimes()
-            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
-              headerStoreData(id).pure[F]
-            }
-          val addedHeader = mutable.Map.empty[BlockId, BlockHeader]
-          (headerStore.put _).expects(*, *).rep(newIdAndHeaders.size).onCall {
-            case (id: BlockId, header: BlockHeader) =>
-              addedHeader.put(id, header)
-              headerStoreData.put(id, header)
-              ().pure[F]
-          }
-
-          (() => localChain.head).stubs().returning(knownBestSlotData.pure[F])
-          (headerValidation.couldBeValidated _).stubs(*, *).returning(true.pure[F])
-          (headerValidation.validate _)
-            .expects(*)
-            .rep(newIdAndHeaders.size)
-            .onCall((header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F])
-
-          val bodyStoreData = idAndHeaders.toList.toMap
-          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
-            (!bodyStoreData.contains(id)).pure[F]
-          }
-
-          val expectedHeaders = NonEmptyChain.fromSeq(idAndHeaders.toList.take(chunkSize).map(_._2)).get
-          val expectedMessage: RequestsProxy.Message =
-            RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedHeaders)
-          (requestsProxy.sendNoWait _).expects(expectedMessage).returning(().pure[F])
-
-          val nextHeaders = newSlotData.toList.take(chunkSize).map(s => s.slotId.blockId)
-
-          val nextHeaderMessage: RequestsProxy.Message =
-            RequestsProxy.Message.DownloadHeadersRequest(hostId, NonEmptyChain.fromSeq(nextHeaders).get)
-          (requestsProxy.sendNoWait _).expects(nextHeaderMessage).once().returning(().pure[F])
-
-          val message = headers.map(UnverifiedBlockHeader(hostId, _, 0))
-
-          BlockChecker
-            .makeActor(
-              requestsProxy,
-              localChain,
-              slotDataStore,
-              headerStore,
-              bodyStore,
-              headerValidation,
-              bodySyntaxValidation,
-              bodySemanticValidation,
-              bodyAuthorizationValidation,
-              chainSelectionAlgebra,
-              Option(BestChain(bestChain)),
-              Option(hostId)
             )
             .use { actor =>
               for {
@@ -899,6 +781,122 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
                 _ = assert(addedHeader.contains(newIdAndHeaders.head._1))
                 _ = assert(state.bestKnownRemoteSlotDataOpt.isEmpty)
                 _ = assert(state.bestKnownRemoteSlotDataHost.isEmpty)
+              } yield ()
+            }
+        }
+    }
+  }
+
+  test(
+    "RemoteBlockHeader: Do not verify already known headers, apply only first header, exception during processing second"
+  ) {
+    PropF.forAllF(arbitraryLinkedBlockHeaderChain(Gen.choose(3, maxChainSize)).arbitrary) {
+      headers: NonEmptyChain[BlockHeader] =>
+        withMock {
+          val requestsProxy = mock[RequestsProxyActor[F]]
+          val localChain = mock[LocalChainAlgebra[F]]
+          val slotDataStore = mock[Store[F, BlockId, SlotData]]
+          val headerStore = mock[Store[F, BlockId, BlockHeader]]
+          val bodyStore = mock[Store[F, BlockId, BlockBody]]
+          val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
+          val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
+          val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
+          val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
+          val idAndHeaders = headers.map(h => (h.id, h))
+
+          val knownHeadersSize = Gen.choose[Int](1, headers.size.toInt - 2).first
+          val (knownIdAndHeaders, newIdAndHeaders) = idAndHeaders.toList.splitAt(knownHeadersSize)
+          val knownSlotData = knownIdAndHeaders.head._2.slotData(Ed25519VRF.precomputed())
+
+          val headerStoreData = mutable.Map.empty[BlockId, BlockHeader] ++ knownIdAndHeaders.toMap
+          (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            headerStoreData.contains(id).pure[F]
+          }
+          (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            headerStoreData.get(id).pure[F]
+          }
+          (headerStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(*, *, *)
+            .anyNumberOfTimes()
+            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+              headerStoreData(id).pure[F]
+            }
+          val addedHeader = mutable.Map.empty[BlockId, BlockHeader]
+          (headerStore.put _).expects(*, *).rep(1).onCall { case (id: BlockId, header: BlockHeader) =>
+            addedHeader.put(id, header)
+            headerStoreData.put(id, header)
+            ().pure[F]
+          }
+
+          (() => localChain.head).stubs().returning(knownSlotData.pure[F])
+          (headerValidation.couldBeValidated _).stubs(*, *).returning(true.pure[F])
+          (headerValidation.validate _)
+            .expects(*)
+            .once()
+            .onCall((header: BlockHeader) => Either.right[BlockHeaderValidationFailure, BlockHeader](header).pure[F])
+          (headerValidation.validate _)
+            .expects(*)
+            .once()
+            .onCall((id: BlockHeader) => throw new IllegalStateException(show"Error for id $id"))
+
+          val slotData = headers.map(h => h.id -> h.slotData).toList.toMap
+          (slotDataStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(*, *, *)
+            .anyNumberOfTimes()
+            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+              slotData(id).pure[F]
+            }
+          val bodyStoreData = idAndHeaders.toList.toMap
+          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            (!bodyStoreData.contains(id)).pure[F]
+          }
+
+          (slotDataStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(*, *, *)
+            .anyNumberOfTimes()
+            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+              val header = headerStoreData(id)
+              val arbSlotData = arbitrarySlotData.arbitrary.first
+              val slotData =
+                arbSlotData.copy(
+                  slotId = arbSlotData.slotId.copy(blockId = header.id),
+                  parentSlotId = arbSlotData.parentSlotId.copy(blockId = header.parentHeaderId)
+                )
+              slotData.pure[F]
+            }
+
+          val expectedHeaders = NonEmptyChain.fromSeq(idAndHeaders.toList.take(chunkSize).map(_._2)).get
+          val expectedMessage: RequestsProxy.Message =
+            RequestsProxy.Message.DownloadBodiesRequest(hostId, expectedHeaders)
+          (requestsProxy.sendNoWait _)
+            .expects(expectedMessage)
+            .returning(().pure[F])
+
+          val message = headers.map(UnverifiedBlockHeader(hostId, _, 0))
+
+          BlockChecker
+            .makeActor(
+              requestsProxy,
+              localChain,
+              slotDataStore,
+              headerStore,
+              bodyStore,
+              headerValidation,
+              bodySyntaxValidation,
+              bodySemanticValidation,
+              bodyAuthorizationValidation,
+              chainSelectionAlgebra,
+              bestChain = Option(BestChain(NonEmptyChain.fromSeq(newIdAndHeaders.map(d => headerToSlotData(d._2))).get))
+            )
+            .use { actor =>
+              for {
+                _ <- actor.send(BlockChecker.Message.RemoteBlockHeaders(message))
+                _ = assert(addedHeader.contains(newIdAndHeaders.head._1))
               } yield ()
             }
         }
@@ -1420,9 +1418,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
       val headersRequest =
         allIdSlotDataHeaderBlock.slice(knownSlotHeaderUnknownBodyLen, knownSlotHeaderUnknownBodyLen + 1).map(_._1)
-      val headerReqMesssage =
+      val headerReqMessage =
         RequestsProxy.Message.DownloadHeadersRequest(hostId, NonEmptyChain.fromSeq(headersRequest).get)
-      (requestsProxy.sendNoWait _).expects(headerReqMesssage).returning(().pure[F])
+      (requestsProxy.sendNoWait _).expects(headerReqMessage).returning(().pure[F])
 
       BlockChecker
         .makeActor(
@@ -1567,6 +1565,147 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       (requestsProxy.sendNoWait _)
         .expects(RequestsProxy.Message.ResetRequestsProxy)
         .returns(().pure[F])
+
+      BlockChecker
+        .makeActor(
+          requestsProxy,
+          localChain,
+          slotDataStore,
+          headerStore,
+          bodyStore,
+          headerValidation,
+          bodySyntaxValidation,
+          bodySemanticValidation,
+          bodyAuthorizationValidation,
+          chainSelectionAlgebra,
+          Option(BestChain(NonEmptyChain.fromSeq(allIdSlotDataHeaderBlock.map(_._2)).get)),
+          Option(hostId)
+        )
+        .use { actor =>
+          for {
+            _ <- actor.send(message)
+          } yield ()
+        }
+    }
+  }
+
+  test("RemoteBlockBodies: Verify and save only first block because of unknown error in validation") {
+    withMock {
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val localChain = mock[LocalChainAlgebra[F]]
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
+      val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
+      val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
+      val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
+      // [1 - 5) -- known SlotData known Header known Body
+      // [5 - 10) -- known SlotData known Header unknown Body
+      // [10 - 15) -- known SlotData unknown Header unknown Body
+      // Minimum length for allIdSlotDataHeaderBlock is 11 then
+      val knownSlotHeaderBodyLen = 5
+      val knownSlotHeaderUnknownBodyLen = 10
+      val downloadedBodies = 10
+      val knownSlotUnknownHeaderBodyLen = 15
+      val allIdSlotDataHeaderBlock =
+        arbitraryLinkedSlotDataHeaderBlockNoTx(
+          Gen.choose(knownSlotUnknownHeaderBodyLen, knownSlotUnknownHeaderBodyLen)
+        ).arbitrary.first.toList
+
+      val knowSlotData =
+        allIdSlotDataHeaderBlock.map(data => (data._1, data._2))
+
+      val knownHeaders =
+        allIdSlotDataHeaderBlock.take(knownSlotHeaderUnknownBodyLen).map(d => (d._1, d._3))
+
+      val knownBody =
+        allIdSlotDataHeaderBlock.take(knownSlotHeaderBodyLen).map(d => (d._1, d._4))
+
+      val requestIdSlotDataHeaderBlock =
+        allIdSlotDataHeaderBlock.slice(knownSlotHeaderBodyLen, downloadedBodies)
+
+      val messageData =
+        NonEmptyChain.fromSeq(requestIdSlotDataHeaderBlock.map(d => Block(d._3, d._4))).get
+
+      val message =
+        BlockChecker.Message.RemoteBlockBodies(messageData.map(d => (d.header, UnverifiedBlockBody(hostId, d.body, 0))))
+
+      val knownBodyStorageData: mutable.Map[BlockId, BlockBody] =
+        mutable.Map.empty[BlockId, BlockBody] ++ knownBody.toMap
+      (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        knownBodyStorageData.contains(id).pure[F]
+      }
+      (bodyStore.put(_: BlockId, _: BlockBody)).expects(*, *).anyNumberOfTimes().onCall {
+        case (id: BlockId, block: BlockBody) =>
+          knownBodyStorageData.put(id, block).pure[F].void
+      }
+
+      val headerStorageData = knownHeaders.toMap
+      (headerStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+          headerStorageData(id).pure[F]
+        }
+      (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        headerStorageData.contains(id).pure[F]
+      }
+      (headerStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        headerStorageData.get(id).pure[F]
+      }
+
+      (bodySyntaxValidation.validate _).expects(*).once().onCall { b: BlockBody =>
+        Validated.validNec[BodySyntaxError, BlockBody](b).pure[F]
+      }
+
+      (bodySyntaxValidation.validate _).expects(*).once().onCall { _: BlockBody =>
+        throw new IllegalStateException()
+      }
+
+      val errorTransaction = arbitraryIoTransaction.arbitrary.first
+      val spentTransactionOutput = arbitrarySpentTransactionOutput.arbitrary.first
+      (bodySemanticValidation
+        .validate(_: BodyValidationContext)(_: BlockBody))
+        .expects(*, *)
+        .once()
+        .onCall { case (context: BodyValidationContext, b: BlockBody) =>
+          val secondBlock: Boolean = context.parentHeaderId != requestIdSlotDataHeaderBlock.head._1
+          val error =
+            TransactionSemanticErrors(errorTransaction, NonEmptyChain.one(InputDataMismatch(spentTransactionOutput)))
+          Validated.condNec[BodySemanticError, BlockBody](secondBlock, b, error).pure[F]
+        }
+
+      type AuthContext = IoTransaction => DynamicContext[F, String, Datum]
+      (bodyAuthorizationValidation
+        .validate(_: AuthContext)(_: BlockBody))
+        .expects(*, *)
+        .rep(1)
+        .onCall { case (_: AuthContext @unchecked, b: BlockBody) =>
+          Validated.validNec[BodyAuthorizationError, BlockBody](b).pure[F]
+        }
+
+      val slotDataStoreData = knowSlotData.toMap
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId => slotDataStoreData.get(id).pure[F] }
+      (slotDataStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+          slotDataStoreData(id).pure[F]
+        }
+
+      val lastAdoptedBlockSlotData = requestIdSlotDataHeaderBlock.head._2
+      (localChain.isWorseThan _).expects(lastAdoptedBlockSlotData).once().returning(true.pure[F])
+      (localChain.adopt _).expects(Validated.Valid(lastAdoptedBlockSlotData)).once().returning(().pure[F])
+
+      (requestsProxy.sendNoWait _)
+        .expects(
+          RequestsProxy.Message.DownloadBodiesRequest(hostId, NonEmptyChain.one(requestIdSlotDataHeaderBlock(1)._3))
+        )
 
       BlockChecker
         .makeActor(

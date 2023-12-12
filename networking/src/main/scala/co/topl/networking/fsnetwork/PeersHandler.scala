@@ -260,7 +260,7 @@ case class Peer[F[_]: Logger](
   def sendNoWait(message: PeerActor.Message): F[Unit] =
     actorOpt match {
       case Some(actor) => actor.sendNoWait(message)
-      case None        => Logger[F].trace(show"Send message to peer with no running client")
+      case None        => Logger[F].trace(show"Send message to peer with no running actor")
     }
 
   val reputation: Double = (blockRep + perfRep) / 2
