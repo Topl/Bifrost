@@ -264,6 +264,8 @@ case class Peer[F[_]: Logger](
   perfRep:            HostReputationValue,
   newRep:             Long
 ) {
+  def couldOpenConnection: Boolean = asServer.isDefined || actorOpt.isDefined
+
   def haveNoConnection: Boolean = actorOpt.isEmpty
 
   def sendNoWait(message: PeerActor.Message): F[Unit] =
