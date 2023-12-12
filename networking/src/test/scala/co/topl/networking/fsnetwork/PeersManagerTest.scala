@@ -2652,6 +2652,50 @@ class PeersManagerTest
     }
   }
 
+  test("Updated remote node id shall be processed: close peer if try to update the peer id to already banned peer") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("1", 1)
+      val peer1 = mockPeerActor[F]()
+      val client1 = mock[BlockchainPeerClient[F]]
+
+      val host2Id = arbitraryHost.arbitrary.first
+
+      (networkAlgebra.makePeer _)
+        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *, *)
+        .once()
+        .returns(
+          Resource
+            .pure(peer1)
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
+        ) // simulate real actor finalizer
+
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returning(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.GetNetworkQuality).returning(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returning(Applicative[F].unit)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(buildSimplePeerEntry(PeerState.Banned, None, host2Id))
+
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, networkAlgebra = networkAlgebra)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(mock[RequestsProxyActor[F]]))
+            newState1 <-
+              actor.send(buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id)))
+            _ = assert(newState1.peersHandler.peers(host1Id).state == PeerState.Cold)
+            newState2 <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1Id, host2Id))
+            _ = assert(!newState2.peersHandler.peers.contains(host1Id))
+            _ = assert(newState2.peersHandler.peers(host2Id).state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
   test("PeerManager shall self-ban own peer id to avoid self-connections") {
     withMock {
       val mockData = buildDefaultMockData()
