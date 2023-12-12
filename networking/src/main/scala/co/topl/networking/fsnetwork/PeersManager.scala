@@ -934,19 +934,32 @@ object PeersManager {
   ): F[State[F]] = {
     val maximumWarmConnection = state.p2pNetworkConfig.networkProperties.maximumWarmConnections
     val lackWarmPeersCount = maximumWarmConnection - state.peersHandler.getWarmPeersWithActor.size
-    val eligibleColdPeers =
-      getEligibleColdPeers(state).filter { case (_, peer) =>
-        // we shall be able to establish connection or have already established connection
-        peer.asServer.isDefined || peer.actorOpt.isDefined
-      }
-    val coldToWarm: Set[HostId] = state.coldToWarmSelector.select(eligibleColdPeers, lackWarmPeersCount)
 
     for {
+      coldPeers    <- getColdPeersForWarmState(state)
+      coldToWarm   <- state.coldToWarmSelector.select(coldPeers, lackWarmPeersCount).pure[F]
       _            <- Logger[F].infoIf(coldToWarm.nonEmpty, show"Going to warm next cold peers: $coldToWarm")
       peersHandler <- state.peersHandler.moveToState(coldToWarm, PeerState.Warm, peerReleaseAction(thisActor))
       newState     <- state.copy(peersHandler = peersHandler).pure[F]
       _            <- checkConnection(newState, coldToWarm)
     } yield newState
+  }
+
+  private def getColdPeersForWarmState[F[_]: Async: Logger](state: State[F]): F[Map[HostId, Peer[F]]] = {
+    val eligiblePeers = getEligibleColdPeers(state).filter(_._2.couldOpenConnection)
+    if (eligiblePeers.nonEmpty || state.peersHandler.getWarmPeersWithActor.nonEmpty) {
+      eligiblePeers.pure[F]
+    } else {
+      // If no warm peer is present then take cold peer with less closed events, even if they are not eligible right now
+      Logger[F].warn(show"No eligible cold peer had been found, use peer with less count of close events") >>
+      state.peersHandler.getColdPeers
+        .filter(_._2.couldOpenConnection)
+        .toList
+        .sortBy(_._2.closedTimestamps.size)
+        .take(1)
+        .toMap
+        .pure[F]
+    }
   }
 
   private def checkConnection[F[_]: Async: Parallel: Logger: DnsResolver](
