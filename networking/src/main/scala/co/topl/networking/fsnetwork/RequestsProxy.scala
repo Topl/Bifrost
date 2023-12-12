@@ -124,6 +124,7 @@ object RequestsProxy {
       _ <- state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips)
       _ <- state.headerRequests.doRemoveAll
       _ <- state.bodyRequests.doRemoveAll
+      _ <- state.slotDataResponse.doRemoveAll
     } yield (state, state)
 
   private def processRemoteSlotData[F[_]: Async: Logger](

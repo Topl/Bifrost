@@ -144,20 +144,24 @@ object PeerBlockHeaderFetcher {
       _ <- Logger[F].info(show"FromToChain length=${chainToCheck.length} from peer ${state.hostId} for $blockId")
 
       compareResult <- compareSlotDataWithLocal(chainToCheck, state)
-      _ <- compareResult match {
+      betterChain <- compareResult match {
         case CompareResult.NoRemote =>
-          Logger[F].info(show"Already adopted $blockId from peer ${state.hostId}")
+          Logger[F].info(show"Already adopted $blockId from peer ${state.hostId}") >>
+          None.pure[F]
         case CompareResult.RemoteIsBetter(betterChain) =>
           Logger[F].debug(show"Received tip $blockId is better than current block from peer ${state.hostId}") >>
-          state.requestsProxy.sendNoWait(RequestsProxy.Message.RemoteSlotData(state.hostId, betterChain))
+          state.requestsProxy.sendNoWait(RequestsProxy.Message.RemoteSlotData(state.hostId, betterChain)) >>
+          betterChain.some.pure[F]
         case CompareResult.RemoteIsWorseByDensity =>
           Logger[F].info(show"Ignoring tip $blockId from peer ${state.hostId} because of the density rule") >>
-          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId))
+          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId)) >>
+          None.pure[F]
         case CompareResult.RemoteIsWorseByHeight =>
-          Logger[F].info(show"Ignoring tip $blockId because other better or equal block had been adopted")
+          Logger[F].info(show"Ignoring tip $blockId because other better or equal block had been adopted") >>
+          None.pure[F]
       }
 
-      blockSourceOpt <- buildBlockSource(state, to, NonEmptyChain.fromSeq(chainToCheck))
+      blockSourceOpt <- buildBlockSource(state, to, betterChain)
       _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer ${state.hostId} for $blockId")
       _ <- blockSourceOpt.traverse_(s => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(s)))
     } yield ()
@@ -171,12 +175,17 @@ object PeerBlockHeaderFetcher {
     for {
       endSlotData <- getSlotDataFromStorageOrRemote(state)(endBlockId)
       (from, to) <- state.bodyStore.contains(endBlockId).flatMap {
-        case true => (endSlotData, endSlotData).pure[F] // no sync is required at all
+        case true =>
+          Logger[F].debug(show"Build sync data for $endBlockId: no sync is required") >>
+          (endSlotData, endSlotData).pure[F] // no sync is required at all
         case false =>
           state.bodyStore.contains(endSlotData.parentSlotId.blockId).flatMap {
             case true =>
+              Logger[F].debug(show"Build sync data for $endBlockId: sync for $endBlockId only") >>
               state.slotDataStore.getOrRaise(endSlotData.parentSlotId.blockId).map((_, endSlotData))
-            case false => buildLongSlotDataToSync(state, endSlotData)
+            case false =>
+              Logger[F].debug(show"Build sync data for $endBlockId: building long slot data chain") >>
+              buildLongSlotDataToSync(state, endSlotData)
           }
       }
     } yield (from, to)
@@ -203,12 +212,12 @@ object PeerBlockHeaderFetcher {
 
   // if newSlotDataOpt is defined then it will include blockId as well
   private def buildBlockSource[F[_]: Async](
-    state:          State[F],
-    blockSlotData:  SlotData,
-    newSlotDataOpt: Option[NonEmptyChain[SlotData]]
+    state:                State[F],
+    blockSlotData:        SlotData,
+    newBetterSlotDataOpt: Option[NonEmptyChain[SlotData]]
   ) =
     OptionT
-      .fromOption[F](newSlotDataOpt)
+      .fromOption[F](newBetterSlotDataOpt)
       .map(newSlotData => newSlotData.map(sd => (state.hostId, sd.slotId.blockId)))
       .orElseF {
         sourceOfAlreadyAdoptedBlockIsUseful(state, blockSlotData).ifM(
@@ -244,7 +253,7 @@ object PeerBlockHeaderFetcher {
     from:  SlotData,
     to:    SlotData
   ): F[List[SlotData]] =
-    getFromChainUntil[F, SlotData](
+    prependOnChainUntil[F, SlotData](
       s => s.pure[F],
       state.slotDataStore.getOrRaise,
       s => (s.slotId == from.slotId).pure[F]
@@ -285,7 +294,7 @@ object PeerBlockHeaderFetcher {
         getSlotDataFromStorageOrRemote(state)(id)
       }
 
-    getFromChainUntil(
+    prependOnChainUntil(
       (s: SlotData) => s.pure[F],
       getSlotData,
       (sd: SlotData) => state.slotDataStore.contains(sd.slotId.blockId)

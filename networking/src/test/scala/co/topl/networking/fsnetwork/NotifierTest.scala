@@ -81,7 +81,37 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-  test("Notifier shall correctly not started aggressiveP2P if it is disabled ") {
+  test("Notifier shall correctly started and doesn't send all notifications if configuration is wrong") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val config: P2PNetworkConfig =
+        P2PNetworkConfig(
+          NetworkProperties(
+            pingPongInterval = FiniteDuration(0, MILLISECONDS),
+            commonAncestorTrackInterval = FiniteDuration(0, MILLISECONDS),
+            warmHostsUpdateEveryNBlock = 0,
+            aggressiveP2P = true
+          ),
+          FiniteDuration(0, MILLISECONDS)
+        )
+      Notifier
+        .makeActor(peersManager, config)
+        .use { actor =>
+          for {
+            state <- actor.send(Notifier.Message.StartNotifications)
+            _ = assert(state.peersUpdateFiber.isEmpty)
+            _ = assert(state.networkQualityFiber.isEmpty)
+            _ = assert(state.slotNotificationFiber.isEmpty)
+            _ = assert(state.commonAncestorFiber.isEmpty)
+            _ = assert(state.aggressiveP2PFiber.isEmpty)
+            _ <- Async[F].delayBy(().pure[F], FiniteDuration(100, MILLISECONDS))
+          } yield ()
+        }
+    }
+  }
+
+  test("Notifier shall not start aggressiveP2P if it is disabled ") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
       (peersManager.sendNoWait _)

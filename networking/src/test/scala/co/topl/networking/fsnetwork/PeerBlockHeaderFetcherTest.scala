@@ -649,7 +649,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
     }
   }
 
-  test("New better slot data shall not be sent if local chain is better and block source is not interesting") {
+  test("New slot data shall not be sent if local chain is better by density and block source is not interesting") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
 
@@ -727,6 +727,301 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
+
+      PeerBlockHeaderFetcher
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          bodyStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          commonAncestorF
+        )
+        .use { actor =>
+          for {
+            state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
+  test("New slot data shall not be sent if we receive known worse block") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(2, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (knownId, knownSlotData) = idAndSlotData.last
+      val remoteSlotData = NonEmptyChain.fromChain(idAndSlotData.init).get
+
+      val (bestSlotId, _) = remoteSlotData.last
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
+      }
+      val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
+      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+        remoteHeightToBlockId.get(height).pure[F]
+      }
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val expectedMessage: RequestsProxy.Message =
+        RequestsProxy.Message.RemoteSlotData(hostId, remoteSlotData.map(_._2))
+      (requestsProxy.sendNoWait _).expects(expectedMessage).never()
+
+      val localChain = buildLocalChainAlgebra()
+      (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
+
+      val slotDataStoreMap = idAndSlotData.map { case (id, slot) => id -> slot }.toList.toMap
+
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+
+      (slotDataStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+          slotDataStoreMap(id).pure[F]
+        }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      val clock = mock[ClockAlgebra[F]]
+      (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
+
+      val blockHeights = mock[BlockHeights[F]]
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(bestSlotId.pure[F])
+
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
+
+      PeerBlockHeaderFetcher
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          bodyStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          commonAncestorF
+        )
+        .use { actor =>
+          for {
+            state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
+  test("New slot data shall not be sent if we receive unknown worse block: build long chain") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (_, knownSlotData) = idAndSlotData.last
+      val remoteSlotData =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(1L, 1L), idAndSlotData.head._2.some).arbitrary.first
+          .map(sd => sd.slotId.blockId -> sd)
+
+      val (bestSlotId, bestSlotData) = remoteSlotData.last
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
+      }
+      val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
+      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+        remoteHeightToBlockId.get(height).pure[F]
+      }
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val expectedMessage: RequestsProxy.Message =
+        RequestsProxy.Message.RemoteSlotData(hostId, remoteSlotData.map(_._2))
+      (requestsProxy.sendNoWait _).expects(expectedMessage).never()
+
+      val localChain = buildLocalChainAlgebra()
+      (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
+      (localChain.isWorseThan _).expects(bestSlotData).once().returning(false.pure[F])
+
+      val slotDataStoreMap = mutable.Map() ++ (idAndSlotData.map { case (id, slot) => id -> slot }.toList.toMap)
+
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _)
+        .expects(*, *)
+        .rep(remoteSlotData.size.toInt)
+        .onCall { case (id: BlockId, slotData: SlotData) =>
+          slotDataStoreMap.put(id, slotData).pure[F].void
+        }
+
+      (slotDataStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+          slotDataStoreMap(id).pure[F]
+        }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      val clock = mock[ClockAlgebra[F]]
+      (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
+
+      val blockHeights = mock[BlockHeights[F]]
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *, *).returning(idAndSlotData.head._1.pure[F])
+
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val knownBodies = idAndSlotData.map(_._1).toList.toSet
+      (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        knownBodies.contains(id).pure[F]
+      }
+
+      PeerBlockHeaderFetcher
+        .makeActor(
+          hostId,
+          client,
+          requestsProxy,
+          peersManager,
+          localChain,
+          slotDataStore,
+          bodyStore,
+          blockIdTree,
+          clock,
+          blockHeights,
+          commonAncestorF
+        )
+        .use { actor =>
+          for {
+            state <- actor.send(PeerBlockHeaderFetcher.Message.StartActor)
+            _     <- state.fetchingFiber.get.join
+          } yield ()
+        }
+    }
+  }
+
+  test("New slot data shall not be sent if we receive unknown worse block: one block chain") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val slotData: NonEmptyChain[SlotData] =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary.first
+      val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+      val (_, knownSlotData) = idAndSlotData.last
+      val remoteSlotData =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(0L, 0L), idAndSlotData.head._2.some).arbitrary.first
+          .map(sd => sd.slotId.blockId -> sd)
+
+      val (bestSlotId, bestSlotData) = remoteSlotData.last
+      val remoteIdToSlotData: Map[BlockId, SlotData] = remoteSlotData.toList.toMap
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getSlotDataOrError(_: BlockId, _: Throwable)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, e: BlockHeaderDownloadErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+          OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
+        }
+      (() => client.remotePeerAdoptions).expects().once().onCall { () =>
+        Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
+      }
+
+      val requestsProxy = mock[RequestsProxyActor[F]]
+      val expectedMessage: RequestsProxy.Message =
+        RequestsProxy.Message.RemoteSlotData(hostId, remoteSlotData.map(_._2))
+      (requestsProxy.sendNoWait _).expects(expectedMessage).never()
+
+      val localChain = buildLocalChainAlgebra()
+      (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
+      (localChain.isWorseThan _).expects(bestSlotData).once().returning(false.pure[F])
+
+      val slotDataStoreMap = mutable.Map() ++ (idAndSlotData.map { case (id, slot) => id -> slot }.toList.toMap)
+
+      val slotDataStore = mock[Store[F, BlockId, SlotData]]
+      (slotDataStore.get _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.get(id).pure[F]
+      }
+      (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        slotDataStoreMap.contains(id).pure[F]
+      }
+      (slotDataStore.put _)
+        .expects(*, *)
+        .rep(remoteSlotData.size.toInt)
+        .onCall { case (id: BlockId, slotData: SlotData) =>
+          slotDataStoreMap.put(id, slotData).pure[F].void
+        }
+
+      (slotDataStore
+        .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId] @unchecked))
+        .expects(*, *, *)
+        .anyNumberOfTimes()
+        .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+          slotDataStoreMap(id).pure[F]
+        }
+
+      val blockIdTree = mock[ParentChildTree[F, BlockId]]
+      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
+
+      val clock = mock[ClockAlgebra[F]]
+      (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
+
+      val blockHeights = mock[BlockHeights[F]]
+
+      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val knownBodies = idAndSlotData.map(_._1).toList.toSet
+      (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+        knownBodies.contains(id).pure[F]
+      }
 
       PeerBlockHeaderFetcher
         .makeActor(

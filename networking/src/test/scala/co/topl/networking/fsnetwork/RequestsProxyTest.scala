@@ -6,7 +6,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, SlotId}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
@@ -113,6 +113,35 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
             _ = assert(state2.headerRequests.underlying.asMap.get(header.id).value.get.blockHeader == header)
             state3 <- actor.send(RequestsProxy.Message.DownloadHeadersRequest(hostId, NonEmptyChain.one(header.id)))
             _ = assert(state3.headerRequests.underlying.asMap.get(header.id).value.get.blockHeader == header)
+          } yield ()
+        }
+    }
+  }
+
+  test("Slot data shall be resent to block checker if no data in proxy cache, so no second send") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+
+      val hostId = arbitraryHost.arbitrary.first
+      val slotData =
+        arbitraryLinkedSlotDataChainFor(Gen.choose(3L, 5L)).arbitrary.first
+
+      (blockChecker.sendNoWait _)
+        .expects(BlockChecker.Message.RemoteSlotData(hostId, slotData))
+        .once()
+        .returns(Applicative[F].unit)
+
+      RequestsProxy
+        .makeActor(peersManager, headerStore, bodyStore)
+        .use { actor =>
+          for {
+            _      <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
+            state1 <- actor.send(RequestsProxy.Message.RemoteSlotData(hostId, slotData))
+            _ = assert(state1.slotDataResponse.underlying.contains(slotData.last.slotId))
+            _ <- actor.send(RequestsProxy.Message.RemoteSlotData(hostId, slotData))
           } yield ()
         }
     }
@@ -633,13 +662,18 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
         Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Option[UnverifiedBlockBody]]()
       bodyRequests.put(arbitraryBlockId.arbitrary.first, None)
 
+      val slotDataResponse: Cache[SlotId, Entry[Unit]] =
+        Caffeine.newBuilder.maximumSize(requestCacheSize).build[SlotId, Entry[Unit]]()
+      slotDataResponse.put(arbitrarySlotId.arbitrary.first, Entry((), None))
+
       RequestsProxy
-        .makeActor(peersManager, headerStore, bodyStore, headerRequests, bodyRequests)
+        .makeActor(peersManager, headerStore, bodyStore, headerRequests, bodyRequests, slotDataResponse)
         .use { actor =>
           for {
             newState <- actor.send(RequestsProxy.Message.ResetRequestsProxy)
             _ = assert(newState.bodyRequests.underlying.asMap().isEmpty)
             _ = assert(newState.headerRequests.underlying.asMap().isEmpty)
+            _ = assert(newState.slotDataResponse.underlying.asMap().isEmpty)
           } yield ()
         }
 
