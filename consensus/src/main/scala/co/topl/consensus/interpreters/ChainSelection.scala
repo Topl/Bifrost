@@ -70,7 +70,7 @@ object ChainSelection {
     override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = {
       val densitySelection = (currentHeight - commonHeight) > kLookback
       if (densitySelection) {
-        (commonHeight + sWindow).pure[F]
+        Math.min(commonHeight + sWindow, proposedHeight).pure[F]
       } else {
         Math.min(currentHeight + kLookback, proposedHeight).pure[F]
       }

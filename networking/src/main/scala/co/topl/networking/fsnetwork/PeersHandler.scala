@@ -128,12 +128,21 @@ case class PeersHandler[F[_]: Async: Logger](
         val newPeers = (peers - oldId) + (newId -> peerForOldId)
         this.copy(peers = newPeers).pure[F]
       case (Some(peerForOldId), Some(outdatedPeer)) =>
-        val newPeers = (peers - oldId) + (newId -> peerForOldId)
-        Logger[F].warn(
-          show"Change id from $oldId to $newId but peer for $newId already exist, close outdated peer for $newId first"
-        ) >>
-        peerActorRelease(outdatedPeer) >>
-        this.copy(peers = newPeers).pure[F]
+        if (outdatedPeer.state == PeerState.Banned) {
+          val newPeers = peers - oldId
+          Logger[F].warn(
+            show"Change id from $oldId to $newId but peer $newId already exist and banned, close peer $peerForOldId"
+          ) >>
+          peerActorRelease(peerForOldId) >>
+          this.copy(peers = newPeers).pure[F]
+        } else {
+          val newPeers = (peers - oldId) + (newId -> peerForOldId)
+          Logger[F].warn(
+            show"Change id from $oldId to $newId but peer $newId already exist, close outdated peer $newId first"
+          ) >>
+          peerActorRelease(outdatedPeer) >>
+          this.copy(peers = newPeers).pure[F]
+        }
       case (None, _) =>
         Logger[F].error(show"Try to change id from $oldId to $newId but $oldId is not exist") >>
         Async[F].pure(this)
