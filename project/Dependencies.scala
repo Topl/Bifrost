@@ -197,7 +197,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val catsUtils: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++ Seq(fs2Core, fs2IO, fs2ReactiveStreams)
+    cats ++ catsEffect ++ logging ++ Seq(fs2Core, fs2IO, fs2ReactiveStreams) ++ mUnitTest
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++

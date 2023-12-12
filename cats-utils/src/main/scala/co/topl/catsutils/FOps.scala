@@ -2,9 +2,10 @@ package co.topl.catsutils
 
 import cats.Monad
 import cats.effect.{Async, Clock}
+import cats.effect.implicits._
 import org.typelevel.log4cats.Logger
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration._
 import scala.language.implicitConversions
 
 trait FOps {
@@ -61,23 +62,15 @@ class FAClockOps[F[_], A](val fa: F[A]) extends AnyVal {
     fAsync:  Async[F],
     fLogger: Logger[F]
   ): F[A] =
-    fs2.Stream
-      .eval(fa)
-      .concurrently(
-        fs2.Stream
-          .eval[F, FiniteDuration](fAsync.realTime)
-          .evalTap(_ => fAsync.delayBy(().pure[F], threshold))
-          .flatMap(start =>
-            fs2.Stream
-              .awakeEvery[F](logTick)
-              .evalTap(_ =>
-                fAsync.realTime
-                  .flatMap(now =>
-                    Logger[F].warn(s"$operationName is slow.  Elapsed duration=${(now - start).toMillis}ms")
-                  )
-              )
-          )
+    fAsync.realTime
+      .flatTap(_ => fAsync.delayBy(().pure[F], threshold))
+      .flatMap(start =>
+        fAsync.realTime
+          .flatMap(now => fLogger.warn(s"$operationName is slow.  Elapsed duration=${(now - start).toMillis}ms"))
+          .andWait(logTick)
+          .void
+          .foreverM[Unit]
       )
-      .compile
-      .lastOrError
+      .background
+      .surround(fa)
 }
