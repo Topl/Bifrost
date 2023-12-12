@@ -23,6 +23,7 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
+import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.PeersManagerTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, arbitraryRemoteAddress}
@@ -151,19 +152,91 @@ class PeersManagerTest
       newRep
     )
 
+  case class PeerManagerMockData(
+    thisHostId:                  HostId,
+    networkAlgebra:              NetworkAlgebra[F],
+    localChain:                  LocalChainAlgebra[F],
+    slotDataStore:               Store[F, BlockId, SlotData],
+    bodyStore:                   Store[F, BlockId, BlockBody],
+    transactionStore:            Store[F, TransactionId, IoTransaction],
+    blockIdTree:                 ParentChildTree[F, BlockId],
+    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    mempool:                     MempoolAlgebra[F],
+    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
+    newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
+    p2pConfig:                   P2PNetworkConfig,
+    hotPeersUpdate:              Set[RemotePeer] => F[Unit],
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
+    coldToWarmSelector:          SelectorColdToWarm[F],
+    warmToHotSelector:           SelectorWarmToHot[F],
+    initialPeers:                Map[HostId, Peer[F]],
+    blockSource:                 Cache[BlockId, Set[HostId]]
+  )
+
+  private def buildDefaultMockData(
+    networkAlgebra:         NetworkAlgebra[F] = mock[NetworkAlgebra[F]],
+    p2pConfig:              P2PNetworkConfig = defaultP2PConfig,
+    hotPeersUpdate:         Set[RemotePeer] => F[Unit] = defaultHotPeerUpdater,
+    savePeersFunction:      Set[KnownRemotePeer] => F[Unit] = defaultPeersSaver,
+    coldToWarmSelector:     SelectorColdToWarm[F] = defaultColdToWarmSelector,
+    warmToHotSelector:      SelectorWarmToHot[F] = defaultWarmToHotSelector,
+    initialPeers:           Map[HostId, Peer[F]] = Map.empty,
+    newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]],
+    blockSource:            Cache[BlockId, Set[HostId]] = defaultCache()
+  ): PeerManagerMockData =
+    PeerManagerMockData(
+      thisHostId,
+      networkAlgebra = networkAlgebra,
+      localChain = mock[LocalChainAlgebra[F]],
+      slotDataStore = mock[Store[F, BlockId, SlotData]],
+      bodyStore = defaultBodyStorage,
+      transactionStore = mock[Store[F, TransactionId, IoTransaction]],
+      blockIdTree = mock[ParentChildTree[F, BlockId]],
+      blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
+      mempool = mock[MempoolAlgebra[F]],
+      headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]],
+      transactionSyntaxValidation = defaultTransactionSyntaxValidation,
+      newPeerCreationAlgebra = newPeerCreationAlgebra,
+      p2pConfig = p2pConfig,
+      hotPeersUpdate = hotPeersUpdate,
+      savePeersFunction = savePeersFunction,
+      coldToWarmSelector = coldToWarmSelector,
+      warmToHotSelector = warmToHotSelector,
+      initialPeers = initialPeers,
+      blockSource = blockSource
+    )
+
+  private def buildActorFromMockData(
+    mockData:           PeerManagerMockData,
+    dnsResolver:        DnsResolver[F] = implicitly[DnsResolver[F]],
+    reverseDnsResolver: ReverseDnsResolver[F] = implicitly[ReverseDnsResolver[F]]
+  ): Resource[F, PeersManagerActor[F]] =
+    PeersManager
+      .makeActor(
+        mockData.thisHostId,
+        mockData.networkAlgebra,
+        mockData.localChain,
+        mockData.slotDataStore,
+        mockData.bodyStore,
+        mockData.transactionStore,
+        mockData.blockIdTree,
+        mockData.blockHeights,
+        mockData.mempool,
+        mockData.headerToBodyValidation,
+        mockData.transactionSyntaxValidation,
+        mockData.newPeerCreationAlgebra,
+        mockData.p2pConfig,
+        mockData.hotPeersUpdate,
+        mockData.savePeersFunction,
+        mockData.coldToWarmSelector,
+        mockData.warmToHotSelector,
+        mockData.initialPeers,
+        mockData.blockSource
+      )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dnsResolver, reverseDnsResolver)
+
   test("Get current tips request shall be forwarded if application level is enabled") {
     withMock {
-
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val coldPeer = mockPeerActor[F]()
 
       val warmPeer = mockPeerActor[F]()
@@ -183,28 +256,8 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Banned, Option(banedPeer))
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.GetCurrentTips)
@@ -215,16 +268,6 @@ class PeersManagerTest
 
   test("Get network quality shall be forwarded to warm hosts") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       arbitraryHost.arbitrary.first
       val coldPeer = mockPeerActor[F]()
 
@@ -248,28 +291,8 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Banned, Option(banedPeer))
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.GetNetworkQualityForWarmHosts)
@@ -280,18 +303,6 @@ class PeersManagerTest
 
   test("Track common ancestor shall be forwarded to all connections") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
-      import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
-      (() => localChain.head).expects().once().returns(arbitrarySlotData.arbitrary.first.pure[F])
       arbitraryHost.arbitrary.first
       val coldPeer = mockPeerActor[F]()
       (coldPeer.sendNoWait _)
@@ -315,6 +326,9 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Hot),
           buildSimplePeerEntry(PeerState.Banned)
         )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
+      (() => mockData.localChain.head).expects().once().returns(arbitrarySlotData.arbitrary.first.pure[F])
 
       val requestsProxy = mock[RequestsProxyActor[F]]
       (() => requestsProxy.mailboxSize()).expects().once().returns(0.pure[F])
@@ -322,50 +336,18 @@ class PeersManagerTest
       val blockChecker = mock[BlockCheckerActor[F]]
       (() => blockChecker.mailboxSize()).expects().once().returns(0.pure[F])
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
-        .use { actor =>
-          for {
-            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestsProxy))
-            _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
-            _ <- actor.send(PeersManager.Message.PrintP2PState)
-          } yield ()
-        }
+      buildActorFromMockData(mockData).use { actor =>
+        for {
+          _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestsProxy))
+          _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+          _ <- actor.send(PeersManager.Message.PrintP2PState)
+        } yield ()
+      }
     }
   }
 
   test("Banned peer shall be stopped and appropriate state shall be set") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val host1 = arbitraryHost.arbitrary.first
       val peerActor1 = mockPeerActor[F]()
       (peerActor1.sendNoWait _)
@@ -381,28 +363,8 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Cold, Option(peerActor2), host2, remoteNetworkLevel = false)
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             preTimestamp <- System.currentTimeMillis().pure[F]
@@ -422,16 +384,6 @@ class PeersManagerTest
 
   test("Peer moved to closed state shall be stopped and appropriate state shall be set") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val peerActor = mockPeerActor[F]()
       (peerActor.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
@@ -445,28 +397,8 @@ class PeersManagerTest
           closedTimestamps = Seq(System.currentTimeMillis())
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             preTimestamp <- System.currentTimeMillis().pure[F]
@@ -484,16 +416,6 @@ class PeersManagerTest
 
   test("Peer moved to cold state shall be stopped and appropriate state shall be set") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val host1 = arbitraryHost.arbitrary.first
       val peerActor1 = mockPeerActor[F]()
       (peerActor1.sendNoWait _)
@@ -523,28 +445,8 @@ class PeersManagerTest
           )
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             preTimestamp <- System.currentTimeMillis().pure[F]
@@ -570,17 +472,6 @@ class PeersManagerTest
 
   test("Peer moved to cold state shall be stopped closed timestamp shall be updated correctly") {
     withMock {
-
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val peerActor = mockPeerActor[F]()
       (peerActor.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
@@ -588,35 +479,15 @@ class PeersManagerTest
 
       val timeoutWindows = 1000
       val initialPeersMap =
-        Map.empty[HostId, Peer[F]] + (buildSimplePeerEntry(
+        Map.empty[HostId, Peer[F]] + buildSimplePeerEntry(
           PeerState.Hot,
           Option(peerActor),
           hostId,
           closedTimestamps = Seq(0, 200, System.currentTimeMillis() - timeoutWindows - 1, System.currentTimeMillis())
-        ))
-
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig.copy(networkProperties = NetworkProperties(closeTimeoutWindowInMs = timeoutWindows)),
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
         )
+
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             preTimestamp <- System.currentTimeMillis().pure[F]
@@ -633,16 +504,6 @@ class PeersManagerTest
 
   test("Reputation update: If no warm peer then move cold peer(s) to warm") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
           NetworkProperties(maximumWarmConnections = 2, minimumHotConnections = 0)
@@ -660,31 +521,10 @@ class PeersManagerTest
       val host3Id = arbitraryHost.arbitrary.first
       DisconnectedPeer(host3Ra, host3Id.id.some)
 
-      (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).returns(().pure[F])
-      (newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
-
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeers = Map.empty[HostId, Peer[F]],
-          blockSource = defaultCache()
-        )
+      val mockData = buildDefaultMockData(p2pConfig = p2pConfig)
+      (mockData.newPeerCreationAlgebra.requestNewPeerCreation _).expects(host1).returns(().pure[F])
+      (mockData.newPeerCreationAlgebra.requestNewPeerCreation _).expects(host2).returns(().pure[F])
+      buildActorFromMockData(mockData)
         .use { actor =>
           val peers =
             NonEmptyChain(
@@ -709,15 +549,7 @@ class PeersManagerTest
 
   test("Reputation update: If no warm peer then move eligible cold peer(s) with port or actor to warm") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
@@ -761,28 +593,12 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Cold, host7Actor.some, host7Id, host7Ra)
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(
+        p2pConfig = p2pConfig,
+        initialPeers = initialPeersMap,
+        newPeerCreationAlgebra = newPeerCreationAlgebra
+      )
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
 
@@ -801,15 +617,7 @@ class PeersManagerTest
 
   test("Reputation update: Empty reputation update, cold to warm, warm NOT to hot because no actor yet") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
@@ -837,28 +645,12 @@ class PeersManagerTest
         .expects(DisconnectedPeer(host2Ra, host2Id.id.some))
         .returns(().pure[F])
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(
+        p2pConfig = p2pConfig,
+        initialPeers = initialPeersMap,
+        newPeerCreationAlgebra = newPeerCreationAlgebra
+      )
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
@@ -872,16 +664,6 @@ class PeersManagerTest
 
   test("Aggressive P2P: move some warm peers to hot") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties = NetworkProperties(aggressiveP2PCount = 1))
 
@@ -906,28 +688,8 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Warm, None, host3Id, host3Ra, blockRep = 0.1)
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(p2pConfig = p2pConfig, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             withUpdate <- actor.send(PeersManager.Message.AggressiveP2PUpdate)
@@ -942,16 +704,6 @@ class PeersManagerTest
 
   test("Reputation update: Update reputation for eligible peers only") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
           NetworkProperties(maximumWarmConnections = 0, minimumHotConnections = 0)
@@ -998,28 +750,8 @@ class PeersManagerTest
           )
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(p2pConfig = p2pConfig, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
@@ -1043,15 +775,7 @@ class PeersManagerTest
 
   test("Reputation update: If no warm peer then move only eligible by timeout and port cold peer(s) to warm") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties =
           NetworkProperties(maximumWarmConnections = 5, minimumHotConnections = 0)
@@ -1125,33 +849,12 @@ class PeersManagerTest
           buildPeerEntry(host7Id, PeerState.Cold, None, host7Ra.some, closedTimestamps = Seq.empty)
         )
 
-      val selector = new SelectorColdToWarm[F] {
-        override def select(hosts: Map[HostId, Peer[F]], countToReceive: Int): Set[HostId] =
-          hosts.keys.take(countToReceive).toSet
-      }
-
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          selector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(
+        p2pConfig = p2pConfig,
+        newPeerCreationAlgebra = newPeerCreationAlgebra,
+        initialPeers = initialPeersMap
+      )
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
 
@@ -1170,15 +873,6 @@ class PeersManagerTest
 
   test("Adding cold peer: ignore banned peers") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties = NetworkProperties(maximumWarmConnections = 2))
 
@@ -1198,28 +892,8 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Cold, None, host3Id, host3Ra)
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(p2pConfig = p2pConfig, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           val peers: NonEmptyChain[KnownRemotePeer] = NonEmptyChain(
             KnownRemotePeer(host1Id, host1Ra, 0, 0),
@@ -1243,16 +917,6 @@ class PeersManagerTest
 
   test("Reputation update: close opened hot connections") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("first", 1)
       val peer1 = mockPeerActor[F]()
@@ -1358,28 +1022,8 @@ class PeersManagerTest
         .once()
         .returns(().pure[F])
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          hotUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(hotPeersUpdate = hotUpdater, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
@@ -1409,15 +1053,7 @@ class PeersManagerTest
   test("Fully closed peer and then open it again shall create new peer actor") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val client1 = mock[BlockchainPeerClient[F]]
       val client2 = mock[BlockchainPeerClient[F]]
@@ -1432,7 +1068,7 @@ class PeersManagerTest
         .returns(
           Resource
             .pure(peer1)
-            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnection)))
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
         ) // simulate real actor finalizer
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
@@ -1444,7 +1080,7 @@ class PeersManagerTest
         .expects()
         .once()
         .returns(KnownHost(host1Id.id, host1Ra.host, host1Ra.port).some.pure[F])
-      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnection).returns(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returns(Applicative[F].unit)
 
       (networkAlgebra.makePeer _)
         .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
@@ -1462,30 +1098,8 @@ class PeersManagerTest
         .once()
         .returns(KnownHost(host1Id.id, host1Ra.host, secondRemoteServerPort).some.pure[F])
 
-      val initialPeersMap: Map[HostId, Peer[F]] = Map.empty
-
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(networkAlgebra = networkAlgebra)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
@@ -1514,15 +1128,7 @@ class PeersManagerTest
   test("Cold peer and then incoming new connection shall create new peer actor") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val client1 = mock[BlockchainPeerClient[F]]
       val host1Id = arbitraryHost.arbitrary.first
@@ -1535,7 +1141,7 @@ class PeersManagerTest
         .returns(
           Resource
             .pure(peer1)
-            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnection)))
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
         ) // simulate real actor finalizer
       (() => client1.remotePeerAsServer)
         .expects()
@@ -1547,36 +1153,17 @@ class PeersManagerTest
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
-      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnection).returns(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returns(Applicative[F].unit)
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(buildSimplePeerEntry(PeerState.Cold, None, host1Id, host1Ra, remoteNetworkLevel = false))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(networkAlgebra = networkAlgebra, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            initialState <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            _ = assert(initialState.peersHandler(host1Id).state == PeerState.Cold)
             withUpdate <- actor.send(
               buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id))
             )
@@ -1589,17 +1176,86 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: move warm to hot") {
+  test("Create new peer actor, if error during receiving remote peer server address then leave it empty") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+
+      val client1 = mock[BlockchainPeerClient[F]]
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("first", 1)
+      val peer1 = mockPeerActor[F]()
+
+      (networkAlgebra.makePeer _)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .once()
+        .returns(
+          Resource
+            .pure(peer1)
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
+        ) // simulate real actor finalizer
+      val connectedPeer = ConnectedPeer(host1Ra, host1Id.id)
+      (() => client1.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer.pure[F])
+
+      KnownHost(connectedPeer.p2pVK, connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
+      (() => client1.remotePeerAsServer).stubs().returns(Async[F].delay(throw new RuntimeException()))
+      PeersManager.Message.OpenedPeerConnection(client1)
+
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returns(Applicative[F].unit)
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.GetNetworkQuality)
+        .returns(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returns(Applicative[F].unit)
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(buildSimplePeerEntry(PeerState.Cold, None, host1Id, host1Ra, remoteNetworkLevel = false))
+
+      val mockData = buildDefaultMockData(networkAlgebra = networkAlgebra, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            initialState <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            _ = assert(initialState.peersHandler(host1Id).state == PeerState.Cold)
+            withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(client1))
+            _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Cold)
+            _ = assert(withUpdate.peersHandler(host1Id).asServer.isEmpty)
+            _ = assert(withUpdate.peersHandler(host1Id).actorOpt.get == peer1)
+          } yield ()
+        }
+    }
+  }
+
+  test("Self connection shall be declined") {
+    withMock {
+      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+
+      val client1 = mock[BlockchainPeerClient[F]]
+      (() => client1.closeConnection()).expects().returning(Applicative[F].unit)
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("first", 1)
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(buildSimplePeerEntry(PeerState.Cold, None, host1Id, host1Ra, remoteNetworkLevel = false))
+
+      val mockData = buildDefaultMockData(networkAlgebra = networkAlgebra, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            withUpdate <- actor.send(
+              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(RemoteAddress("second", 1), thisHostId.id))
+            )
+            _ = assert(withUpdate.peersHandler(thisHostId).state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
+  test("Reputation update: move warm to hot") {
+    withMock {
       val p2pConfig: P2PNetworkConfig =
         defaultP2PConfig.copy(networkProperties = NetworkProperties(minimumHotConnections = 2))
 
@@ -1670,28 +1326,9 @@ class PeersManagerTest
         .once()
         .returns(().pure[F]) // skip host1, because it have no server port
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          p2pConfig,
-          hotUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData =
+        buildDefaultMockData(p2pConfig = p2pConfig, initialPeers = initialPeersMap, hotPeersUpdate = hotUpdater)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
@@ -1714,16 +1351,8 @@ class PeersManagerTest
     withMock {
 
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val blockChecker = mock[BlockCheckerActor[F]]
-      val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
+      val blockChecker: BlockCheckerActor[F] = mock[BlockCheckerActor[F]]
+      val requestProxy: RequestsProxyActor[F] = mock[RequestsProxyActor[F]]
 
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("1", 1)
@@ -1869,28 +1498,8 @@ class PeersManagerTest
         )
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, networkAlgebra = networkAlgebra)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _          <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -1938,16 +1547,8 @@ class PeersManagerTest
   test("Receiving remote network level shall update it and sometimes close connection") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("1", 1)
@@ -1972,28 +1573,8 @@ class PeersManagerTest
         buildSimplePeerEntry(PeerState.Hot, Option(peer4), host4Id, host4Ra, closedTimestamps = Seq(5))
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(networkAlgebra = networkAlgebra, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _          <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2021,17 +1602,8 @@ class PeersManagerTest
 
   test("Finalized actor shall write non-banned hosts by using their hostnames") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val host1Id = arbitraryHost.arbitrary.first
       val host1 = "host1"
@@ -2083,28 +1655,8 @@ class PeersManagerTest
       (writingHosts.apply _).expects(expectedHosts).once().returns(().pure[F])
 
       implicit val dummyReverseReverseDns: ReverseDnsResolver[F] = (h: String) => h.reverse.pure[F]
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          writingHosts,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dummyDns, dummyReverseReverseDns)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, savePeersFunction = writingHosts)
+      buildActorFromMockData(mockData, dummyDns, dummyReverseReverseDns)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2116,18 +1668,8 @@ class PeersManagerTest
 
   test("Add known neighbours shall correctly filter out special IP addresses and local address") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val someHost = arbitraryHost.arbitrary.first
 
@@ -2152,28 +1694,8 @@ class PeersManagerTest
       val peersToAdd: NonEmptyChain[KnownRemotePeer] =
         remoteAddresses.map(rp => KnownRemotePeer(rp.peerId, rp.address, 0, 0))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          Map.empty,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData()
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _            <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2194,18 +1716,8 @@ class PeersManagerTest
 
   test("Add known neighbours shall correctly set last known reputation based on source") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val address1Id = arbitraryHost.arbitrary.first
       val address1 = RemoteAddress("10.0.0.1", 1)
@@ -2226,28 +1738,8 @@ class PeersManagerTest
 
       val neighbours = NonEmptyChain(RemotePeer(address1Id, address1), RemotePeer(address2Id, address2))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _            <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2266,18 +1758,8 @@ class PeersManagerTest
 
   test("Request for block header download shall be sent to one of the peers") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val blockHeader1 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
       val blockHeader2 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
@@ -2294,8 +1776,7 @@ class PeersManagerTest
           blockHeader2.id -> Set(blockSource, warmPeer, coldPeer, preWarmPeer, bannedPeer)
         )
 
-      val initialCash =
-        defaultCache()
+      val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
@@ -2313,28 +1794,8 @@ class PeersManagerTest
       val messageToSend =
         PeersManager.Message.BlockHeadersRequest(None, NonEmptyChain(blockHeader1.id, blockHeader2.id))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          initialCash
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = initialCash)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2348,18 +1809,8 @@ class PeersManagerTest
 
   test("Request for block header download shall be sent to one of the peers if only hint is available") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val blockHeader1 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
       val blockHeader2 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
@@ -2368,8 +1819,7 @@ class PeersManagerTest
 
       val blockWithSource: Map[BlockId, Set[HostId]] = Map()
 
-      val initialCash =
-        defaultCache()
+      val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
@@ -2381,28 +1831,8 @@ class PeersManagerTest
       val messageToSend =
         PeersManager.Message.BlockHeadersRequest(Option(blockSource), NonEmptyChain(blockHeader1.id, blockHeader2.id))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          initialCash
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = initialCash)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2416,18 +1846,8 @@ class PeersManagerTest
 
   test("Request for block header download shall not be sent to one of the peers because of bad peer state") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val blockHeader1 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
       val blockHeader2 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
@@ -2443,8 +1863,7 @@ class PeersManagerTest
           blockHeader2.id -> Set(warmPeer, coldPeer, preWarmPeer, bannedPeer)
         )
 
-      val initialCash =
-        defaultCache()
+      val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
@@ -2463,28 +1882,8 @@ class PeersManagerTest
           NonEmptyChain(blockHeader1.id, blockHeader2.id)
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          initialCash
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = initialCash)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2498,18 +1897,8 @@ class PeersManagerTest
 
   test("Request for block download shall be sent to one of the peers") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val blockHeader1 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
       val blockHeader2 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
@@ -2526,8 +1915,7 @@ class PeersManagerTest
           blockHeader2.id -> Set(blockSource, warmPeer, coldPeer, preWarmPeer, bannedPeer)
         )
 
-      val initialCash =
-        defaultCache()
+      val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
@@ -2545,28 +1933,8 @@ class PeersManagerTest
       val messageToSend =
         PeersManager.Message.BlockBodyRequest(None, NonEmptyChain(blockHeader1, blockHeader2))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          initialCash
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = initialCash)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2580,18 +1948,8 @@ class PeersManagerTest
 
   test("Request for block download shall be sent to one of the peers if only hint is available") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val blockHeader1 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
       val blockHeader2 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
@@ -2600,8 +1958,7 @@ class PeersManagerTest
 
       val blockWithSource: Map[BlockId, Set[HostId]] = Map()
 
-      val initialCash =
-        defaultCache()
+      val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
@@ -2613,28 +1970,8 @@ class PeersManagerTest
       val messageToSend =
         PeersManager.Message.BlockBodyRequest(Option(blockSource), NonEmptyChain(blockHeader1, blockHeader2))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          initialCash
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = initialCash)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2648,18 +1985,8 @@ class PeersManagerTest
 
   test("Request for block download shall not be sent to one of the peers because of bad peer state") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val blockHeader1 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
       val blockHeader2 = ModelGenerators.arbitraryHeader.arbitrary.first.embedId
@@ -2675,8 +2002,7 @@ class PeersManagerTest
           blockHeader2.id -> Set(warmPeer, coldPeer, preWarmPeer, bannedPeer)
         )
 
-      val initialCash =
-        defaultCache()
+      val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
@@ -2695,28 +2021,8 @@ class PeersManagerTest
           NonEmptyChain(blockHeader1, blockHeader2)
         )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          initialCash
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = initialCash)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2730,18 +2036,8 @@ class PeersManagerTest
 
   test("Correct pong message shall be processed") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val initBlock = 0.1
       val initNovelty = 1
@@ -2757,28 +2053,8 @@ class PeersManagerTest
       )
 
       val delay = 230L
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2795,18 +2071,8 @@ class PeersManagerTest
 
   test("NoPongMessage message shall be processed") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val initBlock = 0.1
       val initNovelty = 1
@@ -2821,28 +2087,8 @@ class PeersManagerTest
         )
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2857,18 +2103,8 @@ class PeersManagerTest
 
   test("IncorrectPongMessage message shall be processed") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val initBlock = 0.1
       val initNovelty = 1
@@ -2883,28 +2119,8 @@ class PeersManagerTest
         )
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2919,18 +2135,8 @@ class PeersManagerTest
 
   test("IncorrectBlock message shall be processed") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
       val blockChecker = mock[BlockCheckerActor[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val initBlock = 0.1
       val initNovelty = 1
@@ -2945,28 +2151,8 @@ class PeersManagerTest
         )
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
@@ -2979,19 +2165,40 @@ class PeersManagerTest
     }
   }
 
+  test("Non critical error message shall be processed") {
+    withMock {
+      val blockChecker = mock[BlockCheckerActor[F]]
+      val requestProxy = mock[RequestsProxyActor[F]]
+
+      val peerActor = mockPeerActor[F]()
+      (peerActor.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returning(Applicative[F].unit)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        buildSimplePeerEntry(
+          PeerState.Hot,
+          Option(peerActor),
+          hostId
+        )
+      )
+
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            newState <- actor.send(PeersManager.Message.NonCriticalErrorForHost(hostId))
+            peer = newState.peersHandler(hostId)
+            _ = assert(peer.state == PeerState.Cold)
+          } yield ()
+        }
+    }
+  }
+
   test("Performance reputation after header downloading shall be updated") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val initBlock = 0.1
       val initPerf = 0.5
       val initNovelty = 1
@@ -3009,28 +2216,8 @@ class PeersManagerTest
       val downloadTime = 120
       val reputation = PeersManager.delayToReputation(defaultP2PConfig, downloadTime)
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             newState <- actor.send(PeersManager.Message.DownloadTimeHeader(hostId, downloadTime))
@@ -3046,17 +2233,6 @@ class PeersManagerTest
   test("Performance reputation after body downloading shall be updated") {
     PropF.forAllF { (txTimes: Seq[Long]) =>
       withMock {
-        val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-        val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-        val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-        val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-        val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-        val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-        val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-          mock[BlockHeaderToBodyValidationAlgebra[F]]
-        val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-        val mempool = mock[MempoolAlgebra[F]]
-
         val initBlock = 0.1
         val initPerf = 0.5
         val initNovelty = 1
@@ -3075,28 +2251,8 @@ class PeersManagerTest
         val txDownloadTime: Seq[Long] = txTimes.filter(_ > 0)
         val reputation = PeersManager.delayToReputation(defaultP2PConfig, (txDownloadTime :+ downloadTime).max)
 
-        PeersManager
-          .makeActor(
-            thisHostId,
-            networkAlgebra,
-            localChain,
-            slotDataStore,
-            defaultBodyStorage,
-            transactionStore,
-            blockIdTree,
-            blockHeights,
-            mempool,
-            headerToBodyValidation,
-            defaultTransactionSyntaxValidation,
-            newPeerCreationAlgebra,
-            defaultP2PConfig,
-            defaultHotPeerUpdater,
-            defaultPeersSaver,
-            defaultColdToWarmSelector,
-            defaultWarmToHotSelector,
-            initialPeersMap,
-            defaultCache()
-          )
+        val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+        buildActorFromMockData(mockData)
           .use { actor =>
             for {
               newState <- actor.send(PeersManager.Message.DownloadTimeBody(hostId, downloadTime, txDownloadTime))
@@ -3112,28 +2268,20 @@ class PeersManagerTest
 
   test("Block providing reputation: take better value from update and current value") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val host1 = arbitraryHost.arbitrary.first
       val host2 = arbitraryHost.arbitrary.first
       val host3 = arbitraryHost.arbitrary.first
       val host4 = arbitraryHost.arbitrary.first
       val host5 = arbitraryHost.arbitrary.first
+      val host6 = arbitraryHost.arbitrary.first
+      val host7 = arbitraryHost.arbitrary.first
 
       val blockId1 = arbitraryBlockId.arbitrary.first
       val blockId2 = arbitraryBlockId.arbitrary.first
       val blockId3 = arbitraryBlockId.arbitrary.first
       val blockId4 = arbitraryBlockId.arbitrary.first
       val blockId5 = arbitraryBlockId.arbitrary.first
+      val blockId6 = arbitraryBlockId.arbitrary.first
 
       val worstedKnownSources = 4L
       val worstedReputation = PeersManager.knownSourcesToReputation(defaultP2PConfig, worstedKnownSources)
@@ -3159,7 +2307,10 @@ class PeersManagerTest
         host3 -> blockId3,
         host3 -> blockId4,
         host4 -> blockId4,
-        host5 -> blockId5
+        host5 -> blockId5,
+        host3 -> blockId6,
+        host6 -> blockId2,
+        host7 -> blockId2
       )
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
@@ -3167,42 +2318,26 @@ class PeersManagerTest
         buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host2, blockRep = worstReputation),
         buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host3, blockRep = worstReputation),
         buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host4, blockRep = worstReputation),
-        buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host5, blockRep = worstedReputation)
+        buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host5, blockRep = worstedReputation),
+        buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host6, blockRep = bestReputation),
+        buildSimplePeerEntry(PeerState.Hot, Option(mockPeerActor[F]()), host7, blockRep = bestReputation)
       )
 
       val cache = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
       cache.put(blockId5, Set(host1, host2, host3))
+      cache.put(blockId2, Set(host7))
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          cache
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, blockSource = cache)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             res <- actor.send(PeersManager.Message.BlocksSource(update))
             _ = assert(res.peersHandler(host1).blockRep == bestReputation)
             _ = assert(res.peersHandler(host2).blockRep == okReputation)
-            _ = assert(res.peersHandler(host3).blockRep == worstReputation)
+            _ = assert(res.peersHandler(host3).blockRep == bestReputation)
             _ = assert(res.peersHandler(host4).blockRep == worstReputation)
             _ = assert(res.peersHandler(host5).blockRep == worstedReputation)
+            _ = assert(res.peersHandler(host6).blockRep == bestReputation)
           } yield ()
         }
     }
@@ -3210,17 +2345,6 @@ class PeersManagerTest
 
   test("Move remote peer to cold if remote host provide bad k lookback slot data") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val peerActor = mockPeerActor[F]()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(buildSimplePeerEntry(PeerState.Hot, Option(peerActor), hostId))
 
@@ -3228,28 +2352,8 @@ class PeersManagerTest
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             newState <- actor.send(PeersManager.Message.BadKLookbackSlotData(hostId))
@@ -3261,17 +2365,6 @@ class PeersManagerTest
 
   test("Cold peers and close timestamps shall be cleared") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val host1Id = arbitraryHost.arbitrary.first
       val host1 = "1"
       val hostServer1Port = 2
@@ -3326,28 +2419,8 @@ class PeersManagerTest
         )
 
       val config = defaultP2PConfig.copy(networkProperties = networkConfig)
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          config,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             newState <- actor.send(PeersManager.Message.UpdatePeersTick)
@@ -3365,19 +2438,77 @@ class PeersManagerTest
     }
   }
 
+  test("Warm peers shall be requested") {
+    withMock {
+      val maximumWarmConnections = 3
+
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val hostServer1Port = 2
+      val host1Ra = RemoteAddress(host1, hostServer1Port)
+      val actor1 = mock[PeerActor[F]]
+      (actor1.sendNoWait _)
+        .expects(PeerActor.Message.GetHotPeersFromPeer(maximumWarmConnections))
+        .returning(Applicative[F].unit)
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(buildSimplePeerEntry(PeerState.Hot, actor1.some, host1Id, host1Ra))
+
+      val networkConfig = defaultP2PConfig.networkProperties.copy(maximumWarmConnections = maximumWarmConnections)
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
+            _ = assert(newState.peersHandler.getHotPeers.size == 1)
+          } yield ()
+        }
+    }
+  }
+
+  test("Warm peers shall not be requested if enough warm peers are present") {
+    withMock {
+      val maximumWarmConnections = 1
+
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val hostServer1Port = 2
+      val host1Ra = RemoteAddress(host1, hostServer1Port)
+      val actor1 = mock[PeerActor[F]]
+      (actor1.sendNoWait _)
+        .expects(PeerActor.Message.GetHotPeersFromPeer(maximumWarmConnections))
+        .never()
+        .returning(Applicative[F].unit)
+
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+      val hostServer2Port = 2
+      val host2Ra = RemoteAddress(host2, hostServer2Port)
+      val actor2 = mock[PeerActor[F]]
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        buildSimplePeerEntry(PeerState.Hot, actor1.some, host1Id, host1Ra),
+        buildSimplePeerEntry(PeerState.Warm, actor2.some, host2Id, host2Ra)
+      )
+
+      val networkConfig = defaultP2PConfig.networkProperties.copy(maximumWarmConnections = maximumWarmConnections)
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
+            _ = assert(newState.peersHandler.getHotPeers.size == 1)
+          } yield ()
+        }
+    }
+  }
+
   test("Updated remote node id shall be processed: normal id change") {
     withMock {
-      val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
       val host1IdOld = arbitraryHost.arbitrary.first
       val host1IdNew = arbitraryHost.arbitrary.first
       val host1 = "1"
@@ -3410,28 +2541,8 @@ class PeersManagerTest
         )
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             newState <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1IdOld, host1IdNew))
@@ -3444,18 +2555,57 @@ class PeersManagerTest
     }
   }
 
+  test("Updated remote node id shall be processed: non exist id change") {
+    withMock {
+      val host1IdOld = arbitraryHost.arbitrary.first
+      val host1IdNew = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val host1Peer = Peer(
+        PeerState.Warm,
+        None,
+        RemoteAddress(host1, 1).some,
+        None,
+        Seq.empty,
+        remoteNetworkLevel = true,
+        0,
+        0.0,
+        0
+      )
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        host1IdOld -> host1Peer,
+        host2Id -> Peer(
+          PeerState.Cold,
+          None,
+          RemoteAddress(host2, 2).some,
+          asServer(RemoteAddress(host2, 2)),
+          Seq(0),
+          remoteNetworkLevel = true,
+          0,
+          0.0,
+          0
+        )
+      )
+
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1IdNew, host1IdOld))
+            _ = assert(newState.peersHandler.peers.size == initialPeersMap.size + 1) // +1 because of self-banned peer
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler.peers.contains(host1IdOld))
+            _ = assert(newState.peersHandler.peers(host1IdOld) == host1Peer)
+          } yield ()
+        }
+    }
+  }
+
   test("Updated remote node id shall be processed: close peer if try to update the peer id to already exist peer") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("1", 1)
@@ -3470,41 +2620,21 @@ class PeersManagerTest
         .returns(
           Resource
             .pure(peer1)
-            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnection)))
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
         ) // simulate real actor finalizer
 
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returning(Applicative[F].unit)
       (peer1.sendNoWait _).expects(PeerActor.Message.GetNetworkQuality).returning(Applicative[F].unit)
-      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnection).returning(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returning(Applicative[F].unit)
 
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
         buildSimplePeerEntry(PeerState.Hot, host2PeerActor.some, host2Id)
       )
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          initialPeersMap,
-          defaultCache()
-        )
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, networkAlgebra = networkAlgebra)
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(mock[RequestsProxyActor[F]]))
@@ -3522,45 +2652,72 @@ class PeersManagerTest
     }
   }
 
-  test("PeerManager shall self-ban own peer id to avoid self-connections") {
+  test("Updated remote node id shall be processed: close peer if try to update the peer id to already banned peer") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
-      val localChain: LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]]
-      val slotDataStore: Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]]
-      val transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F] =
-        mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-      val mempool = mock[MempoolAlgebra[F]]
 
-      PeersManager
-        .makeActor(
-          thisHostId,
-          networkAlgebra,
-          localChain,
-          slotDataStore,
-          defaultBodyStorage,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          mempool,
-          headerToBodyValidation,
-          defaultTransactionSyntaxValidation,
-          newPeerCreationAlgebra,
-          defaultP2PConfig,
-          defaultHotPeerUpdater,
-          defaultPeersSaver,
-          defaultColdToWarmSelector,
-          defaultWarmToHotSelector,
-          Map.empty,
-          defaultCache()
-        )
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("1", 1)
+      val peer1 = mockPeerActor[F]()
+      val client1 = mock[BlockchainPeerClient[F]]
+
+      val host2Id = arbitraryHost.arbitrary.first
+
+      (networkAlgebra.makePeer _)
+        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *, *)
+        .once()
+        .returns(
+          Resource
+            .pure(peer1)
+            .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
+        ) // simulate real actor finalizer
+
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returning(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.GetNetworkQuality).returning(Applicative[F].unit)
+      (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returning(Applicative[F].unit)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(buildSimplePeerEntry(PeerState.Banned, None, host2Id))
+
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, networkAlgebra = networkAlgebra)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(mock[RequestsProxyActor[F]]))
+            newState1 <-
+              actor.send(buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id)))
+            _ = assert(newState1.peersHandler.peers(host1Id).state == PeerState.Cold)
+            newState2 <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1Id, host2Id))
+            _ = assert(!newState2.peersHandler.peers.contains(host1Id))
+            _ = assert(newState2.peersHandler.peers(host2Id).state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
+  test("PeerManager shall self-ban own peer id to avoid self-connections") {
+    withMock {
+      val mockData = buildDefaultMockData()
+      buildActorFromMockData(mockData)
         .use { actor =>
           for {
             newState <- actor.send(PeersManager.Message.SetupBlockChecker(mock[BlockCheckerActor[F]]))
             _ = assert(newState.peersHandler.peers(thisHostId).state == PeerState.Banned)
+          } yield ()
+        }
+    }
+  }
+
+  test("PeerManager shall add local address on request") {
+    withMock {
+      val localAddress = arbitraryRemoteAddress.arbitrary.first
+      val mockData = buildDefaultMockData()
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdateThisPeerAddress(localAddress))
+            _ = assert(newState.thisHostIps.head == localAddress.host)
           } yield ()
         }
     }

@@ -542,10 +542,10 @@ object PeersManager {
     Logger[F].info(show"This peer id: ${state.thisHostId}") >>
     state.localChain.head.map(head => Logger[F].info(show"Current head: ${head.slotId}")) >>
     Logger[F].info(show"Known local addresses: ${state.thisHostIps}") >>
-    Logger[F].info(show"Current (${hotPeers.size}) hot peer(s) state: $hotPeers") >>
+    Logger[F].info(show"${state.thisHostId}: Current (${hotPeers.size}) hot peer(s) state: $hotPeers") >>
     Logger[F].info(show"Current (${warmPeers.size}) warm peer(s) state: $warmPeers") >>
     Logger[F].info(show"Current first five of (${coldPeers.size}) cold peer(s) state: ${coldPeers.take(5)}") >>
-    Logger[F].info(show"With known cold peers: ${coldPeers.keySet}") >>
+    Logger[F].info(show"With known cold peers: ${coldPeers.map(d => d._1 -> d._2.asServer)}") >>
     printQueueSizeInfo(thisActor, state) >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
@@ -738,7 +738,7 @@ object PeersManager {
       peerActor <- setupPeerActor
       remotePeerAsServer <- client.remotePeerAsServer
         .handleErrorWith { e =>
-          Logger[F].error(e)(show"Failed to get remote peer as server from $connectedPeer") >>
+          Logger[F].error(show"Failed to get remote peer as server from $connectedPeer due ${e.toString}") >>
           Option.empty[KnownHost].pure[F]
         }
         .map(_.map(kh => RemotePeer(HostId(kh.id), RemoteAddress(kh.host, kh.port))))
@@ -815,7 +815,7 @@ object PeersManager {
 
     if (warmPeersSize < newWarmPeerCount && newWarmPeerCount > 0) {
       val currentHotPeers = state.peersHandler.getHotPeers
-      Logger[F].debug(show"Request neighbour(s) from peers: ${currentHotPeers.keySet}") >>
+      Logger[F].debug(show"Request $newWarmPeerCount neighbour(s) from peers: ${currentHotPeers.keySet}") >>
       currentHotPeers.values.toList
         .traverse(_.sendNoWait(PeerActor.Message.GetHotPeersFromPeer(newWarmPeerCount)))
         .void

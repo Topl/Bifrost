@@ -14,6 +14,7 @@ import co.topl.networking.p2p.ConnectedPeer
 import co.topl.networking.p2p.RemoteAddress.showRemoteAddress
 import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
 import co.topl.typeclasses.implicits._
+import java.time._
 
 trait P2PShowInstances {
   implicit val showHostId: Show[HostId] = id => show"${id.id.toBase58.take(8)}..."
@@ -93,7 +94,10 @@ trait P2PShowInstances {
     s" Actor=${if (peer.actorOpt.isDefined) "present" else "absent"};" +
     s" Remote peer=${if (peer.remoteNetworkLevel) "active" else "no active"};" +
     f" Rep: block=${peer.blockRep}%.2f, perf=${peer.perfRep}%.2f, new=${peer.newRep}, mean=${peer.reputation}%.2f;" +
-    s" With total ${peer.closedTimestamps.size} closes with timestamps ${peer.closedTimestamps};" +
+    s" With total ${peer.closedTimestamps.size} closes with" +
+    s" first 5 timestamps ${peer.closedTimestamps.take(5)};" +
+    s" last 5 timestamps ${peer.closedTimestamps.takeRight(5)};" +
+    s" last close ${peer.closedTimestamps.lastOption.map(l => Instant.ofEpochMilli(l).toString).getOrElse("none")};" +
     s" >>>"
   }
 

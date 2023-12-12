@@ -105,16 +105,16 @@ package object fsnetwork {
    * @param getSlotDataFromT define how slot data could be obtained for T
    * @param getT define how T could be get by Id
    * @param terminateOn terminate condition
-   * @param from start point to process chain
+   * @param last start point to process chain
    * @tparam F effect
    * @tparam T type of data retrieved from chain
    * @return chain with data T
    */
-  def getFromChainUntil[F[_]: Monad, T](
+  def prependOnChainUntil[F[_]: Monad, T](
     getSlotDataFromT: T => F[SlotData],
     getT:             BlockId => F[T],
     terminateOn:      T => F[Boolean]
-  )(from: BlockId): F[List[T]] = {
+  )(last: BlockId): F[List[T]] = {
     def iteration(acc: List[T], blockId: BlockId): F[List[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
@@ -123,7 +123,7 @@ package object fsnetwork {
         )
       }
 
-    iteration(List.empty[T], from).map(_.reverse)
+    iteration(List.empty[T], last).map(_.reverse)
   }
 
   /**
@@ -143,7 +143,7 @@ package object fsnetwork {
     size:      Int
   ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
+      prependOnChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )

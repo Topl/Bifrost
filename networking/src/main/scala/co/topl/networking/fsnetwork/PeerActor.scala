@@ -43,7 +43,7 @@ object PeerActor {
     /**
      * Close connection on client side
      */
-    case object CloseConnection extends Message
+    case object CloseConnectionForActor extends Message
 
     /**
      * Request to download block headers from peer, downloaded headers will be sent to block checker directly
@@ -99,7 +99,7 @@ object PeerActor {
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
     case (state, UpdateState(networkLevel, applicationLevel)) => updateState(state, networkLevel, applicationLevel)
-    case (state, CloseConnection)                             => closeConnection(state)
+    case (state, CloseConnectionForActor)                     => closeConnection(state)
     case (state, DownloadBlockHeaders(blockIds))              => downloadHeaders(state, blockIds)
     case (state, DownloadBlockBodies(blockHeaders))           => downloadBodies(state, blockHeaders)
     case (state, GetCurrentTip)                               => getCurrentTip(state)
@@ -344,7 +344,7 @@ object PeerActor {
       )
       .void
       .handleErrorWith { e =>
-        Logger[F].error(e)(show"Common ancestor trace for peer ${state.hostId} is failed") >>
+        Logger[F].error(show"Common ancestor trace for peer ${state.hostId} is failed because ${e.toString}") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
 }
