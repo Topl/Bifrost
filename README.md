@@ -28,37 +28,43 @@ Command Line Reference
 ----------
 Bifrost accepts the following command line arguments:
 ```
-  --cli <bool>                An optional flag to run the CLI/Shell instead of regular node
-                              operations.
-  --config <str>              Zero or more config files (.conf, .json, .yaml) to apply to the node.
-                              Config files stack such that the last config file takes precedence. To
-                              specify an internal resource, prefix the value with "resource://".
-  --dataDir <str>             The directory to use when saving/reading blockchain data
-  --databaseType <str>        The type of data storage to use. Valid options: `levelDb-jni`
-                              (default), `levelDb-java`
-  --debug                     An optional flag to enable debug mode on this node.
-  --disableGenus              Disables the Genus server and Genus gRPC services
-  --idle <bool>               An optional flag to run in no-op mode. The application will sit idle
-                              until terminated. This is useful for creating backups of the node's
-                              data.
-  --knownPeers <str>          A comma-delimited list of host:port values to connect to at launch
-                              (i.e. 1.2.3.4:9084,5.6.7.8:9084)
-  --logbackFile <str>         An optional path to a logback.xml file to override the logging
-                              configuration of the node.
-  --orientDbDir <str>         The directory to use when saving/reading graph data
-  --orientDbPassword <str>    The password to use when connecting to OrientDB
-  --p2pBindHost <str>         The hostname to bind to for the P2P layer (i.e. localhost or 0.0.0.0)
-  --p2pBindPort <int>         The port to bind to for the P2P layer (i.e. 9084)
-  --p2pPublicHost <str>       The hostname to bind for incoming connections for the P2P layer (i.e.
-                              localhost or 0.0.0.0)
-  --p2pPublicPort <int>       The port to bind for incoming connections for the P2P layer (i.e.
-                              9084)
-  --rpcBindHost <str>         The hostname to bind to for the RPC layer (i.e. localhost or 0.0.0.0)
-  --rpcBindPort <int>         The port to bind to for the RPC layer (i.e. 9085)
-  --stakingDir <str>          The directory of the block producer's staking keys
-  --testnetStakerCount <int>  The number of stakers to initialize.
-  --testnetStakerIndex <int>  The index of the staker to launch.
-  --testnetTimestamp <long>   A UTC Unix epoch timestamp (ms) to use when seeding a private testnet.
+  --cli <bool>                       An optional flag to run the CLI/Shell instead of regular node
+                                     operations.
+  --config <str>                     Zero or more config files (.conf, .json, .yaml) to apply to the
+                                     node. Config files stack such that the last config file takes
+                                     precedence. To specify an internal resource, prefix the value
+                                     with "resource://".
+  --dataDir <str>                    The directory to use when saving/reading blockchain data
+  --databaseType <str>               The type of data storage to use. Valid options: `levelDb-jni`
+                                     (default), `levelDb-java`
+  --debug                            An optional flag to enable debug mode on this node.
+  --disableGenus                     Disables the Genus server and Genus gRPC services
+  --idle <bool>                      An optional flag to run in no-op mode. The application will sit
+                                     idle until terminated. This is useful for creating backups of
+                                     the node's data.
+  --knownPeers <str>                 A comma-delimited list of host:port values to connect to at
+                                     launch (i.e. 1.2.3.4:9084,5.6.7.8:9084)
+  --logbackFile <str>                An optional path to a logback.xml file to override the logging
+                                     configuration of the node.
+  --orientDbDir <str>                The directory to use when saving/reading graph data
+  --orientDbPassword <str>           The password to use when connecting to OrientDB
+  --p2pBindHost <str>                The hostname to bind to for the P2P layer (i.e. localhost or
+                                     0.0.0.0)
+  --p2pBindPort <int>                The port to bind to for the P2P layer (i.e. 9084)
+  --p2pPublicHost <str>              The hostname to bind for incoming connections for the P2P layer
+                                     (i.e. localhost or 0.0.0.0)
+  --p2pPublicPort <int>              The port to bind for incoming connections for the P2P layer
+                                     (i.e. 9084)
+  --rewardAddress <LockAddress>      The reward address for block production
+  --rpcBindHost <str>                The hostname to bind to for the RPC layer (i.e. localhost or
+                                     0.0.0.0)
+  --rpcBindPort <int>                The port to bind to for the RPC layer (i.e. 9085)
+  --stakingAddress <StakingAddress>  The staking address for block production
+  --stakingDir <str>                 The directory of the block producer's staking keys
+  --testnetStakerCount <int>         The number of stakers to initialize.
+  --testnetStakerIndex <int>         The index of the staker to launch.
+  --testnetTimestamp <long>          A UTC Unix epoch timestamp (ms) to use when seeding a private
+                                     testnet.
 ```
 You may also view `sbt "node/run --help"` for more information.
 
