@@ -2478,11 +2478,134 @@ class PeersManagerTest
     }
   }
 
-  test("Cold peers and close timestamps shall be cleared") {
+  test("Not useful cold peers shall be cleared as outdated timestamps") {
     withMock {
       val host1Id = arbitraryHost.arbitrary.first
       val host1 = "1"
-      val hostServer1Port = 2
+      val hostServer1Port = 1
+      val host1Ra = RemoteAddress(host1, hostServer1Port)
+      val actor1 = mock[PeerActor[F]]
+
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+      val hostServer2Port = 2
+      val host2Ra = RemoteAddress(host2, hostServer2Port)
+      val actor2 = mock[PeerActor[F]]
+
+      val host3Id = arbitraryHost.arbitrary.first
+      val host3 = "3"
+      val hostServer3Port = 3
+      val host3Ra = RemoteAddress(host3, hostServer3Port)
+      val actor3 = mock[PeerActor[F]]
+
+      val host4Id = arbitraryHost.arbitrary.first
+      val host4 = "4"
+      val hostServer4Port = 4
+      val host4Ra = RemoteAddress(host4, hostServer4Port)
+      val actor4 = mock[PeerActor[F]]
+
+      val host5Id = arbitraryHost.arbitrary.first
+      val host5 = "5"
+      val hostServer5Port = 5
+      val host5Ra = RemoteAddress(host5, hostServer5Port)
+
+      val host6Id = arbitraryHost.arbitrary.first
+      val host6 = "6"
+      val hostServer6Port = 6
+      val host6Ra = RemoteAddress(host6, hostServer6Port)
+
+      val host7Id = arbitraryHost.arbitrary.first
+      val host7 = "7"
+      val hostServer7Port = 7
+      val host7Ra = RemoteAddress(host7, hostServer7Port)
+
+      val host8Id = arbitraryHost.arbitrary.first
+      val host8 = "8"
+      val hostServer8Port = 8
+      val host8Ra = RemoteAddress(host8, hostServer8Port)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        buildSimplePeerEntry(PeerState.Cold, actor1.some, host1Id, host1Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor2.some,
+          host2Id,
+          host2Ra,
+          noServer = true,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor3.some,
+          host3Id,
+          host3Ra,
+          noServer = false,
+          remoteNetworkLevel = true
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor4.some,
+          host4Id,
+          host4Ra,
+          noServer = false,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host5Id,
+          host5Ra,
+          noServer = true,
+          remoteNetworkLevel = true,
+          closedTimestamps = Seq(0)
+        ),
+        buildSimplePeerEntry(PeerState.Cold, None, host6Id, host6Ra, noServer = true, remoteNetworkLevel = false),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host7Id,
+          host7Ra,
+          noServer = false,
+          remoteNetworkLevel = true,
+          closedTimestamps = Seq(System.currentTimeMillis())
+        ),
+        buildSimplePeerEntry(PeerState.Cold, None, host8Id, host8Ra, noServer = false, remoteNetworkLevel = false)
+      )
+
+      val networkConfig =
+        defaultP2PConfig.networkProperties.copy(
+          maximumEligibleColdConnections = 8,
+          minimumEligibleColdConnections = 8,
+          closeTimeoutWindowInMs = 20000,
+          closeTimeoutFirstDelayInMs = 1000000
+        )
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
+            _ = assert(newState.peersHandler.getColdPeers.size == 7)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host1Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host3Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host4Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host5Id))
+            _ = assert(newState.peersHandler.getColdPeers(host5Id).closedTimestamps.isEmpty)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host7Id))
+            _ = assert(newState.peersHandler.getColdPeers(host7Id).closedTimestamps.size == 1)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host8Id))
+          } yield ()
+        }
+    }
+  }
+
+  test("Not useful cold peers shall be cleared, save minimumColdConnections active peers first") {
+    withMock {
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val hostServer1Port = 1
       val host1Ra = RemoteAddress(host1, hostServer1Port)
 
       val host2Id = arbitraryHost.arbitrary.first
@@ -2510,24 +2633,292 @@ class PeersManagerTest
       val hostServer6Port = 6
       val host6Ra = RemoteAddress(host6, hostServer6Port)
 
+      val host7Id = arbitraryHost.arbitrary.first
+      val host7 = "7"
+      val hostServer7Port = 7
+      val host7Ra = RemoteAddress(host7, hostServer7Port)
+
+      val host8Id = arbitraryHost.arbitrary.first
+      val host8 = "8"
+      val hostServer8Port = 8
+      val host8Ra = RemoteAddress(host8, hostServer8Port)
+
+      val curTime = System.currentTimeMillis()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
-        buildSimplePeerEntry(PeerState.Cold, None, host1Id, host1Ra, closedTimestamps = Seq.empty, noServer = true),
-        buildSimplePeerEntry(PeerState.Cold, None, host2Id, host2Ra, closedTimestamps = Seq(0)),
-        buildSimplePeerEntry(PeerState.Cold, None, host3Id, host3Ra, closedTimestamps = Seq(0, 1)),
-        buildSimplePeerEntry(PeerState.Cold, None, host4Id, host4Ra, closedTimestamps = Seq(0, 1)),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host1Id,
+          host1Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime)
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host2Id,
+          host2Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime)
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host3Id,
+          host3Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime, curTime)
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host4Id,
+          host4Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime, curTime, curTime)
+        ),
         buildSimplePeerEntry(
           PeerState.Cold,
           None,
           host5Id,
           host5Ra,
-          closedTimestamps = Seq(System.currentTimeMillis())
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime, curTime, curTime, curTime)
         ),
-        buildSimplePeerEntry(PeerState.Cold, None, host6Id, host6Ra, closedTimestamps = Seq(System.currentTimeMillis()))
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host6Id,
+          host6Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime, curTime, curTime, curTime, curTime)
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host7Id,
+          host7Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime, curTime, curTime, curTime, curTime, curTime)
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host8Id,
+          host8Ra,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(curTime, curTime, curTime, curTime, curTime, curTime, curTime, curTime)
+        )
       )
 
       val networkConfig =
         defaultP2PConfig.networkProperties.copy(
-          maximumEligibleColdConnections = 2,
+          maximumEligibleColdConnections = 7,
+          minimumEligibleColdConnections = 3,
+          closeTimeoutWindowInMs = 20000,
+          closeTimeoutFirstDelayInMs = 1000000
+        )
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
+            _ = assert(newState.peersHandler.getColdPeers.size == 3)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host1Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host3Id))
+          } yield ()
+        }
+    }
+  }
+
+  test("Not useful cold peers shall be cleared, save active peers first") {
+    withMock {
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val hostServer1Port = 1
+      val host1Ra = RemoteAddress(host1, hostServer1Port)
+      val actor1 = mock[PeerActor[F]]
+
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+      val hostServer2Port = 2
+      val host2Ra = RemoteAddress(host2, hostServer2Port)
+      val actor2 = mock[PeerActor[F]]
+
+      val host3Id = arbitraryHost.arbitrary.first
+      val host3 = "3"
+      val hostServer3Port = 3
+      val host3Ra = RemoteAddress(host3, hostServer3Port)
+      val actor3 = mock[PeerActor[F]]
+
+      val host4Id = arbitraryHost.arbitrary.first
+      val host4 = "4"
+      val hostServer4Port = 4
+      val host4Ra = RemoteAddress(host4, hostServer4Port)
+      val actor4 = mock[PeerActor[F]]
+
+      val host5Id = arbitraryHost.arbitrary.first
+      val host5 = "5"
+      val hostServer5Port = 5
+      val host5Ra = RemoteAddress(host5, hostServer5Port)
+
+      val host6Id = arbitraryHost.arbitrary.first
+      val host6 = "6"
+      val hostServer6Port = 6
+      val host6Ra = RemoteAddress(host6, hostServer6Port)
+
+      val host7Id = arbitraryHost.arbitrary.first
+      val host7 = "7"
+      val hostServer7Port = 7
+      val host7Ra = RemoteAddress(host7, hostServer7Port)
+
+      val host8Id = arbitraryHost.arbitrary.first
+      val host8 = "8"
+      val hostServer8Port = 8
+      val host8Ra = RemoteAddress(host8, hostServer8Port)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        buildSimplePeerEntry(PeerState.Cold, actor1.some, host1Id, host1Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor2.some,
+          host2Id,
+          host2Ra,
+          noServer = true,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor3.some,
+          host3Id,
+          host3Ra,
+          noServer = false,
+          remoteNetworkLevel = true
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor4.some,
+          host4Id,
+          host4Ra,
+          noServer = false,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(PeerState.Cold, None, host5Id, host5Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(PeerState.Cold, None, host6Id, host6Ra, noServer = true, remoteNetworkLevel = false),
+        buildSimplePeerEntry(PeerState.Cold, None, host7Id, host7Ra, noServer = false, remoteNetworkLevel = true),
+        buildSimplePeerEntry(PeerState.Cold, None, host8Id, host8Ra, noServer = false, remoteNetworkLevel = false)
+      )
+
+      val networkConfig =
+        defaultP2PConfig.networkProperties.copy(
+          maximumEligibleColdConnections = 6,
+          minimumEligibleColdConnections = 6,
+          closeTimeoutWindowInMs = 20000,
+          closeTimeoutFirstDelayInMs = 1000000
+        )
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
+            _ = assert(newState.peersHandler.getColdPeers.size == 6)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host1Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host3Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host4Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host5Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host7Id))
+          } yield ()
+        }
+    }
+  }
+
+  test("Not useful cold peers shall be cleared but always save active peers") {
+    withMock {
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val hostServer1Port = 1
+      val host1Ra = RemoteAddress(host1, hostServer1Port)
+      val actor1 = mock[PeerActor[F]]
+
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+      val hostServer2Port = 2
+      val host2Ra = RemoteAddress(host2, hostServer2Port)
+      val actor2 = mock[PeerActor[F]]
+
+      val host3Id = arbitraryHost.arbitrary.first
+      val host3 = "3"
+      val hostServer3Port = 3
+      val host3Ra = RemoteAddress(host3, hostServer3Port)
+      val actor3 = mock[PeerActor[F]]
+
+      val host4Id = arbitraryHost.arbitrary.first
+      val host4 = "4"
+      val hostServer4Port = 4
+      val host4Ra = RemoteAddress(host4, hostServer4Port)
+      val actor4 = mock[PeerActor[F]]
+
+      val host5Id = arbitraryHost.arbitrary.first
+      val host5 = "5"
+      val hostServer5Port = 5
+      val host5Ra = RemoteAddress(host5, hostServer5Port)
+
+      val host6Id = arbitraryHost.arbitrary.first
+      val host6 = "6"
+      val hostServer6Port = 6
+      val host6Ra = RemoteAddress(host6, hostServer6Port)
+
+      val host7Id = arbitraryHost.arbitrary.first
+      val host7 = "7"
+      val hostServer7Port = 7
+      val host7Ra = RemoteAddress(host7, hostServer7Port)
+
+      val host8Id = arbitraryHost.arbitrary.first
+      val host8 = "8"
+      val hostServer8Port = 8
+      val host8Ra = RemoteAddress(host8, hostServer8Port)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        buildSimplePeerEntry(PeerState.Cold, actor1.some, host1Id, host1Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor2.some,
+          host2Id,
+          host2Ra,
+          noServer = true,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor3.some,
+          host3Id,
+          host3Ra,
+          noServer = false,
+          remoteNetworkLevel = true
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor4.some,
+          host4Id,
+          host4Ra,
+          noServer = false,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(PeerState.Cold, None, host5Id, host5Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(PeerState.Cold, None, host6Id, host6Ra, noServer = true, remoteNetworkLevel = false),
+        buildSimplePeerEntry(PeerState.Cold, None, host7Id, host7Ra, noServer = false, remoteNetworkLevel = true),
+        buildSimplePeerEntry(PeerState.Cold, None, host8Id, host8Ra, noServer = false, remoteNetworkLevel = false)
+      )
+
+      val networkConfig =
+        defaultP2PConfig.networkProperties.copy(
+          maximumEligibleColdConnections = 1,
           minimumEligibleColdConnections = 1,
           closeTimeoutWindowInMs = 20000,
           closeTimeoutFirstDelayInMs = 1000000
@@ -2539,15 +2930,125 @@ class PeersManagerTest
         .use { actor =>
           for {
             newState <- actor.send(PeersManager.Message.UpdatePeersTick)
-            _ = assert(newState.peersHandler.getColdPeers.size == 4) // 1 saved + non eligible 3 cold peers
-            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
-            _ = assert(newState.peersHandler(host2Id).closedTimestamps.isEmpty)
+            _ = assert(newState.peersHandler.getColdPeers.size == 6)
             _ = assert(newState.peersHandler.getColdPeers.contains(host1Id))
-            _ = assert(newState.peersHandler(host1Id).closedTimestamps.isEmpty)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host3Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host4Id))
             _ = assert(newState.peersHandler.getColdPeers.contains(host5Id))
-            _ = assert(newState.peersHandler(host5Id).closedTimestamps.size == 1)
-            _ = assert(newState.peersHandler.getColdPeers.contains(host6Id))
-            _ = assert(newState.peersHandler(host6Id).closedTimestamps.size == 1)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host7Id))
+          } yield ()
+        }
+    }
+  }
+
+  test("Not useful cold peers shall be cleared, save active peers first and then peers with less close events") {
+    withMock {
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1 = "1"
+      val hostServer1Port = 1
+      val host1Ra = RemoteAddress(host1, hostServer1Port)
+      val actor1 = mock[PeerActor[F]]
+
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2 = "2"
+      val hostServer2Port = 2
+      val host2Ra = RemoteAddress(host2, hostServer2Port)
+      val actor2 = mock[PeerActor[F]]
+
+      val host3Id = arbitraryHost.arbitrary.first
+      val host3 = "3"
+      val hostServer3Port = 3
+      val host3Ra = RemoteAddress(host3, hostServer3Port)
+      val actor3 = mock[PeerActor[F]]
+
+      val host4Id = arbitraryHost.arbitrary.first
+      val host4 = "4"
+      val hostServer4Port = 4
+      val host4Ra = RemoteAddress(host4, hostServer4Port)
+      val actor4 = mock[PeerActor[F]]
+
+      val host5Id = arbitraryHost.arbitrary.first
+      val host5 = "5"
+      val hostServer5Port = 5
+      val host5Ra = RemoteAddress(host5, hostServer5Port)
+
+      val host6Id = arbitraryHost.arbitrary.first
+      val host6 = "6"
+      val hostServer6Port = 6
+      val host6Ra = RemoteAddress(host6, hostServer6Port)
+
+      val host7Id = arbitraryHost.arbitrary.first
+      val host7 = "7"
+      val hostServer7Port = 7
+      val host7Ra = RemoteAddress(host7, hostServer7Port)
+
+      val host8Id = arbitraryHost.arbitrary.first
+      val host8 = "8"
+      val hostServer8Port = 8
+      val host8Ra = RemoteAddress(host8, hostServer8Port)
+
+      val initialPeersMap: Map[HostId, Peer[F]] = Map(
+        buildSimplePeerEntry(PeerState.Cold, actor1.some, host1Id, host1Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor2.some,
+          host2Id,
+          host2Ra,
+          noServer = true,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor3.some,
+          host3Id,
+          host3Ra,
+          noServer = false,
+          remoteNetworkLevel = true
+        ),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          actor4.some,
+          host4Id,
+          host4Ra,
+          noServer = false,
+          remoteNetworkLevel = false
+        ),
+        buildSimplePeerEntry(PeerState.Cold, None, host5Id, host5Ra, noServer = true, remoteNetworkLevel = true),
+        buildSimplePeerEntry(
+          PeerState.Cold,
+          None,
+          host6Id,
+          host6Ra,
+          noServer = false,
+          remoteNetworkLevel = false,
+          closedTimestamps = Seq(System.currentTimeMillis())
+        ),
+        buildSimplePeerEntry(PeerState.Cold, None, host7Id, host7Ra, noServer = false, remoteNetworkLevel = true),
+        buildSimplePeerEntry(PeerState.Cold, None, host8Id, host8Ra, noServer = false, remoteNetworkLevel = false)
+      )
+
+      val networkConfig =
+        defaultP2PConfig.networkProperties.copy(
+          maximumEligibleColdConnections = 7,
+          minimumEligibleColdConnections = 7,
+          closeTimeoutWindowInMs = 20000,
+          closeTimeoutFirstDelayInMs = 1000000
+        )
+
+      val config = defaultP2PConfig.copy(networkProperties = networkConfig)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = config)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            newState <- actor.send(PeersManager.Message.UpdatePeersTick)
+            _ = assert(newState.peersHandler.getColdPeers.size == 7)
+            _ = assert(newState.peersHandler.getColdPeers.contains(host1Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host2Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host3Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host4Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host5Id))
+            _ = assert(newState.peersHandler.getColdPeers.contains(host8Id))
           } yield ()
         }
     }
