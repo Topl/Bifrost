@@ -104,7 +104,12 @@ class InitTestnetCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig)
   private def outro(dir: Path): StageResultT[F, Unit] =
     writeMessage[F](s"The testnet has been initialized.") >>
     writeMessage[F](s"Each of the stakers in ${dir / "stakers"} should be moved to the corresponding node/machine.") >>
-    writeMessage[F](s"The node can be launched by passing the following argument at launch: --config $dir/config.yaml")
+    writeMessage[F](
+      s"The node can be launched by passing the following argument at launch: --config $dir/config.yaml"
+    ) >>
+    writeMessage[F](
+      s"It is also recommended that you set the reward address and staking address in the configuation file for each node."
+    )
 
   val command: StageResultT[F, Unit] =
     for {

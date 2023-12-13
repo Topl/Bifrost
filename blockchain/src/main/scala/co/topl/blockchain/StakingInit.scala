@@ -24,6 +24,7 @@ import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object StakingInit {
 
@@ -31,6 +32,9 @@ object StakingInit {
   final val OperatorKeyName = "operator-key.ed25519.sk"
   final val VrfKeyName = "vrf-key.ed25519vrf.sk"
   final val RegistrationTxName = "registration.transaction.pbuf"
+
+  implicit private def logger[F[_]: Sync]: Logger[F] =
+    Slf4jLogger.getLoggerFromName[F]("Bifrost.StakingInit")
 
   /**
    * Inspects the given stakingDir for the expected keys/files.  If the expected files exist, `true` is returned.
@@ -47,8 +51,7 @@ object StakingInit {
           .toList
           .map(files =>
             files.exists(_.endsWith(KesDirectoryName)) &&
-            files.exists(_.endsWith(VrfKeyName)) &&
-            files.exists(_.endsWith(RegistrationTxName))
+            files.exists(_.endsWith(VrfKeyName))
           ),
         false.pure[F]
       )
@@ -57,7 +60,7 @@ object StakingInit {
    * Initializes a Staking object from existing files on disk.  The files are expected to be in the format created
    * by the "Registration" CLI process.
    */
-  def makeStakingFromDisk[F[_]: Async: Logger](
+  def makeStakingFromDisk[F[_]: Async](
     stakingDir:               Path,
     rewardAddress:            LockAddress,
     configuredStakingAddress: Option[StakingAddress],
@@ -121,6 +124,13 @@ object StakingInit {
                 )
                 .getOrRaise(new IllegalArgumentException("Registration Transaction is invalid"))
             )
+            .semiflatTap(_ =>
+              Logger[F]
+                .warn(
+                  "Registration loaded from local transaction which is deprecated.  Please configure the node's staking address."
+                )
+                .toResource
+            )
         )
         .getOrRaise(new IllegalArgumentException("Staking address not configured"))
       staking <- makeStaking(
@@ -148,7 +158,7 @@ object StakingInit {
   /**
    * Initializes a Staking object from the given raw VRF and staking address information
    */
-  def makeStaking[F[_]: Async: Logger](
+  def makeStaking[F[_]: Async](
     stakingDir:               Path,
     vrfSK:                    ByteString,
     vrfVK:                    ByteString,
@@ -196,7 +206,11 @@ object StakingInit {
           .toResource
       _ <- Logger[F]
         .info(
-          s"Registration transactionId=${registrationTransaction.id.show} found in blockId=${registrationHeader.id.show}"
+          show"Found registration" +
+          show" transactionId=${registrationTransaction.id}" +
+          show" in blockId=${registrationHeader.id}" +
+          show" slot=${registrationHeader.slot}" +
+          show" height=${registrationHeader.height}"
         )
         .toResource
       registrationEpoch <- clock.epochOf(registrationHeader.slot).toResource
@@ -269,6 +283,9 @@ object StakingInit {
     fetchBody:        BlockId => F[BlockBody],
     fetchTransaction: TransactionId => F[IoTransaction]
   )(stakingAddress: StakingAddress): F[(BlockHeader, IoTransaction)] =
+    Logger[F].info(
+      show"Searching local chain for registration transaction containing stakingAddress=$stakingAddress"
+    ) >>
     OptionT(
       fs2.Stream
         .eval(localChain.head)
@@ -279,6 +296,8 @@ object StakingInit {
             fetchHeader(id).map(h => (h, Option.when(h.height > BigBang.Height)(h.parentHeaderId)))
           )
         )
+        // In addition to scanning the chain's history, also search new block adoptions
+        .merge(fs2.Stream.force(localChain.adoptions).evalMap(fetchHeader))
         .flatMap(header =>
           fs2.Stream
             .evalSeq(fetchBody(header.id).map(_.transactionIds))

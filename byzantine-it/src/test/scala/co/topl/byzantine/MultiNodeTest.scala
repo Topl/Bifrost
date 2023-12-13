@@ -5,16 +5,16 @@ import cats.effect.IO
 import cats.effect.implicits._
 import cats.effect.kernel.Sync
 import cats.implicits._
-import co.topl.algebras.NodeRpc
-import co.topl.blockchain.{BigBang, PrivateTestnet, StakerInitializers, StakingInit}
+import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
+import co.topl.blockchain._
 import co.topl.brambl.common.ContainsSignable.ContainsSignableTOps
-import co.topl.brambl.common.ContainsSignable.instances.ioTransactionSignable
+import co.topl.brambl.common.ContainsSignable.instances._
 import co.topl.brambl.models.box.{Attestation, Value}
-import co.topl.brambl.models.{Datum, Event, TransactionOutputAddress}
-import co.topl.brambl.models.transaction.{IoTransaction, Schedule, SpentTransactionOutput, UnspentTransactionOutput}
+import co.topl.brambl.models._
+import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.byzantine.util._
-import co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey
+import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Persistable
 import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.crypto.generation.mnemonic.Entropy
@@ -27,7 +27,7 @@ import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.file.{Files, Path, PosixPermission, PosixPermissions}
 import co.topl.quivr.api.Prover
-import co.topl.typeclasses.implicits.showBlockId
+import co.topl.typeclasses.implicits._
 
 import java.security.SecureRandom
 import java.time.Instant
@@ -84,25 +84,26 @@ class MultiNodeTest extends IntegrationSuite {
         // Node 3 is a delayed staker.  It will register in epoch 0, but the container won't launch until epoch 2.
         tmpHostStakingDirectory <- Files.forAsync[F].tempDirectory
         _ <- Files.forAsync[F].setPosixPermissions(tmpHostStakingDirectory, PosixOtherWritePermissions).toResource
+        delayedNodeName = s"MultiNodeTest-node${totalNodeCount - 1}"
+        _ <- Logger[F].info(s"Registering $delayedNodeName").toResource
+        delayedNodeStakingAddress <- node1
+          .rpcClient[F](node1.config.rpcPort)
+          // Take stake from node0 and transfer it to the delayed node
+          .evalMap(registerStaker(genesisTransaction, 0, genesisBlockId)(_, tmpHostStakingDirectory))
         delayedNodeConfig = TestNodeConfig(
           bigBang,
           totalNodeCount - 1,
           -1,
           List("MultiNodeTest-node0"),
-          stakingBindSourceDir = tmpHostStakingDirectory.toString.some
+          stakingBindSourceDir = tmpHostStakingDirectory.toString.some,
+          stakingAddress = delayedNodeStakingAddress.some
         )
-        delayedNodeName = s"MultiNodeTest-node${totalNodeCount - 1}"
         delayedNode <- dockerSupport.createNode(
           delayedNodeName,
           "MultiNodeTest",
           delayedNodeConfig
         )
         allNodes = initialNodes :+ delayedNode
-        _ <- Logger[F].info(s"Registering $delayedNodeName").toResource
-        delayedNodeStakingAddress <- node1
-          .rpcClient[F](node1.config.rpcPort)
-          // Take stake from node0 and transfer it to the delayed node
-          .evalMap(registerStaker(genesisTransaction, 0, genesisBlockId)(_, tmpHostStakingDirectory))
         _ <- Logger[F].info(s"Starting $delayedNodeName").toResource
         _ <- delayedNode.startContainer[F].toResource
         _ <- Logger[F].info("Waiting for nodes to reach epoch=2.  This may take several minutes.").toResource
@@ -237,9 +238,29 @@ class MultiNodeTest extends IntegrationSuite {
           _.copy(attestation = Attestation(Attestation.Value.Predicate(provenPredicateAttestation)))
         )
       )
-      _ <- Logger[F].info("Broadcasting registration transaction")
-      _ <- rpcClient.broadcastTransaction(transaction)
-      _ <- writeFile(StakingInit.RegistrationTxName, transaction.toByteArray)
+      // In parallel, broadcast the transaction and confirm it
+      _ <- (
+        Logger[F].info(show"Broadcasting registration transaction id=${transaction.id}") >> rpcClient
+          .broadcastTransaction(transaction),
+        fs2.Stream
+          .force(rpcClient.synchronizationTraversal())
+          .collect { case s: SynchronizationTraversalSteps.Applied =>
+            s.blockId
+          }
+          .flatMap(id =>
+            fs2.Stream.evalSeq(
+              OptionT(rpcClient.fetchBlockBody(id))
+                .getOrRaise(new IllegalStateException)
+                .map(_.transactionIds)
+            )
+          )
+          .find(_ == transaction.id)
+          .evalTap(id => Logger[F].info(show"Confirmed registration transaction id=$id"))
+          .head
+          .compile
+          .lastOrError
+      ).parTupled
+        .timeout(60.seconds)
     } yield stakerInitializer.stakingAddress
 }
 

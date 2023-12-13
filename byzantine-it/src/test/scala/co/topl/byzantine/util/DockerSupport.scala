@@ -5,6 +5,8 @@ import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
 import co.topl.buildinfo.node.BuildInfo
+import co.topl.consensus.models.StakingAddress
+import co.topl.typeclasses.implicits._
 import com.spotify.docker.client.messages.ContainerConfig
 import com.spotify.docker.client.messages.HostConfig
 import com.spotify.docker.client.messages.NetworkConfig
@@ -179,7 +181,8 @@ case class TestNodeConfig(
   genusEnabled:         Boolean = false,
   stakingBindSourceDir: Option[String] = None,
   serverHost:           Option[String] = None,
-  serverPort:           Option[Int] = None
+  serverPort:           Option[Int] = None,
+  stakingAddress:       Option[StakingAddress] = None
 ) {
 
   def yaml: String = {
@@ -191,6 +194,8 @@ case class TestNodeConfig(
        |  rpc:
        |    bind-host: 0.0.0.0
        |    port: "$rpcPort"
+       |  staking:
+       |    staking-address: ${stakingAddress.fold("")(_.show)}
        |  p2p:
        |    bind-host: 0.0.0.0
        |    ${serverHost.map(sh => s"public-host: $sh").getOrElse("")}

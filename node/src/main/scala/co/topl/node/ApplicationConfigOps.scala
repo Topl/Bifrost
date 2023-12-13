@@ -42,7 +42,13 @@ object ApplicationConfigOps {
       List[Option[ApplicationConfig => ApplicationConfig]](
         cmdArgs.runtime.dataDir.map(createF(GenLens[ApplicationConfig](_.bifrost.data.directory))),
         cmdArgs.runtime.databaseType.map(createF(GenLens[ApplicationConfig](_.bifrost.data.databaseType))),
-        cmdArgs.runtime.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
+        cmdArgs.runtime.stakingArgs.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
+        cmdArgs.runtime.stakingArgs.rewardAddress.map(
+          createF(GenLens[ApplicationConfig](_.bifrost.staking.rewardAddress))
+        ),
+        cmdArgs.runtime.stakingArgs.stakingAddress.map(v =>
+          createF(GenLens[ApplicationConfig](_.bifrost.staking.stakingAddress))(v.some)
+        ),
         cmdArgs.runtime.rpcBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindHost))),
         cmdArgs.runtime.rpcBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindPort))),
         cmdArgs.runtime.p2pBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindHost))),
