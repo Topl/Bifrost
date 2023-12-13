@@ -4,12 +4,14 @@ import cats.Show
 import cats.implicits._
 import co.topl.brambl.codecs.AddressCodecs.decodeAddress
 import co.topl.brambl.models.LockAddress
+import co.topl.brambl.utils.Encoding
 import co.topl.config.ApplicationConfig
 import co.topl.config.ApplicationConfig.Bifrost
 import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.models._
 import co.topl.models.utility._
+import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
@@ -114,6 +116,14 @@ object ApplicationConfigOps {
     ConfigReader[String].emap(str =>
       decodeAddress(str).leftMap(e => error.CannotConvert(str, "LockAddress", e.toString))
     )
+
+  implicit val stakingAddressReader: ConfigReader[StakingAddress] =
+    ConfigReader[String]
+      .emap(str =>
+        Encoding.decodeFromBase58(str).leftMap(_ => error.CannotConvert(str, "StakingAddress", "Not base58"))
+      )
+      .map(ByteString.copyFrom)
+      .map(StakingAddress(_))
 
   implicit val blockIdReader: ConfigReader[BlockId] =
     ConfigReader[String]

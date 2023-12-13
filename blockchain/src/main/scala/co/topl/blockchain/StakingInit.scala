@@ -60,6 +60,7 @@ object StakingInit {
   def makeStakingFromDisk[F[_]: Async: Logger](
     stakingDir:               Path,
     rewardAddress:            LockAddress,
+    configuredStakingAddress: Option[StakingAddress],
     clock:                    ClockAlgebra[F],
     etaCalculation:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
@@ -72,8 +73,7 @@ object StakingInit {
     localChain:               LocalChainAlgebra[F],
     fetchHeader:              BlockId => F[BlockHeader],
     fetchBody:                BlockId => F[BlockBody],
-    fetchTransaction:         TransactionId => F[IoTransaction],
-    configuredStakingAddress: Option[StakingAddress]
+    fetchTransaction:         TransactionId => F[IoTransaction]
   ): Resource[F, StakingAlgebra[F]] =
     for {
       _         <- Logger[F].info(show"Loading registered staker from disk at path=$stakingDir").toResource
@@ -109,16 +109,20 @@ object StakingInit {
       vrfVK <- cryptoResources.ed25519VRF.use(e => Sync[F].delay(e.getVerificationKey(vrfSK))).toResource
       stakingAddress <- OptionT
         .fromOption[Resource[F, *]](configuredStakingAddress)
-        .getOrElseF(
+        .orElse(
           // In older implementations, the IoTransaction containing the registration must exist on disk.
           // To support this behavior, fallback to reading it if the user doesn't configure the staking address
           OptionT
             .liftF(readFile(stakingDir / RegistrationTxName).map(_.toArray).map(IoTransaction.parseFrom).toResource)
-            .subflatMap(transaction =>
-              transaction.outputs.headOption.flatMap(_.value.value.topl.flatMap(_.registration.map(_.address)))
+            .semiflatMap(transaction =>
+              OptionT
+                .fromOption[Resource[F, *]](
+                  transaction.outputs.headOption.flatMap(_.value.value.topl.flatMap(_.registration.map(_.address)))
+                )
+                .getOrRaise(new IllegalArgumentException("Registration Transaction is invalid"))
             )
-            .getOrRaise(new IllegalArgumentException("Registration Transaction is invalid"))
         )
+        .getOrRaise(new IllegalArgumentException("Staking address not configured"))
       staking <- makeStaking(
         stakingDir,
         ByteString.copyFrom(vrfSK),

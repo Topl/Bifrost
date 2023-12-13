@@ -4,10 +4,9 @@ import cats.MonadThrow
 import cats.effect.Async
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.brambl.models.{TransactionId, TransactionOutputAddress}
+import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax._
 import co.topl.consensus.models.{ActiveStaker, BlockId, StakingAddress}
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.node.models.BlockBody
@@ -28,7 +27,7 @@ object ConsensusDataEventSourcedState {
   case class ConsensusData[F[_]](
     totalActiveStake:   Store[F, Unit, BigInt],
     totalInactiveStake: Store[F, Unit, BigInt],
-    stakers:            Store[F, StakingAddress, TransactionOutputAddress]
+    stakers:            Store[F, StakingAddress, ActiveStaker]
   )
 
   def make[F[_]: Async](
@@ -68,25 +67,21 @@ object ConsensusDataEventSourcedState {
         _ <- state.totalInactiveStake.put((), previousTotalInactiveStake - spentInactiveStake + createdInactiveStake)
         removedRegistrations = transactions.flatMap(removedStakersOf)
         addedRegistrations = transactions.flatMap(addedStakersOf)
-        _ <- removedRegistrations.map(_.staker.registration.address).traverseTap(state.stakers.remove)
-        _ <- addedRegistrations.traverseTap(r => state.stakers.put(r.staker.registration.address, r.utxoAddress))
+        _ <- removedRegistrations.map(_.registration.address).traverseTap(state.stakers.remove)
+        _ <- addedRegistrations.traverseTap(r => state.stakers.put(r.registration.address, r))
       } yield state
 
-    private def removedStakersOf(transaction: IoTransaction): Seq[ActiveStakerWithAddress] =
+    private def removedStakersOf(transaction: IoTransaction): List[ActiveStaker] =
       transaction.inputs
-        .flatMap(i =>
-          i.value.value.topl
-            .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
-            .map(ActiveStakerWithAddress(_, i.address))
-        )
+        .flatMap(_.value.value.topl)
+        .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
         .toList
 
-    private def addedStakersOf(transaction: IoTransaction): Seq[ActiveStakerWithAddress] =
-      transaction.outputs.zipWithIndex.reverse.flatMap { case (o, index) =>
-        o.value.value.topl
-          .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
-          .map(ActiveStakerWithAddress(_, TransactionOutputAddress(0, 0, index, transaction.id)))
-      }.toList
+    private def addedStakersOf(transaction: IoTransaction): List[ActiveStaker] =
+      transaction.outputs
+        .flatMap(_.value.value.topl)
+        .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
+        .toList
 
   }
 
@@ -110,25 +105,21 @@ object ConsensusDataEventSourcedState {
         _ <- state.totalInactiveStake.put((), previousTotalInactiveStake + spentInactiveStake - createdInactiveStake)
         addedStakers = transactions.flatMap(addedStakersOf)
         removedStakers = transactions.flatMap(removedStakersOf)
-        _ <- addedStakers.map(_.staker.registration.address).traverseTap(state.stakers.remove)
-        _ <- removedStakers.traverseTap(r => state.stakers.put(r.staker.registration.address, r.utxoAddress))
+        _ <- addedStakers.map(_.registration.address).traverseTap(state.stakers.remove)
+        _ <- removedStakers.traverseTap(r => state.stakers.put(r.registration.address, r))
       } yield state
 
-    private def removedStakersOf(transaction: IoTransaction): List[ActiveStakerWithAddress] =
+    private def removedStakersOf(transaction: IoTransaction): List[ActiveStaker] =
       transaction.inputs.reverse
-        .flatMap(i =>
-          i.value.value.topl
-            .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
-            .map(ActiveStakerWithAddress(_, i.address))
-        )
+        .flatMap(_.value.value.topl)
+        .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
         .toList
 
-    private def addedStakersOf(transaction: IoTransaction): List[ActiveStakerWithAddress] =
-      transaction.outputs.zipWithIndex.reverse.flatMap { case (o, index) =>
-        o.value.value.topl
-          .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
-          .map(ActiveStakerWithAddress(_, TransactionOutputAddress(0, 0, index, transaction.id)))
-      }.toList
+    private def addedStakersOf(transaction: IoTransaction): List[ActiveStaker] =
+      transaction.outputs.reverse
+        .flatMap(_.value.value.topl)
+        .flatMap(t => t.registration.map(ActiveStaker(_, t.quantity)))
+        .toList
 
   }
 
@@ -145,6 +136,4 @@ object ConsensusDataEventSourcedState {
       .filter(_.registration.isEmpty)
       .map(_.quantity.value.toByteArray)
       .foldMap(BigInt(_))
-
-  case class ActiveStakerWithAddress(staker: ActiveStaker, utxoAddress: TransactionOutputAddress)
 }

@@ -1,7 +1,7 @@
 package co.topl.config
 
 import co.topl.brambl.models.LockAddress
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.numerics.implicits._
@@ -40,7 +40,7 @@ object ApplicationConfig {
     case class Data(directory: String, databaseType: String)
 
     @Lenses
-    case class Staking(directory: String, rewardAddress: LockAddress)
+    case class Staking(directory: String, rewardAddress: LockAddress, stakingAddress: Option[StakingAddress])
 
     @Lenses
     case class P2P(

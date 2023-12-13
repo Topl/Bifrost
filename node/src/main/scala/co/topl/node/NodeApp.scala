@@ -9,7 +9,6 @@ import cats.implicits._
 import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter, NodeMetadata}
-import co.topl.brambl.models.TransactionId
 import co.topl.brambl.syntax._
 import co.topl.buildinfo.node.BuildInfo
 import co.topl.catsutils._
@@ -272,23 +271,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           .filter(identity)
           .flatTapNone(Logger[F].warn("Staking directory is empty.  Continuing in relay-only mode.").toResource)
           .semiflatMap { _ =>
-            val blockFinder = (transactionId: TransactionId) =>
-              BlockFinder
-                .forTransactionId(dataStores.bodies.getOrRaise)(
-                  fs2.Stream
-                    .eval(localChain.head)
-                    .flatMap(head =>
-                      fs2.Stream.unfoldLoopEval(head)(previous =>
-                        if (previous.height > 1)
-                          dataStores.slotData
-                            .getOrRaise(previous.parentSlotId.blockId)
-                            .map(v => (previous.slotId.blockId, v.some))
-                        else (previous.slotId.blockId, none).pure[F]
-                      )
-                    ),
-                  fs2.Stream.force(localChain.adoptions)
-                )(transactionId)
-                .flatMap(dataStores.headers.getOrRaise)
             // Construct a separate threshold calcualtor instance with a separate cache to avoid
             // polluting the staker's cache with remote block eligibilities
             makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
@@ -297,6 +279,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   .makeStakingFromDisk(
                     stakingDir,
                     appConfig.bifrost.staking.rewardAddress,
+                    appConfig.bifrost.staking.stakingAddress,
                     clock,
                     etaCalculation,
                     consensusValidationState,
@@ -305,10 +288,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                     bigBangProtocol,
                     vrfConfig,
                     bigBangBlock.header.version,
-                    blockFinder,
                     metadata,
-                    dataStores.headers.get,
-                    bigBangBlock
+                    localChain,
+                    dataStores.headers.getOrRaise,
+                    dataStores.bodies.getOrRaise,
+                    dataStores.transactions.getOrRaise
                   )
               )
           }
