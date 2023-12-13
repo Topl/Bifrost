@@ -234,9 +234,13 @@ case class PeersHandler[F[_]: Async: Logger](
     updatedPeersF.map(peers => this.copy(peers = this.peers ++ peers.toMap))
   }
 
-  def copyWithRemovedColdPeersWithoutActor(toRemove: Set[HostId]): PeersHandler[F] = {
+  // Some cold peers can't be removed, for example if there is actor present OR remote peer is active
+  def removeColdPeers(toRemove: Set[HostId]): PeersHandler[F] = {
     val filteredToRemove =
-      getColdPeers.view.filterKeys(toRemove).filter(_._2.actorOpt.isEmpty).keySet
+      getColdPeers.view
+        .filterKeys(toRemove)
+        .filterNot(_._2.isActive)
+        .keySet
     val newPeers = peers -- filteredToRemove
     this.copy(peers = newPeers)
   }
@@ -265,6 +269,10 @@ case class Peer[F[_]: Logger](
   newRep:             Long
 ) {
   def couldOpenConnection: Boolean = asServer.isDefined || actorOpt.isDefined
+
+  def isActive: Boolean = actorOpt.isDefined || remoteNetworkLevel
+
+  def isUseful: Boolean = isActive || couldOpenConnection
 
   def haveNoConnection: Boolean = actorOpt.isEmpty
 

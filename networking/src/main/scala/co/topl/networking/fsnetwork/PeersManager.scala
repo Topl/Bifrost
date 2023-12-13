@@ -804,9 +804,9 @@ object PeersManager {
 
   private def updatePeersTick[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     for {
-      _                         <- requestNeighboursFromHotPeers(state)
-      stateWithUpdatedColdPeers <- clearColdPeers(state).pure[F]
-      newState                  <- clearCloseTimestamps(stateWithUpdatedColdPeers).pure[F]
+      _                          <- requestNeighboursFromHotPeers(state)
+      stateWithClearedTimestamps <- clearCloseTimestamps(state).pure[F]
+      newState                   <- clearColdPeers(stateWithClearedTimestamps).pure[F]
     } yield (newState, newState)
 
   private def requestNeighboursFromHotPeers[F[_]: Async: Logger](state: State[F]): F[Unit] = {
@@ -826,19 +826,24 @@ object PeersManager {
     }
   }
 
-  // we do NOT work here with cold peers which are present but had been closed recently. That allow us to not remove
-  // cold peer which are no eligible to move to warm status
   private def clearColdPeers[F[_]](state: State[F]): State[F] = {
-    val eligibleColdPeers = getEligibleColdPeers(state).filter(_._2.asServer.isDefined)
-    if (eligibleColdPeers.size > state.p2pNetworkConfig.networkProperties.maximumEligibleColdConnections) {
-      val minimumColdConnections = state.p2pNetworkConfig.networkProperties.minimumEligibleColdConnections
-      val savedCold =
-        eligibleColdPeers.toSeq.sortBy(_._2.closedTimestamps.size).take(minimumColdConnections).map(_._1).toSet
-      val newPeer = state.peersHandler.copyWithRemovedColdPeersWithoutActor(eligibleColdPeers.keySet -- savedCold)
-      state.copy(peersHandler = newPeer)
-    } else {
-      state
-    }
+    val minimumColdConnections = state.p2pNetworkConfig.networkProperties.minimumEligibleColdConnections
+    val maximumColdConnections = state.p2pNetworkConfig.networkProperties.maximumEligibleColdConnections
+
+    val usefulColdConnections = state.peersHandler.getColdPeers.filter(_._2.isUseful)
+
+    val coldConnectionsToSave =
+      if (usefulColdConnections.size > maximumColdConnections) {
+        val (activeCold, noActiveCold) = usefulColdConnections.toSeq.partition(_._2.isActive)
+        val sortedNoActiveCold = noActiveCold.sortBy(_._2.closedTimestamps.size)
+        (activeCold ++ sortedNoActiveCold).take(minimumColdConnections).toMap
+      } else {
+        usefulColdConnections
+      }
+
+    val toRemove = state.peersHandler.getColdPeers.keySet -- coldConnectionsToSave.keySet
+    val newPeer = state.peersHandler.removeColdPeers(toRemove)
+    state.copy(peersHandler = newPeer)
   }
 
   private def clearCloseTimestamps[F[_]](state: State[F]): State[F] =
