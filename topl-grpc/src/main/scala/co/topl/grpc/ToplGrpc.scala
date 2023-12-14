@@ -30,10 +30,4 @@ object ToplGrpc {
         .resource[F]
         .evalMap(server => Async[F].delay(server.start()))
   }
-
-  implicit def byteVectorToByteString(byteVector: ByteVector): ByteString =
-    ByteString.copyFrom(byteVector.toByteBuffer)
-
-  implicit def byteStringToByteVector(byteString: ByteString): Bytes =
-    ByteVector(byteString.asReadOnlyByteBuffer())
 }

@@ -1,5 +1,6 @@
 package co.topl.blockchain
 
+import cats.{Monad, Show}
 import cats.data.EitherT
 import cats.data.OptionT
 import cats.implicits._
@@ -153,24 +154,6 @@ object ToplRpcServer {
               )
             )
             .rethrowT
-
-        def blockAdoptions(): F[SourceMatNotUsed[TypedIdentifier]] =
-          Sync[F].defer(locallyAdoptedBlocks)
-
-        def fetchHeader(id: TypedIdentifier): F[Option[BlockHeaderV2]] =
-          headerStore.get(id)
-
-        def fetchBody(id: TypedIdentifier): F[Option[BlockBodyV2]] =
-          bodyStore.get(id)
-
-        def fetchTransaction(id: TypedIdentifier): F[Option[Transaction]] =
-          transactionStore.get(id)
-
-        def fetchBlockIdAtHeight(height: Long): F[Option[TypedIdentifier]] =
-          localChain.head
-            .map(_.slotId.blockId)
-            .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
-
       }
     }
 
