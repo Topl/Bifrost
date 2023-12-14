@@ -7,7 +7,7 @@ import cats.effect.std.{Console, Env}
 import cats.implicits._
 import co.topl.brambl.models.LockAddress
 import co.topl.config.ApplicationConfig
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.node.AbstractNodeApp
 import co.topl.typeclasses.implicits._
 import fs2.io.file.{Files, Path}
@@ -38,9 +38,9 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
     readInput[F].map(_.some.filterNot(_.isEmpty))
 
   /**
-   * Returns: Tuple (optional directory, optional reward address)
+   * Returns: Tuple (optional directory, optional reward address, optional staking address)
    */
-  private val promptStakingSettings: StageResultT[F, (Option[String], Option[LockAddress])] =
+  private val promptStakingSettings: StageResultT[F, (Option[String], Option[LockAddress], Option[StakingAddress])] =
     readYesNo("Enable staking operations?", No.some)(
       ifYes = for {
         _ <- writeMessage[F](
@@ -51,8 +51,12 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
           "Reward Address",
           List("ptetP7jshHTwEg9Fz9Xa1AmmzhYHDHo1zZRde7mnw3fddcXPjV14RPcgVgy7")
         )
-      } yield (stakingDir, rewardAddress),
-      ifNo = (none[String], none[LockAddress]).pure[StageResultT[F, *]]
+        stakingAddress <- readOptionalParameter[F, StakingAddress](
+          "Staking Address",
+          List("28WBHmFRzamCRZYKp2QBBedy4Mnxu1Lj9gzMDAHsMcKF")
+        )
+      } yield (stakingDir, rewardAddress, stakingAddress),
+      ifNo = (none[String], none[LockAddress], none[StakingAddress]).pure[StageResultT[F, *]]
     )
 
   /**
@@ -127,7 +131,7 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
   private val promptSettings =
     for {
       dataDir                                                         <- promptDataDir
-      (stakingDir, stakingRewardAddress)                              <- promptStakingSettings
+      (stakingDir, stakingRewardAddress, stakingAddress)              <- promptStakingSettings
       (genesisBlockId, genesisSourcePath)                             <- promptGenesis
       (rpcHost, rpcPort, enableGenus)                                 <- promptRpc
       (p2pHost, p2pPort, p2pPublicHost, p2pPublicPort, p2pKnownPeers) <- promptP2P
@@ -135,6 +139,7 @@ class ConfigureCommandImpl[F[_]: Async: Console](appConfig: ApplicationConfig) {
       dataDir,
       stakingDir,
       stakingRewardAddress,
+      stakingAddress,
       genesisBlockId,
       genesisSourcePath,
       rpcHost,
@@ -216,6 +221,7 @@ private[cli] case class ConfigureCommandInput(
   dataDir:              Option[String],
   stakingDir:           Option[String],
   stakingRewardAddress: Option[LockAddress],
+  stakingAddress:       Option[StakingAddress],
   genesisBlockId:       Option[BlockId],
   genesisSourcePath:    Option[String],
   rpcHost:              Option[String],
@@ -241,7 +247,11 @@ private[cli] case class ConfigureCommandInput(
             "staking" -> Json
               .obj(
                 "directory"      -> stakingDir.asJson,
-                "reward-address" -> stakingRewardAddress.map(co.topl.brambl.codecs.AddressCodecs.encodeAddress).asJson
+                "reward-address" -> stakingRewardAddress.map(co.topl.brambl.codecs.AddressCodecs.encodeAddress).asJson,
+                "staking-address" -> stakingAddress
+                  .map(_.value.toByteArray)
+                  .map(co.topl.brambl.utils.Encoding.encodeToBase58)
+                  .asJson
               )
               .dropNullValues,
             "big-bang" -> Json

@@ -6,7 +6,7 @@ import cats.effect.{Async, Sync}
 import cats.implicits._
 import co.topl.brambl.models.LockAddress
 import co.topl.brambl.syntax._
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.models.utility._
 import com.google.protobuf.ByteString
 import fs2.Chunk
@@ -185,6 +185,13 @@ package object cli {
 
   implicit private[cli] val parseLockAddress: UserInputParser[LockAddress] =
     (s: String) => co.topl.brambl.codecs.AddressCodecs.decodeAddress(s).leftMap(_.toString)
+
+  implicit private[cli] val parseStakingAddress: UserInputParser[StakingAddress] =
+    (s: String) =>
+      co.topl.brambl.utils.Encoding
+        .decodeFromBase58(s)
+        .map(array => StakingAddress(ByteString.copyFrom(array)))
+        .leftMap(_.toString)
 
   implicit private[cli] val parseBlockId: UserInputParser[BlockId] =
     (s: String) => {

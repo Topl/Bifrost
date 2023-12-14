@@ -4,12 +4,14 @@ import cats.Show
 import cats.implicits._
 import co.topl.brambl.codecs.AddressCodecs.decodeAddress
 import co.topl.brambl.models.LockAddress
+import co.topl.brambl.utils.Encoding
 import co.topl.config.ApplicationConfig
 import co.topl.config.ApplicationConfig.Bifrost
 import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.models._
 import co.topl.models.utility._
+import com.google.protobuf.ByteString
 import com.typesafe.config.Config
 import monocle._
 import monocle.macros._
@@ -40,7 +42,13 @@ object ApplicationConfigOps {
       List[Option[ApplicationConfig => ApplicationConfig]](
         cmdArgs.runtime.dataDir.map(createF(GenLens[ApplicationConfig](_.bifrost.data.directory))),
         cmdArgs.runtime.databaseType.map(createF(GenLens[ApplicationConfig](_.bifrost.data.databaseType))),
-        cmdArgs.runtime.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
+        cmdArgs.runtime.stakingArgs.stakingDir.map(createF(GenLens[ApplicationConfig](_.bifrost.staking.directory))),
+        cmdArgs.runtime.stakingArgs.rewardAddress.map(
+          createF(GenLens[ApplicationConfig](_.bifrost.staking.rewardAddress))
+        ),
+        cmdArgs.runtime.stakingArgs.stakingAddress.map(v =>
+          createF(GenLens[ApplicationConfig](_.bifrost.staking.stakingAddress))(v.some)
+        ),
         cmdArgs.runtime.rpcBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindHost))),
         cmdArgs.runtime.rpcBindPort.map(createF(GenLens[ApplicationConfig](_.bifrost.rpc.bindPort))),
         cmdArgs.runtime.p2pBindHost.map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.bindHost))),
@@ -114,6 +122,14 @@ object ApplicationConfigOps {
     ConfigReader[String].emap(str =>
       decodeAddress(str).leftMap(e => error.CannotConvert(str, "LockAddress", e.toString))
     )
+
+  implicit val stakingAddressReader: ConfigReader[StakingAddress] =
+    ConfigReader[String]
+      .emap(str =>
+        Encoding.decodeFromBase58(str).leftMap(_ => error.CannotConvert(str, "StakingAddress", "Not base58"))
+      )
+      .map(ByteString.copyFrom)
+      .map(StakingAddress(_))
 
   implicit val blockIdReader: ConfigReader[BlockId] =
     ConfigReader[String]
