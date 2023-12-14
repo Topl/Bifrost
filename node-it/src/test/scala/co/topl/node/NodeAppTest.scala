@@ -150,7 +150,7 @@ class NodeAppTest extends CatsEffectSuite {
               // Graph 2 has lower fees, so the Block Packer should never choose them
               transactionGenerator2 <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 10L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .make[F](wallet, _ => 10L.pure[F], Fs2TransactionGenerator.randomMetadata[F])
                   .toResource
               transactionGraph2 <- Stream
                 .force(transactionGenerator2.generateTransactions)
