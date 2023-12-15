@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:admin/state.dart';
@@ -5,10 +6,9 @@ import 'package:fixnum/fixnum.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:fast_base58/fast_base58.dart';
+import 'package:syncfusion_flutter_gauges/gauges.dart';
 import 'package:topl_common/genus/services/node_grpc.dart';
-import 'package:topl_common/proto/consensus/models/block_id.pb.dart';
 import 'package:topl_common/proto/consensus/models/staking.pb.dart';
-import 'package:topl_common/proto/node/models/block.pb.dart';
 
 const rpcHost = "localhost";
 const rpcPort = 9084;
@@ -28,109 +28,72 @@ class BifrostAdminApp extends StatelessWidget {
         theme: ThemeData(
           primarySwatch: Colors.green,
         ),
-        home: BifrostAdminHomePage(
-          title: 'Bifrost',
-          client: NodeGRPCService(host: rpcHost, port: rpcPort),
+        home: const BifrostAdminHomePage(
+          title: 'Bifrost Admin',
         ));
   }
 }
 
-class BifrostAdminHomePage extends StatelessWidget {
-  const BifrostAdminHomePage(
-      {super.key, required this.title, required this.client});
+class BifrostAdminHomePage extends StatefulWidget {
+  const BifrostAdminHomePage({super.key, required this.title});
 
   final String title;
-  final NodeGRPCService client;
+
+  @override
+  State<BifrostAdminHomePage> createState() =>
+      _BifrostAdminHomePageState("$rpcHost:$rpcPort");
+}
+
+class _BifrostAdminHomePageState extends State<BifrostAdminHomePage> {
+  _BifrostAdminHomePageState(this.currentAddress);
+  String currentAddress;
+  String _addressBuffer = "";
 
   @override
   Widget build(BuildContext context) {
+    final split = currentAddress.split(":");
+    final client = NodeGRPCService(host: split[0], port: int.parse(split[1]));
     return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-      ),
-      body: Center(
-        child: StreamBuilder(
-            stream: stateStream,
-            builder: (context, snapshot) => snapshot.hasData
-                ? BlockchainStateViewer(state: snapshot.data!)
-                : const CircularProgressIndicator()),
+      appBar: AppBar(title: Text(widget.title)),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _addressBar,
+            StreamBuilder(
+              stream: Stream.fromFuture(client.whenReady()).asyncExpand(
+                  (_) => BlockchainState.streamed(client, maxCacheSize)),
+              builder: (context, snapshot) => snapshot.hasData
+                  ? BlockchainStateViewer(state: snapshot.data!)
+                  : const CircularProgressIndicator(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Stream<BlockchainState> get stateStream async* {
-    final genesisId = (await client.fetchBlockIdAtHeight(height: 1)).blockId;
-    final genesisBlock = await fetchBlock(genesisId);
-    final headId = (await client.fetchBlockIdAtDepth(depth: 0)).blockId;
-    final headBlock = await fetchBlock(headId);
-    BlockchainState state;
-    if (genesisId != headId) {
-      Int64 h = headBlock.header.height - maxCacheSize;
-      if (h < genesisBlock.header.height) {
-        h = genesisBlock.header.height;
-        state = BlockchainState.fromCanonicalHead(
-            head: genesisBlock, genesis: genesisBlock, maxSize: maxCacheSize);
-      } else {
-        final blockId =
-            (await client.fetchBlockIdAtHeight(height: h.toInt())).blockId;
-        final block = await fetchBlock(blockId);
-        state = BlockchainState.fromCanonicalHead(
-            head: block, genesis: genesisBlock, maxSize: maxCacheSize);
-      }
-
-      h++;
-      final futureBlocks = <Future<FullBlock>>[];
-      for (int height = h.toInt();
-          height < headBlock.header.height.toInt();
-          height++) {
-        futureBlocks.add(client
-            .fetchBlockIdAtHeight(height: height)
-            .then((r) => fetchBlock(r.blockId)));
-      }
-      final blocks = await Future.wait(futureBlocks);
-      for (final block in blocks) {
-        state.pushBlock(block);
-      }
-      state.pushBlock(headBlock);
-    } else {
-      state = BlockchainState.fromCanonicalHead(
-          head: headBlock, genesis: genesisBlock, maxSize: maxCacheSize);
-    }
-    yield state;
-    await for (final syncTraversal in client.synchronizationTraversal()) {
-      if (syncTraversal.hasApplied()) {
-        final newHead = await fetchBlock(syncTraversal.applied);
-        state.pushBlock(newHead);
-        yield state;
-      } else {
-        if (!state.isEmpty) {
-          state.popBlock();
-          yield state;
-        }
-      }
-    }
-  }
-
-  Future<FullBlock> fetchBlock(BlockId blockId) async {
-    final header =
-        (await client.fetchBlockHeader(blockIdBytes: blockId.value)).header;
-    final body =
-        (await client.fetchBlockBody(blockIdBytes: blockId.value)).body;
-    final transactions = [
-      for (final txId in body.transactionIds)
-        (await client.fetchTransaction(transactionIdBytes: txId.value))
-            .transaction
-    ];
-    final rewardTransaction = (body.hasRewardTransactionId())
-        ? (await client.fetchTransaction(
-                transactionIdBytes: body.rewardTransactionId.value))
-            .transaction
-        : null;
-    final fullBody = FullBlockBody(
-        transactions: transactions, rewardTransaction: rewardTransaction);
-    final fullBlock = FullBlock(header: header, fullBody: fullBody);
-    return fullBlock;
-  }
+  Widget get _addressBar => SizedBox(
+        height: 100,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 300,
+              child: TextFormField(
+                decoration: const InputDecoration(
+                    hintText: "host:port", border: OutlineInputBorder()),
+                initialValue: currentAddress,
+                onChanged: (text) => _addressBuffer = text,
+              ),
+            ),
+            IconButton(
+              onPressed: () => setState(() {
+                currentAddress = _addressBuffer;
+              }),
+              icon: const Icon(Icons.send),
+            )
+          ],
+        ),
+      );
 }
 
 class BlockchainStateViewer extends StatelessWidget {
@@ -142,15 +105,9 @@ class BlockchainStateViewer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Card(
-          child: BlockchainHeadState(state: state),
-        ),
-        Card(
-          child: BlockProductionRate(state: state),
-        ),
-        Card(
-          child: StakerDistribution(state: state),
-        ),
+        Card(child: BlockchainHeadState(state: state)),
+        Card(child: BlockProductionRate(state: state)),
+        Card(child: StakerDistribution(state: state)),
       ],
     );
   }
@@ -164,36 +121,31 @@ class BlockchainHeadState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final head = state.blocks[state.currentHeadId]!;
-    return Column(
-      children: [
-        const Text("Canonical Head", style: headerTextStyle),
-        Row(
-          children: [
-            Column(
-              children: [
-                const Text("Block ID", style: miniHeaderTextStyle),
-                Text(Base58Encode(state.currentHeadId.value))
-              ],
-            ),
-            const VerticalDivider(),
-            Column(
-              children: [
-                const Text("Height", style: miniHeaderTextStyle),
-                Text(head.header.height.toString())
-              ],
-            ),
-            const VerticalDivider(),
-            Column(
-              children: [
-                const Text("Slot", style: miniHeaderTextStyle),
-                Text(head.header.slot.toString())
-              ],
-            ),
-          ],
-        ),
-      ],
+    return Container(
+      color: hash32ToLightColor(state.currentHeadId.value),
+      child: Column(
+        children: [
+          const Text("Canonical Head", style: headerTextStyle),
+          Wrap(
+            children: [
+              _dataChip("Block ID", Base58Encode(state.currentHeadId.value)),
+              const VerticalDivider(),
+              _dataChip("Height", head.header.height.toString()),
+              const VerticalDivider(),
+              _dataChip("Slot", head.header.slot.toString()),
+            ],
+          ),
+        ],
+      ),
     );
   }
+
+  Widget _dataChip(String header, String value) => Column(
+        children: [
+          Text(header, style: miniHeaderTextStyle),
+          Chip(label: Text(value))
+        ],
+      );
 }
 
 class BlockProductionRate extends StatelessWidget {
@@ -203,38 +155,108 @@ class BlockProductionRate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Column(children: [
+      const Text("Block Production Rate", style: headerTextStyle),
+      Wrap(
+        children: [
+          _guageWrapper(
+              "Last 10 Blocks",
+              Stream.periodic(const Duration(milliseconds: 500))
+                  .map((_) => _currentProductionRate)),
+          _guageWrapper("Last ${state.recentBlocks.length} Blocks",
+              Stream.value(_cachedProductionRate)),
+          _guageWrapper("Overall", Stream.value(_overallProductionRate)),
+        ],
+      )
+    ]);
+  }
+
+  Widget _guageWrapper(String title, Stream<double> rates) => SizedBox(
+        width: 400,
+        height: 400,
+        child: Column(children: [
+          Text(title, style: miniHeaderTextStyle),
+          const Divider(),
+          StreamBuilder(
+              stream: rates,
+              builder: (_, snapshot) =>
+                  _productionRateGauge(snapshot.data ?? 0))
+        ]),
+      );
+
+  Widget _productionRateGauge(double rate) {
+    return SfRadialGauge(axes: <RadialAxis>[
+      RadialAxis(
+          minimum: 0,
+          maximum: 0.35,
+          ranges: _gaugeRanges,
+          pointers: <GaugePointer>[
+            NeedlePointer(value: rate)
+          ],
+          annotations: <GaugeAnnotation>[
+            GaugeAnnotation(
+              widget: Column(
+                children: [
+                  Text(rate.toStringAsPrecision(5),
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold)),
+                  const Text("blocks-per-second",
+                      style: TextStyle(fontSize: 10)),
+                ],
+              ),
+              angle: rate,
+              positionFactor: 0.5,
+              verticalAlignment: GaugeAlignment.near,
+            )
+          ])
+    ]);
+  }
+
+  static final _gaugeRanges = <GaugeRange>[
+    GaugeRange(startValue: 0, endValue: 0.06, color: Colors.red),
+    GaugeRange(startValue: 0.06, endValue: 0.09, color: Colors.yellow),
+    GaugeRange(startValue: 0.09, endValue: 0.2, color: Colors.green),
+    GaugeRange(startValue: 0.2, endValue: 0.28, color: Colors.yellow),
+    GaugeRange(startValue: 0.28, endValue: 0.35, color: Colors.red)
+  ];
+
+  double get _currentProductionRate {
+    final currentHead = state.currentHead;
+    final targetBlock = state
+        .blocks[state.recentBlocks[max(state.recentBlocks.length - 10, 0)]]!;
+    final recentBlocksHeightDelta =
+        currentHead.header.height - targetBlock.header.height;
+    final recentBlocksMsDelta = DateTime.now().millisecondsSinceEpoch -
+        targetBlock.header.timestamp.toInt();
+    final currentRate = recentBlocksHeightDelta.toDouble() /
+        recentBlocksMsDelta.toDouble() *
+        1000.0;
+    return currentRate;
+  }
+
+  double get _cachedProductionRate {
     final currentHead = state.currentHead;
     final oldestBlock = state.blocks[state.recentBlocks[0]]!;
     final recentBlocksHeightDelta =
         currentHead.header.height - oldestBlock.header.height;
-    final recentBlocksMsDelta =
-        currentHead.header.timestamp - oldestBlock.header.timestamp;
+    final recentBlocksMsDelta = DateTime.now().millisecondsSinceEpoch -
+        oldestBlock.header.timestamp.toInt();
     final currentRate = recentBlocksHeightDelta.toDouble() /
         recentBlocksMsDelta.toDouble() *
         1000.0;
+    return currentRate;
+  }
 
+  double get _overallProductionRate {
+    final currentHead = state.currentHead;
     final genesisBlock = state.genesis;
     final genesisHeightDelta =
         currentHead.header.height - genesisBlock.header.height;
-    final genesisMsDelta =
-        currentHead.header.timestamp - genesisBlock.header.timestamp;
+    final genesisMsDelta = DateTime.now().millisecondsSinceEpoch -
+        genesisBlock.header.timestamp.toInt();
     final overallRate =
         genesisHeightDelta.toDouble() / genesisMsDelta.toDouble() * 1000.0;
-    return Column(
-      children: [
-        const Text("Block Production Rate", style: headerTextStyle),
-        Row(children: [
-          const Text("Recent", style: miniHeaderTextStyle),
-          const VerticalDivider(),
-          Text("$currentRate blocks/second")
-        ]),
-        Row(children: [
-          const Text("Overall", style: miniHeaderTextStyle),
-          const VerticalDivider(),
-          Text("$overallRate blocks/second")
-        ]),
-      ],
-    );
+    return overallRate;
   }
 }
 
@@ -249,16 +271,20 @@ class StakerDistribution extends StatelessWidget {
     final distribution = distributionMap.entries.toList()
       ..sort((e1, e2) => e1.value.compareTo(e2.value));
     final total = state.blocks.length;
-    final stakerColors = Map.fromEntries(
-        distribution.map((e) => MapEntry(e.key, hash32ToColor(e.key.value))));
+    final stakerColors = Map.fromEntries(distribution
+        .map((e) => MapEntry(e.key, hash32ToLightColor(e.key.value))));
 
     final pieChartData = PieChartData(
       sections: distribution
           .map((e) => PieChartSectionData(
-              value: e.value.toDouble() / total.toDouble(),
-              color: stakerColors[e.key],
-              titleStyle: const TextStyle(color: Colors.white)))
+                value: e.value.toDouble(),
+                color: stakerColors[e.key],
+                title:
+                    "${e.value} (${(e.value.toDouble() / total.toDouble() * 100.0).round()}%)",
+                titleStyle: const TextStyle(color: Colors.black),
+              ))
           .toList(),
+      borderData: FlBorderData(),
     );
     final pieChart = PieChart(pieChartData);
     final legend = Column(
@@ -279,9 +305,11 @@ class StakerDistribution extends StatelessWidget {
     );
     return Column(
       children: [
-        const Text("Staker Block Distribution", style: headerTextStyle),
-        SizedBox(
-          height: 500,
+        Text(
+            "Staker Block Distribution (Last ${state.recentBlocks.length} Blocks)",
+            style: headerTextStyle),
+        ConstrainedBox(
+          constraints: BoxConstraints.loose(const Size.fromHeight(400)),
           child: AspectRatio(
             aspectRatio: 1.3,
             child: Row(
@@ -314,12 +342,18 @@ const miniHeaderTextStyle =
     TextStyle(fontWeight: FontWeight.bold, fontSize: 15);
 const headerTextStyle = TextStyle(fontWeight: FontWeight.bold, fontSize: 18);
 
-Color hash32ToColor(List<int> bytes) {
+Color hash32ToLightColor(List<int> bytes) {
   final buffered = ByteData.view(Uint8List.fromList(bytes).buffer);
-  final r = buffered.getUint8(0);
-  final g = buffered.getUint8(1);
-  final b = buffered.getUint8(2);
-  return Color.fromRGBO(r, g, b, 1);
+  final intMaxValue = Int32.MAX_VALUE.toInt() - Int32.MIN_VALUE.toInt();
+  final hue = buffered.getUint32(4).toDouble() * 360.0 / intMaxValue.toDouble();
+  return HSLColor.fromAHSL(1, hue, 0.8, 0.8).toColor();
+}
+
+Color hash32ToDarkColor(List<int> bytes) {
+  final buffered = ByteData.view(Uint8List.fromList(bytes).buffer);
+  final intMaxValue = Int32.MAX_VALUE.toInt() - Int32.MIN_VALUE.toInt();
+  final hue = buffered.getUint32(4).toDouble() * 360.0 / intMaxValue.toDouble();
+  return HSLColor.fromAHSL(1, hue, 0.8, 0.2).toColor();
 }
 
 class Indicator extends StatelessWidget {
@@ -355,7 +389,7 @@ class Indicator extends StatelessWidget {
         Text(
           text,
           style: TextStyle(
-            fontSize: 16,
+            fontSize: 13,
             fontWeight: FontWeight.bold,
             color: textColor,
           ),
