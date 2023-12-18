@@ -29,7 +29,7 @@ object ApplicationConfig {
     case class Rpc(client: String)
 
     @Lenses
-    case class Generator(dataLength: Int)
+    case class Generator(insertMetadata: Boolean)
 
     @Lenses
     case class Broadcaster(tps: Double)
