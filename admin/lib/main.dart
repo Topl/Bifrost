@@ -40,34 +40,38 @@ class BifrostAdminHomePage extends StatefulWidget {
   final String title;
 
   @override
-  State<BifrostAdminHomePage> createState() =>
-      _BifrostAdminHomePageState("$rpcHost:$rpcPort");
+  State<BifrostAdminHomePage> createState() => _BifrostAdminHomePageState();
 }
 
 class _BifrostAdminHomePageState extends State<BifrostAdminHomePage> {
-  _BifrostAdminHomePageState(this.currentAddress);
-  String currentAddress;
-  String _addressBuffer = "";
+  String currentAddress = "";
+  String _addressBuffer = "$rpcHost:$rpcPort";
 
   @override
   Widget build(BuildContext context) {
-    final split = currentAddress.split(":");
-    final client = NodeGRPCService(host: split[0], port: int.parse(split[1]));
     return Scaffold(
       appBar: AppBar(title: Text(widget.title)),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _addressBar,
-            StreamBuilder(
-              stream: Stream.fromFuture(client.whenReady()).asyncExpand(
-                  (_) => BlockchainState.streamed(client, maxCacheSize)),
-              builder: (context, snapshot) => snapshot.hasData
-                  ? BlockchainStateViewer(state: snapshot.data!)
-                  : const CircularProgressIndicator(),
-            ),
-          ],
-        ),
+      body: currentAddress.isEmpty ? _waitingForInput : _ready,
+    );
+  }
+
+  Widget get _waitingForInput => Center(child: _addressBar);
+
+  Widget get _ready {
+    final split = currentAddress.split(":");
+    final client = NodeGRPCService(host: split[0], port: int.parse(split[1]));
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          _addressBar,
+          StreamBuilder(
+            stream: Stream.fromFuture(client.whenReady()).asyncExpand(
+                (_) => BlockchainState.streamed(client, maxCacheSize)),
+            builder: (context, snapshot) => snapshot.hasData
+                ? BlockchainStateViewer(state: snapshot.data!)
+                : const CircularProgressIndicator(),
+          ),
+        ],
       ),
     );
   }
@@ -81,7 +85,7 @@ class _BifrostAdminHomePageState extends State<BifrostAdminHomePage> {
               child: TextFormField(
                 decoration: const InputDecoration(
                     hintText: "host:port", border: OutlineInputBorder()),
-                initialValue: currentAddress,
+                initialValue: _addressBuffer,
                 onChanged: (text) => _addressBuffer = text,
               ),
             ),

@@ -118,8 +118,8 @@ extension NodeGRPCServiceOps on NodeGRPCService {
             height: 1,
             options: CallOptions(timeout: const Duration(seconds: 5)));
         ready = true;
-      } on SocketException {
-        // Do nothing
+      } on Exception {
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
   }
