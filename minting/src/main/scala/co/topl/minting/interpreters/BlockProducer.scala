@@ -118,8 +118,11 @@ object BlockProducer {
           show" eligibilitySlot=${nextHit.slot}"
         )
         // Assemble the transactions to be placed in our new block
-        fullBody  <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
-        timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
+        fullBody <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+        // Assign the block's timestamp to the current time, unless it falls outside the window for the target slot
+        timestamp <- (clock.slotToTimestamps(nextHit.slot), clock.currentTimestamp).mapN((boundary, currentTimestamp) =>
+          currentTimestamp.min(boundary.last).max(boundary.head)
+        )
         blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
         eta: Eta = Sized.strictUnsafe[ByteString, Eta.Length](nextHit.cert.eta)
         _           <- Logger[F].info("Certifying block")
