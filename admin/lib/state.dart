@@ -1,56 +1,79 @@
-import 'dart:io';
-
 import 'package:fixnum/fixnum.dart';
 import 'package:topl_common/genus/services/node_grpc.dart';
+import 'package:topl_common/proto/brambl/models/box/value.pb.dart';
 import 'package:topl_common/proto/consensus/models/block_id.pb.dart';
 import 'package:topl_common/proto/node/models/block.pb.dart';
 import 'package:grpc/grpc.dart';
+import 'package:topl_common/proto/node/models/node_config.pb.dart';
 
 class BlockchainState {
   Map<BlockId, FullBlock> blocks;
   List<BlockId> recentBlocks;
+  List<DateTime?> recentAdoptionTimestamps;
   final FullBlock genesis;
+  final NodeConfig nodeConfig;
+  final Value_UpdateProposal protocol;
   final int maxSize;
 
   BlockchainState({
     required this.blocks,
     required this.recentBlocks,
+    required this.recentAdoptionTimestamps,
     required this.genesis,
+    required this.nodeConfig,
+    required this.protocol,
     required this.maxSize,
   });
 
   factory BlockchainState.fromCanonicalHead({
     required FullBlock head,
     required FullBlock genesis,
+    required NodeConfig nodeConfig,
     required int maxSize,
   }) {
+    final protocol = genesis.fullBody.transactions
+        .expand((t) => t.outputs)
+        .firstWhere((o) => o.value.hasUpdateProposal())
+        .value
+        .updateProposal;
+
     return BlockchainState(
       blocks: {head.header.headerId: head},
       recentBlocks: [head.header.headerId],
+      recentAdoptionTimestamps: [null],
       genesis: genesis,
+      nodeConfig: nodeConfig,
+      protocol: protocol,
       maxSize: maxSize,
     );
   }
 
   static Stream<BlockchainState> streamed(
-      NodeGRPCService client, int maxCacheSize) async* {
+      NodeGRPCService client, int maxCacheSize, int prefetchSize) async* {
+    final nodeConfig = (await client.fetchNodeConfig().first).config;
     final genesisId = (await client.fetchBlockIdAtHeight(height: 1)).blockId;
     final genesisBlock = await client.fetchBlock(genesisId);
     final headId = (await client.fetchBlockIdAtDepth(depth: 0)).blockId;
     final headBlock = await client.fetchBlock(headId);
     BlockchainState state;
     if (genesisId != headId) {
-      Int64 h = headBlock.header.height - maxCacheSize;
+      Int64 h = headBlock.header.height - prefetchSize;
       if (h < genesisBlock.header.height) {
         h = genesisBlock.header.height;
         state = BlockchainState.fromCanonicalHead(
-            head: genesisBlock, genesis: genesisBlock, maxSize: maxCacheSize);
+            head: genesisBlock,
+            genesis: genesisBlock,
+            nodeConfig: nodeConfig,
+            maxSize: maxCacheSize);
       } else {
         final blockId =
             (await client.fetchBlockIdAtHeight(height: h.toInt())).blockId;
         final block = await client.fetchBlock(blockId);
         state = BlockchainState.fromCanonicalHead(
-            head: block, genesis: genesisBlock, maxSize: maxCacheSize);
+            head: block,
+            genesis: genesisBlock,
+            nodeConfig: nodeConfig,
+            maxSize: maxCacheSize);
       }
 
       h++;
@@ -64,18 +87,21 @@ class BlockchainState {
       }
       final blocks = await Future.wait(futureBlocks);
       for (final block in blocks) {
-        state.pushBlock(block);
+        state.pushBlock(block, null);
       }
-      state.pushBlock(headBlock);
+      state.pushBlock(headBlock, null);
     } else {
       state = BlockchainState.fromCanonicalHead(
-          head: headBlock, genesis: genesisBlock, maxSize: maxCacheSize);
+          head: headBlock,
+          genesis: genesisBlock,
+          nodeConfig: nodeConfig,
+          maxSize: maxCacheSize);
     }
     yield state;
     await for (final syncTraversal in client.synchronizationTraversal()) {
       if (syncTraversal.hasApplied()) {
         final newHead = await client.fetchBlock(syncTraversal.applied);
-        state.pushBlock(newHead);
+        state.pushBlock(newHead, DateTime.now());
         yield state;
       } else {
         if (!state.isEmpty) {
@@ -88,12 +114,14 @@ class BlockchainState {
 
   BlockId get currentHeadId => recentBlocks[recentBlocks.length - 1];
 
-  void pushBlock(FullBlock block) {
+  void pushBlock(FullBlock block, DateTime? adoptionTimestamp) {
     blocks[block.header.headerId] = block;
     recentBlocks.add(block.header.headerId);
+    recentAdoptionTimestamps.add(adoptionTimestamp);
     if (recentBlocks.length > maxSize) {
       final oldest = recentBlocks.removeAt(0);
       blocks.remove(oldest);
+      recentAdoptionTimestamps.removeAt(0);
     }
   }
 
@@ -101,6 +129,7 @@ class BlockchainState {
     final result = blocks[currentHeadId]!;
     blocks.remove(currentHeadId);
     recentBlocks.removeLast();
+    recentAdoptionTimestamps.removeLast();
     return result;
   }
 

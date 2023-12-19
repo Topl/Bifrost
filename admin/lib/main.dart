@@ -7,12 +7,13 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:fast_base58/fast_base58.dart';
 import 'package:syncfusion_flutter_gauges/gauges.dart';
+import 'package:topl_common/genus/data_extensions.dart';
 import 'package:topl_common/genus/services/node_grpc.dart';
 import 'package:topl_common/proto/consensus/models/staking.pb.dart';
 
 const rpcHost = "localhost";
 const rpcPort = 9084;
-const maxCacheSize = 100;
+const maxCacheSize = 1000;
 
 void main() {
   runApp(const BifrostAdminApp());
@@ -66,7 +67,7 @@ class _BifrostAdminHomePageState extends State<BifrostAdminHomePage> {
           _addressBar,
           StreamBuilder(
             stream: Stream.fromFuture(client.whenReady()).asyncExpand(
-                (_) => BlockchainState.streamed(client, maxCacheSize)),
+                (_) => BlockchainState.streamed(client, maxCacheSize, 100)),
             builder: (context, snapshot) => snapshot.hasData
                 ? BlockchainStateViewer(state: snapshot.data!)
                 : const CircularProgressIndicator(),
@@ -110,6 +111,7 @@ class BlockchainStateViewer extends StatelessWidget {
     return Column(
       children: [
         Card(child: BlockchainHeadState(state: state)),
+        Card(child: BlockchainTimeInfo(state: state)),
         Card(child: BlockProductionRate(state: state)),
         Card(child: StakerDistribution(state: state)),
       ],
@@ -143,13 +145,75 @@ class BlockchainHeadState extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _dataChip(String header, String value) => Column(
+Widget _dataChip(String header, String value) => Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
         children: [
           Text(header, style: miniHeaderTextStyle),
           Chip(label: Text(value))
         ],
-      );
+      ),
+    );
+
+class BlockchainTimeInfo extends StatelessWidget {
+  final BlockchainState state;
+
+  const BlockchainTimeInfo({super.key, required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final latency = _networkDelay;
+    return Column(
+      children: [
+        const Text("Time Metrics", style: headerTextStyle),
+        Wrap(
+          children: [
+            _dataChip("Latency",
+                (latency != null) ? "${latency.inMilliseconds} ms" : "N/A"),
+            StreamBuilder(
+                stream: Stream.periodic(const Duration(seconds: 1)),
+                builder: (_, __) =>
+                    _dataChip("Global Slot", _globalSlot.toString())),
+          ],
+        )
+      ],
+    );
+  }
+
+  Duration? get _networkDelay {
+    int totalDelta = 0;
+    int count = 0;
+    for (int i = 0; i < state.recentBlocks.length; i++) {
+      final adoptionTime = state.recentAdoptionTimestamps[i];
+      if (adoptionTime != null) {
+        final adoptionTimeMs = adoptionTime.millisecondsSinceEpoch;
+        final mintedTime =
+            state.blocks[state.recentBlocks[i]]!.header.timestamp.toInt();
+        final delta = (adoptionTimeMs - mintedTime);
+        totalDelta += delta;
+        count++;
+      }
+    }
+    if (count > 0) {
+      return Duration(milliseconds: totalDelta ~/ count);
+    } else {
+      return null;
+    }
+  }
+
+  Int64 get _globalSlot {
+    final slotDurationProto = state.protocol.slotDuration;
+    final slotDuration = Duration(
+        seconds: slotDurationProto.seconds.toInt(),
+        microseconds: slotDurationProto.nanos ~/ 1000);
+    final genesisTimestamp = state.genesis.header.timestamp;
+    final elapsedMs =
+        Int64(DateTime.now().millisecondsSinceEpoch) - genesisTimestamp;
+    final globalSlot = elapsedMs ~/ Int64(slotDuration.inMilliseconds);
+    return globalSlot;
+  }
 }
 
 class BlockProductionRate extends StatelessWidget {
@@ -192,7 +256,7 @@ class BlockProductionRate extends StatelessWidget {
     return SfRadialGauge(axes: <RadialAxis>[
       RadialAxis(
           minimum: 0,
-          maximum: 0.35,
+          maximum: _targetBlocksPerSecond * 2,
           ranges: _gaugeRanges,
           pointers: <GaugePointer>[
             NeedlePointer(value: rate)
@@ -216,13 +280,40 @@ class BlockProductionRate extends StatelessWidget {
     ]);
   }
 
-  static final _gaugeRanges = <GaugeRange>[
-    GaugeRange(startValue: 0, endValue: 0.06, color: Colors.red),
-    GaugeRange(startValue: 0.06, endValue: 0.09, color: Colors.yellow),
-    GaugeRange(startValue: 0.09, endValue: 0.2, color: Colors.green),
-    GaugeRange(startValue: 0.2, endValue: 0.28, color: Colors.yellow),
-    GaugeRange(startValue: 0.28, endValue: 0.35, color: Colors.red)
-  ];
+  static const _networkDelaySeconds = 0.1;
+
+  double get _targetBlocksPerSecond {
+    final fEffective = state.protocol.fEffective.numerator.toBigInt() /
+        state.protocol.fEffective.denominator.toBigInt();
+    return fEffective + (_networkDelaySeconds * fEffective);
+  }
+
+  List<GaugeRange> get _gaugeRanges {
+    final targetBlocksPerSecond = _targetBlocksPerSecond;
+
+    return <GaugeRange>[
+      GaugeRange(
+          startValue: 0,
+          endValue: targetBlocksPerSecond * 0.4,
+          color: Colors.red),
+      GaugeRange(
+          startValue: targetBlocksPerSecond * 0.4,
+          endValue: targetBlocksPerSecond * 0.8,
+          color: Colors.yellow),
+      GaugeRange(
+          startValue: targetBlocksPerSecond * 0.8,
+          endValue: targetBlocksPerSecond * 1.2,
+          color: Colors.green),
+      GaugeRange(
+          startValue: targetBlocksPerSecond * 1.2,
+          endValue: targetBlocksPerSecond * 1.6,
+          color: Colors.yellow),
+      GaugeRange(
+          startValue: targetBlocksPerSecond * 1.6,
+          endValue: targetBlocksPerSecond * 2,
+          color: Colors.red)
+    ];
+  }
 
   double get _currentProductionRate {
     final currentHead = state.currentHead;
