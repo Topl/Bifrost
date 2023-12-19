@@ -3,6 +3,7 @@ package co.topl.transactiongenerator.interpreters
 import cats.{Applicative, Monad}
 import cats.data.OptionT
 import cats.effect._
+import cats.effect.std.Random
 import cats.implicits._
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.Event
@@ -17,12 +18,11 @@ import co.topl.quivr.api.Prover
 import co.topl.transactiongenerator.algebras.TransactionGenerator
 import co.topl.transactiongenerator.models.Wallet
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
 import fs2._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import quivr.models.SmallData
-
-import scala.util.Random
 
 object Fs2TransactionGenerator {
 
@@ -31,9 +31,10 @@ object Fs2TransactionGenerator {
    * updating the local wallet along the way.
    * @param wallet An initial wallet containing an initial set of spendable UTxOs
    */
-  def make[F[_]: Async](
+  def make[F[_]: Async: Random](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F]
+    costCalculator: TransactionCostCalculator[F],
+    metadataF:      F[SmallData]
   ): F[TransactionGenerator[F, Stream[F, *]]] =
     Sync[F].delay(
       new TransactionGenerator[F, Stream[F, *]] {
@@ -41,7 +42,7 @@ object Fs2TransactionGenerator {
         implicit private val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F]("TransactionGenerator")
 
         def generateTransactions: F[Stream[F, IoTransaction]] =
-          Stream.unfoldEval(wallet)(nextTransactionOf[F](_, costCalculator).value).pure[F]
+          Stream.unfoldEval(wallet)(nextTransactionOf[F](_, costCalculator, metadataF).value).pure[F]
       }
     )
 
@@ -49,20 +50,22 @@ object Fs2TransactionGenerator {
    * Given a _current_ wallet, produce a new Transaction and new Wallet.  If the wallet is small, create extra UTxOs.
    * If the wallet is large, consolidate UTxOs.
    */
-  private def nextTransactionOf[F[_]: Async: Logger](
+  private def nextTransactionOf[F[_]: Async: Random: Logger](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F]
+    costCalculator: TransactionCostCalculator[F],
+    metadataF:      F[SmallData]
   ): OptionT[F, (IoTransaction, Wallet)] =
-    (if (wallet.spendableBoxes.size < 5) generateExpandingTransaction(wallet, costCalculator)
-     else generateConsolidatingTransaction(wallet, costCalculator))
+    (if (wallet.spendableBoxes.size < 5) generateExpandingTransaction(wallet, costCalculator, metadataF)
+     else generateConsolidatingTransaction(wallet, costCalculator, metadataF))
       .map(transaction => transaction -> applyTransaction(wallet)(transaction))
 
   /**
    * Constructs a Transaction which attempts to split a UTxO into two
    */
-  private def generateExpandingTransaction[F[_]: Async: Logger](
+  private def generateExpandingTransaction[F[_]: Async: Random: Logger](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F]
+    costCalculator: TransactionCostCalculator[F],
+    metadataF:      F[SmallData]
   ): OptionT[F, IoTransaction] =
     pickSingleInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
       for {
@@ -70,7 +73,7 @@ object Fs2TransactionGenerator {
         unprovenAttestation = Attestation(Attestation.Value.Predicate(predicate))
         inputs = List(SpentTransactionOutput(inputBoxId, unprovenAttestation, inputBox.value))
         outputs           <- createManyOutputs[F](inputBox)
-        provenTransaction <- formTransaction(costCalculator)(inputs, outputs)
+        provenTransaction <- formTransaction(costCalculator, metadataF)(inputs, outputs)
       } yield provenTransaction
     }
 
@@ -79,7 +82,8 @@ object Fs2TransactionGenerator {
    */
   private def generateConsolidatingTransaction[F[_]: Async: Logger](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F]
+    costCalculator: TransactionCostCalculator[F],
+    metadataF:      F[SmallData]
   ): OptionT[F, IoTransaction] =
     OptionT
       .pure[F](
@@ -94,7 +98,7 @@ object Fs2TransactionGenerator {
         )
       })
       .semiflatMap(inputs =>
-        formTransaction(costCalculator)(
+        formTransaction(costCalculator, metadataF)(
           inputs,
           List(
             UnspentTransactionOutput(
@@ -113,12 +117,14 @@ object Fs2TransactionGenerator {
    * Constructs a proven Transaction from the given inputs and outputs
    */
   private def formTransaction[F[_]: Async: Logger](
-    costCalculator: TransactionCostCalculator[F]
+    costCalculator: TransactionCostCalculator[F],
+    metadataF:      F[SmallData]
   )(inputs: Seq[SpentTransactionOutput], outputs: Seq[UnspentTransactionOutput]) =
     for {
       timestamp <- Async[F].realTimeInstant
       schedule = Schedule(0, Long.MaxValue, timestamp.toEpochMilli)
-      datum = Datum.IoTransaction(Event.IoTransaction(schedule, SmallData.defaultInstance))
+      metadata <- metadataF
+      datum = Datum.IoTransaction(Event.IoTransaction(schedule, metadata))
       unprovenTransaction <- applyFee(costCalculator)(
         IoTransaction.defaultInstance.withInputs(inputs).withOutputs(outputs).withDatum(datum)
       )
@@ -150,27 +156,28 @@ object Fs2TransactionGenerator {
   /**
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
    */
-  private def createManyOutputs[F[_]: Applicative](
+  private def createManyOutputs[F[_]: Monad: Random](
     inputBox: Box
-  ): F[List[UnspentTransactionOutput]] = {
-    val lvlBoxValue = inputBox.value.getLvl
-    val inQuantity: BigInt = lvlBoxValue.quantity
-    val spendableQuantity = inQuantity
-    val outputQuantities =
-      if (spendableQuantity <= 0) List.empty[BigInt]
-      else if (spendableQuantity == BigInt(1)) List(BigInt(1))
-      else if (spendableQuantity == BigInt(2)) List.fill(2)(BigInt(1))
+  ): F[List[UnspentTransactionOutput]] = for {
+    lvlBoxValue <- inputBox.value.getLvl.pure[F]
+    inQuantity = lvlBoxValue.quantity: BigInt
+    spendableQuantity = inQuantity
+    outputQuantities <-
+      if (spendableQuantity <= 0) List.empty[BigInt].pure[F]
+      else if (spendableQuantity == BigInt(1)) List(BigInt(1)).pure[F]
+      else if (spendableQuantity == BigInt(2)) List.fill(2)(BigInt(1)).pure[F]
       else {
-        val quantityOutput0 = spendableQuantity - Random.nextLong(spendableQuantity.toLong / 2)
-        List(quantityOutput0, spendableQuantity - quantityOutput0)
+        Random[F]
+          .nextLongBounded(spendableQuantity.toLong / 2)
+          .map(spendableQuantity - _)
+          .map(quantityOutput0 => List(quantityOutput0, spendableQuantity - quantityOutput0))
       }
-    outputQuantities
+    result = outputQuantities
       .filter(_ > 0)
       .map(quantity =>
         UnspentTransactionOutput(HeightLockOneSpendingAddress, Value.defaultInstance.withLvl(Value.LVL(quantity)))
       )
-  }
-    .pure[F]
+  } yield result
 
   private def applyFee[F[_]: Monad](
     costCalculator: TransactionCostCalculator[F]
@@ -193,5 +200,11 @@ object Fs2TransactionGenerator {
           ._2
       )
     } yield updated
+
+  def emptyMetadata[F[_]: Applicative]: F[SmallData] =
+    SmallData.defaultInstance.pure[F]
+
+  def randomMetadata[F[_]: Monad: Random]: F[SmallData] =
+    Random[F].nextBytes(64).map(ByteString.copyFrom).map(SmallData(_))
 
 }

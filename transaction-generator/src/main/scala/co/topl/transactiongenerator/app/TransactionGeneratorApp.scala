@@ -50,8 +50,11 @@ object TransactionGeneratorApp
       targetTps = appConfig.transactionGenerator.broadcaster.tps
       _              <- Logger[F].info(show"Generating and broadcasting transactions at tps=$targetTps")
       costCalculator <- TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig()).pure[F]
+      metadataF =
+        if (appConfig.transactionGenerator.generator.insertMetadata) Fs2TransactionGenerator.randomMetadata[F]
+        else Fs2TransactionGenerator.emptyMetadata[F]
       transactionStream <- Fs2TransactionGenerator
-        .make[F](wallet, costCalculator)
+        .make[F](wallet, costCalculator, metadataF)
         .flatMap(_.generateTransactions)
       _ <- NodeGrpc.Client
         .make[F](clientAddress._1, clientAddress._2, clientAddress._3)
@@ -96,7 +99,7 @@ object TransactionGeneratorApp
   ) =
     transactionStream
       // Send 1 transaction per _this_ duration
-      .metered((1_000_000_000d / targetTps).nanos)
+      .meteredStartImmediately((1_000_000_000d / targetTps).nanos)
       // Broadcast+log the transaction
       .evalTap(transaction =>
         Logger[F].debug(show"Broadcasting transaction id=${transaction.id}") >>
@@ -119,7 +122,7 @@ object TransactionGeneratorApp
    */
   private def runMempoolStream(client: NodeRpc[F, Stream[F, *]], period: FiniteDuration) =
     Stream
-      .awakeEvery[F](period)
+      .fixedRateStartImmediately[F](period)
       .evalMap(_ => client.currentMempool())
       .evalTap(transactionIds => Logger[F].info(show"Current mempool=$transactionIds"))
       .compile

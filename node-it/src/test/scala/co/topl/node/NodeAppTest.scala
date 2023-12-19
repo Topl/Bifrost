@@ -138,7 +138,9 @@ class NodeAppTest extends CatsEffectSuite {
               // Construct two competing graphs of transactions.
               // Graph 1 has higher fees and should be included in the chain
               transactionGenerator1 <-
-                Fs2TransactionGenerator.make[F](wallet, _ => 1000L.pure[F]).toResource
+                Fs2TransactionGenerator
+                  .make[F](wallet, _ => 1000L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .toResource
               transactionGraph1 <- Stream
                 .force(transactionGenerator1.generateTransactions)
                 .take(10)
@@ -147,7 +149,9 @@ class NodeAppTest extends CatsEffectSuite {
                 .toResource
               // Graph 2 has lower fees, so the Block Packer should never choose them
               transactionGenerator2 <-
-                Fs2TransactionGenerator.make[F](wallet, _ => 10L.pure[F]).toResource
+                Fs2TransactionGenerator
+                  .make[F](wallet, _ => 10L.pure[F], Fs2TransactionGenerator.randomMetadata[F])
+                  .toResource
               transactionGraph2 <- Stream
                 .force(transactionGenerator2.generateTransactions)
                 .take(10)
