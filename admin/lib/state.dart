@@ -10,6 +10,7 @@ class BlockchainState {
   Map<BlockId, FullBlock> blocks;
   List<BlockId> recentBlocks;
   List<DateTime?> recentAdoptionTimestamps;
+  Duration baselineRpcLatency;
   final FullBlock genesis;
   final NodeConfig nodeConfig;
   final Value_UpdateProposal protocol;
@@ -19,6 +20,7 @@ class BlockchainState {
     required this.blocks,
     required this.recentBlocks,
     required this.recentAdoptionTimestamps,
+    required this.baselineRpcLatency,
     required this.genesis,
     required this.nodeConfig,
     required this.protocol,
@@ -27,6 +29,7 @@ class BlockchainState {
 
   factory BlockchainState.fromCanonicalHead({
     required FullBlock head,
+    required Duration baselineRpcLatency,
     required FullBlock genesis,
     required NodeConfig nodeConfig,
     required int maxSize,
@@ -41,6 +44,7 @@ class BlockchainState {
       blocks: {head.header.headerId: head},
       recentBlocks: [head.header.headerId],
       recentAdoptionTimestamps: [null],
+      baselineRpcLatency: baselineRpcLatency,
       genesis: genesis,
       nodeConfig: nodeConfig,
       protocol: protocol,
@@ -50,11 +54,12 @@ class BlockchainState {
 
   static Stream<BlockchainState> streamed(
       NodeGRPCService client, int maxCacheSize, int prefetchSize) async* {
-    final nodeConfig = (await client.fetchNodeConfig().first).config;
     final genesisId = (await client.fetchBlockIdAtHeight(height: 1)).blockId;
     final genesisBlock = await client.fetchBlock(genesisId);
     final headId = (await client.fetchBlockIdAtDepth(depth: 0)).blockId;
     final headBlock = await client.fetchBlock(headId);
+    final nodeConfig = (await client.fetchNodeConfig().first).config;
+    final rpcLatency = await client.averageLatency();
     BlockchainState state;
     if (genesisId != headId) {
       Int64 h = headBlock.header.height - prefetchSize;
@@ -62,6 +67,7 @@ class BlockchainState {
         h = genesisBlock.header.height;
         state = BlockchainState.fromCanonicalHead(
             head: genesisBlock,
+            baselineRpcLatency: rpcLatency,
             genesis: genesisBlock,
             nodeConfig: nodeConfig,
             maxSize: maxCacheSize);
@@ -70,10 +76,12 @@ class BlockchainState {
             (await client.fetchBlockIdAtHeight(height: h.toInt())).blockId;
         final block = await client.fetchBlock(blockId);
         state = BlockchainState.fromCanonicalHead(
-            head: block,
-            genesis: genesisBlock,
-            nodeConfig: nodeConfig,
-            maxSize: maxCacheSize);
+          head: block,
+          baselineRpcLatency: rpcLatency,
+          genesis: genesisBlock,
+          nodeConfig: nodeConfig,
+          maxSize: maxCacheSize,
+        );
       }
 
       h++;
@@ -92,10 +100,12 @@ class BlockchainState {
       state.pushBlock(headBlock, null);
     } else {
       state = BlockchainState.fromCanonicalHead(
-          head: headBlock,
-          genesis: genesisBlock,
-          nodeConfig: nodeConfig,
-          maxSize: maxCacheSize);
+        head: headBlock,
+        baselineRpcLatency: rpcLatency,
+        genesis: genesisBlock,
+        nodeConfig: nodeConfig,
+        maxSize: maxCacheSize,
+      );
     }
     yield state;
     await for (final syncTraversal in client.synchronizationTraversal()) {
@@ -169,5 +179,22 @@ extension NodeGRPCServiceOps on NodeGRPCService {
         transactions: transactions, rewardTransaction: rewardTransaction);
     final fullBlock = FullBlock(header: header, fullBody: fullBody);
     return fullBlock;
+  }
+
+  Future<Duration> latency() async {
+    final start = DateTime.now();
+    await fetchBlockIdAtHeight(height: 1);
+    final end = DateTime.now();
+    return Duration(
+        milliseconds:
+            end.millisecondsSinceEpoch - start.millisecondsSinceEpoch);
+  }
+
+  Future<Duration> averageLatency({int attempts = 5}) async {
+    int totalMs = 0;
+    for (int i = 0; i < attempts; i++) {
+      totalMs += (await latency()).inMilliseconds;
+    }
+    return Duration(milliseconds: totalMs ~/ attempts);
   }
 }

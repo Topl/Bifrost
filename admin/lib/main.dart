@@ -110,7 +110,10 @@ class BlockchainStateViewer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Card(child: BlockchainHeadState(state: state)),
+        Card(
+          color: hash32ToLightColor(state.currentHeadId.value),
+          child: BlockchainHeadState(state: state),
+        ),
         Card(child: BlockchainTimeInfo(state: state)),
         Card(child: BlockProductionRate(state: state)),
         Card(child: StakerDistribution(state: state)),
@@ -127,22 +130,19 @@ class BlockchainHeadState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final head = state.blocks[state.currentHeadId]!;
-    return Container(
-      color: hash32ToLightColor(state.currentHeadId.value),
-      child: Column(
-        children: [
-          const Text("Canonical Head", style: headerTextStyle),
-          Wrap(
-            children: [
-              _dataChip("Block ID", Base58Encode(state.currentHeadId.value)),
-              const VerticalDivider(),
-              _dataChip("Height", head.header.height.toString()),
-              const VerticalDivider(),
-              _dataChip("Slot", head.header.slot.toString()),
-            ],
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        const Text("Canonical Head", style: headerTextStyle),
+        Wrap(
+          children: [
+            _dataChip("Block ID", Base58Encode(state.currentHeadId.value)),
+            const VerticalDivider(),
+            _dataChip("Height", head.header.height.toString()),
+            const VerticalDivider(),
+            _dataChip("Slot", head.header.slot.toString()),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -164,24 +164,34 @@ class BlockchainTimeInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final latency = _networkDelay;
+    final networkDelay = _networkDelay;
     return Column(
       children: [
         const Text("Time Metrics", style: headerTextStyle),
         Wrap(
           children: [
-            _dataChip("Latency",
-                (latency != null) ? "${latency.inMilliseconds} ms" : "N/A"),
+            _dataChip(
+                "RPC Latency", "${state.baselineRpcLatency.inMilliseconds} ms"),
+            _dataChip(
+                "Network Delay",
+                (networkDelay != null)
+                    ? "${networkDelay.inMilliseconds} ms"
+                    : "N/A"),
             StreamBuilder(
                 stream: Stream.periodic(const Duration(seconds: 1)),
                 builder: (_, __) =>
                     _dataChip("Global Slot", _globalSlot.toString())),
+            _dataChip("Epoch", _globalEpoch.toString()),
+            _dataChip("Epoch Completion",
+                "${(_epochCompletion * 100).toStringAsFixed(1)} %"),
           ],
         )
       ],
     );
   }
 
+  // Provides an estimate of "network/compute delay", meaning the time it took
+  // for a block to propagate and validate across the network to the target node
   Duration? get _networkDelay {
     int totalDelta = 0;
     int count = 0;
@@ -192,7 +202,8 @@ class BlockchainTimeInfo extends StatelessWidget {
         final mintedTime =
             state.blocks[state.recentBlocks[i]]!.header.timestamp.toInt();
         final delta = (adoptionTimeMs - mintedTime);
-        totalDelta += delta;
+        final withoutRpcDelay = delta - state.baselineRpcLatency.inMilliseconds;
+        totalDelta += withoutRpcDelay;
         count++;
       }
     }
@@ -213,6 +224,20 @@ class BlockchainTimeInfo extends StatelessWidget {
         Int64(DateTime.now().millisecondsSinceEpoch) - genesisTimestamp;
     final globalSlot = elapsedMs ~/ Int64(slotDuration.inMilliseconds);
     return globalSlot;
+  }
+
+  Int64 get _globalEpoch {
+    final epochLength = state.nodeConfig.epochLength;
+    final globalSlot = _globalSlot;
+    final epoch = globalSlot ~/ epochLength;
+    return epoch;
+  }
+
+  double get _epochCompletion {
+    final epochLength = state.nodeConfig.epochLength;
+    final globalSlot = _globalSlot;
+    final subSlot = globalSlot % epochLength;
+    return subSlot.toDouble() / epochLength.toDouble();
   }
 }
 
