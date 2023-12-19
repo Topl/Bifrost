@@ -256,7 +256,7 @@ class BlockProductionRate extends StatelessWidget {
     return SfRadialGauge(axes: <RadialAxis>[
       RadialAxis(
           minimum: 0,
-          maximum: _targetBlocksPerSecond * 2,
+          maximum: _targetSecondsPerBlock * 2,
           ranges: _gaugeRanges,
           pointers: <GaugePointer>[
             NeedlePointer(value: rate)
@@ -268,7 +268,7 @@ class BlockProductionRate extends StatelessWidget {
                   Text(rate.toStringAsPrecision(5),
                       style: const TextStyle(
                           fontSize: 14, fontWeight: FontWeight.bold)),
-                  const Text("blocks-per-second",
+                  const Text("seconds-per-block",
                       style: TextStyle(fontSize: 10)),
                 ],
               ),
@@ -288,29 +288,31 @@ class BlockProductionRate extends StatelessWidget {
     return fEffective + (_networkDelaySeconds * fEffective);
   }
 
+  double get _targetSecondsPerBlock => 1.0 / _targetBlocksPerSecond;
+
   List<GaugeRange> get _gaugeRanges {
-    final targetBlocksPerSecond = _targetBlocksPerSecond;
+    final targetSecondsPerBlock = _targetSecondsPerBlock;
 
     return <GaugeRange>[
       GaugeRange(
           startValue: 0,
-          endValue: targetBlocksPerSecond * 0.4,
+          endValue: targetSecondsPerBlock * 0.4,
           color: Colors.red),
       GaugeRange(
-          startValue: targetBlocksPerSecond * 0.4,
-          endValue: targetBlocksPerSecond * 0.8,
+          startValue: targetSecondsPerBlock * 0.4,
+          endValue: targetSecondsPerBlock * 0.8,
           color: Colors.yellow),
       GaugeRange(
-          startValue: targetBlocksPerSecond * 0.8,
-          endValue: targetBlocksPerSecond * 1.2,
+          startValue: targetSecondsPerBlock * 0.8,
+          endValue: targetSecondsPerBlock * 1.2,
           color: Colors.green),
       GaugeRange(
-          startValue: targetBlocksPerSecond * 1.2,
-          endValue: targetBlocksPerSecond * 1.6,
+          startValue: targetSecondsPerBlock * 1.2,
+          endValue: targetSecondsPerBlock * 1.6,
           color: Colors.yellow),
       GaugeRange(
-          startValue: targetBlocksPerSecond * 1.6,
-          endValue: targetBlocksPerSecond * 2,
+          startValue: targetSecondsPerBlock * 1.6,
+          endValue: targetSecondsPerBlock * 2,
           color: Colors.red)
     ];
   }
@@ -326,7 +328,7 @@ class BlockProductionRate extends StatelessWidget {
     final currentRate = recentBlocksHeightDelta.toDouble() /
         recentBlocksMsDelta.toDouble() *
         1000.0;
-    return currentRate;
+    return 1.0 / currentRate;
   }
 
   double get _cachedProductionRate {
@@ -339,7 +341,7 @@ class BlockProductionRate extends StatelessWidget {
     final currentRate = recentBlocksHeightDelta.toDouble() /
         recentBlocksMsDelta.toDouble() *
         1000.0;
-    return currentRate;
+    return 1.0 / currentRate;
   }
 
   double get _overallProductionRate {
@@ -351,7 +353,7 @@ class BlockProductionRate extends StatelessWidget {
         genesisBlock.header.timestamp.toInt();
     final overallRate =
         genesisHeightDelta.toDouble() / genesisMsDelta.toDouble() * 1000.0;
-    return overallRate;
+    return 1.0 / overallRate;
   }
 }
 
