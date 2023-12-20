@@ -73,6 +73,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .expects(vrfHit.slot)
             .once()
             .returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
+          (() => clock.currentTimestamp)
+            .expects()
+            .once()
+            .returning(55L.pure[F])
 
           val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
           (rewardCalculator.rewardOf(_)).expects(*).anyNumberOfTimes().returning(BigInt(10L).pure[F])
