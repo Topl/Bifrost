@@ -110,8 +110,9 @@ class BlockchainState {
     yield state;
     await for (final syncTraversal in client.synchronizationTraversal()) {
       if (syncTraversal.hasApplied()) {
+        final time = DateTime.now();
         final newHead = await client.fetchBlock(syncTraversal.applied);
-        state.pushBlock(newHead, DateTime.now());
+        state.pushBlock(newHead, time);
         yield state;
       } else {
         if (!state.isEmpty) {

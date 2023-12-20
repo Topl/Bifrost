@@ -20,7 +20,8 @@ dependencies:
   graphview: ^1.1.1
   async: ^2.11.0
   fl_chart: ^0.65.0
-  syncfusion_flutter_gauges: ^23.2.7
+  syncfusion_flutter_gauges: ^24.1.41
+  syncfusion_flutter_charts: ^24.1.41
   grpc: ^3.2.4
 
 dev_dependencies:
