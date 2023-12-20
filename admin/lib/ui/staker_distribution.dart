@@ -53,18 +53,16 @@ class StakerDistribution extends StatelessWidget {
         Text(
             "Staker Block Distribution (Last ${state.recentBlocks.length} Blocks)",
             style: headerTextStyle),
-        ConstrainedBox(
-          constraints: BoxConstraints.loose(const Size.fromHeight(400)),
-          child: AspectRatio(
-            aspectRatio: 1.3,
-            child: Row(
-              children: [
-                const SizedBox(height: 18),
-                Expanded(child: pieChart),
-                legend,
-                const SizedBox(height: 18),
-              ],
-            ),
+        SizedBox(
+          width: 400,
+          height: 400,
+          child: Row(
+            children: [
+              const SizedBox(height: 18),
+              Expanded(child: pieChart),
+              legend,
+              const SizedBox(height: 18),
+            ],
           ),
         ),
       ],

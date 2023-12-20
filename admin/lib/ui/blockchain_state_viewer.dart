@@ -16,15 +16,21 @@ class BlockchainStateViewer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Card(
-          color: hash32ToLightColor(state.currentHeadId.value),
-          child: BlockchainHeadState(state: state),
-        ),
-        Card(child: BlockchainTimeInfo(state: state)),
-        Card(child: BlockProductionRate(state: state)),
-        Card(child: StakerDistribution(state: state)),
-        Card(child: BlockTimeCharts(state: state)),
+        _paddedCard(
+            child: BlockchainHeadState(state: state),
+            color: hash32ToLightColor(state.currentHeadId.value)),
+        _paddedCard(child: BlockchainTimeInfo(state: state)),
+        _paddedCard(child: BlockProductionRate(state: state)),
+        _paddedCard(child: StakerDistribution(state: state)),
+        _paddedCard(child: BlockTimeCharts(state: state)),
       ],
     );
   }
+
+  Widget _paddedCard({required Widget child, Color? color}) => Card(
+      color: color,
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: child,
+      ));
 }
