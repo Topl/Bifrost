@@ -1291,7 +1291,7 @@ class PeersManagerTest
     }
   }
 
-  test("Create new peer actor, if error during receiving remote peer server address then leave it empty") {
+  test("Create new peer actor, if error during receiving remote peer server address then use previous value") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
@@ -1312,7 +1312,6 @@ class PeersManagerTest
       val connectedPeer = ConnectedPeer(host1Ra, host1Id.id)
       (() => client1.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer.pure[F])
 
-      KnownHost(connectedPeer.p2pVK, connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
       (() => client1.remotePeerAsServer).stubs().returns(Async[F].delay(throw new RuntimeException()))
       PeersManager.Message.OpenedPeerConnection(client1)
 
@@ -1335,7 +1334,7 @@ class PeersManagerTest
             _ = assert(initialState.peersHandler(host1Id).state == PeerState.Cold)
             withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(client1))
             _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Cold)
-            _ = assert(withUpdate.peersHandler(host1Id).asServer.isEmpty)
+            _ = assert(withUpdate.peersHandler(host1Id).asServer.get.address.some == host1Ra.some)
             _ = assert(withUpdate.peersHandler(host1Id).actorOpt.get == peer1)
           } yield ()
         }
