@@ -169,7 +169,8 @@ case class PeersHandler[F[_]: Async: Logger](
             0
           )
         case Some(peer) =>
-          host -> peer.copy(connectedAddress = address.some, asServer = asServer, actorOpt = peerActor.some)
+          val mergedServerAddress = asServer.orElse(peer.asServer)
+          host -> peer.copy(connectedAddress = address.some, asServer = mergedServerAddress, actorOpt = peerActor.some)
       }
     this.copy(peers = peers + peerToAdd)
   }
