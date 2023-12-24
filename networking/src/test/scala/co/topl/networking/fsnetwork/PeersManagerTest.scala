@@ -1313,7 +1313,6 @@ class PeersManagerTest
       (() => client1.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer.pure[F])
 
       (() => client1.remotePeerAsServer).stubs().returns(Async[F].delay(throw new RuntimeException()))
-      PeersManager.Message.OpenedPeerConnection(client1)
 
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))

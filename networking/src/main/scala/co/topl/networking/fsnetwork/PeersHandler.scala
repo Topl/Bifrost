@@ -149,15 +149,15 @@ case class PeersHandler[F[_]: Async: Logger](
     }
 
   def copyWithUpdatedPeer(
-    host:      HostId,
+    hostId:    HostId,
     address:   RemoteAddress,
     asServer:  Option[RemotePeer],
     peerActor: PeerActor[F]
   ): PeersHandler[F] = {
     val peerToAdd =
-      peers.get(host) match {
+      peers.get(hostId) match {
         case None =>
-          host -> Peer(
+          hostId -> Peer(
             PeerState.Cold,
             peerActor.some,
             address.some,
@@ -169,8 +169,12 @@ case class PeersHandler[F[_]: Async: Logger](
             0
           )
         case Some(peer) =>
-          val mergedServerAddress = asServer.orElse(peer.asServer)
-          host -> peer.copy(connectedAddress = address.some, asServer = mergedServerAddress, actorOpt = peerActor.some)
+          val mergedServerAddress = asServer.orElse(peer.asServer).map(_.copy(peerId = hostId))
+          hostId -> peer.copy(
+            connectedAddress = address.some,
+            asServer = mergedServerAddress,
+            actorOpt = peerActor.some
+          )
       }
     this.copy(peers = peers + peerToAdd)
   }
