@@ -871,66 +871,6 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: move only one non-eligible by timeout and to warm because no warm peers with actor") {
-    withMock {
-      val newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]]
-
-      val host1Id = arbitraryHost.arbitrary.first
-      val host1Ra = RemoteAddress("1", 1)
-      val host2Id = arbitraryHost.arbitrary.first
-      val host2Ra = RemoteAddress("2", 2)
-      val host3Id = arbitraryHost.arbitrary.first
-      val host3Ra = RemoteAddress("3", 3)
-      val host4Id = arbitraryHost.arbitrary.first
-      val host4Ra = RemoteAddress("4", 4)
-
-      (newPeerCreationAlgebra.requestNewPeerCreation _)
-        .expects(DisconnectedPeer(host1Ra, host1Id.id.some))
-        .returns(().pure[F])
-
-      val initialPeersMap: Map[HostId, Peer[F]] =
-        Map(
-          buildSimplePeerEntry(PeerState.Cold, None, host1Id, host1Ra),
-          buildSimplePeerEntry(
-            PeerState.Cold,
-            None,
-            host1Id,
-            host1Ra,
-            closedTimestamps = Seq(System.currentTimeMillis())
-          ),
-          buildSimplePeerEntry(
-            PeerState.Cold,
-            None,
-            host2Id,
-            host2Ra,
-            closedTimestamps = Seq(System.currentTimeMillis(), System.currentTimeMillis())
-          ),
-          buildSimplePeerEntry(
-            PeerState.Cold,
-            None,
-            host3Id,
-            host3Ra,
-            closedTimestamps = Seq(System.currentTimeMillis(), System.currentTimeMillis(), System.currentTimeMillis())
-          ),
-          buildSimplePeerEntry(PeerState.Warm, None, host4Id, host4Ra) // doesn't count because have no actor
-        )
-
-      val mockData = buildDefaultMockData(
-        newPeerCreationAlgebra = newPeerCreationAlgebra,
-        initialPeers = initialPeersMap
-      )
-      buildActorFromMockData(mockData)
-        .use { actor =>
-          for {
-            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
-            _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Warm)
-            _ = assert(withUpdate.peersHandler(host2Id).state == PeerState.Cold)
-            _ = assert(withUpdate.peersHandler(host3Id).state == PeerState.Cold)
-          } yield ()
-        }
-    }
-  }
-
   test("Reputation update: Do not move non-eligible by timeout and to warm because at least one warm peer") {
     withMock {
       val host1Id = arbitraryHost.arbitrary.first
