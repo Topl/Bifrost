@@ -281,6 +281,8 @@ case class Peer[F[_]: Logger](
 
   def haveNoConnection: Boolean = actorOpt.isEmpty
 
+  def haveConnection: Boolean = actorOpt.isDefined
+
   def sendNoWait(message: PeerActor.Message): F[Unit] =
     actorOpt match {
       case Some(actor) => actor.sendNoWait(message)
