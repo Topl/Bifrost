@@ -696,7 +696,10 @@ object PeersManager {
         )
       _ <- OptionT
         .when[F, Unit](state.peersHandler.haveNoActorForHost(hostId))(())
-        .flatTapNone(Logger[F].error(show"Try to open connection to already opened peer $hostId"))
+        .flatTapNone(
+          Logger[F].error(show"Try to open connection to already opened peer $hostId. Connection will be closed") >>
+          client.closeConnection()
+        )
       newState <- OptionT.liftF(updateStateByNewConnection(hostId, state, client, connectedPeer, thisActor))
     } yield (newState, newState)
   }.getOrElse((state, state))
@@ -963,9 +966,8 @@ object PeersManager {
 
     for {
       resolved <- resolveHosts(addressesToOpen)
-      filtered <- resolved.map(rp => rp.address -> rp).toMap.values.toSeq.pure[F]
-      _        <- Logger[F].infoIf(filtered.nonEmpty, show"Going to open connection to next peers: $filtered")
-      toOpen   <- filtered.map(rp => DisconnectedPeer(rp.address, rp.peerId.id.some)).pure[F]
+      _        <- Logger[F].infoIf(resolved.nonEmpty, show"Going to open connection to next peers: $resolved")
+      toOpen   <- resolved.map(rp => DisconnectedPeer(rp.address, rp.peerId.id.some)).pure[F]
       _        <- toOpen.traverse(state.newPeerCreationAlgebra.requestNewPeerCreation)
     } yield ()
   }
