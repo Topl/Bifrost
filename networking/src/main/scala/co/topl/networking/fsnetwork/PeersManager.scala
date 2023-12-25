@@ -196,6 +196,11 @@ object PeersManager {
      */
     case class RemotePeerNetworkLevel(hostId: HostId, networkLevel: Boolean) extends Message
 
+    /**
+     * Remote peer Id had been changed, for example id was not known initially and we use some dummy id
+     * @param oldId old id
+     * @param newId actual id for remote peer
+     */
     case class RemotePeerIdChanged(oldId: HostId, newId: HostId) extends Message
 
     /**
@@ -449,7 +454,8 @@ object PeersManager {
     // request is done for linked blocks, i.e. last block is child for any other block in request,
     // thus we could use it for detect block source. TODO make request parallel
     getHotPeerByBlockId(state, blockIds.last, hostId) match {
-      case Some(peer) =>
+      case Some((source, peer)) =>
+        Logger[F].info(show"Forward to $source download block header(s) $blockIds")
         peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds)) >>
         (state, state).pure[F]
       case None =>
@@ -467,7 +473,8 @@ object PeersManager {
     // request is done for linked blocks, i.e. last block is child for any other block in request,
     // thus we could use it for detect block source. TODO make request parallel
     getHotPeerByBlockId(state, blocks.last.id, hostId) match {
-      case Some(peer) =>
+      case Some((source, peer)) =>
+        Logger[F].info(show"Forward to $source download block body(s) ${blocks.map(_.id).toList}")
         peer.sendNoWait(PeerActor.Message.DownloadBlockBodies(blocks)) >>
         (state, state).pure[F]
       case None =>
@@ -477,12 +484,16 @@ object PeersManager {
         (state, state).pure[F]
     }
 
-  private def getHotPeerByBlockId[F[_]](state: State[F], blockId: BlockId, hostId: Option[HostId]): Option[Peer[F]] =
+  private def getHotPeerByBlockId[F[_]](
+    state:   State[F],
+    blockId: BlockId,
+    hostId:  Option[HostId]
+  ): Option[(HostId, Peer[F])] =
     for {
       sources <- Option(state.blockSource.getOrElse(blockId, Set.empty) ++ hostId.toSet)
-      source  <- state.peersHandler.getHotPeers.keySet.find(sources.contains)
+      source  <- state.peersHandler.getHotPeers.filter(_._2.haveConnection).keySet.find(sources.contains)
       peer    <- state.peersHandler.get(source)
-    } yield peer
+    } yield (source, peer)
 
   def knownSourcesToReputation(networkConfig: P2PNetworkConfig, knownSources: Long): HostReputationValue = {
     val reputationReducing: HostReputationValue = (knownSources - 1) * networkConfig.blockNoveltyReputationStep

@@ -119,13 +119,16 @@ object RequestsProxy {
     (newState, newState).pure[F]
   }
 
-  private def resetProxy[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+  private def resetProxy[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     for {
+      _ <- Logger[F].info("Reset request proxy")
       _ <- state.peersManager.sendNoWait(PeersManager.Message.GetCurrentTips)
       _ <- state.headerRequests.doRemoveAll
       _ <- state.bodyRequests.doRemoveAll
       _ <- state.slotDataResponse.doRemoveAll
     } yield (state, state)
+
+  private val slotDataRequestTTL = 30.seconds
 
   private def processRemoteSlotData[F[_]: Async: Logger](
     state:    State[F],
@@ -138,7 +141,7 @@ object RequestsProxy {
       (state, state).pure[F]
     } else {
       val message = BlockChecker.Message.RemoteSlotData(source, slotData)
-      state.slotDataResponse.put(processedSlotId)(()) >>
+      state.slotDataResponse.put(processedSlotId)((), slotDataRequestTTL.some) >>
       state.blockCheckerOpt.traverse_(blockChecker => blockChecker.sendNoWait(message)) >>
       (state, state).pure[F]
     }
@@ -439,13 +442,13 @@ object RequestsProxy {
     } yield requests.takeWhile_ { case (_, bodyOpt) => bodyOpt.isDefined }.map { case (i, bodyOpt) => (i, bodyOpt.get) }
 
   // request shall be expired, there is no strict guarantee that we will receive response on the request
-  private val requestTTL = 5.seconds
+  private val downloadRequestTTL = 5.seconds
 
   private def saveDownloadRequestToCache[F[_]: Async, T](
     cache: CaffeineCache[F, BlockId, Option[T]],
     ids:   Seq[BlockId]
   ) =
-    ids.traverse(cache.put(_)(None, requestTTL.some))
+    ids.traverse(cache.put(_)(None, downloadRequestTTL.some))
 
   private def saveDownloadResultToCache[F[_]: Async, T](
     cache:      CaffeineCache[F, BlockId, Option[T]],
