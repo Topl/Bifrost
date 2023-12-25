@@ -1489,10 +1489,14 @@ class PeersManagerTest
       val host6Id = arbitraryHost.arbitrary.first
       val host6Ra = RemoteAddress("6", 6)
       val peer6 = mockPeerActor[F]()
+      val client6 = mock[BlockchainPeerClient[F]]
+      (() => client6.closeConnection()).stubs().returning(Applicative[F].unit)
 
       val host7Id = arbitraryHost.arbitrary.first
       val host7Ra = RemoteAddress("7", 7)
       val peer7 = mockPeerActor[F]()
+      val client7 = mock[BlockchainPeerClient[F]]
+      (() => client7.closeConnection()).stubs().returning(Applicative[F].unit)
 
       val initialPeersMap = Map(
         buildSimplePeerEntry(
@@ -1580,15 +1584,11 @@ class PeersManagerTest
             _ = assert(stateHost5.peersHandler(host5Id).state == PeerState.Hot)
             _ = assert(stateHost5.peersHandler(host5Id).closedTimestamps == Seq(5))
             _ = assert(stateHost5.peersHandler(host5Id).asServer == client5RemotePort)
-            stateHost6 <- actor.send(
-              buildOpenedPeerConnectionMessage(mock[BlockchainPeerClient[F]], ConnectedPeer(host6Ra, host6Id.id))
-            )
+            stateHost6 <- actor.send(buildOpenedPeerConnectionMessage(client6, ConnectedPeer(host6Ra, host6Id.id)))
             _ = assert(stateHost6.peersHandler(host6Id).state == PeerState.Cold)
             _ = assert(stateHost6.peersHandler(host6Id).closedTimestamps == Seq(6))
             _ = assert(stateHost6.peersHandler(host6Id).asServer.isEmpty)
-            stateHost7 <- actor.send(
-              buildOpenedPeerConnectionMessage(mock[BlockchainPeerClient[F]], ConnectedPeer(host7Ra, host7Id.id))
-            )
+            stateHost7 <- actor.send(buildOpenedPeerConnectionMessage(client7, ConnectedPeer(host7Ra, host7Id.id)))
             _ = assert(stateHost7.peersHandler(host7Id).state == PeerState.Warm)
             _ = assert(stateHost7.peersHandler(host7Id).closedTimestamps == Seq(7))
             _ = assert(stateHost7.peersHandler(host7Id).asServer.isEmpty)
