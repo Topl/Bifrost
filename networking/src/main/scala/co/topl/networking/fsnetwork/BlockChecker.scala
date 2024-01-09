@@ -1,6 +1,5 @@
 package co.topl.networking.fsnetwork
 
-import cats.MonadThrow
 import cats.data._
 import cats.effect.{Async, Resource}
 import cats.implicits._
@@ -27,9 +26,6 @@ import org.typelevel.log4cats.Logger
 import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
 
-/**
- * TODO consider to split to two separate actors
- */
 object BlockChecker {
   sealed trait Message
 
@@ -137,7 +133,7 @@ object BlockChecker {
     val bestRemoteBlockId: BlockId = bestRemoteSlotData.slotId.blockId
 
     for {
-      _ <- Logger[F].info(show"Received slot data proposal with best block id $bestRemoteBlockId")
+      _ <- Logger[F].debug(show"Received slot data proposal with best block id $bestRemoteBlockId")
       newState <- remoteSlotDataBetter(state, bestRemoteSlotData).ifM(
         ifTrue = processNewBestSlotData(state, slotData, candidateHostId),
         ifFalse = Logger[F].debug(show"Ignore weaker slot data $bestRemoteBlockId") >> state.pure[F]
@@ -145,8 +141,12 @@ object BlockChecker {
     } yield (newState, newState)
   }
 
-  private def remoteSlotDataBetter[F[_]: Async](state: State[F], bestRemoteSlotData: SlotData): F[Boolean] = {
-    val localBestSlotData = state.bestKnownRemoteSlotDataOpt.map(_.last.pure[F]).getOrElse(state.localChain.head)
+  private def remoteSlotDataBetter[F[_]: Async: Logger](state: State[F], bestRemoteSlotData: SlotData): F[Boolean] = {
+    val localBestSlotData =
+      state.bestKnownRemoteSlotDataOpt
+        .map(_.last.pure[F])
+        .getOrElse(state.localChain.head)
+        .logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId}")
     localBestSlotData.flatMap(local => state.chainSelection.compare(bestRemoteSlotData, local).map(_ > 0))
   }
 
@@ -201,10 +201,11 @@ object BlockChecker {
       .copy(bestKnownRemoteSlotDataOpt = Option(BestChain(newSlotData)), bestKnownRemoteSlotDataHost = Option(hostId))
       .pure[F]
 
-  private def requestNextHeaders[F[_]: MonadThrow: Logger](state: State[F]): F[Unit] =
+  private def requestNextHeaders[F[_]: Async: Logger](state: State[F]): F[Unit] =
     state.bestKnownRemoteSlotDataOpt
       .traverse_ { slotData =>
         getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.lastId, chunkSize)
+          .logDuration(show"Find N-missing header")
           .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
           .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
           .foreachF(state.requestsProxy.sendNoWait)
@@ -258,8 +259,8 @@ object BlockChecker {
 
     val hostId = blockHeaders.head.source
     for {
-      unknownBodies           <- getMissedBodiesId(state, blockHeaders.last.blockHeader.id)
-      lastProcessedBody       <- unknownBodies.map(_.head).get.pure[F] // shall always be defined
+      unknownBodies     <- getMissedBodiesId(state, blockHeaders.last.blockHeader.id).logDuration("Get missed bodies")
+      lastProcessedBody <- unknownBodies.map(_.head).get.pure[F] // shall always be defined
       lastProcessedBodySlot   <- state.slotDataStore.getOrRaise(lastProcessedBody)
       (appliedHeaders, error) <- processedHeadersAndErrors(lastProcessedBodySlot)
       newState                <- processHeaderValidationError(state, error)
@@ -436,6 +437,7 @@ object BlockChecker {
       lastBlockSlotData <- state.slotDataStore.getOrRaise(id)
       _ <- state.localChain
         .isWorseThan(lastBlockSlotData)
+        .logDuration(show"Compare local chain after block apply")
         .ifM(
           ifTrue = state.localChain.adopt(Validated.Valid(lastBlockSlotData)) >>
             Logger[F].info(show"Successfully adopted block: $id"),
