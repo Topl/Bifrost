@@ -143,7 +143,8 @@ object PeerBlockHeaderFetcher {
       chainToCheck <- buildSlotDataChain(state, from, to)
       _ <- Logger[F].info(show"FromToChain length=${chainToCheck.length} from peer ${state.hostId} for $blockId")
 
-      compareResult <- compareSlotDataWithLocal(chainToCheck, state)
+      (compareDuration, compareResult) <- Async[F].timed(compareSlotDataWithLocal(chainToCheck, state))
+      _                                <- Logger[F].info(show"Compare slot data chain for ${compareDuration.toMillis}")
       betterChain <- compareResult match {
         case CompareResult.NoRemote =>
           Logger[F].info(show"Already adopted $blockId from peer ${state.hostId}") >>
