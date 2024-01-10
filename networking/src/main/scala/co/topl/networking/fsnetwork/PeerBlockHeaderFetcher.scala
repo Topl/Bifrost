@@ -22,6 +22,7 @@ import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+import co.topl.catsutils.faAsFAClockOps
 
 object PeerBlockHeaderFetcher {
   sealed trait Message
@@ -143,8 +144,8 @@ object PeerBlockHeaderFetcher {
       chainToCheck <- buildSlotDataChain(state, from, to)
       _ <- Logger[F].info(show"FromToChain length=${chainToCheck.length} from peer ${state.hostId} for $blockId")
 
-      (compareDuration, compareResult) <- Async[F].timed(compareSlotDataWithLocal(chainToCheck, state))
-      _                                <- Logger[F].info(show"Compare slot data chain for ${compareDuration.toMillis}")
+      compareResult <- compareSlotDataWithLocal(chainToCheck, state)
+        .logDuration(show"Compare slot data chain from peer ${state.hostId} with local chain")
       betterChain <- compareResult match {
         case CompareResult.NoRemote =>
           Logger[F].info(show"Already adopted $blockId from peer ${state.hostId}") >>

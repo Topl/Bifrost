@@ -158,7 +158,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               for {
                 updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
                 _ = assert(updatedState.bestKnownRemoteSlotDataOpt == Option(BestChain(remoteSlotData)))
-                _ = assert(updatedState.bodyStoreCache.underlying.get(localId).get.value)
               } yield ()
             }
         }

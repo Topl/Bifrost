@@ -20,11 +20,8 @@ import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
-import com.github.benmanes.caffeine.cache.Caffeine
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import scalacache.Entry
-import scalacache.caffeine.CaffeineCache
 
 object BlockChecker {
   sealed trait Message
@@ -66,7 +63,6 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    bodyStoreCache:              CaffeineCache[F, BlockId, Boolean],
     chainSelection:              ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -101,9 +97,6 @@ object BlockChecker {
     bestChain:                   Option[BestChain] = None,
     bestKnownRemoteSlotDataHost: Option[HostId] = None
   ): Resource[F, BlockCheckerActor[F]] = {
-    val bodyContainsCache =
-      CaffeineCache(Caffeine.newBuilder.maximumSize(bodyStoreContainsCacheSize).build[BlockId, Entry[Boolean]]())
-
     val initialState =
       State(
         requestsProxy,
@@ -111,7 +104,6 @@ object BlockChecker {
         slotDataStore,
         headerStore,
         bodyStore,
-        bodyContainsCache,
         chainSelectionAlgebra,
         headerValidation,
         bodySyntaxValidation,
@@ -146,7 +138,7 @@ object BlockChecker {
       state.bestKnownRemoteSlotDataOpt
         .map(_.last.pure[F])
         .getOrElse(state.localChain.head)
-        .logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId}")
+        .logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId.blockId}")
     localBestSlotData.flatMap(local => state.chainSelection.compare(bestRemoteSlotData, local).map(_ > 0))
   }
 
@@ -184,8 +176,7 @@ object BlockChecker {
     val missedSlotDataF = prependOnChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
       getT = state.slotDataStore.getOrRaise,
-      terminateOn =
-        sd => state.bodyStoreCache.cachingF(sd.slotId.blockId)(None)(state.bodyStore.contains(sd.slotId.blockId))
+      terminateOn = sd => state.bodyStore.contains(sd.slotId.blockId)
     )(from)
 
     missedSlotDataF.map(sd => remoteSlotData.prependChain(Chain.fromSeq(sd)))
