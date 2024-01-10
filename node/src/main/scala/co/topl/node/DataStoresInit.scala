@@ -17,6 +17,7 @@ import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
 import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
+import co.topl.interpreters.ContainsCacheStore._
 import co.topl.models.utility._
 import co.topl.networking.fsnetwork.KnownRemotePeer
 import co.topl.node.models._
@@ -52,25 +53,32 @@ object DataStoresInit {
         _.value
       )
       currentEventIds <- makeDb[F, Byte, BlockId](dataDir, levelDbFactory)("current-event-ids")
-      slotDataStore <- makeCachedDb[F, BlockId, ByteString, SlotData](dataDir, levelDbFactory)(
+      slotDataStore <- makeCachedDbWithContainsCache[F, BlockId, ByteString, SlotData](dataDir, levelDbFactory)(
         "slot-data",
         appConfig.bifrost.cache.slotData,
-        _.value
+        _.value,
+        appConfig.bifrost.cache.containsCacheSize
       )
-      blockHeaderStore <- makeCachedDb[F, BlockId, ByteString, BlockHeader](dataDir, levelDbFactory)(
+      blockHeaderStore <- makeCachedDbWithContainsCache[F, BlockId, ByteString, BlockHeader](dataDir, levelDbFactory)(
         "block-headers",
         appConfig.bifrost.cache.headers,
-        _.value
+        _.value,
+        appConfig.bifrost.cache.containsCacheSize
       )
-      blockBodyStore <- makeCachedDb[F, BlockId, ByteString, BlockBody](dataDir, levelDbFactory)(
+      blockBodyStore <- makeCachedDbWithContainsCache[F, BlockId, ByteString, BlockBody](dataDir, levelDbFactory)(
         "block-bodies",
         appConfig.bifrost.cache.bodies,
-        _.value
+        _.value,
+        appConfig.bifrost.cache.containsCacheSize
       )
-      transactionStore <- makeCachedDb[F, TransactionId, ByteString, IoTransaction](dataDir, levelDbFactory)(
+      transactionStore <- makeCachedDbWithContainsCache[F, TransactionId, ByteString, IoTransaction](
+        dataDir,
+        levelDbFactory
+      )(
         "transactions",
         appConfig.bifrost.cache.transactions,
-        _.value
+        _.value,
+        appConfig.bifrost.cache.containsCacheSize
       )
       spendableBoxIdsStore <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](dataDir, levelDbFactory)(
         "spendable-box-ids",
@@ -166,6 +174,18 @@ object DataStoresInit {
           cacheConfig.ttl
         )
       )
+
+  private def makeCachedDbWithContainsCache[F[_]: Async, Key: Persistable, CacheKey <: AnyRef, Value: Persistable](
+    dataDir:   Path,
+    dbFactory: DBFactory
+  )(
+    name:              String,
+    cacheConfig:       ApplicationConfig.Bifrost.Cache.CacheConfig,
+    makeCacheKey:      Key => CacheKey,
+    containsCacheSize: Long
+  ): Resource[F, Store[F, Key, Value]] =
+    makeCachedDb[F, Key, CacheKey, Value](dataDir, dbFactory)(name, cacheConfig, makeCacheKey)
+      .evalMap(_.withCachedContains(containsCacheSize))
 
   /**
    * Determines if the given DataStores have already been initialized (i.e. node re-launch)
