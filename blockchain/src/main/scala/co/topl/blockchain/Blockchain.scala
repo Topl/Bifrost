@@ -51,7 +51,7 @@ object Blockchain {
     stakerResource:            Resource[F, Option[StakingAlgebra[F]]],
     dataStores:                DataStores[F],
     localChain:                LocalChainAlgebra[F],
-    chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
+    chainSelection:            ChainSelectionAlgebra[F],
     blockIdTree:               ParentChildTree[F, BlockId],
     eventSourcedStates:        EventSourcedStates[F],
     validators:                Validators[F],
@@ -71,7 +71,7 @@ object Blockchain {
     stakerResource,
     dataStores,
     localChain,
-    chainSelectionAlgebra,
+    chainSelection,
     blockIdTree,
     eventSourcedStates,
     validators,
@@ -95,7 +95,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   stakerResource:            Resource[F, Option[StakingAlgebra[F]]],
   dataStores:                DataStores[F],
   localChain:                LocalChainAlgebra[F],
-  chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
+  chainSelection:            ChainSelectionAlgebra[F],
   blockIdTree:               ParentChildTree[F, BlockId],
   eventSourcedStates:        EventSourcedStates[F],
   validators:                Validators[F],
@@ -167,7 +167,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         .make(
           HostId(localPeer.p2pVK),
           localChain,
-          chainSelectionAlgebra,
+          chainSelection,
           validators.header,
           validators.headerToBody,
           validators.transactionSyntax,
@@ -180,7 +180,6 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           dataStores.transactions,
           dataStores.knownHosts,
           blockIdTree,
-          eventSourcedStates.blockHeights,
           mempool,
           networkProperties,
           clock,
@@ -204,7 +203,6 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         dataStores.headers.get,
         dataStores.bodies.get,
         dataStores.transactions.get,
-        eventSourcedStates.blockHeights,
         () => peerAsServer.map(kp => KnownHost(localPeer.p2pVK, kp.host, kp.port)),
         () => currentPeers.get,
         localChain,
@@ -237,7 +235,6 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           mempool,
           validators.transactionSyntax,
           localChain,
-          eventSourcedStates.blockHeights,
           blockIdTree,
           Stream.force(localChain.adoptions).dropOldest(10),
           nodeProtocolConfiguration,
@@ -304,15 +301,11 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         // Validate the local block.  If invalid, skip it "gracefully"
         .evalFilter(validateLocalBlock(_).toOption.isDefined)
         .evalTap(block =>
-          dataStores.slotData
-            .getOrRaise(block.header.id)
-            .flatMap(slotData =>
-              localChain
-                .isWorseThan(slotData)
-                .ifM(
-                  localChain.adopt(Validated.Valid(slotData)),
-                  Logger[F].warn("Skipping adoption of locally-produced block due to better local chain.")
-                )
+          localChain.head
+            .map(_.slotId.blockId == block.header.parentHeaderId)
+            .ifM(
+              dataStores.slotData.getOrRaise(block.header.id).flatMap(localChain.adopt),
+              Logger[F].warn("Locally produced block does not extend the local chain.  Skipping adoption.")
             )
         )
         .compile

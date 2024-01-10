@@ -12,7 +12,7 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
@@ -221,7 +221,6 @@ object PeersManager {
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -279,7 +278,6 @@ object PeersManager {
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -308,7 +306,6 @@ object PeersManager {
         bodyStore,
         transactionStore,
         blockIdTree,
-        blockHeights,
         mempool,
         headerToBodyValidation,
         transactionSyntaxValidation,
@@ -740,7 +737,6 @@ object PeersManager {
             state.bodyStore,
             state.transactionStore,
             state.blockIdTree,
-            state.blockHeights,
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
             state.mempool,

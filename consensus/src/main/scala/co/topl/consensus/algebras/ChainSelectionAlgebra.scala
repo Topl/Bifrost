@@ -1,19 +1,23 @@
 package co.topl.consensus.algebras
 
-trait ChainSelectionAlgebra[F[_], A] {
+import co.topl.consensus.models.{ChainSelectionOutcome, SlotData}
+
+trait ChainSelectionAlgebra[F[_]] {
 
   /**
-   * Compare values `x` and `y`.  If `x` is "better" than `y`, some value > 0 is returned.  If `x` and `y` are equal,
-   * 0 is returned.  If `x` is "worse" than `y`, some value < 0 is returned.
+   * Compare the best block of two separate branches
+   * @param xHead The best block of branch X (generally the local branch)
+   * @param yHead The best block of branch Y
+   * @param commonAncestor The shared ancestor block between X and Y
+   * @param fetchXAtHeight A function to fetch the block-by-height from X
+   * @param fetchYAtHeight A function to fetch the block-by-height from Y
+   * @return A ChainSelectionOutcome
    */
-  def compare(x: A, y: A): F[Int]
-
-  /**
-   * Return smallest possible remote height which is enough to make decision which chain is better
-   * @param currentHeight current chain height
-   * @param commonHeight common ancestor height
-   * @param proposedHeight other chain height
-   * @return smallest possible height enough to make decision which chain is better
-   */
-  def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long]
+  def compare(
+    xHead:          SlotData,
+    yHead:          SlotData,
+    commonAncestor: SlotData,
+    fetchXAtHeight: Long => F[Option[SlotData]],
+    fetchYAtHeight: Long => F[Option[SlotData]]
+  ): F[ChainSelectionOutcome]
 }

@@ -123,7 +123,7 @@ object PeerActor {
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF:             (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
     val initAppLevel = false

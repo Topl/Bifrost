@@ -81,25 +81,20 @@ package object fsnetwork {
   }
 
   def commonAncestor[F[_]: Async: Logger](
-    client:       BlockchainPeerClient[F],
-    blockHeights: BlockHeights[F],
-    localChain:   LocalChainAlgebra[F]
+    client:     BlockchainPeerClient[F],
+    localChain: LocalChainAlgebra[F]
   ): F[BlockId] =
     client
       .findCommonAncestor(
-        getLocalBlockIdAtHeight(localChain, blockHeights),
+        getLocalBlockIdAtHeight(localChain),
         () => localChain.head.map(_.height)
       )
 
   private def getLocalBlockIdAtHeight[F[_]: Async](
-    localChain:   LocalChainAlgebra[F],
-    blockHeights: BlockHeights[F]
+    localChain: LocalChainAlgebra[F]
   )(height: Long): F[BlockId] =
-    OptionT(
-      localChain.head
-        .map(_.slotId.blockId)
-        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
-    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
+    OptionT(localChain.blockIdAtHeight(height))
+      .getOrRaise(new IllegalStateException("Unable to determine block height tree"))
 
   /**
    * Get some T from chain until reach terminateOn condition, f.e.

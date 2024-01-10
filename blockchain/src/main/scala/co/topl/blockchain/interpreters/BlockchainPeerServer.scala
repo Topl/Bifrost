@@ -7,7 +7,6 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsutils.DroppingTopic
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models.BlockId
-import co.topl.eventtree.EventSourcedState
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.consensus.models.{BlockHeader, SlotData}
 import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
@@ -28,7 +27,6 @@ object BlockchainPeerServer {
     fetchHeader:             BlockId => F[Option[BlockHeader]],
     fetchBody:               BlockId => F[Option[BlockBody]],
     fetchTransaction:        TransactionId => F[Option[IoTransaction]],
-    blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     peerServerPort:          () => Option[KnownHost],
     currentHotPeers:         () => F[Set[RemotePeer]],
     localChain:              LocalChainAlgebra[F],
@@ -90,10 +88,7 @@ object BlockchainPeerServer {
             fetchTransaction(id)
 
           override def getLocalBlockAtHeight(height: Long): F[Option[BlockId]] =
-            for {
-              head       <- localChain.head
-              blockIdOpt <- blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
-            } yield blockIdOpt
+            localChain.blockIdAtHeight(height)
 
           override def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
             localChain.head.flatMap(s => getLocalBlockAtHeight(s.height - depth))

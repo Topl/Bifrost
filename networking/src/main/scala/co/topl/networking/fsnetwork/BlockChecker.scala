@@ -93,7 +93,7 @@ object BlockChecker {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F],
     bestChain:                   Option[BestChain] = None,
     bestKnownRemoteSlotDataHost: Option[HostId] = None
   ): Resource[F, BlockCheckerActor[F]] = {
@@ -430,7 +430,7 @@ object BlockChecker {
         .isWorseThan(lastBlockSlotData)
         .logDuration(show"Compare local chain after block apply")
         .ifM(
-          ifTrue = state.localChain.adopt(Validated.Valid(lastBlockSlotData)) >>
+          ifTrue = state.localChain.adopt(lastBlockSlotData) >>
             Logger[F].info(show"Successfully adopted block: $id"),
           ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
         )

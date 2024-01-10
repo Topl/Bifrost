@@ -53,7 +53,6 @@ object ToplRpcServer {
     mempool:                   MempoolAlgebra[F],
     syntacticValidation:       TransactionSyntaxVerifier[F],
     localChain:                LocalChainAlgebra[F],
-    blockHeights:              EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     blockIdTree:               ParentChildTree[F, BlockId],
     localBlockAdoptionsStream: Stream[F, BlockId],
     protocolConfiguration:     ProtocolConfigurationAlgebra[F, Stream[F, *]],
@@ -104,7 +103,7 @@ object ToplRpcServer {
             atHeight <-
               if (head.height === height) head.slotId.blockId.some.pure[F]
               else if (head.height < height) none.pure[F]
-              else blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
+              else localChain.blockIdAtHeight(height)
           } yield atHeight
 
         def blockIdAtDepth(depth: Long): F[Option[BlockId]] =

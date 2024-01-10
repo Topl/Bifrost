@@ -9,7 +9,7 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
@@ -24,7 +24,7 @@ object ActorPeerHandlerBridgeAlgebra {
   def make[F[_]: Async: DnsResolver: ReverseDnsResolver](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -37,7 +37,6 @@ object ActorPeerHandlerBridgeAlgebra {
     transactionStore:            Store[F, TransactionId, IoTransaction],
     remotePeerStore:             Store[F, Unit, Seq[KnownRemotePeer]],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     networkProperties:           NetworkProperties,
     clockAlgebra:                ClockAlgebra[F],
@@ -66,7 +65,6 @@ object ActorPeerHandlerBridgeAlgebra {
         transactionStore,
         remotePeerStore,
         blockIdTree,
-        blockHeights,
         mempool,
         networkAlgebra,
         remotePeers,

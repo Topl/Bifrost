@@ -29,14 +29,21 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
   // TODO: Use generators to account for edge cases
 
-  test("return 0 for equal tines") {
+  test("return XStandard for equal branches") {
     val slotData = createSlotData(10, SlotId(9, BlockId.of(ByteString.copyFrom(Array.fill[Byte](32)(9)))), height = 4)
 
     val orderT =
-      ChainSelection
-        .make[F](mockFunction[BlockId, F[SlotData]], blake2b512Resource(), kLookback = 1, sWindow = 1)
+      ChainSelection.make[F](blake2b512Resource(), kLookback = 1, sWindow = 1)
 
-    orderT.compare(slotData, slotData).assertEquals(0)
+    orderT
+      .compare(
+        slotData,
+        slotData,
+        slotData,
+        mockFunction[Long, F[Option[SlotData]]],
+        mockFunction[Long, F[Option[SlotData]]]
+      )
+      .assertEquals(ChainSelectionOutcome.XStandard)
   }
 
   test("use longest-chain rule for tines shorter than the kLookback parameter") {
@@ -59,58 +66,56 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
         .take(5)
         .toList
 
-      val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
-
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
-
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT
+        .compare(
+          xSegment.last,
+          ySegment.last,
+          ancestor,
+          mockFunction[Long, F[Option[SlotData]]],
+          mockFunction[Long, F[Option[SlotData]]]
+        )
+        .assertEquals(ChainSelectionOutcome.XStandard)
     }
+  }
 
-    test("use lowest-slot rule for equal length tines shorter than the kLookback parameter") {
-      val grandAncestor =
-        createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Array.fill[Byte](32)(9)))), height = 4)
-      val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
-      val xSegment = LazyList
+  test("use lowest-slot rule for equal length tines shorter than the kLookback parameter") {
+    val grandAncestor =
+      createSlotData(9, SlotId(8, BlockId.of(ByteString.copyFrom(Array.fill[Byte](32)(9)))), height = 4)
+    val ancestor = createSlotData(10, grandAncestor.slotId, grandAncestor.height + 1)
+    val xSegment = LazyList
+      .unfold(ancestor)(previous =>
+        Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
+          .map(d => (d, d))
+      )
+      .take(10)
+      .toList
+    val ySegment = {
+      val base = LazyList
         .unfold(ancestor)(previous =>
           Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
             .map(d => (d, d))
         )
-        .take(10)
+        .take(9)
         .toList
-      val ySegment = {
-        val base = LazyList
-          .unfold(ancestor)(previous =>
-            Some(createSlotData(previous.slotId.slot + 1, previous.slotId, previous.height + 1))
-              .map(d => (d, d))
-          )
-          .take(9)
-          .toList
 
-        base :+ createSlotData(base.last.slotId.slot + 2, base.last.slotId, base.last.height + 1)
-      }
-
-      assert(xSegment.length == ySegment.length)
-
-      val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
-
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
-
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
-
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      base :+ createSlotData(base.last.slotId.slot + 2, base.last.slotId, base.last.height + 1)
     }
+
+    assert(xSegment.length == ySegment.length)
+
+    val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 100, sWindow = 1)
+
+    orderT
+      .compare(
+        xSegment.last,
+        ySegment.last,
+        ancestor,
+        mockFunction[Long, F[Option[SlotData]]],
+        mockFunction[Long, F[Option[SlotData]]]
+      )
+      .assertEquals(ChainSelectionOutcome.XStandard)
   }
 
   test(
@@ -164,18 +169,17 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
       assert(xSegment.length == ySegment.length)
       assert(xSegment.last.slotId.slot == ySegment.last.slotId.slot)
 
-      val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
-
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
-
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT
+        .compare(
+          xSegment.last,
+          ySegment.last,
+          ancestor,
+          mockFunction[Long, F[Option[SlotData]]],
+          mockFunction[Long, F[Option[SlotData]]]
+        )
+        .assertEquals(ChainSelectionOutcome.XStandard)
     }
   }
 
@@ -200,18 +204,17 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
         .take(50)
         .toList
 
-      val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 10, sWindow = 20)
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
-
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
-
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 10, sWindow = 20)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT
+        .compare(
+          xSegment.last,
+          ySegment.last,
+          ancestor,
+          height => xSegment.find(_.height == height).pure[F],
+          height => ySegment.find(_.height == height).pure[F]
+        )
+        .assertEquals(ChainSelectionOutcome.XDensity)
     }
 
     test("tiebreak chain-density rule by rhoTestHash for equal density tines") {
@@ -224,7 +227,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
           .tabulate(2)(i =>
             Rho(Sized.strictUnsafe[Bytes, Lengths.`64`.type](ByteString.copyFrom(Array.fill[Byte](64)(i.toByte))))
           )
-          .sortBy(r => BigInt(rhoToRhoTestHash(r.sizedBytes.data).toByteArray))
+          .sortBy(r => -BigInt(rhoToRhoTestHash(r.sizedBytes.data).toByteArray))
 
       val xSegment = {
         val base = LazyList
@@ -259,18 +262,17 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
         )
       }
 
-      val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 0, sWindow = 150)
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
-
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
-
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 0, sWindow = 150)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT
+        .compare(
+          xSegment.last,
+          ySegment.last,
+          ancestor,
+          height => xSegment.find(_.height == height).pure[F],
+          height => ySegment.find(_.height == height).pure[F]
+        )
+        .assertEquals(ChainSelectionOutcome.YDensity)
     }
   }
 

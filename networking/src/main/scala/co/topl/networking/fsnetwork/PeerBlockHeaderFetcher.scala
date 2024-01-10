@@ -55,8 +55,7 @@ object PeerBlockHeaderFetcher {
     blockIdTree:     ParentChildTree[F, BlockId],
     fetchingFiber:   Option[Fiber[F, Throwable, Unit]],
     clock:           ClockAlgebra[F],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -79,8 +78,7 @@ object PeerBlockHeaderFetcher {
     bodyStore:       Store[F, BlockId, BlockBody],
     blockIdTree:     ParentChildTree[F, BlockId],
     clock:           ClockAlgebra[F],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
       State(
@@ -94,7 +92,6 @@ object PeerBlockHeaderFetcher {
         blockIdTree,
         None,
         clock,
-        blockHeights,
         commonAncestorF
       )
     val actorName = show"Header fetcher actor for peer $hostId"
@@ -136,43 +133,15 @@ object PeerBlockHeaderFetcher {
     blockId: BlockId
   ): F[Unit] =
     for {
-      hostId <- state.hostId.pure[F]
-
-      _          <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
-      (from, to) <- slotDataToSync(state, blockId)
-      _ <- Logger[F].info(show"Sync ${from.slotId.blockId}:${to.slotId.blockId} from peer $hostId for $blockId")
-
-      downloadedSlotData <- downloadSlotDataChain(state, to)
-      _                  <- saveSlotDataChain(state, downloadedSlotData)
-      _ <- Logger[F].info(show"Save tine length=${downloadedSlotData.length} from peer $hostId for $blockId")
-
-      chainToCheck <- buildSlotDataChain(state, from, to)
-      chainToCheckHead = chainToCheck.headOption.map(_.slotId.blockId)
-      chainToCheckLast = chainToCheck.lastOption.map(_.slotId.blockId)
-      _ <- Logger[F].debug(
-        show"ChainToCheck $chainToCheckHead:$chainToCheckLast len=${chainToCheck.length} from peer $hostId for $blockId"
-      )
-
-      compareResult <- compareSlotDataWithLocal(chainToCheck, state)
-        .logDuration(
-          show"Compare slot data end=$chainToCheckLast chain from peer $hostId for $blockId with local chain"
-        )
-      betterChain <- compareResult match {
-        case CompareResult.NoRemote =>
-          Logger[F].info(show"Already adopted $blockId from peer $hostId") >>
-          None.pure[F]
-        case CompareResult.RemoteIsBetter(betterChain) =>
-          Logger[F].debug(show"Received tip $blockId is better than current block from peer $hostId") >>
-          state.requestsProxy.sendNoWait(RequestsProxy.Message.RemoteSlotData(state.hostId, betterChain)) >>
-          betterChain.some.pure[F]
-        case CompareResult.RemoteIsWorseByDensity =>
-          Logger[F].info(show"Ignoring tip $blockId from peer $hostId because of the density rule") >>
-          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(hostId)) >>
-          None.pure[F]
-        case CompareResult.RemoteIsWorseByHeight =>
-          Logger[F].info(show"Ignoring tip $blockId because other better or equal block had been adopted") >>
-          None.pure[F]
-      }
+      _          <- Logger[F].info(show"Got blockId: $blockId from peer ${state.hostId}")
+      commonAncestorId <- state.commonAncestorF(state.client, state.localChain)
+      commonAncestor <- state.slotDataStore.getOrRaise(commonAncestorId)
+      localHead <- state.localChain.head
+      remoteHead <- getSlotDataFromStorageOrRemote(state)(blockId)
+      chainSelection <- state.localChain.chainSelection
+      localSlotDataAtHeight = (height: Long) => OptionT(state.localChain.blockIdAtHeight(height)).semiflatMap(state.slotDataStore.getOrRaise).value
+      remoteSlotDataAtHeight = (height: Long) => OptionT(state.client.getRemoteBlockIdAtHeight(height, None)).semiflatMap(getSlotDataFromStorageOrRemote(state)).value
+      chainSelectionOutcome <- chainSelection.compare(localHead, remoteHead, commonAncestor, localSlotDataAtHeight, remoteSlotDataAtHeight)
 
       blockSourceOpt <- buildBlockSource(state, to, betterChain)
       _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer $hostId for $blockId")
@@ -213,7 +182,7 @@ object PeerBlockHeaderFetcher {
       commonSlotHeight <- commonSlotData.height.pure[F]
       currentHeight    <- state.localChain.head.map(_.height)
       endSlotHeight    <- endSlot.height.pure[F]
-      chainSelection   <- state.localChain.chainSelectionAlgebra
+      chainSelection   <- state.localChain.chainSelection
       requestedHeight  <- chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
       message =
         show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostId} :" ++
@@ -280,7 +249,7 @@ object PeerBlockHeaderFetcher {
       case None =>
         Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostId}") >>
         state.client
-          .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
+          .getSlotDataOrError(blockId, new NoSuchElementException(show"Remote Slot Data id=$blockId"))
           // If the node is in a pre-genesis state, verify that the remote peer only notified about the genesis block.
           // It would be adversarial to send any new blocks during this time.
           .flatTap(slotData =>
