@@ -547,6 +547,7 @@ object PeersManager {
     state:     State[F]
   ): F[(State[F], Response[F])] = {
     val hotPeers = state.peersHandler.getHotPeers
+    val hotPeersIds = hotPeers.keySet.toList.map(showHostId.show).sorted.mkString(",")
     val warmPeers = state.peersHandler.getWarmPeers
     val coldPeers = state.peersHandler.getColdPeers
 
@@ -554,6 +555,7 @@ object PeersManager {
     state.localChain.head.map(head => Logger[F].info(show"Current head: ${head.slotId}")) >>
     Logger[F].info(show"Known local addresses: ${state.thisHostIps}") >>
     Logger[F].info(show"${state.thisHostId}: Current (${hotPeers.size}) hot peer(s) state: $hotPeers") >>
+    Logger[F].info(show"Hot peers sum for ${state.thisHostId}: $hotPeersIds") >>
     Logger[F].info(show"Current (${warmPeers.size}) warm peer(s) state: $warmPeers") >>
     Logger[F].info(show"Current first five of (${coldPeers.size}) cold peer(s) state: ${coldPeers.take(5)}") >>
     Logger[F].info(show"With known cold peers: ${coldPeers.map(d => d._1 -> d._2.asServer)}") >>
