@@ -19,7 +19,6 @@ import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
 
 import scala.annotation.nowarn
-import scala.concurrent.duration.DurationInt
 
 object RequestsProxy {
   sealed trait Message
@@ -89,12 +88,18 @@ object RequestsProxy {
     peersManager: PeersManagerActor[F],
     headerStore:  Store[F, BlockId, BlockHeader],
     bodyStore:    Store[F, BlockId, BlockBody],
-    headerRequests: Cache[BlockId, Entry[Option[UnverifiedBlockHeader]]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockHeader]]](),
-    bodyRequests: Cache[BlockId, Entry[Option[UnverifiedBlockBody]]] =
-      Caffeine.newBuilder.maximumSize(requestCacheSize).build[BlockId, Entry[Option[UnverifiedBlockBody]]](),
-    slotDataResponse: Cache[SlotId, Entry[Unit]] =
-      Caffeine.newBuilder.maximumSize(slotIdResponseCacheSize).build[SlotId, Entry[Unit]]()
+    headerRequests: Cache[BlockId, Entry[Option[UnverifiedBlockHeader]]] = Caffeine.newBuilder
+      .expireAfterWrite(java.time.Duration.ofMillis(proxyBlockDataTTL.toMillis))
+      .maximumSize(requestCacheSize)
+      .build[BlockId, Entry[Option[UnverifiedBlockHeader]]](),
+    bodyRequests: Cache[BlockId, Entry[Option[UnverifiedBlockBody]]] = Caffeine.newBuilder
+      .expireAfterWrite(java.time.Duration.ofMillis(proxyBlockDataTTL.toMillis))
+      .maximumSize(requestCacheSize)
+      .build[BlockId, Entry[Option[UnverifiedBlockBody]]](),
+    slotDataResponse: Cache[SlotId, Entry[Unit]] = Caffeine.newBuilder
+      .expireAfterWrite(java.time.Duration.ofMillis(proxySlotDataTTL.toMillis))
+      .maximumSize(slotIdResponseCacheSize)
+      .build[SlotId, Entry[Unit]]()
   ): Resource[F, RequestsProxyActor[F]] = {
     val initialState =
       State(
@@ -128,8 +133,6 @@ object RequestsProxy {
       _ <- state.slotDataResponse.doRemoveAll
     } yield (state, state)
 
-  private val slotDataRequestTTL = 30.seconds
-
   private def processRemoteSlotData[F[_]: Async: Logger](
     state:    State[F],
     source:   HostId,
@@ -137,11 +140,11 @@ object RequestsProxy {
   ): F[(State[F], Response[F])] = {
     val processedSlotId = slotData.last.slotId
     if (state.slotDataResponse.underlying.contains(processedSlotId)) {
-      Logger[F].info(show"Ignore already send slot data with last id $processedSlotId") >>
+      Logger[F].info(show"Ignore already send slot data with last id ${processedSlotId.blockId}") >>
       (state, state).pure[F]
     } else {
       val message = BlockChecker.Message.RemoteSlotData(source, slotData)
-      state.slotDataResponse.put(processedSlotId)((), slotDataRequestTTL.some) >>
+      state.slotDataResponse.put(processedSlotId)(()) >>
       state.blockCheckerOpt.traverse_(blockChecker => blockChecker.sendNoWait(message)) >>
       (state, state).pure[F]
     }
@@ -441,18 +444,15 @@ object RequestsProxy {
       requests <- request.traverse(r => requestsMap.get(ItoId(r)).map(d => (r, d.flatten)))
     } yield requests.takeWhile_ { case (_, bodyOpt) => bodyOpt.isDefined }.map { case (i, bodyOpt) => (i, bodyOpt.get) }
 
-  // request shall be expired, there is no strict guarantee that we will receive response on the request
-  private val downloadRequestTTL = 5.seconds
-
   private def saveDownloadRequestToCache[F[_]: Async, T](
     cache: CaffeineCache[F, BlockId, Option[T]],
     ids:   Seq[BlockId]
   ) =
-    ids.traverse(cache.put(_)(None, downloadRequestTTL.some))
+    ids.traverse(cache.put(_)(None))
 
   private def saveDownloadResultToCache[F[_]: Async, T](
     cache:      CaffeineCache[F, BlockId, Option[T]],
     idsAndData: Seq[(BlockId, T)]
   ) =
-    idsAndData.traverse { case (id, data) => cache.put(id)(Option(data), None) }
+    idsAndData.traverse { case (id, data) => cache.put(id)(Option(data)) }
 }

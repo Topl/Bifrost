@@ -2,7 +2,7 @@ package co.topl.networking.fsnetwork
 
 import cats.Applicative
 import cats.data.NonEmptyChain
-import cats.effect.IO
+import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
@@ -29,6 +29,7 @@ import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalacache.Entry
 
+import scala.concurrent.duration.DurationInt
 import scala.collection.immutable.ListMap
 import scala.jdk.CollectionConverters.ConcurrentMapHasAsScala
 import scala.language.implicitConversions
@@ -208,6 +209,44 @@ class RequestsProxyTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
                 _ = assert(headers.map(h => h.id).forall(state.headerRequests.underlying.contains))
               } yield ()
             }
+        }
+    }
+  }
+
+  test("Block header download request: request shall expire") {
+    withMock {
+      val headerRequest = arbitraryHeader.arbitrary.first
+      val headerRequestId = headerRequest.id
+      val requestNeC = NonEmptyChain.one(headerRequestId)
+      val requestTimeout = 200.milliseconds
+
+      val peersManager = mock[PeersManagerActor[F]]
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.BlockHeadersRequest(hostId.some, requestNeC))
+        .twice()
+        .returns(Applicative[F].unit)
+
+      val headerStore = mock[Store[F, BlockId, BlockHeader]]
+      val bodyStore = mock[Store[F, BlockId, BlockBody]]
+      val blockChecker = mock[BlockCheckerActor[F]]
+
+      val headerRequests: Cache[BlockId, Entry[Option[UnverifiedBlockHeader]]] = Caffeine.newBuilder
+        .expireAfterWrite(java.time.Duration.ofMillis(requestTimeout.toMillis))
+        .maximumSize(requestCacheSize)
+        .build[BlockId, Entry[Option[UnverifiedBlockHeader]]]()
+
+      RequestsProxy
+        .makeActor(peersManager, headerStore, bodyStore, headerRequests = headerRequests)
+        .use { actor =>
+          for {
+            _     <- actor.send(RequestsProxy.Message.SetupBlockChecker(blockChecker))
+            state <- actor.send(RequestsProxy.Message.DownloadHeadersRequest(hostId, requestNeC))
+            _ = assert(state.headerRequests.underlying.contains(headerRequestId))
+            _ <- Async[F].delayBy(
+              Async[F].defer(actor.sendNoWait(RequestsProxy.Message.DownloadHeadersRequest(hostId, requestNeC))),
+              requestTimeout * 2
+            )
+          } yield ()
         }
     }
   }
