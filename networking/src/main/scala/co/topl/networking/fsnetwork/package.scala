@@ -19,6 +19,8 @@ import org.typelevel.log4cats.Logger
 import scodec.Codec
 import scodec.codecs.{cstring, double, int32}
 
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+
 package object fsnetwork {
 
   val hostIdBytesLen: Int = 32
@@ -34,8 +36,11 @@ package object fsnetwork {
   val requestCacheSize = 256
   val slotIdResponseCacheSize = 256
 
-  val bodyStoreContainsCacheSize = 32768
   val blockSourceCacheSize = 1024
+
+  // requests in proxy shall be expired, there is no strict guarantee that we will receive responses
+  val proxyBlockDataTTL: FiniteDuration = 1.seconds
+  val proxySlotDataTTL: FiniteDuration = 30.seconds
 
   type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
 
