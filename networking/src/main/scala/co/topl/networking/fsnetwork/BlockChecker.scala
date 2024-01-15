@@ -195,7 +195,7 @@ object BlockChecker {
   private def requestNextHeaders[F[_]: Async: Logger](state: State[F]): F[Unit] =
     state.bestKnownRemoteSlotDataOpt
       .traverse_ { slotData =>
-        getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.getNElementId(chunkSize), chunkSize)
+        getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.lastId, chunkSize)
           .logDuration(show"Find N-missing header")
           .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
           .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))

@@ -126,7 +126,7 @@ object PeerBlockHeaderFetcher {
       .evalMap { newBlockId =>
         processBlockId(state, newBlockId)
           .handleErrorWith(
-            Logger[F].error(_)("Fetching slot data from remote host return error") >>
+            Logger[F].error(_)(show"Fetching slot data for $newBlockId from remote host return error") >>
             state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
           )
       }
@@ -136,30 +136,38 @@ object PeerBlockHeaderFetcher {
     blockId: BlockId
   ): F[Unit] =
     for {
-      _          <- Logger[F].info(show"Got blockId: $blockId from peer ${state.hostId}")
+      hostId <- state.hostId.pure[F]
+
+      _          <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
       (from, to) <- slotDataToSync(state, blockId)
-      _ <- Logger[F].info(show"Sync ${from.slotId.blockId}:${to.slotId.blockId} from peer ${state.hostId} for $blockId")
+      _ <- Logger[F].info(show"Sync ${from.slotId.blockId}:${to.slotId.blockId} from peer $hostId for $blockId")
 
       downloadedSlotData <- downloadSlotDataChain(state, to)
       _                  <- saveSlotDataChain(state, downloadedSlotData)
-      _ <- Logger[F].info(show"Save tine length=${downloadedSlotData.length} from peer ${state.hostId} for $blockId")
+      _ <- Logger[F].info(show"Save tine length=${downloadedSlotData.length} from peer $hostId for $blockId")
 
       chainToCheck <- buildSlotDataChain(state, from, to)
-      _ <- Logger[F].info(show"FromToChain length=${chainToCheck.length} from peer ${state.hostId} for $blockId")
+      chainToCheckHead = chainToCheck.headOption.map(_.slotId.blockId)
+      chainToCheckLast = chainToCheck.lastOption.map(_.slotId.blockId)
+      _ <- Logger[F].debug(
+        show"ChainToCheck $chainToCheckHead:$chainToCheckLast len=${chainToCheck.length} from peer $hostId for $blockId"
+      )
 
       compareResult <- compareSlotDataWithLocal(chainToCheck, state)
-        .logDuration(show"Compare slot data chain from peer ${state.hostId} with local chain")
+        .logDuration(
+          show"Compare slot data end=$chainToCheckLast chain from peer $hostId for $blockId with local chain"
+        )
       betterChain <- compareResult match {
         case CompareResult.NoRemote =>
-          Logger[F].info(show"Already adopted $blockId from peer ${state.hostId}") >>
+          Logger[F].info(show"Already adopted $blockId from peer $hostId") >>
           None.pure[F]
         case CompareResult.RemoteIsBetter(betterChain) =>
-          Logger[F].debug(show"Received tip $blockId is better than current block from peer ${state.hostId}") >>
+          Logger[F].debug(show"Received tip $blockId is better than current block from peer $hostId") >>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.RemoteSlotData(state.hostId, betterChain)) >>
           betterChain.some.pure[F]
         case CompareResult.RemoteIsWorseByDensity =>
-          Logger[F].info(show"Ignoring tip $blockId from peer ${state.hostId} because of the density rule") >>
-          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId)) >>
+          Logger[F].info(show"Ignoring tip $blockId from peer $hostId because of the density rule") >>
+          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(hostId)) >>
           None.pure[F]
         case CompareResult.RemoteIsWorseByHeight =>
           Logger[F].info(show"Ignoring tip $blockId because other better or equal block had been adopted") >>
@@ -167,7 +175,7 @@ object PeerBlockHeaderFetcher {
       }
 
       blockSourceOpt <- buildBlockSource(state, to, betterChain)
-      _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer ${state.hostId} for $blockId")
+      _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer $hostId for $blockId")
       _ <- blockSourceOpt.traverse_(s => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(s)))
     } yield ()
 

@@ -11,6 +11,4 @@ case class BestChain(slotData: NonEmptyChain[SlotData]) {
   val lastId: BlockId = last.slotId.blockId
 
   def isLastId(id: BlockId): Boolean = lastId === id
-
-  def getNElementId(n: Int): BlockId = slotData.iterator.drop(n).nextOption().getOrElse(slotData.last).slotId.blockId
 }

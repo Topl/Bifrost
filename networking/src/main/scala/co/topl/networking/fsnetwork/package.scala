@@ -1,6 +1,6 @@
 package co.topl.networking
 
-import cats.data.{NonEmptyChain, OptionT}
+import cats.data.{Chain, NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow}
@@ -120,15 +120,15 @@ package object fsnetwork {
     getT:             BlockId => F[T],
     terminateOn:      T => F[Boolean]
   )(last: BlockId): F[List[T]] = {
-    def iteration(acc: List[T], blockId: BlockId): F[List[T]] =
+    def iteration(acc: Chain[T], blockId: BlockId): F[Chain[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
           acc.pure[F],
-          getSlotDataFromT(t).flatMap(slotData => iteration(acc.appended(t), slotData.parentSlotId.blockId))
+          getSlotDataFromT(t).flatMap(slotData => iteration(acc.append(t), slotData.parentSlotId.blockId))
         )
       }
 
-    iteration(List.empty[T], last).map(_.reverse)
+    iteration(Chain.empty[T], last).map(_.toList.reverse)
   }
 
   /**
