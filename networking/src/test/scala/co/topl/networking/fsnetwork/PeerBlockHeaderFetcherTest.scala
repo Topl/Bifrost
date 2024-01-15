@@ -1601,6 +1601,9 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val slotData = arbitrarySlotData.arbitrary.first.update(_.slotId.slot.set(5L))
 
       val peersManager = mock[PeersManagerActor[F]]
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
+        .returns(Applicative[F].unit)
 
       val client = mock[BlockchainPeerClient[F]]
       (() => client.remotePeerAdoptions)
