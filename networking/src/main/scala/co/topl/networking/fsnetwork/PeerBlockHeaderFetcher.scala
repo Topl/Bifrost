@@ -125,7 +125,10 @@ object PeerBlockHeaderFetcher {
     newBlockIdsStream
       .evalMap { newBlockId =>
         processBlockId(state, newBlockId)
-          .handleErrorWith(Logger[F].error(_)("Fetching slot data from remote host return error"))
+          .handleErrorWith(
+            Logger[F].error(_)("Fetching slot data from remote host return error") >>
+            state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
+          )
       }
 
   private def processBlockId[F[_]: Async: Logger](
