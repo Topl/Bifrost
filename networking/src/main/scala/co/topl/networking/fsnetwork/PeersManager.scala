@@ -989,11 +989,11 @@ object PeersManager {
     currentHotPeers:  Map[HostId, Peer[F]],
     p2pNetworkConfig: P2PNetworkConfig
   ): Set[HostId] = {
+    val minBlockRep = p2pNetworkConfig.networkProperties.minimumBlockProvidingReputation
 
-    // TODO adjust performance reputation to avoid remote peer with best performance reputation but
-    //  without actual application data providing
     val saveByPerformanceReputation =
       currentHotPeers.toSeq
+        .filter(_._2.blockRep >= minBlockRep)
         .map { case (id, peer) => id -> peer.perfRep }
         .sortBy(_._2)
         .takeRight(p2pNetworkConfig.networkProperties.minimumPerformanceReputationPeers)
@@ -1014,10 +1014,13 @@ object PeersManager {
       .keySet
 
     val saveByOverallReputation =
-      currentHotPeers.filter { case (_, peer) =>
-        val totalRep = peer.reputation
-        totalRep >= p2pNetworkConfig.networkProperties.minimumRequiredReputation
-      }.keySet
+      currentHotPeers
+        .filter(_._2.blockRep >= minBlockRep)
+        .filter { case (_, peer) =>
+          val totalRep = peer.reputation
+          totalRep >= p2pNetworkConfig.networkProperties.minimumRequiredReputation
+        }
+        .keySet
 
     val allKeptConnections =
       saveByNovelty ++ saveByBlockProviding ++ saveByPerformanceReputation ++ saveByOverallReputation

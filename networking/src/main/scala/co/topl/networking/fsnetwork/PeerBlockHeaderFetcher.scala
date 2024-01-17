@@ -46,6 +46,7 @@ object PeerBlockHeaderFetcher {
 
   case class State[F[_]](
     hostId:          HostId,
+    hostIdString:    String,
     client:          BlockchainPeerClient[F],
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
@@ -85,6 +86,7 @@ object PeerBlockHeaderFetcher {
     val initialState =
       State(
         hostId,
+        show"hostId",
         client,
         requestsProxy,
         peersManager,
@@ -107,13 +109,13 @@ object PeerBlockHeaderFetcher {
   private def startActor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     if (state.fetchingFiber.isEmpty) {
       for {
-        _                 <- Logger[F].info(show"Start block header actor for peer ${state.hostId}")
+        _                 <- Logger[F].info(show"Start block header actor for peer ${state.hostIdString}")
         newBlockIdsStream <- state.client.remotePeerAdoptions
         fiber             <- Spawn[F].start(slotDataFetcher(state, newBlockIdsStream).compile.drain)
         newState = state.copy(fetchingFiber = Option(fiber))
       } yield (newState, newState)
     } else {
-      Logger[F].info(show"Ignore starting block header actor for peer ${state.hostId}") >>
+      Logger[F].info(show"Ignore starting block header actor for peer ${state.hostIdString}") >>
       (state, state).pure[F]
     }
 
@@ -126,7 +128,9 @@ object PeerBlockHeaderFetcher {
       .evalMap { newBlockId =>
         processBlockId(state, newBlockId)
           .handleErrorWith(
-            Logger[F].error(_)(show"Fetching slot data for $newBlockId from remote host return error") >>
+            Logger[F].error(_)(
+              show"Fetching slot data for $newBlockId from remote host ${state.hostIdString} return error"
+            ) >>
             state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
           )
       }
@@ -216,7 +220,7 @@ object PeerBlockHeaderFetcher {
       chainSelection   <- state.localChain.chainSelectionAlgebra
       requestedHeight  <- chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
       message =
-        show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostId} :" ++
+        show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostIdString} :" ++
           show" commonSlotHeight=$commonSlotHeight, requestedHeight=$requestedHeight"
       _          <- Logger[F].info(message)
       blockIdTo  <- state.client.getRemoteBlockIdAtHeight(requestedHeight, None).map(_.get)
@@ -254,7 +258,7 @@ object PeerBlockHeaderFetcher {
 
       Logger[F].info(show"Associating child=$slotBlockId to parent=$parentBlockId") >>
       state.blockIdTree.associate(slotBlockId, parentBlockId) >>
-      Logger[F].info(show"Storing SlotData id=$slotBlockId") >>
+      Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString}") >>
       state.slotDataStore.put(slotBlockId, slotData)
     }
 
@@ -278,7 +282,7 @@ object PeerBlockHeaderFetcher {
     state.slotDataStore.get(blockId).flatMap {
       case Some(sd) => sd.pure[F]
       case None =>
-        Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostId}") >>
+        Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostIdString}") >>
         state.client
           .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
           // If the node is in a pre-genesis state, verify that the remote peer only notified about the genesis block.
@@ -346,10 +350,10 @@ object PeerBlockHeaderFetcher {
 
   private def getCurrentTip[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     for {
-      _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from peer ${state.hostId}"))
+      _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from peer ${state.hostIdString}"))
       tip <- OptionT(state.client.remoteCurrentTip())
       _   <- OptionT.liftF(processBlockId(state, tip))
-      _   <- OptionT.liftF(Logger[F].info(show"Processed current tip $tip from peer ${state.hostId}"))
+      _   <- OptionT.liftF(Logger[F].info(show"Processed current tip $tip from peer ${state.hostIdString}"))
     } yield (state, state)
   }.getOrElse((state, state))
     .handleErrorWith(Logger[F].error(_)("Get tip from remote host return error") >> (state, state).pure[F])
@@ -415,12 +419,12 @@ object PeerBlockHeaderFetcher {
     state.fetchingFiber
       .map { fiber =>
         val newState = state.copy(fetchingFiber = None)
-        Logger[F].info(show"Stop block header fetcher fiber for peer ${state.hostId}") >>
+        Logger[F].info(show"Stop block header fetcher fiber for peer ${state.hostIdString}") >>
         fiber.cancel >>
         (newState, newState).pure[F]
       }
       .getOrElse {
-        Logger[F].info(show"Ignoring stopping block header fetcher fiber for peer ${state.hostId}") >>
+        Logger[F].info(show"Ignoring stopping block header fetcher fiber for peer ${state.hostIdString}") >>
         (state, state).pure[F]
       }
 

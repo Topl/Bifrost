@@ -21,7 +21,7 @@ object NotifierTest {
     P2PNetworkConfig(
       NetworkProperties(
         pingPongInterval = FiniteDuration(20, MILLISECONDS),
-        commonAncestorTrackInterval = FiniteDuration(20, MILLISECONDS),
+        p2pTrackInterval = FiniteDuration(20, MILLISECONDS),
         warmHostsUpdateEveryNBlock = 0.01,
         aggressiveP2P = true
       ),
@@ -61,7 +61,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           defaultP2PConfig.slotDuration.toMillis,
           defaultP2PConfig.peersUpdateInterval.toMillis,
           defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
-          defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis,
+          defaultP2PConfig.networkProperties.p2pTrackInterval.toMillis,
           defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
         ).max
 
@@ -89,7 +89,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         P2PNetworkConfig(
           NetworkProperties(
             pingPongInterval = FiniteDuration(0, MILLISECONDS),
-            commonAncestorTrackInterval = FiniteDuration(0, MILLISECONDS),
+            p2pTrackInterval = FiniteDuration(0, MILLISECONDS),
             warmHostsUpdateEveryNBlock = 0,
             aggressiveP2P = true
           ),
@@ -140,7 +140,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           defaultP2PConfig.slotDuration.toMillis,
           defaultP2PConfig.peersUpdateInterval.toMillis,
           defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
-          defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis,
+          defaultP2PConfig.networkProperties.p2pTrackInterval.toMillis,
           defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
         ).max
 

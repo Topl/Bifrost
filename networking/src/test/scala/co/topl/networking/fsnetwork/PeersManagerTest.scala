@@ -1002,6 +1002,7 @@ class PeersManagerTest
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(().pure[F])
 
+      val minimumBlockProvidingReputation = defaultP2PConfig.networkProperties.minimumBlockProvidingReputation
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
           buildSimplePeerEntry(
@@ -1010,7 +1011,7 @@ class PeersManagerTest
             host1Id,
             host1Ra,
             closedTimestamps = Seq(1),
-            blockRep = 0,
+            blockRep = minimumBlockProvidingReputation * defaultP2PConfig.blockNoveltyDecoy * 1.05,
             perfRep = 1.0,
             newRep = 0
           ),
