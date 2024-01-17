@@ -63,7 +63,7 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    chainSelection:              ChainSelectionAlgebra[F, SlotData],
+    chainSelection:              ChainSelectionAlgebra[F],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],

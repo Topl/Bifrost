@@ -92,7 +92,6 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     blockIdTree:     ParentChildTree[F, BlockId],
-    blockHeights:    BlockHeights[F],
     commonAncestorF: (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]]
 
@@ -239,7 +238,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     blockIdTree:     ParentChildTree[F, BlockId],
-    blockHeights:    BlockHeights[F],
     commonAncestorF: (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
     PeerBlockHeaderFetcher.makeActor(
@@ -252,7 +250,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       bodyStore,
       blockIdTree,
       clock,
-      blockHeights,
       commonAncestorF
     )
 

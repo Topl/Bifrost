@@ -11,7 +11,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
@@ -87,11 +87,10 @@ object PeerActor {
     peersManager:     PeersManagerActor[F],
     localChain:       LocalChainAlgebra[F],
     slotDataStore:    Store[F, BlockId, SlotData],
-    blockHeights:     BlockHeights[F],
     networkLevel:     Boolean,
     applicationLevel: Boolean,
     genesisBlockId:   BlockId,
-    commonAncestorF:  (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF:  (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -119,7 +118,6 @@ object PeerActor {
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
@@ -141,7 +139,6 @@ object PeerActor {
         slotDataStore,
         bodyStore,
         blockIdTree,
-        blockHeights,
         commonAncestorF
       )
       body <- networkAlgebra.makePeerBodyFetcher(
@@ -172,7 +169,6 @@ object PeerActor {
         peersManager,
         localChain,
         slotDataStore,
-        blockHeights,
         initNetworkLevel,
         initAppLevel,
         genesisSlotData.slotId.blockId,
@@ -328,7 +324,7 @@ object PeerActor {
 
   private def printCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     state
-      .commonAncestorF(state.client, state.blockHeights, state.localChain)
+      .commonAncestorF(state.client, state.localChain)
       .flatTap(ancestor =>
         state.slotDataStore
           .getOrRaise(ancestor)

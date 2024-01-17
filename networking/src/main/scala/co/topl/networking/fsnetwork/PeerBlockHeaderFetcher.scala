@@ -15,14 +15,12 @@ import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.P2PShowInstances._
-import co.topl.networking.fsnetwork.PeerBlockHeaderFetcher.CompareResult._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
+import P2PShowInstances._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import co.topl.catsutils.faAsFAClockOps
 
 object PeerBlockHeaderFetcher {
   sealed trait Message
@@ -133,64 +131,36 @@ object PeerBlockHeaderFetcher {
     blockId: BlockId
   ): F[Unit] =
     for {
-      _          <- Logger[F].info(show"Got blockId: $blockId from peer ${state.hostId}")
+      _                <- Logger[F].info(show"Got blockId: $blockId from peer ${state.hostId}")
       commonAncestorId <- state.commonAncestorF(state.client, state.localChain)
-      commonAncestor <- state.slotDataStore.getOrRaise(commonAncestorId)
-      localHead <- state.localChain.head
-      remoteHead <- getSlotDataFromStorageOrRemote(state)(blockId)
-      chainSelection <- state.localChain.chainSelection
-      localSlotDataAtHeight = (height: Long) => OptionT(state.localChain.blockIdAtHeight(height)).semiflatMap(state.slotDataStore.getOrRaise).value
-      remoteSlotDataAtHeight = (height: Long) => OptionT(state.client.getRemoteBlockIdAtHeight(height, None)).semiflatMap(getSlotDataFromStorageOrRemote(state)).value
-      chainSelectionOutcome <- chainSelection.compare(localHead, remoteHead, commonAncestor, localSlotDataAtHeight, remoteSlotDataAtHeight)
-
-      blockSourceOpt <- buildBlockSource(state, to, betterChain)
-      _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer $hostId for $blockId")
+      commonAncestor   <- state.slotDataStore.getOrRaise(commonAncestorId)
+      localHead        <- state.localChain.head
+      remoteHead       <- getSlotDataFromStorageOrRemote(state)(blockId)
+      chainSelection   <- state.localChain.chainSelection
+      localSlotDataAtHeight = (height: Long) =>
+        OptionT(state.localChain.blockIdAtHeight(height)).semiflatMap(state.slotDataStore.getOrRaise).value
+      remoteSlotDataAtHeight = (height: Long) =>
+        OptionT(state.client.getRemoteBlockIdAtHeight(height, None))
+          .semiflatMap(getSlotDataFromStorageOrRemote(state))
+          .value
+      chainSelectionOutcome <- chainSelection.compare(
+        localHead,
+        remoteHead,
+        commonAncestor,
+        localSlotDataAtHeight,
+        remoteSlotDataAtHeight
+      )
+      betterChain <-
+        if (chainSelectionOutcome.isY)
+          buildSlotDataChain(state, commonAncestor, remoteHead)
+            .flatTap(saveSlotDataChain(state, _))
+            .map(NonEmptyChain.fromSeq)
+        else
+          none[NonEmptyChain[SlotData]].pure[F]
+      blockSourceOpt <- buildBlockSource(state, remoteHead, betterChain)
+      _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer ${state.hostId} for $blockId")
       _ <- blockSourceOpt.traverse_(s => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(s)))
     } yield ()
-
-  // return slot data for sync where "from" common accepted ancestor "to" top slot data to sync,
-  // "from" could be equal to "to"
-  private def slotDataToSync[F[_]: Async: Logger](
-    state:      State[F],
-    endBlockId: BlockId
-  ): F[(SlotData, SlotData)] =
-    for {
-      endSlotData <- getSlotDataFromStorageOrRemote(state)(endBlockId)
-      (from, to) <- state.bodyStore.contains(endBlockId).flatMap {
-        case true =>
-          Logger[F].debug(show"Build sync data for $endBlockId: no sync is required") >>
-          (endSlotData, endSlotData).pure[F] // no sync is required at all
-        case false =>
-          state.bodyStore.contains(endSlotData.parentSlotId.blockId).flatMap {
-            case true =>
-              Logger[F].debug(show"Build sync data for $endBlockId: sync for $endBlockId only") >>
-              state.slotDataStore.getOrRaise(endSlotData.parentSlotId.blockId).map((_, endSlotData))
-            case false =>
-              Logger[F].debug(show"Build sync data for $endBlockId: building long slot data chain") >>
-              buildLongSlotDataToSync(state, endSlotData)
-          }
-      }
-    } yield (from, to)
-
-  private def buildLongSlotDataToSync[F[_]: Async: Logger](
-    state:   State[F],
-    endSlot: SlotData
-  ): F[(SlotData, SlotData)] =
-    for {
-      commonBlockId    <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
-      commonSlotData   <- getSlotDataFromStorageOrRemote(state)(commonBlockId)
-      commonSlotHeight <- commonSlotData.height.pure[F]
-      currentHeight    <- state.localChain.head.map(_.height)
-      endSlotHeight    <- endSlot.height.pure[F]
-      chainSelection   <- state.localChain.chainSelection
-      requestedHeight  <- chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
-      message =
-        show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostId} :" ++
-          show" commonSlotHeight=$commonSlotHeight, requestedHeight=$requestedHeight"
-      _          <- Logger[F].info(message)
-      blockIdTo  <- state.client.getRemoteBlockIdAtHeight(requestedHeight, None).map(_.get)
-      slotDataTo <- state.client.getSlotDataOrError(blockIdTo, new NoSuchElementException(blockIdTo.toString))
-    } yield (commonSlotData, slotDataTo)
 
   // if newSlotDataOpt is defined then it will include blockId as well
   private def buildBlockSource[F[_]: Async](
@@ -295,23 +265,6 @@ object PeerBlockHeaderFetcher {
     object RemoteIsWorseByDensity extends CompareResult
     object NoRemote extends CompareResult
   }
-
-  private def compareSlotDataWithLocal[F[_]: Async](
-    slotData: List[SlotData],
-    state:    State[F]
-  ): F[CompareResult] =
-    NonEmptyChain.fromSeq(slotData) match {
-      case Some(nonEmptySlotDataChain) =>
-        val bestSlotData = nonEmptySlotDataChain.last
-        state.localChain.isWorseThan(bestSlotData).flatMap {
-          case true => Async[F].pure(RemoteIsBetter(nonEmptySlotDataChain))
-          case false =>
-            state.localChain.head.map(localHead =>
-              if (localHead.height < bestSlotData.height) RemoteIsWorseByDensity else RemoteIsWorseByHeight
-            )
-        }
-      case None => Async[F].pure(NoRemote)
-    }
 
   private def getCurrentTip[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] = {
     for {
