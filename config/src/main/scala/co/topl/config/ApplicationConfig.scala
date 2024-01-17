@@ -61,12 +61,14 @@ object ApplicationConfig {
       minimumBlockProvidingReputationPeers: Int = 2,
       minimumPerformanceReputationPeers:    Int = 2,
       minimumRequiredReputation:            Double = 0.66,
-      minimumEligibleColdConnections:       Int = 50,
-      maximumEligibleColdConnections:       Int = 100,
-      minimumHotConnections:                Int = 7,
-      maximumWarmConnections:               Int = 12,
-      warmHostsUpdateEveryNBlock:           Double = 4.0,
-      commonAncestorTrackInterval:          FiniteDuration = FiniteDuration(10, SECONDS),
+      // any non-new peer require that reputation to be hot
+      minimumBlockProvidingReputation: Double = 0.15,
+      minimumEligibleColdConnections:  Int = 50,
+      maximumEligibleColdConnections:  Int = 100,
+      minimumHotConnections:           Int = 7,
+      maximumWarmConnections:          Int = 12,
+      warmHostsUpdateEveryNBlock:      Double = 4.0,
+      p2pTrackInterval:                FiniteDuration = FiniteDuration(10, SECONDS),
       // we could try to connect to remote peer again after
       // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
       closeTimeoutFirstDelayInMs: Long = 1000,

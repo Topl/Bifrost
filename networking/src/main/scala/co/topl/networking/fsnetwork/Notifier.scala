@@ -52,7 +52,7 @@ object Notifier {
     startSlotNotification[F](state)
       .flatMap(startNetworkQualityFiber[F])
       .flatMap(startPeersUpdateFiber[F])
-      .flatMap(startCommonAncestorFiber[F])
+      .flatMap(startP2PTrackFiber[F])
       .flatMap(startAggressiveP2PFiber[F])
       .map(newState => (newState, newState))
 
@@ -116,22 +116,22 @@ object Notifier {
     }
   }
 
-  private def startCommonAncestorFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
-    val commonAncestorInterval = state.networkConfig.networkProperties.commonAncestorTrackInterval
+  private def startP2PTrackFiber[F[_]: Async: Logger](state: State[F]): F[State[F]] = {
+    val p2pTrackInterval = state.networkConfig.networkProperties.p2pTrackInterval
 
     val commonAncestorTrackStream =
-      Stream.awakeEvery(commonAncestorInterval).evalMap { _ =>
+      Stream.awakeEvery(p2pTrackInterval).evalMap { _ =>
         state.peersManager.sendNoWait(PeersManager.Message.PrintP2PState)
       }
 
-    if (state.commonAncestorFiber.isEmpty && commonAncestorInterval.toMillis > 0) {
+    if (state.commonAncestorFiber.isEmpty && p2pTrackInterval.toMillis > 0) {
       for {
         _     <- Logger[F].info(show"Start common ancestor tracking fiber")
         fiber <- Spawn[F].start(commonAncestorTrackStream.compile.drain)
         newState = state.copy(commonAncestorFiber = Option(fiber))
       } yield newState
     } else {
-      Logger[F].info(show"Ignoring common ancestor tracking with interval $commonAncestorInterval") >>
+      Logger[F].info(show"Ignoring common ancestor tracking with interval $p2pTrackInterval") >>
       state.pure[F]
     }
   }
