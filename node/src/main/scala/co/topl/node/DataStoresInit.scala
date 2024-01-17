@@ -80,24 +80,47 @@ object DataStoresInit {
         _.value,
         appConfig.bifrost.cache.containsCacheSize
       )
-      spendableBoxIdsStore <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](dataDir, levelDbFactory)(
+      spendableBoxIdsStoreLocal <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](
+        dataDir,
+        levelDbFactory
+      )(
         "spendable-box-ids",
         appConfig.bifrost.cache.spendableBoxIds,
         _.value
       )
-      epochBoundariesStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
+      spendableBoxIdsStoreP2P <- makeCachedDb[F, TransactionId, ByteString, NonEmptySet[Short]](
+        dataDir,
+        levelDbFactory
+      )(
+        "spendable-box-ids-p2p",
+        appConfig.bifrost.cache.spendableBoxIds,
+        _.value
+      )
+      epochBoundariesStoreLocal <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
         "epoch-boundaries",
         appConfig.bifrost.cache.epochBoundaries,
         Long.box
       )
-      operatorStakesStore <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir, levelDbFactory)(
+      epochBoundariesStoreP2P <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
+        "epoch-boundaries-p2p",
+        appConfig.bifrost.cache.epochBoundaries,
+        Long.box
+      )
+      operatorStakesStoreLocal <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir, levelDbFactory)(
         "operator-stakes",
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
-      activeStakeStore   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("active-stake")
-      inactiveStakeStore <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("inactive-stake")
-      registrationsStore <- makeCachedDb[
+      operatorStakesStoreP2P <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir, levelDbFactory)(
+        "operator-stakes-p2p",
+        appConfig.bifrost.cache.operatorStakes,
+        identity
+      )
+      activeStakeStoreLocal   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("active-stake")
+      activeStakeStoreP2P     <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("active-stake-p2p")
+      inactiveStakeStoreLocal <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("inactive-stake")
+      inactiveStakeStoreP2P   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("inactive-stake-p2p")
+      registrationsStoreLocal <- makeCachedDb[
         F,
         StakingAddress,
         StakingAddress,
@@ -107,8 +130,23 @@ object DataStoresInit {
         appConfig.bifrost.cache.registrations,
         identity
       )
-      blockHeightTreeStore <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
+      registrationsStoreP2P <- makeCachedDb[
+        F,
+        StakingAddress,
+        StakingAddress,
+        ActiveStaker
+      ](dataDir, levelDbFactory)(
+        "registrations-p2p",
+        appConfig.bifrost.cache.registrations,
+        identity
+      )
+      blockHeightTreeStoreLocal <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
         "block-heights",
+        appConfig.bifrost.cache.blockHeightTree,
+        Long.box
+      )
+      blockHeightTreeStoreP2P <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
+        "block-heights-p2p",
         appConfig.bifrost.cache.blockHeightTree,
         Long.box
       )
@@ -117,13 +155,23 @@ object DataStoresInit {
         appConfig.bifrost.cache.epochData,
         Long.box
       )
-      registrationAccumulatorStore <- makeCachedDb[
+      registrationAccumulatorStoreLocal <- makeCachedDb[
         F,
         StakingAddress,
         StakingAddress,
         Unit
       ](dataDir, levelDbFactory)(
         "registration-accumulator",
+        appConfig.bifrost.cache.registrationAccumulator,
+        identity
+      )
+      registrationAccumulatorStoreP2P <- makeCachedDb[
+        F,
+        StakingAddress,
+        StakingAddress,
+        Unit
+      ](dataDir, levelDbFactory)(
+        "registration-accumulator-p2p",
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
@@ -138,15 +186,23 @@ object DataStoresInit {
         blockHeaderStore,
         blockBodyStore,
         transactionStore,
-        spendableBoxIdsStore,
-        epochBoundariesStore,
-        operatorStakesStore,
-        activeStakeStore,
-        inactiveStakeStore,
-        registrationsStore,
-        blockHeightTreeStore,
+        spendableBoxIdsStoreLocal,
+        spendableBoxIdsStoreP2P,
+        epochBoundariesStoreLocal,
+        epochBoundariesStoreP2P,
+        operatorStakesStoreLocal,
+        operatorStakesStoreP2P,
+        activeStakeStoreLocal,
+        activeStakeStoreP2P,
+        inactiveStakeStoreLocal,
+        inactiveStakeStoreP2P,
+        registrationsStoreLocal,
+        registrationsStoreP2P,
+        blockHeightTreeStoreLocal,
+        blockHeightTreeStoreP2P,
         epochDataStore,
-        registrationAccumulatorStore,
+        registrationAccumulatorStoreLocal,
+        registrationAccumulatorStoreP2P,
         knownRemotePeersStore,
         metadataStore
       )
@@ -209,13 +265,18 @@ object DataStoresInit {
       _ <- Logger[F].info("Initializing data stores")
       _ <- dataStores.currentEventIds.put(CurrentEventIdGetterSetters.Indices.CanonicalHead, bigBangBlock.header.id)
       _ <- List(
-        CurrentEventIdGetterSetters.Indices.ConsensusData,
-        CurrentEventIdGetterSetters.Indices.EpochBoundaries,
-        CurrentEventIdGetterSetters.Indices.BlockHeightTree,
-        CurrentEventIdGetterSetters.Indices.BoxState,
+        CurrentEventIdGetterSetters.Indices.ConsensusDataLocal,
+        CurrentEventIdGetterSetters.Indices.ConsensusDataP2P,
+        CurrentEventIdGetterSetters.Indices.EpochBoundariesLocal,
+        CurrentEventIdGetterSetters.Indices.EpochBoundariesP2P,
+        CurrentEventIdGetterSetters.Indices.BlockHeightTreeLocal,
+        CurrentEventIdGetterSetters.Indices.BlockHeightTreeP2P,
+        CurrentEventIdGetterSetters.Indices.BoxStateLocal,
+        CurrentEventIdGetterSetters.Indices.BoxStateP2P,
         CurrentEventIdGetterSetters.Indices.Mempool,
         CurrentEventIdGetterSetters.Indices.EpochData,
-        CurrentEventIdGetterSetters.Indices.RegistrationAccumulator
+        CurrentEventIdGetterSetters.Indices.RegistrationAccumulatorLocal,
+        CurrentEventIdGetterSetters.Indices.RegistrationAccumulatorP2P
       ).traverseTap(dataStores.currentEventIds.put(_, bigBangBlock.header.parentHeaderId))
       _ <- dataStores.slotData.put(
         bigBangBlock.header.id,
@@ -229,14 +290,37 @@ object DataStoresInit {
       _ <- bigBangBlock.fullBody.allTransactions.traverseTap(transaction =>
         dataStores.transactions.put(transaction.id, transaction)
       )
-      _ <- dataStores.blockHeightTree.put(0, bigBangBlock.header.parentHeaderId)
-      _ <- dataStores.activeStake.contains(()).ifM(Applicative[F].unit, dataStores.activeStake.put((), 0))
-      _ <- dataStores.inactiveStake.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStake.put((), 0))
+      _ <- dataStores.blockHeightTreeLocal.put(0, bigBangBlock.header.parentHeaderId)
+      _ <- dataStores.blockHeightTreeP2P.put(0, bigBangBlock.header.parentHeaderId)
+      _ <- dataStores.activeStakeLocal.contains(()).ifM(Applicative[F].unit, dataStores.activeStakeLocal.put((), 0))
+      _ <- dataStores.activeStakeP2P.contains(()).ifM(Applicative[F].unit, dataStores.activeStakeP2P.put((), 0))
+      _ <- dataStores.inactiveStakeLocal.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStakeLocal.put((), 0))
+      _ <- dataStores.inactiveStakeP2P.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStakeP2P.put((), 0))
       _ <- dataStores.epochData.put(0, EpochData.defaultInstance)
       _ <- dataStores.parentChildTree.put(
         bigBangBlock.header.id,
         (bigBangBlock.header.height, bigBangBlock.header.parentHeaderId)
       )
+    } yield ()
+
+  def repair[F[_]: Sync](dataStores: DataStores[F], bigBangBlock: FullBlock): F[Unit] =
+    for {
+      repairEventId <- (
+        (key: Byte) =>
+          dataStores.currentEventIds
+            .contains(key)
+            .ifM(().pure[F], dataStores.currentEventIds.put(key, bigBangBlock.header.parentHeaderId))
+      ).pure[F]
+      _ <- repairEventId(CurrentEventIdGetterSetters.Indices.ConsensusDataP2P)
+      _ <- repairEventId(CurrentEventIdGetterSetters.Indices.EpochBoundariesP2P)
+      _ <- repairEventId(CurrentEventIdGetterSetters.Indices.BlockHeightTreeP2P)
+      _ <- repairEventId(CurrentEventIdGetterSetters.Indices.BoxStateP2P)
+      _ <- repairEventId(CurrentEventIdGetterSetters.Indices.RegistrationAccumulatorP2P)
+      _ <- dataStores.blockHeightTreeP2P
+        .contains(0)
+        .ifM(Applicative[F].unit, dataStores.blockHeightTreeP2P.put(0, bigBangBlock.header.parentHeaderId))
+      _ <- dataStores.activeStakeP2P.contains(()).ifM(Applicative[F].unit, dataStores.activeStakeP2P.put((), 0))
+      _ <- dataStores.inactiveStakeP2P.contains(()).ifM(Applicative[F].unit, dataStores.inactiveStakeP2P.put((), 0))
     } yield ()
 
   object DatabaseTypes {
