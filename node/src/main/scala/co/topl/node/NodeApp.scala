@@ -587,7 +587,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                   header       <- dataStores.headers.getOrRaise(publicBigBang.genesisId).toResource
                   body         <- dataStores.bodies.getOrRaise(publicBigBang.genesisId).toResource
                   transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
-                } yield FullBlock(header, FullBlockBody(transactions)),
+                  fullBlock = FullBlock(header, FullBlockBody(transactions))
+                  _ <- DataStoresInit.repair[F](dataStores, fullBlock).toResource
+                } yield fullBlock,
                 DataReaders
                   .fromSourcePath[F](publicBigBang.sourcePath)
                   .use(reader =>
