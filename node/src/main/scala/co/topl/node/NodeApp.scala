@@ -6,7 +6,6 @@ import cats.effect.std.Random
 import cats.effect.std.SecureRandom
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
-import co.topl.algebras._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter, NodeMetadata}
 import co.topl.brambl.syntax._
@@ -16,12 +15,11 @@ import co.topl.codecs.bytes.tetra.instances._
 import co.topl.common.application.IOBaseApp
 import co.topl.config.ApplicationConfig
 import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
-import co.topl.consensus.interpreters.EpochBoundariesEventSourcedState.EpochBoundaries
 import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.genus._
 import co.topl.grpc.HealthCheckGrpc
 import co.topl.healthcheck.HealthCheck
@@ -148,16 +146,25 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .toResource
 
       // Start the supporting interpreters
-      blockHeightTree <- BlockHeightTree
+      blockHeightTreeLocal <- BlockHeightTree
         .make[F](
-          dataStores.blockHeightTree,
-          currentEventIdGetterSetters.blockHeightTree.get(),
+          dataStores.blockHeightTreeLocal,
+          currentEventIdGetterSetters.blockHeightTreeLocal.get(),
           dataStores.slotData,
           blockIdTree,
-          currentEventIdGetterSetters.blockHeightTree.set
+          currentEventIdGetterSetters.blockHeightTreeLocal.set
         )
         .toResource
-      _ <- OptionT(blockHeightTree.useStateAt(canonicalHeadId)(_.apply(BigBang.Height)))
+      blockHeightTreeP2P <- BlockHeightTree
+        .make[F](
+          dataStores.blockHeightTreeP2P,
+          currentEventIdGetterSetters.blockHeightTreeP2P.get(),
+          dataStores.slotData,
+          blockIdTree,
+          currentEventIdGetterSetters.blockHeightTreeP2P.set
+        )
+        .toResource
+      _ <- OptionT(blockHeightTreeLocal.useStateAt(canonicalHeadId)(_.apply(BigBang.Height)))
         .ensure(new IllegalStateException("The configured genesis block does not match the stored genesis block."))(
           _ === bigBangBlockId
         )
@@ -225,22 +232,60 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           .toResource
       leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
 
-      epochBoundariesState <- makeEpochBoundariesState(
-        clock,
-        dataStores,
-        currentEventIdGetterSetters,
-        blockIdTree
-      ).toResource
-      consensusDataState <-
-        makeConsensusDataState(
-          dataStores,
-          currentEventIdGetterSetters,
-          blockIdTree
-        ).toResource
-
-      consensusValidationState <- ConsensusValidationState
-        .make[F](bigBangBlockId, epochBoundariesState, consensusDataState, clock)
+      epochBoundariesStateLocal <- EpochBoundariesEventSourcedState
+        .make[F](
+          clock,
+          currentEventIdGetterSetters.epochBoundariesLocal.get(),
+          blockIdTree,
+          currentEventIdGetterSetters.epochBoundariesLocal.set,
+          dataStores.epochBoundariesLocal.pure[F],
+          dataStores.slotData.getOrRaise
+        )
         .toResource
+      consensusDataStateLocal <-
+        ConsensusDataEventSourcedState
+          .make[F](
+            currentEventIdGetterSetters.consensusDataLocal.get(),
+            blockIdTree,
+            currentEventIdGetterSetters.consensusDataLocal.set,
+            ConsensusDataEventSourcedState
+              .ConsensusData(dataStores.activeStakeLocal, dataStores.inactiveStakeLocal, dataStores.registrationsLocal)
+              .pure[F],
+            dataStores.bodies.getOrRaise,
+            dataStores.transactions.getOrRaise
+          )
+          .toResource
+      consensusValidationStateLocal <- ConsensusValidationState
+        .make[F](bigBangBlockId, epochBoundariesStateLocal, consensusDataStateLocal, clock)
+        .toResource
+
+      epochBoundariesStateP2P <- EpochBoundariesEventSourcedState
+        .make[F](
+          clock,
+          currentEventIdGetterSetters.epochBoundariesP2P.get(),
+          blockIdTree,
+          currentEventIdGetterSetters.epochBoundariesP2P.set,
+          dataStores.epochBoundariesP2P.pure[F],
+          dataStores.slotData.getOrRaise
+        )
+        .toResource
+      consensusDataStateP2P <-
+        ConsensusDataEventSourcedState
+          .make[F](
+            currentEventIdGetterSetters.consensusDataP2P.get(),
+            blockIdTree,
+            currentEventIdGetterSetters.consensusDataP2P.set,
+            ConsensusDataEventSourcedState
+              .ConsensusData(dataStores.activeStakeP2P, dataStores.inactiveStakeP2P, dataStores.registrationsP2P)
+              .pure[F],
+            dataStores.bodies.getOrRaise,
+            dataStores.transactions.getOrRaise
+          )
+          .toResource
+      consensusValidationStateP2P <- ConsensusValidationState
+        .make[F](bigBangBlockId, epochBoundariesStateP2P, consensusDataStateP2P, clock)
+        .toResource
+
       chainSelectionAlgebra = ChainSelection
         .make[F](
           dataStores.slotData.getOrRaise,
@@ -282,7 +327,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
                     appConfig.bifrost.staking.stakingAddress,
                     clock,
                     etaCalculation,
-                    consensusValidationState,
+                    consensusValidationStateLocal,
                     leaderElectionThreshold,
                     cryptoResources,
                     bigBangProtocol,
@@ -309,36 +354,67 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
               dataStores.headers.getOrRaise
             )
           )
-      (boxState, boxStateState) <- BoxState
+      (boxStateLocal, boxStateStateLocal) <- BoxState
         .make(
-          currentEventIdGetterSetters.boxState.get(),
+          currentEventIdGetterSetters.boxStateLocal.get(),
           dataStores.bodies.getOrRaise,
           dataStores.transactions.getOrRaise,
           blockIdTree,
-          currentEventIdGetterSetters.boxState.set,
-          dataStores.spendableBoxIds.pure[F]
+          currentEventIdGetterSetters.boxStateLocal.set,
+          dataStores.spendableBoxIdsLocal.pure[F]
         )
         .toResource
-      (registrationAccumulator, registrationAccumulatorState) <- RegistrationAccumulator
-        .make[F](
-          currentEventIdGetterSetters.registrationAccumulator.get(),
+      (boxStateP2P, boxStateStateP2P) <- BoxState
+        .make(
+          currentEventIdGetterSetters.boxStateP2P.get(),
           dataStores.bodies.getOrRaise,
           dataStores.transactions.getOrRaise,
           blockIdTree,
-          currentEventIdGetterSetters.registrationAccumulator.set,
-          dataStores.registrationAccumulator.pure[F]
+          currentEventIdGetterSetters.boxStateP2P.set,
+          dataStores.spendableBoxIdsP2P.pure[F]
         )
-      validators <- Validators.make[F](
+        .toResource
+      (registrationAccumulatorLocal, registrationAccumulatorStateLocal) <- RegistrationAccumulator
+        .make[F](
+          currentEventIdGetterSetters.registrationAccumulatorLocal.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.registrationAccumulatorLocal.set,
+          dataStores.registrationAccumulatorLocal.pure[F]
+        )
+      (registrationAccumulatorP2P, registrationAccumulatorStateP2P) <- RegistrationAccumulator
+        .make[F](
+          currentEventIdGetterSetters.registrationAccumulatorP2P.get(),
+          dataStores.bodies.getOrRaise,
+          dataStores.transactions.getOrRaise,
+          blockIdTree,
+          currentEventIdGetterSetters.registrationAccumulatorP2P.set,
+          dataStores.registrationAccumulatorP2P.pure[F]
+        )
+      validatorsLocal <- Validators.make[F](
         cryptoResources,
         dataStores,
         bigBangBlockId,
         eligibilityCache,
         etaCalculation,
-        consensusValidationState,
+        consensusValidationStateLocal,
         leaderElectionThreshold,
         clock,
-        boxState,
-        registrationAccumulator
+        boxStateLocal,
+        registrationAccumulatorLocal
+      )
+      validatorsP2P <- Validators.make[F](
+        cryptoResources,
+        dataStores,
+        bigBangBlockId,
+        eligibilityCache,
+        etaCalculation,
+        consensusValidationStateP2P,
+        leaderElectionThreshold,
+        clock,
+        boxStateP2P,
+        registrationAccumulatorP2P
       )
       genusOpt <- OptionT
         .whenF(appConfig.genus.enable)(
@@ -379,8 +455,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         dataStores.bodies.getOrRaise,
         dataStores.transactions.getOrRaise,
         transactionRewardCalculator,
-        epochBoundariesState,
-        consensusDataState
+        epochBoundariesStateLocal,
+        consensusDataStateLocal
       )
 
       epochData <- EpochDataInterpreter
@@ -394,17 +470,22 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       eventSourcedStates = EventSourcedStates[F](
         epochDataEventSourcedState,
-        blockHeightTree,
-        consensusDataState,
-        epochBoundariesState,
-        boxStateState,
+        blockHeightTreeLocal,
+        blockHeightTreeP2P,
+        consensusDataStateLocal,
+        consensusDataStateP2P,
+        epochBoundariesStateLocal,
+        epochBoundariesStateP2P,
+        boxStateStateLocal,
+        boxStateStateP2P,
         mempoolState,
-        registrationAccumulatorState
+        registrationAccumulatorStateLocal,
+        registrationAccumulatorStateP2P
       )
 
       _ <- Logger[F].info(show"Updating EventSourcedStates to id=$canonicalHeadId").toResource
       _ <- eventSourcedStates
-        .updateTo(canonicalHeadId)
+        .updateAllStatesTo(canonicalHeadId)
         .logDuration("EventSourcedStates Update")
         .warnIfSlow("EventSourcedStates Update", 5.seconds)
         .toResource
@@ -420,7 +501,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           chainSelectionAlgebra,
           blockIdTree,
           eventSourcedStates,
-          validators,
+          validatorsLocal,
+          validatorsP2P,
           mempool,
           cryptoResources,
           localPeer,
@@ -438,41 +520,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           softwareVersion.traverse(VersionReplicator.background[F](_, appConfig.bifrost.versionInfo.period)).void
         )
     } yield ()
-
-  private def makeEpochBoundariesState(
-    clock:                       ClockAlgebra[F],
-    dataStores:                  DataStores[F],
-    currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    blockIdTree:                 ParentChildTree[F, BlockId]
-  ): F[EventSourcedState[F, EpochBoundaries[F], BlockId]] =
-    for {
-      epochBoundariesState <- EpochBoundariesEventSourcedState.make[F](
-        clock,
-        currentEventIdGetterSetters.epochBoundaries.get(),
-        blockIdTree,
-        currentEventIdGetterSetters.epochBoundaries.set,
-        dataStores.epochBoundaries.pure[F],
-        dataStores.slotData.getOrRaise
-      )
-    } yield epochBoundariesState
-
-  private def makeConsensusDataState(
-    dataStores:                  DataStores[F],
-    currentEventIdGetterSetters: CurrentEventIdGetterSetters[F],
-    blockIdTree:                 ParentChildTree[F, BlockId]
-  ): F[EventSourcedState[F, ConsensusDataEventSourcedState.ConsensusData[F], BlockId]] =
-    for {
-      consensusDataState <- ConsensusDataEventSourcedState.make[F](
-        currentEventIdGetterSetters.consensusData.get(),
-        blockIdTree,
-        currentEventIdGetterSetters.consensusData.set,
-        ConsensusDataEventSourcedState
-          .ConsensusData(dataStores.activeStake, dataStores.inactiveStake, dataStores.registrations)
-          .pure[F],
-        dataStores.bodies.getOrRaise,
-        dataStores.transactions.getOrRaise
-      )
-    } yield consensusDataState
 
   private def makeLeaderElectionThreshold(blake2b512Resource: Resource[F, Blake2b512], vrfConfig: VrfConfig) =
     for {
@@ -514,7 +561,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           dataStores <- DataStoresInit.create[F](appConfig)(bigBangBlock.header.id)
           _ <- DataStoresInit
             .isInitialized(dataStores)
-            .ifM(().pure[F], DataStoresInit.initialize(dataStores, bigBangBlock))
+            .ifM(DataStoresInit.repair(dataStores, bigBangBlock), DataStoresInit.initialize(dataStores, bigBangBlock))
             .toResource
           _ <- privateBigBang.localStakerIndex
             .filter(_ >= 0)
