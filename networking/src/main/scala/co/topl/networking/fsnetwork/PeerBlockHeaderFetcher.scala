@@ -86,7 +86,7 @@ object PeerBlockHeaderFetcher {
     val initialState =
       State(
         hostId,
-        show"hostId",
+        show"$hostId",
         client,
         requestsProxy,
         peersManager,

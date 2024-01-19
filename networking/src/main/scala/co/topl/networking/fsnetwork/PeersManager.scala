@@ -293,7 +293,7 @@ object PeersManager {
     blockSource:                 Cache[BlockId, Set[HostId]]
   ): Resource[F, PeersManagerActor[F]] = {
     val selfBannedPeer =
-      thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0)
+      thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0, None)
 
     val initialState =
       PeersManager.State[F](
@@ -760,9 +760,10 @@ object PeersManager {
         .map(_.map(kh => RemotePeer(HostId(kh.id), RemoteAddress(kh.host, kh.port))))
       _ <- Logger[F].info(show"Received remote peer as server $remotePeerAsServer from $hostId")
 
+      timeNow = System.currentTimeMillis()
       newPeerHandler <-
         state.peersHandler
-          .copyWithUpdatedPeer(hostId, connectedPeer.remoteAddress, remotePeerAsServer, peerActor)
+          .copyWithUpdatedPeer(hostId, connectedPeer.remoteAddress, remotePeerAsServer, peerActor, timeNow)
           .pure[F]
 
       peerState = newPeerHandler.get(hostId).get.state
@@ -791,7 +792,7 @@ object PeersManager {
       resolved        <- OptionT(resolveHosts(remotePeers.toList).map(NonEmptyChain.fromSeq))
       nonSpecialHosts <- OptionT.fromOption[F](NonEmptyChain.fromChain(resolved.filterNot(_.address.isSpecialHost)))
       neighbourBlockRep = state.peersHandler.get(source).map(_.blockRep).getOrElse(0.0)
-      peerToAdd = nonSpecialHosts.map(rp => KnownRemotePeer(rp.peerId, rp.address, neighbourBlockRep, 0.0))
+      peerToAdd = nonSpecialHosts.map(rp => KnownRemotePeer(rp.peerId, rp.address, neighbourBlockRep, 0.0, None))
     } yield addKnownResolvedPeers(state, peerToAdd)
   }.getOrElse((state, state).pure[F]).flatten
 
@@ -821,8 +822,8 @@ object PeersManager {
   private def updatePeersTick[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     for {
       _                          <- requestNeighboursFromHotPeers(state)
-      stateWithClearedTimestamps <- clearCloseTimestamps(state).pure[F]
-      newState                   <- clearColdPeers(stateWithClearedTimestamps).pure[F]
+      stateWithUpdatedTimestamps <- updatePeersTimestamps(state).pure[F]
+      newState                   <- clearColdPeers(stateWithUpdatedTimestamps).pure[F]
     } yield (newState, newState)
 
   private def requestNeighboursFromHotPeers[F[_]: Async: Logger](state: State[F]): F[Unit] = {
@@ -845,8 +846,14 @@ object PeersManager {
   private def clearColdPeers[F[_]](state: State[F]): State[F] = {
     val minimumColdConnections = state.p2pNetworkConfig.networkProperties.minimumEligibleColdConnections
     val maximumColdConnections = state.p2pNetworkConfig.networkProperties.maximumEligibleColdConnections
+    val clearColdIfNotActiveForInMs = state.p2pNetworkConfig.networkProperties.clearColdIfNotActiveForInMs
 
-    val usefulColdConnections = state.peersHandler.getColdPeers.filter(_._2.isUseful)
+    val timeNow = System.currentTimeMillis()
+    val openedAfter = timeNow - clearColdIfNotActiveForInMs
+    val usefulColdConnections =
+      state.peersHandler.getColdPeers
+        .filter(_._2.isUseful)
+        .filter { case (_, peer) => peer.activeConnectionTimestamp.getOrElse(timeNow) > openedAfter || peer.isActive }
 
     val coldConnectionsToSave =
       if (usefulColdConnections.size > maximumColdConnections) {
@@ -862,8 +869,8 @@ object PeersManager {
     state.copy(peersHandler = newPeer)
   }
 
-  private def clearCloseTimestamps[F[_]](state: State[F]): State[F] =
-    state.copy(peersHandler = state.peersHandler.copyWithClearedTimestamps)
+  private def updatePeersTimestamps[F[_]](state: State[F]): State[F] =
+    state.copy(peersHandler = state.peersHandler.copyWithUpdatedTimestamps)
 
   private def aggressiveP2PUpdate[F[_]: Async: Logger](
     thisActor: PeersManagerActor[F],
