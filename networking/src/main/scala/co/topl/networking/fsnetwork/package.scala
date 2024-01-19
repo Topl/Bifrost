@@ -17,7 +17,7 @@ import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import scodec.Codec
-import scodec.codecs.{cstring, double, int32}
+import scodec.codecs.{cstring, double, int32, vlong}
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
@@ -173,17 +173,18 @@ package object fsnetwork {
   )
 
   case class KnownRemotePeer(
-    peerId:          HostId,
-    address:         RemoteAddress,
-    blockReputation: HostReputationValue,
-    perfReputation:  HostReputationValue
+    peerId:              HostId,
+    address:             RemoteAddress,
+    blockReputation:     HostReputationValue,
+    perfReputation:      HostReputationValue,
+    lastOpenedTimestamp: Option[Long]
   )
 
   private val hostIdCodec: Codec[HostId] = byteStringCodec.as[HostId]
   private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
 
   implicit val peerToAddCodec: Codec[KnownRemotePeer] =
-    (hostIdCodec :: remoteAddressCodec :: double :: double).as[KnownRemotePeer]
+    (hostIdCodec :: remoteAddressCodec :: double :: double :: optionCodec[Long](vlong)).as[KnownRemotePeer]
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
 

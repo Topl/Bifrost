@@ -65,6 +65,7 @@ object ApplicationConfig {
       minimumBlockProvidingReputation: Double = 0.15,
       minimumEligibleColdConnections:  Int = 50,
       maximumEligibleColdConnections:  Int = 100,
+      clearColdIfNotActiveForInMs:     Long = 7 * 24 * 60 * 60 * 1000, // 7 days
       minimumHotConnections:           Int = 7,
       maximumWarmConnections:          Int = 12,
       warmHostsUpdateEveryNBlock:      Double = 4.0,
