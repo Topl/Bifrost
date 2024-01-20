@@ -140,7 +140,7 @@ object PeerBlockHeaderFetcher {
     blockId: BlockId
   ): F[Unit] =
     for {
-      hostId <- state.hostId.pure[F]
+      hostId <- state.hostIdString.pure[F]
 
       _          <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
       (from, to) <- slotDataToSync(state, blockId)
@@ -171,7 +171,7 @@ object PeerBlockHeaderFetcher {
           betterChain.some.pure[F]
         case CompareResult.RemoteIsWorseByDensity =>
           Logger[F].info(show"Ignoring tip $blockId from peer $hostId because of the density rule") >>
-          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(hostId)) >>
+          state.requestsProxy.sendNoWait(RequestsProxy.Message.BadKLookbackSlotData(state.hostId)) >>
           None.pure[F]
         case CompareResult.RemoteIsWorseByHeight =>
           Logger[F].info(show"Ignoring tip $blockId because other better or equal block had been adopted") >>
@@ -317,7 +317,7 @@ object PeerBlockHeaderFetcher {
       (sd: SlotData) => state.slotDataStore.contains(sd.slotId.blockId)
     )(from.slotId.blockId)
       .handleErrorWith { error =>
-        Logger[F].error(show"Failed to get remote slot data due to ${error.toString}") >>
+        Logger[F].error(show"Failed to get slot data from ${state.hostIdString} due to ${error.toString}") >>
         List.empty[SlotData].pure[F] // TODO send information about error
       }
   }
