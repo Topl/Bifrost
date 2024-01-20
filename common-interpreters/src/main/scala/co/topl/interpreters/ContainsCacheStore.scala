@@ -31,10 +31,10 @@ object ContainsCacheStore {
           new Store[F, Key, Value] {
 
             def put(id: Key, t: Value): F[Unit] =
-              underlying.put(id, t) >> containsCache.put(id)(true)
+              underlying.put(id, t) >> underlying.contains(id).flatMap(containsCache.put(id)(_))
 
             def remove(id: Key): F[Unit] =
-              containsCache.put(id)(false) >> underlying.remove(id)
+              underlying.remove(id) >> underlying.contains(id).flatMap(containsCache.put(id)(_))
 
             def get(id: Key): F[Option[Value]] = underlying.get(id)
 
