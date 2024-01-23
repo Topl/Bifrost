@@ -120,8 +120,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
           val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
-          (chainSelectionAlgebra.compare _).expects(slotData.last, localSlotData).returning(1.pure[F])
-
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
@@ -196,9 +194,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
           // known but not accepted yet data
-          val knownSlotData = NonEmptyChain.fromSeq(slotData.toChain.toList.take(2)).get
-
-          (chainSelectionAlgebra.compare _).expects(slotData.last, knownSlotData.last).returning(1.pure[F])
+          NonEmptyChain.fromSeq(slotData.toChain.toList.take(2)).get
 
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
@@ -242,7 +238,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
     }
   }
 
-  test("RemoteSlotData: Request headers if new slot data is better and is not extension of current chain") {
+  test("RemoteSlotData: Request headers if new slot data is better and best chain is none") {
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary) {
       slotData: NonEmptyChain[SlotData] =>
         withMock {
@@ -272,8 +268,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
           (() => localChain.head).expects().once().returning(localSlotData.pure[F])
-
-          (chainSelectionAlgebra.compare _).expects(slotData.last, localSlotData).returning(1.pure[F])
 
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
@@ -308,6 +302,89 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra
+            )
+            .use { actor =>
+              for {
+                updatedState <- actor.send(BlockChecker.Message.RemoteSlotData(hostId, remoteSlotData))
+                _ = assert(updatedState.bestKnownRemoteSlotDataOpt == expectedBestChain)
+              } yield ()
+            }
+        }
+    }
+  }
+
+  test("RemoteSlotData: Request headers if new slot data is better and current best chain in fork") {
+    PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(3, maxChainSize)).arbitrary) {
+      slotData: NonEmptyChain[SlotData] =>
+        withMock {
+          val requestsProxy = mock[RequestsProxyActor[F]]
+          val localChain = mock[LocalChainAlgebra[F]]
+          val slotDataStore = mock[Store[F, BlockId, SlotData]]
+          val headerStore = mock[Store[F, BlockId, BlockHeader]]
+          val bodyStore = mock[Store[F, BlockId, BlockBody]]
+          val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
+          val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
+          val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
+          val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+
+          val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
+
+          // local is known data which are stored in stores
+          val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(localId, *, *)
+            .once()
+            .returning(localSlotData.pure[F])
+
+          val currentFork =
+            arbitraryLinkedSlotDataChainFor(Gen.choose(1L, 1L), localSlotData.some).arbitrary.first
+              .prepend(localSlotData)
+
+          // slot data from peer
+          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
+          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
+          // (() => localChain.head).expects().once().returning(localSlotData.pure[F])
+
+          (chainSelectionAlgebra.compare _).expects(slotData.last, currentFork.last).returning(1.pure[F])
+
+          val localSlotDataStore = idAndSlotData.toList.toMap
+          (slotDataStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(*, *, *)
+            .anyNumberOfTimes()
+            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+              localSlotDataStore(id).pure[F]
+            }
+
+          (headerStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
+          (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
+
+          val expectedRequest =
+            RequestsProxy.Message.DownloadHeadersRequest(
+              hostId,
+              NonEmptyChain.fromSeq(remoteSlotDataAndId.toChain.toList.take(chunkSize).map(_._1)).get
+            ): RequestsProxy.Message
+          (requestsProxy.sendNoWait _).expects(expectedRequest).once().returning(().pure[F])
+
+          val bestChain = Option(BestChain(currentFork))
+          val expectedBestChain = Option(BestChain(NonEmptyChain.fromChain(slotData.tail).get))
+
+          BlockChecker
+            .makeActor(
+              requestsProxy,
+              localChain,
+              slotDataStore,
+              headerStore,
+              bodyStore,
+              headerValidation,
+              bodySyntaxValidation,
+              bodySemanticValidation,
+              bodyAuthorizationValidation,
+              chainSelectionAlgebra,
+              bestChain
             )
             .use { actor =>
               for {
