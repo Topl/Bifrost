@@ -23,6 +23,8 @@ import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
+import scala.collection.Searching
+
 object BlockChecker {
   sealed trait Message
 
@@ -126,20 +128,50 @@ object BlockChecker {
 
     for {
       _ <- Logger[F].debug(show"Received slot data proposal with best block id $bestRemoteBlockId")
-      newState <- remoteSlotDataBetter(state, bestRemoteSlotData).ifM(
+      newState <- remoteSlotDataBetter(state, slotData).ifM(
         ifTrue = processNewBestSlotData(state, slotData, candidateHostId),
         ifFalse = Logger[F].debug(show"Ignore weaker slot data $bestRemoteBlockId") >> state.pure[F]
       )
     } yield (newState, newState)
   }
 
-  private def remoteSlotDataBetter[F[_]: Async: Logger](state: State[F], bestRemoteSlotData: SlotData): F[Boolean] = {
-    val localBestSlotData =
-      state.bestKnownRemoteSlotDataOpt
-        .map(_.last.pure[F])
-        .getOrElse(state.localChain.head)
-        .logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId.blockId}")
-    localBestSlotData.flatMap(local => state.chainSelection.compare(bestRemoteSlotData, local).map(_ > 0))
+  private def remoteSlotDataBetter[F[_]: Async: Logger](
+    state:               State[F],
+    remoteSlotDataChain: NonEmptyChain[SlotData]
+  ): F[Boolean] =
+    for {
+      bestRemoteSlotData <- remoteSlotDataChain.last.pure[F]
+      localBestSlotData  <- state.bestKnownRemoteSlotDataOpt.map(_.last.pure[F]).getOrElse(state.localChain.head)
+      chainComparing = Async[F].defer(state.chainSelection.compare(bestRemoteSlotData, localBestSlotData).map(_ > 0))
+      res <-
+        // if received slot data chain could be appended to the END of current best slot data,
+        // then we could skip chain comparing because
+        // if chain N is better than chain M then chain N + a1 + an is better than chain M as well
+        if (couldAppend(localBestSlotData, remoteSlotDataChain)) {
+          Logger[F].info(show"Could be append ${bestRemoteSlotData.slotId.blockId} to best chain") >>
+          true.pure[F]
+        } else {
+          chainComparing.logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId.blockId}")
+        }
+    } yield res
+
+  /**
+   * Check if given remoteSlotDataChain is extension of localBestSlotData.
+   * remoteSlotDataChain could be extension of localBestSlotData ONLY
+   * if some element of remoteSlotDataChain have parent with id equal to id of localBestSlotData
+   *
+   * @param localBestSlotData slot data to append
+   * @param remoteSlotDataChain chain to append
+   * @return true if whole remoteSlotDataChain or it part could be appended to localBestSlotData, false otherwise
+   */
+  private def couldAppend(localBestSlotData: SlotData, remoteSlotDataChain: NonEmptyChain[SlotData]): Boolean = {
+    // pattern for binary search, we interesting only in height, so any slot data with correct height will be ok
+    val dummySlotData = localBestSlotData.copy(height = localBestSlotData.height + 1)
+    val chainAsVector = remoteSlotDataChain.toNonEmptyVector.toVector
+    chainAsVector.search(dummySlotData)(Ordering.by(_.height)) match {
+      case Searching.Found(height)     => chainAsVector(height).parentSlotId == localBestSlotData.slotId
+      case Searching.InsertionPoint(_) => false
+    }
   }
 
   private def processNewBestSlotData[F[_]: Async: Logger](
