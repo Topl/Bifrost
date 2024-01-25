@@ -224,15 +224,22 @@ object BlockChecker {
       .copy(bestKnownRemoteSlotDataOpt = Option(BestChain(newSlotData)), bestKnownRemoteSlotDataHost = Option(hostId))
       .pure[F]
 
-  private def requestNextHeaders[F[_]: Async: Logger](state: State[F]): F[Unit] =
-    state.bestKnownRemoteSlotDataOpt
-      .traverse_ { slotData =>
-        getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.lastId, chunkSize)
-          .logDuration(show"Find N-missing header")
-          .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
-          .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
-          .foreachF(state.requestsProxy.sendNoWait)
-      }
+  private def requestNextHeaders[F[_]: Async: Logger](state: State[F]): F[Unit] = {
+    for {
+      bestChain     <- OptionT.fromOption[F](state.bestKnownRemoteSlotDataOpt)
+      missedHeaders <- OptionT.liftF(bestChain.slotData.dropWhileF(sd => state.headerStore.contains(sd.slotId.blockId)))
+      missedNeC     <- OptionT.fromOption[F](NonEmptyChain.fromChain(missedHeaders))
+      blockId       <- OptionT.some[F](missedNeC.iterator.drop(chunkSize).nextOption().getOrElse(missedNeC.last))
+      res           <- OptionT.liftF(requestHeadersUpToId(state, blockId.slotId.blockId))
+    } yield res
+  }.getOrElseF(().pure[F]).logDuration("Request next headers total time")
+
+  private def requestHeadersUpToId[F[_]: Async: Logger](state: State[F], headerId: BlockId): F[Unit] =
+    getFirstNMissedInStore(state.headerStore, state.slotDataStore, headerId, chunkSize)
+      .logDuration(show"Find N-missing header")
+      .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
+      .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
+      .foreachF(state.requestsProxy.sendNoWait)
       .handleErrorWith(e => Logger[F].error(show"Failed to request next headers due ${e.toString}"))
 
   private def processRemoteHeaders[F[_]: Async: Logger](
@@ -464,7 +471,7 @@ object BlockChecker {
         .ifM(
           ifTrue = state.localChain.adopt(Validated.Valid(lastBlockSlotData)) >>
             Logger[F].info(show"Successfully adopted block: $id"),
-          ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
+          ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block body with id=$id")
         )
     } yield ()
   }
@@ -530,7 +537,7 @@ object BlockChecker {
   private def requestNextBodiesOrHeader[F[_]: Async: Logger](state: State[F], hostId: HostId): F[Unit] =
     state.bestKnownRemoteSlotDataOpt.map(_.lastId).traverse_ { bestId =>
       for {
-        unknownIds   <- getMissedBodiesId(state, bestId)
+        unknownIds   <- getMissedBodiesId(state, bestId).logDuration("Get missed bodies")
         requestedIds <- requestMissedBodies(state, hostId, unknownIds)
         _            <- if (requestedIds.isEmpty) requestNextHeaders(state) else ().pure[F]
       } yield ()
