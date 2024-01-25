@@ -260,7 +260,7 @@ object PeerBlockHeaderFetcher {
       state.blockIdTree.associate(slotBlockId, parentBlockId) >>
       Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString}") >>
       state.slotDataStore.put(slotBlockId, slotData) >>
-      state.slotDataStore.get(slotBlockId).map { res =>
+      state.slotDataStore.get(slotBlockId).flatMap { res =>
         Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString} slotres ${res.isDefined}")
       }
     }
