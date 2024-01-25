@@ -9,11 +9,15 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.networking.fsnetwork.BlockCheckerTest.F
 import co.topl.networking.fsnetwork.TestHelper.CallHandler3Ops
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
-import org.scalacheck.Gen
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.typeclasses.implicits._
+import org.scalacheck.effect.PropF
+import cats.data.NonEmptyChain
+import co.topl.networking.fsnetwork.NonEmptyChainFOps
+import co.topl.models.generators.consensus.ModelGenerators
+import org.scalacheck.Gen
 
 object PackageObjectTest {
   type F[A] = IO[A]
@@ -86,4 +90,22 @@ class PackageObjectTest extends CatsEffectSuite with ScalaCheckEffectSuite with 
     }
   }
 
+  test("dropWhile shall works properly") {
+    PropF.forAllF(ModelGenerators.nonEmptyChainArbOf[Boolean].arbitrary) { chain: NonEmptyChain[Boolean] =>
+      for {
+        d <- NonEmptyChainFOps[Boolean, F](chain).dropWhileF(_.pure[F])
+        _ = assert(!d.headOption.getOrElse(false))
+      } yield ()
+    }
+  }
+
+  test("dropWhile shall works properly for long chain") {
+    val data = Seq.fill(100000)(true)
+    val chain: NonEmptyChain[Boolean] = NonEmptyChain.fromSeq(data :+ false).get
+    for {
+      d <- NonEmptyChainFOps[Boolean, F](chain).dropWhileF(_.pure[F])
+      _ = assert(d.length == 1)
+      _ = assert(!d.headOption.getOrElse(false))
+    } yield ()
+  }
 }

@@ -59,6 +59,20 @@ package object fsnetwork {
       stream.evalMap(a => p(a).map(b => (b, a))).dropWhile(_._1).map(_._2)
   }
 
+  implicit class NonEmptyChainFOps[T, F[_]: Async](seq: NonEmptyChain[T]) {
+
+    def dropWhileF(p: T => F[Boolean]): F[Chain[T]] = {
+      def go(rem: Chain[T]): F[Chain[T]] =
+        rem.uncons match {
+          case Some((a, tail)) =>
+            p(a).ifM(go(tail), rem.pure[F])
+          case None => Chain.empty[T].pure[F]
+        }
+
+      go(seq.toChain)
+    }
+  }
+
   implicit class SeqFOps[T, F[_]: Async](seq: Seq[T]) {
 
     def takeWhileF(p: T => F[Boolean]): F[List[T]] =

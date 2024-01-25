@@ -256,10 +256,13 @@ object PeerBlockHeaderFetcher {
       val slotBlockId = slotData.slotId.blockId
       val parentBlockId = slotData.parentSlotId.blockId
 
-      Logger[F].info(show"Associating child=$slotBlockId to parent=$parentBlockId") >>
+      Logger[F].info(show"Associating child=$slotBlockId to parent=$parentBlockId from peer ${state.hostIdString}") >>
       state.blockIdTree.associate(slotBlockId, parentBlockId) >>
       Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString}") >>
-      state.slotDataStore.put(slotBlockId, slotData)
+      state.slotDataStore.put(slotBlockId, slotData) >>
+      state.slotDataStore.get(slotBlockId).map { res =>
+        Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString} slotres ${res.isDefined}")
+      }
     }
 
     tine.traverse(adoptSlotData) >> tine.pure[F]
