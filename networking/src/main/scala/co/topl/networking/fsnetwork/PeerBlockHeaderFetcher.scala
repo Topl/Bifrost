@@ -150,7 +150,10 @@ object PeerBlockHeaderFetcher {
       _                  <- saveSlotDataChain(state, downloadedSlotData)
       _ <- Logger[F].info(show"Save tine length=${downloadedSlotData.length} from peer $hostId for $blockId")
 
+      _            <- Async[F].cede
       chainToCheck <- buildSlotDataChain(state, from, to)
+      _            <- Async[F].cede
+
       chainToCheckHead = chainToCheck.headOption.map(_.slotId.blockId)
       chainToCheckLast = chainToCheck.lastOption.map(_.slotId.blockId)
       _ <- Logger[F].debug(
@@ -286,6 +289,7 @@ object PeerBlockHeaderFetcher {
       case Some(sd) => sd.pure[F]
       case None =>
         Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostIdString}") >>
+        Async[F].cede >>
         state.client
           .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
           // If the node is in a pre-genesis state, verify that the remote peer only notified about the genesis block.

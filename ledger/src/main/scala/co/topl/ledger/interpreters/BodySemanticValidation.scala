@@ -1,7 +1,7 @@
 package co.topl.ledger.interpreters
 
 import cats.data.{EitherT, NonEmptyChain, OptionT, Validated, ValidatedNec}
-import cats.effect.Sync
+import cats.effect.Async
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -11,12 +11,12 @@ import co.topl.node.models.BlockBody
 
 object BodySemanticValidation {
 
-  def make[F[_]: Sync](
+  def make[F[_]: Async](
     fetchTransaction:              TransactionId => F[IoTransaction],
     transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
     registrationAccumulator:       RegistrationAccumulatorAlgebra[F]
   ): F[BodySemanticValidationAlgebra[F]] =
-    Sync[F].delay {
+    Async[F].delay {
       new BodySemanticValidationAlgebra[F] {
 
         /**
@@ -29,6 +29,7 @@ object BodySemanticValidation {
               body.transactionIds
                 .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
                   case (Validated.Valid(prefix), transactionId) =>
+                    Async[F].cede >>
                     validateTransaction(context, prefix)(transactionId).map(prefix :+ _).value.map(_.toValidated)
                   case (invalid, _) => invalid.pure[F]
                 }

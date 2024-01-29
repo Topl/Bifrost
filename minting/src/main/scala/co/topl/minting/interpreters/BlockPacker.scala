@@ -115,6 +115,7 @@ object BlockPacker {
                   transactionIsValid(transaction)
                     .ifM(
                       graph.pure[F],
+                      Async[F].cede >>
                       Sync[F]
                         .delay(graph.removeSubtree(transaction))
                         .flatMap { case (graph, evicted) =>

@@ -120,10 +120,12 @@ object Actor {
           Stream
             .fromQueueNoneTerminated(mailbox, 1)
             .evalScan(initialState) { case (state, (input, replyTo)) =>
+              Concurrent[F].cede *>
               fsm
                 .run(state, input)
                 .flatMap { case (newState, output) =>
                   stateRef.set(newState) *>
+                  Concurrent[F].cede *>
                   replyTo.complete(output).as(newState)
                 }
             }

@@ -183,6 +183,7 @@ object BlockChecker {
     for {
       fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
         .logDurationRes(fullSlotData => show"Build full slot data for len=${fullSlotData.size}")
+      _        <- Async[F].cede
       _        <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
       newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
       _        <- requestNextHeaders(newState)

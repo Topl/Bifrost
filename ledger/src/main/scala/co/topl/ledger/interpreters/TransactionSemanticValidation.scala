@@ -19,7 +19,7 @@ import co.topl.models._
 
 object TransactionSemanticValidation {
 
-  def make[F[_]: Sync](
+  def make[F[_]: Async](
     fetchTransaction: TransactionId => F[IoTransaction],
     boxState:         BoxStateAlgebra[F]
   ): F[TransactionSemanticValidationAlgebra[F]] =
@@ -43,6 +43,7 @@ object TransactionSemanticValidation {
                 // Stop validating after the first error
                 .foldM(transaction.validNec[TransactionSemanticError]) {
                   case (Validated.Valid(_), input) =>
+                    Async[F].cede >>
                     (
                       EitherT(scheduleValidation[F](context.slot)(transaction.datum.event.schedule).map(_.toEither)) >>
                       EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>

@@ -46,7 +46,7 @@ object ChainSelection {
    * @param kLookback The number of blocks in the backward-moving window of blocks for longest-chain rule
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
-  def make[F[_]: Sync](
+  def make[F[_]: Async](
     fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
@@ -57,7 +57,7 @@ object ChainSelection {
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
-  private class ChainSelectionImpl[F[_]: Sync](
+  private class ChainSelectionImpl[F[_]: Async](
     fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
@@ -153,7 +153,7 @@ object ChainSelection {
        */
       def build(x: SlotData, y: SlotData): F[TineComparisonTraversal] =
         (LongestChainTraversal(NonEmptyChain.one(x), NonEmptyChain.one(y)): TineComparisonTraversal)
-          .iterateWhileM(_.next)(!_.sharesCommonAncestor)
+          .iterateWhileM(c => Async[F].cede >> c.next)(!_.sharesCommonAncestor)
     }
 
     /**
