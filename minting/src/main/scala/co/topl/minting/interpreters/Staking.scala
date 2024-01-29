@@ -108,6 +108,7 @@ object Staking {
                   )
                   unsignedBlock = unsignedBlockBuilder(partialCertificate)
                   messageToSign = unsignedBlock.signableBytes.toByteArray
+                  _ <- Async[F].cede
                   signature <- ed25519Resource.use(ed25519 =>
                     Sync[F].delay(
                       ed25519.sign(
@@ -116,6 +117,7 @@ object Staking {
                       )
                     )
                   )
+                  _ <- Async[F].cede
                   operationalCertificate = OperationalCertificate(
                     operationalKeyOut.parentVK,
                     operationalKeyOut.parentSignature,

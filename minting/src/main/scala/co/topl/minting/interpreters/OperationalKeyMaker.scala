@@ -195,6 +195,7 @@ object OperationalKeyMaker {
         // As each child key is created, the corresponding Deferred instance is completed.
         _ <- Async[F]
           .uncancelable(poll =>
+            Async[F].cede >>
             // Allow cancelation of the child key creation
             poll(
               fulfillDeferredSlots(epoch, eta, threshold, parentSK, parentVK, operationalPeriodSlots)(
@@ -240,6 +241,7 @@ object OperationalKeyMaker {
       for {
         entropy      <- Sync[F].delay(Entropy.fromUuid(UUID.randomUUID()))
         childKeyPair <- ed25519Resource.use(ed => Sync[F].delay(ed.deriveKeyPairFromEntropy(entropy, None)))
+        _            <- Async[F].cede
         message = childKeyPair.verificationKey.bytes ++ Longs.toByteArray(slot)
         parentSignature <- kesProductResource
           .use(kesProductScheme => Sync[F].delay(kesProductScheme.sign(parentSK, message)))

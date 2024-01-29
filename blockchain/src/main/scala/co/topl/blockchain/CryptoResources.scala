@@ -21,7 +21,7 @@ object CryptoResources {
     Async[F]
       // Limit the number of each resource to the number of available processors,
       // but with a minimum of 4 to avoid scarcity
-      .delay(Runtime.getRuntime.availableProcessors().max(4))
+      .delay((Runtime.getRuntime.availableProcessors() - 1).min(1))
       .flatMap(maxParallelism =>
         (
           CatsUnsafeResource.make[F, Blake2b256](new Blake2b256, maxParallelism),
