@@ -34,24 +34,28 @@ object TransactionSemanticValidation {
         def validate(
           context: TransactionValidationContext
         )(transaction: IoTransaction): F[ValidatedNec[TransactionSemanticError, IoTransaction]] =
-          AugmentedBoxState
-            .make(boxState)(
-              context.prefix.foldLeft(AugmentedBoxState.StateAugmentation.empty)(_.augment(_))
-            )
-            .flatMap(boxState =>
-              transaction.inputs
-                // Stop validating after the first error
-                .foldM(transaction.validNec[TransactionSemanticError]) {
-                  case (Validated.Valid(_), input) =>
-                    (
-                      EitherT(scheduleValidation[F](context.slot)(transaction.datum.event.schedule).map(_.toEither)) >>
-                      EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>
-                      EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
-                    ).toNestedValidatedNec.value
-                      .map(_.leftMap(_.flatten).as(transaction))
-                  case (invalid, _) => invalid.pure[F]
-                }
-            )
+          Sync[F].defer(
+            AugmentedBoxState
+              .make(boxState)(
+                context.prefix.foldLeft(AugmentedBoxState.StateAugmentation.empty)(_.augment(_))
+              )
+              .flatMap(boxState =>
+                transaction.inputs
+                  // Stop validating after the first error
+                  .foldM(transaction.validNec[TransactionSemanticError]) {
+                    case (Validated.Valid(_), input) =>
+                      (
+                        EitherT(
+                          scheduleValidation[F](context.slot)(transaction.datum.event.schedule).map(_.toEither)
+                        ) >>
+                        EitherT(dataValidation(fetchTransaction)(input).map(_.toEither)) >>
+                        EitherT(spendableValidation(boxState)(context.parentHeaderId)(input).map(_.toEither))
+                      ).toNestedValidatedNec.value
+                        .map(_.leftMap(_.flatten).as(transaction))
+                    case (invalid, _) => invalid.pure[F]
+                  }
+              )
+          )
       }
     )
 

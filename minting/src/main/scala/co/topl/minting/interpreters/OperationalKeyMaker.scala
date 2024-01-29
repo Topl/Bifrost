@@ -162,7 +162,7 @@ object OperationalKeyMaker {
               _ <- secureStore.write(UUID.randomUUID().toString, updated)
             } yield ()
             res <- OptionT.liftF(
-              prepareOperationalPeriodKeys(currentPeriodKey, slot, relativeStake, eta)(onComplete)
+              Sync[F].defer(prepareOperationalPeriodKeys(currentPeriodKey, slot, relativeStake, eta)(onComplete))
             )
           } yield res
         ).value
@@ -239,10 +239,10 @@ object OperationalKeyMaker {
     ) =
       for {
         entropy      <- Sync[F].delay(Entropy.fromUuid(UUID.randomUUID()))
-        childKeyPair <- ed25519Resource.use(ed => Sync[F].delay(ed.deriveKeyPairFromEntropy(entropy, None)))
+        childKeyPair <- ed25519Resource.use(ed => Sync[F].blocking(ed.deriveKeyPairFromEntropy(entropy, None)))
         message = childKeyPair.verificationKey.bytes ++ Longs.toByteArray(slot)
         parentSignature <- kesProductResource
-          .use(kesProductScheme => Sync[F].delay(kesProductScheme.sign(parentSK, message)))
+          .use(kesProductScheme => Sync[F].blocking(kesProductScheme.sign(parentSK, message)))
       } yield OperationalKeyOut(
         slot,
         ByteString.copyFrom(childKeyPair.verificationKey.bytes),

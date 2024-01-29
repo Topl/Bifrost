@@ -181,7 +181,8 @@ object BlockChecker {
   ): F[State[F]] = {
     val remoteIds: NonEmptyChain[BlockId] = remoteSlotData.map(_.slotId.blockId)
     for {
-      fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
+      fullSlotData <- Async[F]
+        .defer(buildFullSlotDataChain(state, remoteSlotData))
         .logDurationRes(fullSlotData => show"Build full slot data for len=${fullSlotData.size}")
       _        <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
       newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)

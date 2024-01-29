@@ -28,20 +28,22 @@ object BodyAuthorizationValidation {
           context: IoTransaction => DynamicContext[F, String, Datum]
         )(body: BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
           // Note: Do not run authorization validation on the reward transaction
-          body.transactionIds
-            .foldMapM(transactionId =>
-              for {
-                transaction <- fetchTransaction(transactionId)
-                quivrContext = context(transaction)
-                validationResult <- transactionAuthorizationValidation.validate(quivrContext)(transaction)
-              } yield validationResult
-                .leftMap(error =>
-                  BodyAuthorizationErrors.TransactionAuthorizationErrors(transaction, error): BodyAuthorizationError
-                )
-                .toValidatedNec
-                .void
-            )
-            .map(_.as(body))
+          Sync[F].defer(
+            body.transactionIds
+              .foldMapM(transactionId =>
+                for {
+                  transaction <- fetchTransaction(transactionId)
+                  quivrContext = context(transaction)
+                  validationResult <- transactionAuthorizationValidation.validate(quivrContext)(transaction)
+                } yield validationResult
+                  .leftMap(error =>
+                    BodyAuthorizationErrors.TransactionAuthorizationErrors(transaction, error): BodyAuthorizationError
+                  )
+                  .toValidatedNec
+                  .void
+              )
+              .map(_.as(body))
+          )
       }
     }
 

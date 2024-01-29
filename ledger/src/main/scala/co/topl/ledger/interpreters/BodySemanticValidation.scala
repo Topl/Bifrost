@@ -24,18 +24,20 @@ object BodySemanticValidation {
          * the outputs of previous transactions in the block, but no two transactions may spend the same input.
          */
         def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
-          EitherT(validateReward(context)(body))
-            .flatMapF(_ =>
-              body.transactionIds
-                .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
-                  case (Validated.Valid(prefix), transactionId) =>
-                    validateTransaction(context, prefix)(transactionId).map(prefix :+ _).value.map(_.toValidated)
-                  case (invalid, _) => invalid.pure[F]
-                }
-                .map(_.toEither)
-            )
-            .as(body)
-            .toValidated
+          Sync[F].defer(
+            EitherT(validateReward(context)(body))
+              .flatMapF(_ =>
+                body.transactionIds
+                  .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
+                    case (Validated.Valid(prefix), transactionId) =>
+                      validateTransaction(context, prefix)(transactionId).map(prefix :+ _).value.map(_.toValidated)
+                    case (invalid, _) => invalid.pure[F]
+                  }
+                  .map(_.toEither)
+              )
+              .as(body)
+              .toValidated
+          )
 
         /**
          * Fetch the given transaction ID and (semantically) validate it in the context of the given block ID.

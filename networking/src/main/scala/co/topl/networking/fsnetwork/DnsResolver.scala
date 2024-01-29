@@ -39,7 +39,7 @@ object DnsResolverInstances {
       val res =
         for {
           host     <- OptionT.fromOption[F](Hostname.fromString(unresolvedHost))
-          resolved <- OptionT(resolver.resolveOption(host))
+          resolved <- OptionT(Sync[F].defer(resolver.resolveOption(host)))
         } yield resolved.toUriString
       res.value
     }
