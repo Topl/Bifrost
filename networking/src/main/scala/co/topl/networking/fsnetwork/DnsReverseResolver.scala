@@ -41,7 +41,7 @@ object ReverseDnsResolverInstances {
       val res =
         for {
           ip       <- OptionT.fromOption[F](IpAddress.fromString(ip))
-          resolved <- OptionT(resolver.reverseOption(ip))
+          resolved <- OptionT(Sync[F].defer(resolver.reverseOption(ip)))
         } yield resolved.normalized.toString
       // if we failed to get hostname then still use ip
       res.value.map(_.getOrElse(ip))

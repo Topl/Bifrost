@@ -41,17 +41,21 @@ object BodySyntaxValidation {
          * Syntactically validates each of the transactions in the given block.
          */
         def validate(body: BlockBody): F[ValidatedNec[BodySyntaxError, BlockBody]] =
-          body.transactionIds
-            .traverse(fetchTransaction)
-            .flatMap(transactions =>
-              List(
-                Sync[F].delay(validateDistinctInputs(transactions)),
-                transactions.parFoldMapA(validateTransaction),
-                body.rewardTransactionId.traverse(fetchTransaction).flatMap(validateRewardTransaction(transactions, _))
-              ).parSequence
-                .map(_.combineAll)
-                .map(_.as(body))
-            )
+          Sync[F].defer(
+            body.transactionIds
+              .traverse(fetchTransaction)
+              .flatMap(transactions =>
+                List(
+                  Sync[F].delay(validateDistinctInputs(transactions)),
+                  transactions.parFoldMapA(validateTransaction),
+                  body.rewardTransactionId
+                    .traverse(fetchTransaction)
+                    .flatMap(validateRewardTransaction(transactions, _))
+                ).parSequence
+                  .map(_.combineAll)
+                  .map(_.as(body))
+              )
+          )
 
         /**
          * Ensure that no two transaction inputs within the block spend the same output

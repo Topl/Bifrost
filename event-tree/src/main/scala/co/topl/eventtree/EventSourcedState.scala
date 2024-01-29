@@ -66,25 +66,27 @@ object EventSourcedState {
         useStateAt(eventId)(_.pure[F])
 
       override def useStateAt[U](eventId: Id)(f: State => F[U]): F[U] =
-        semaphore.permit.use(_ =>
-          for {
-            currentEventId <- currentEventIdRef.get
-            state <-
-              (currentEventId === eventId)
-                .pure[F]
-                .ifM(
-                  currentStateRef.get,
-                  for {
-                    ((unapplyChain, applyChain), currentState) <- (
-                      parentChildTree.findCommonAncestor(currentEventId, eventId),
-                      currentStateRef.get
-                    ).tupled
-                    stateAtCommonAncestor <- unapplyEvents(unapplyChain.tail, currentState, unapplyChain.head)
-                    newState              <- applyEvents(applyChain.tail, stateAtCommonAncestor)
-                  } yield newState
-                )
-            res <- f(state)
-          } yield res
+        Sync[F].defer(
+          semaphore.permit.use(_ =>
+            for {
+              currentEventId <- currentEventIdRef.get
+              state <-
+                (currentEventId === eventId)
+                  .pure[F]
+                  .ifM(
+                    currentStateRef.get,
+                    for {
+                      ((unapplyChain, applyChain), currentState) <- (
+                        parentChildTree.findCommonAncestor(currentEventId, eventId),
+                        currentStateRef.get
+                      ).tupled
+                      stateAtCommonAncestor <- unapplyEvents(unapplyChain.tail, currentState, unapplyChain.head)
+                      newState              <- applyEvents(applyChain.tail, stateAtCommonAncestor)
+                    } yield newState
+                  )
+              res <- f(state)
+            } yield res
+          )
         )
 
       private def unapplyEvents(

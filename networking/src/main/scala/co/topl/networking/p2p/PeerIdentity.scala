@@ -47,7 +47,7 @@ object PeerIdentity {
                 .leftWiden[ExtractionException]
                 .map(_.toArray)
               localSignature <- EitherT
-                .liftF(ed25519Resource.use(e => Async[F].delay(e.sign(localPeerSK, remoteChallenge))))
+                .liftF(ed25519Resource.use(e => Async[F].blocking(e.sign(localPeerSK, remoteChallenge))))
               _ <- EitherT.liftF(socket.write(Chunk.array(localSignature)))
               remoteSignature <- OptionT(socket.read(64))
                 .toRight(ExtractionException.SignatureNotProvided)
@@ -55,7 +55,7 @@ object PeerIdentity {
                 .map(_.toArray)
               remoteSignatureIsValid <- EitherT.liftF(
                 ed25519Resource
-                  .use(e => Async[F].delay(e.verify(remoteSignature, localChallenge, Ed25519.PublicKey(remoteVK))))
+                  .use(e => Async[F].blocking(e.verify(remoteSignature, localChallenge, Ed25519.PublicKey(remoteVK))))
               )
               _ <- EitherT
                 .cond[F](remoteSignatureIsValid, (), ExtractionException.InvalidSignature)

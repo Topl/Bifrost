@@ -116,7 +116,7 @@ object BlockPacker {
                     .ifM(
                       graph.pure[F],
                       Sync[F]
-                        .delay(graph.removeSubtree(transaction))
+                        .blocking(graph.removeSubtree(transaction))
                         .flatMap { case (graph, evicted) =>
                           Logger[F]
                             .debug(

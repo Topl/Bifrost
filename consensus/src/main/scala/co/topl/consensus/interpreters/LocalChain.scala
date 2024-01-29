@@ -32,7 +32,7 @@ object LocalChain {
         override val chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]] = chainSelection.pure[F]
 
         def isWorseThan(newHead: SlotData): F[Boolean] =
-          head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
+          Async[F].defer(head.flatMap(chainSelection.compare(_, newHead).map(_ < 0)))
 
         def adopt(newHead: Validated.Valid[SlotData]): F[Unit] = {
           val slotData = newHead.a

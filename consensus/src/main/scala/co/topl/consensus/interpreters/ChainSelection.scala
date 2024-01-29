@@ -77,12 +77,14 @@ object ChainSelection {
     }
 
     override def compare(x: SlotData, y: SlotData): F[Int] =
-      if (x === y) 0.pure[F]
-      else
-        TineComparisonTraversal
-          .build(x, y)
-          .flatTap(logTraversal)
-          .flatMap(_.comparisonResult)
+      Sync[F].defer(
+        if (x === y) 0.pure[F]
+        else
+          TineComparisonTraversal
+            .build(x, y)
+            .flatTap(logTraversal)
+            .flatMap(_.comparisonResult)
+      )
 
     /**
      * Print out the traversal result, but only if an actual chain selection takes place (and not just a simple append)
