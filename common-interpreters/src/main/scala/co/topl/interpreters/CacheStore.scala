@@ -1,6 +1,5 @@
 package co.topl.interpreters
 
-import cats.data.OptionT
 import cats.implicits._
 import cats.effect.kernel.Sync
 import co.topl.algebras.Store
@@ -32,30 +31,41 @@ object CacheStore {
   ): F[Store[F, Key, Value]] =
     underlying.flatMap(underlying =>
       Sync[F]
-        .delay[CaffeineCache[F, CacheKey, Option[Value]]](
-          CaffeineCache[F, CacheKey, Option[Value]](
-            cacheSettings(Caffeine.newBuilder).build[CacheKey, Entry[Option[Value]]]
+        .delay[CaffeineCache[F, CacheKey, Value]](
+          CaffeineCache[F, CacheKey, Value](
+            cacheSettings(Caffeine.newBuilder).build[CacheKey, Entry[Value]]
           )
         )
         .map(implicit cache =>
           new Store[F, Key, Value] {
 
             def put(id: Key, t: Value): F[Unit] =
-              (cache.put(makeKey(id))(t.some, ttl), underlying.put(id, t)).tupled.void
+              underlying.put(id, t) >>
+              underlying.get(id).flatMap {
+                case Some(d) => cache.put(makeKey(id))(d, ttl)
+                case None    => ().pure[F]
+              }
 
             def remove(id: Key): F[Unit] =
-              (cache.put(makeKey(id))(None, ttl), underlying.remove(id)).tupled.void
+              (cache.remove(makeKey(id)), underlying.remove(id)).tupled.void
 
-            def get(id: Key): F[Option[Value]] =
-              cache.cachingF(makeKey(id))(ttl = ttl)(
-                Sync[F].defer(
-                  underlying.get(id)
-                )
-              )
+            def get(id: Key): F[Option[Value]] = {
+              val key = makeKey(id)
+              cache.get(key).flatMap {
+                case Some(valueFromCache) => valueFromCache.some.pure[F]
+                case None =>
+                  Sync[F].defer(underlying.get(id)).flatTap {
+                    case Some(valueFromUnder) => cache.put(key)(valueFromUnder, ttl)
+                    case None                 => ().pure[F]
+                  }
+              }
+            }
 
             def contains(id: Key): F[Boolean] =
-              OptionT(cache.get(makeKey(id)))
-                .foldF(underlying.contains(id))(_.nonEmpty.pure[F])
+              cache.get(makeKey(id)).flatMap {
+                case Some(_) => true.pure[F]
+                case None    => underlying.contains(id)
+              }
           }
         )
     )

@@ -58,7 +58,7 @@ class ContainsCacheStoreSpec extends CatsEffectSuite with AsyncMockFactory {
             store
               .contains(key)
               .ifM(
-                ifTrue = ().pure[F],
+                ifTrue = store.get(key),
                 ifFalse = store.put(key, value)
               )
           }.parUnorderedSequence
@@ -68,11 +68,11 @@ class ContainsCacheStoreSpec extends CatsEffectSuite with AsyncMockFactory {
         for {
           leveldb        <- LevelDbStore.make[F, SpecKey, SpecValue](dbUnderTest)
           cacheStore     <- CacheStore.make[F, SpecKey, SpecKey, SpecValue](leveldb.pure[F], identity)
-          threadsN       <- 5.pure[F]
+          threadsN       <- 10.pure[F]
           elements       <- 100000.pure[F]
           containsCached <- ContainsCacheStore.make[F, SpecKey, SpecValue](cacheStore.pure[F], elements)
           keys           <- (1 to elements).map(id => SpecKey(id.toString)).toList.pure[F]
-          _              <- keys.map(key => parWriting(containsCached, key, threadsN)).parSequence
+          _              <- keys.map(key => parWriting(containsCached, key, threadsN)).parUnorderedSequence
           _              <- keys.map(key => containsCached.get(key).map(_.isDefined).assert).parSequence
         } yield ()
       }
