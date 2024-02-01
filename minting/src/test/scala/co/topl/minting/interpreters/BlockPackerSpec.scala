@@ -7,7 +7,7 @@ import org.scalamock.munit.AsyncMockFactory
 import cats.effect.IO
 import co.topl.ledger.algebras._
 import co.topl.consensus.models.BlockId
-import co.topl.ledger.models.MempoolGraph
+import co.topl.ledger.models.{MempoolGraph, RewardQuantities}
 import co.topl.brambl.validation.algebras._
 import co.topl.brambl.syntax._
 import co.topl.models.generators.consensus.ModelGenerators
@@ -128,7 +128,11 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .once()
         .returning(true.pure[F])
       val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-      (rewardCalculator.rewardOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(BigInt(100).pure[F])
+      (rewardCalculator
+        .rewardsOf(_: IoTransaction))
+        .expects(*)
+        .anyNumberOfTimes()
+        .returning(RewardQuantities(BigInt(100)).pure[F])
       val costCalculator = mock[TransactionCostCalculator[F]]
       (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
       val authorizationVerifier = mock[TransactionAuthorizationVerifier[F]]
@@ -229,7 +233,11 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .once()
         .returning(true.pure[F])
       val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-      (rewardCalculator.rewardOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(BigInt(100).pure[F])
+      (rewardCalculator
+        .rewardsOf(_: IoTransaction))
+        .expects(*)
+        .anyNumberOfTimes()
+        .returning(RewardQuantities(BigInt(100)).pure[F])
       val costCalculator = mock[TransactionCostCalculator[F]]
       (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
       val authorizationVerifier = mock[TransactionAuthorizationVerifier[F]]

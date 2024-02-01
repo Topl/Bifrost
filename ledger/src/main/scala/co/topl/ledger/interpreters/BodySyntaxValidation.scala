@@ -111,7 +111,7 @@ object BodySyntaxValidation {
                     BodySyntaxErrors.InvalidReward(rewardTransaction).asLeft[Unit].pure[F]
                   else
                     transactions
-                      .parFoldMapA(rewardCalculator.rewardOf)
+                      .parFoldMapA(rewardCalculator.rewardsOf(_).map(_.lvl))
                       .map(maxReward =>
                         Either.cond(definedQuantity <= maxReward, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
                       )

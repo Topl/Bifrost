@@ -16,6 +16,7 @@ import co.topl.consensus.models._
 import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.interpreters.SchedulerClock
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
+import co.topl.ledger.models.RewardQuantities
 import co.topl.node.models.{BlockBody, FullBlock, FullBlockBody}
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
@@ -95,7 +96,11 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             )
             .toResource
           rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-          _ = (rewardCalculator.rewardOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(BigInt(50).pure[F])
+          _ = (rewardCalculator
+            .rewardsOf(_: IoTransaction))
+            .expects(*)
+            .anyNumberOfTimes()
+            .returning(RewardQuantities(BigInt(50)).pure[F])
           epochBoundaryEss = mock[EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
             F
           ], BlockId]]

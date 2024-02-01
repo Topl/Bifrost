@@ -1,14 +1,15 @@
 package co.topl.ledger.algebras
 
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.ledger.models.RewardQuantities
 
 trait TransactionRewardCalculatorAlgebra[F[_]] {
 
   /**
-   * Calculates the LVL fee/reward of the given IoTransaction
+   * Calculates the provided rewards of the given transaction.  Any "excess" value is treated as a Reward
    * @param transaction The transaction containing the fee/reward
    * @return a BigInt representing the LVL fee/reward
    */
-  def rewardOf(transaction: IoTransaction): F[BigInt]
+  def rewardsOf(transaction: IoTransaction): F[RewardQuantities]
 
 }

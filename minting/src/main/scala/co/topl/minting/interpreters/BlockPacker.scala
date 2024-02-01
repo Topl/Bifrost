@@ -282,7 +282,7 @@ object BlockPacker {
            */
           private def transactionScore(transaction: IoTransaction): F[BigInt] =
             (
-              transactionRewardCalculator.rewardOf(transaction),
+              transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
               transactionCostCalculator.costOf(transaction)
             ).mapN(_ - _)
 
