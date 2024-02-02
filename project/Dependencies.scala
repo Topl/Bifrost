@@ -9,9 +9,9 @@ object Dependencies {
   val catsEffectVersion = "3.5.2"
   val fs2Version = "3.9.3"
   val logback = "1.4.14"
-  val orientDbVersion = "3.2.25"
-  val ioGrpcVersion = "1.60.0"
-  val http4sVersion = "0.23.24"
+  val orientDbVersion = "3.2.26"
+  val ioGrpcVersion = "1.60.1"
+  val http4sVersion = "0.23.25"
   val protobufSpecsVersion = "2.0.0-beta1" // scala-steward:off
   val bramblScVersion = "2.0.0-beta2+1-46bfed09-SNAPSHOT" // scala-steward:off
 
@@ -22,7 +22,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.9",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.11",
     catsSlf4j
   )
 
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.30.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.30.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
