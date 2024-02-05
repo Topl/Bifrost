@@ -15,6 +15,7 @@ import co.topl.models.ModelGenerators._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.brambl.generators.ModelGenerators._
+import co.topl.ledger.models.RewardQuantities
 import co.topl.node.models.{FullBlock, FullBlockBody}
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -79,7 +80,7 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .returning(55L.pure[F])
 
           val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-          (rewardCalculator.rewardOf(_)).expects(*).anyNumberOfTimes().returning(BigInt(10L).pure[F])
+          (rewardCalculator.rewardsOf(_)).expects(*).anyNumberOfTimes().returning(RewardQuantities(BigInt(10L)).pure[F])
 
           for {
             clockDeferment   <- IO.deferred[Unit]

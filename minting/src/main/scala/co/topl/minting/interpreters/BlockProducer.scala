@@ -204,7 +204,7 @@ object BlockProducer {
      */
     private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
       base.transactions
-        .foldMapM(rewardCalculator.rewardOf)
+        .foldMapM(rewardCalculator.rewardsOf(_).map(_.lvl))
         .flatMap(rewardQuantity =>
           if (rewardQuantity > 0) {
             staker.rewardAddress
