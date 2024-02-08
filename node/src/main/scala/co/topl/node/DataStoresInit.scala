@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.blockchain.{CurrentEventIdGetterSetters, DataStores}
+import co.topl.blockchain.{BigBang, CurrentEventIdGetterSetters, DataStores, PrivateTestnet, PrunedDataStores}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -26,8 +26,39 @@ import com.google.protobuf.ByteString
 import fs2.io.file.{Files, Path}
 import org.iq80.leveldb.DBFactory
 import org.typelevel.log4cats.Logger
+import DataStoresInit.DataStoreNames._
+import co.topl.consensus.interpreters.BlockHeaderToBodyValidation
+import co.topl.typeclasses.implicits._
 
 object DataStoresInit {
+
+  object DataStoreNames {
+    val parentChildTreeDbName = "parent-child-tree"
+    val currentEventIdsDbName = "current-event-ids"
+    val slotDataStoreDbName = "slot-data"
+    val blockHeaderStoreDbName = "block-headers"
+    val blockBodyStoreDbName = "block-bodies"
+    val transactionStoreDbName = "transactions"
+    val spendableBoxIdsStoreLocalDbName = "spendable-box-ids"
+    val spendableBoxIdsStoreP2PDbName = "spendable-box-ids-p2p"
+    val epochBoundariesStoreLocalDbName = "epoch-boundaries"
+    val epochBoundariesStoreP2PDbName = "epoch-boundaries-p2p"
+    val operatorStakesStoreLocalDbName = "operator-stakes"
+    val operatorStakesStoreP2PDbName = "operator-stakes-p2p"
+    val activeStakeStoreLocalDbName = "active-stake"
+    val activeStakeStoreP2PDbName = "active-stake-p2p"
+    val inactiveStakeStoreLocalDbName = "inactive-stake"
+    val inactiveStakeStoreP2PDbName = "inactive-stake-p2p"
+    val registrationsStoreLocalDbName = "registrations"
+    val registrationsStoreP2PDbName = "registrations-p2p"
+    val blockHeightTreeStoreLocalDbName = "block-heights"
+    val blockHeightTreeStoreP2PDbName = "block-heights-p2p"
+    val epochDataStoreDbName = "epoch-data"
+    val registrationAccumulatorStoreLocalDbName = "registration-accumulator"
+    val registrationAccumulatorStoreP2PDbName = "registration-accumulator-p2p"
+    val knownRemotePeersStoreDbName = "known-remote-peers"
+    val metadataStoreDbName = "metadata"
+  }
 
   /**
    * Creates an instance of DataStores which may-or-may-not be initialized.  It is the responsibility of the caller to
@@ -37,36 +68,30 @@ object DataStoresInit {
    */
   def create[F[_]: Async: Logger](appConfig: ApplicationConfig)(genesisId: BlockId): Resource[F, DataStores[F]] =
     for {
-      dataDir <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
-      databaseType <- appConfig.bifrost.data.databaseType
-        .pure[F]
-        .ensure(new IllegalArgumentException(s"Invalid databaseType=${appConfig.bifrost.data.databaseType}"))(dbType =>
-          Set(DatabaseTypes.LevelDbJni, DatabaseTypes.LevelDbJava).contains(dbType)
-        )
-        .toResource
-      levelDbFactory <- LevelDbStore.makeFactory[F](useJni = databaseType == DatabaseTypes.LevelDbJni)
+      dataDir        <- Path(interpolateBlockId(genesisId)(appConfig.bifrost.data.directory)).pure[F].toResource
+      levelDbFactory <- buildLevelDbFactory(appConfig)
       _              <- Files.forAsync[F].createDirectories(dataDir).toResource
       _              <- Logger[F].info(show"Using dataDir=$dataDir").toResource
       parentChildTree <- makeCachedDb[F, BlockId, ByteString, (Long, BlockId)](dataDir, levelDbFactory)(
-        "parent-child-tree",
+        parentChildTreeDbName,
         appConfig.bifrost.cache.parentChildTree,
         _.value
       )
-      currentEventIds <- makeDb[F, Byte, BlockId](dataDir, levelDbFactory)("current-event-ids")
+      currentEventIds <- makeDb[F, Byte, BlockId](dataDir, levelDbFactory)(currentEventIdsDbName)
       slotDataStore <- makeCachedDbWithContainsCache[F, BlockId, ByteString, SlotData](dataDir, levelDbFactory)(
-        "slot-data",
+        slotDataStoreDbName,
         appConfig.bifrost.cache.slotData,
         _.value,
         appConfig.bifrost.cache.containsCacheSize
       )
       blockHeaderStore <- makeCachedDbWithContainsCache[F, BlockId, ByteString, BlockHeader](dataDir, levelDbFactory)(
-        "block-headers",
+        blockHeaderStoreDbName,
         appConfig.bifrost.cache.headers,
         _.value,
         appConfig.bifrost.cache.containsCacheSize
       )
       blockBodyStore <- makeCachedDbWithContainsCache[F, BlockId, ByteString, BlockBody](dataDir, levelDbFactory)(
-        "block-bodies",
+        blockBodyStoreDbName,
         appConfig.bifrost.cache.bodies,
         _.value,
         appConfig.bifrost.cache.containsCacheSize
@@ -75,7 +100,7 @@ object DataStoresInit {
         dataDir,
         levelDbFactory
       )(
-        "transactions",
+        transactionStoreDbName,
         appConfig.bifrost.cache.transactions,
         _.value,
         appConfig.bifrost.cache.containsCacheSize
@@ -84,7 +109,7 @@ object DataStoresInit {
         dataDir,
         levelDbFactory
       )(
-        "spendable-box-ids",
+        spendableBoxIdsStoreLocalDbName,
         appConfig.bifrost.cache.spendableBoxIds,
         _.value
       )
@@ -92,41 +117,41 @@ object DataStoresInit {
         dataDir,
         levelDbFactory
       )(
-        "spendable-box-ids-p2p",
+        spendableBoxIdsStoreP2PDbName,
         appConfig.bifrost.cache.spendableBoxIds,
         _.value
       )
       epochBoundariesStoreLocal <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
-        "epoch-boundaries",
+        epochBoundariesStoreLocalDbName,
         appConfig.bifrost.cache.epochBoundaries,
         Long.box
       )
       epochBoundariesStoreP2P <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
-        "epoch-boundaries-p2p",
+        epochBoundariesStoreP2PDbName,
         appConfig.bifrost.cache.epochBoundaries,
         Long.box
       )
       operatorStakesStoreLocal <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir, levelDbFactory)(
-        "operator-stakes",
+        operatorStakesStoreLocalDbName,
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
       operatorStakesStoreP2P <- makeCachedDb[F, StakingAddress, StakingAddress, BigInt](dataDir, levelDbFactory)(
-        "operator-stakes-p2p",
+        operatorStakesStoreP2PDbName,
         appConfig.bifrost.cache.operatorStakes,
         identity
       )
-      activeStakeStoreLocal   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("active-stake")
-      activeStakeStoreP2P     <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("active-stake-p2p")
-      inactiveStakeStoreLocal <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("inactive-stake")
-      inactiveStakeStoreP2P   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)("inactive-stake-p2p")
+      activeStakeStoreLocal   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)(activeStakeStoreLocalDbName)
+      activeStakeStoreP2P     <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)(activeStakeStoreP2PDbName)
+      inactiveStakeStoreLocal <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)(inactiveStakeStoreLocalDbName)
+      inactiveStakeStoreP2P   <- makeDb[F, Unit, BigInt](dataDir, levelDbFactory)(inactiveStakeStoreP2PDbName)
       registrationsStoreLocal <- makeCachedDb[
         F,
         StakingAddress,
         StakingAddress,
         ActiveStaker
       ](dataDir, levelDbFactory)(
-        "registrations",
+        registrationsStoreLocalDbName,
         appConfig.bifrost.cache.registrations,
         identity
       )
@@ -136,22 +161,22 @@ object DataStoresInit {
         StakingAddress,
         ActiveStaker
       ](dataDir, levelDbFactory)(
-        "registrations-p2p",
+        registrationsStoreP2PDbName,
         appConfig.bifrost.cache.registrations,
         identity
       )
       blockHeightTreeStoreLocal <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
-        "block-heights",
+        blockHeightTreeStoreLocalDbName,
         appConfig.bifrost.cache.blockHeightTree,
         Long.box
       )
       blockHeightTreeStoreP2P <- makeCachedDb[F, Long, java.lang.Long, BlockId](dataDir, levelDbFactory)(
-        "block-heights-p2p",
+        blockHeightTreeStoreP2PDbName,
         appConfig.bifrost.cache.blockHeightTree,
         Long.box
       )
       epochDataStore <- makeCachedDb[F, Long, java.lang.Long, EpochData](dataDir, levelDbFactory)(
-        "epoch-data",
+        epochDataStoreDbName,
         appConfig.bifrost.cache.epochData,
         Long.box
       )
@@ -161,7 +186,7 @@ object DataStoresInit {
         StakingAddress,
         Unit
       ](dataDir, levelDbFactory)(
-        "registration-accumulator",
+        registrationAccumulatorStoreLocalDbName,
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
@@ -171,12 +196,14 @@ object DataStoresInit {
         StakingAddress,
         Unit
       ](dataDir, levelDbFactory)(
-        "registration-accumulator-p2p",
+        registrationAccumulatorStoreP2PDbName,
         appConfig.bifrost.cache.registrationAccumulator,
         identity
       )
-      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownRemotePeer]](dataDir, levelDbFactory)("known-remote-peers")
-      metadataStore         <- makeDb[F, Array[Byte], Array[Byte]](dataDir, levelDbFactory)("metadata")
+      knownRemotePeersStore <- makeDb[F, Unit, Seq[KnownRemotePeer]](dataDir, levelDbFactory)(
+        knownRemotePeersStoreDbName
+      )
+      metadataStore <- makeDb[F, Array[Byte], Array[Byte]](dataDir, levelDbFactory)(metadataStoreDbName)
 
       dataStores = DataStores(
         dataDir,
@@ -207,6 +234,130 @@ object DataStoresInit {
         metadataStore
       )
     } yield dataStores
+
+  def createPrunedDataStores[F[_]: Async: Logger](
+    appConfig:           ApplicationConfig,
+    prunedDataStorePath: String
+  ): Resource[F, PrunedDataStores[F]] =
+    for {
+      dataDir         <- Path(prunedDataStorePath).pure[F].toResource
+      levelDbFactory  <- buildLevelDbFactory(appConfig)
+      files           <- Files.forAsync[F].pure[F].toResource
+      _               <- files.exists(dataDir).ifM(files.deleteRecursively(dataDir), ().pure[F]).toResource
+      _               <- files.createDirectories(dataDir).toResource
+      _               <- Logger[F].info(show"Using dataDir=$dataDir").toResource
+      parentChildTree <- makeDb[F, BlockId, (Long, BlockId)](dataDir, levelDbFactory)(parentChildTreeDbName)
+      slotDataStore <- makeCachedDb[F, BlockId, ByteString, SlotData](dataDir, levelDbFactory)(
+        slotDataStoreDbName,
+        appConfig.bifrost.cache.slotData,
+        _.value
+      )
+      blockHeaderStore <- makeDb[F, BlockId, BlockHeader](dataDir, levelDbFactory)(blockHeaderStoreDbName)
+      blockBodyStore <- makeCachedDb[F, BlockId, ByteString, BlockBody](dataDir, levelDbFactory)(
+        blockBodyStoreDbName,
+        appConfig.bifrost.cache.slotData,
+        _.value
+      )
+      transactionStore <- makeDb[F, TransactionId, IoTransaction](dataDir, levelDbFactory)(transactionStoreDbName)
+      blockHeightTreeStoreLocal <- makeDb[F, Long, BlockId](dataDir, levelDbFactory)(blockHeightTreeStoreLocalDbName)
+      blockHeightTreeStoreP2P   <- makeDb[F, Long, BlockId](dataDir, levelDbFactory)(blockHeightTreeStoreP2PDbName)
+    } yield PrunedDataStores(
+      dataDir,
+      parentChildTree,
+      slotDataStore,
+      blockHeaderStore,
+      blockBodyStore,
+      transactionStore,
+      blockHeightTreeStoreLocal,
+      blockHeightTreeStoreP2P
+    )
+
+  /**
+   * Based on the application config, determines if the genesis block is a public network or a private testnet, and
+   * initialize it accordingly.  In addition, creates the underlying `DataStores` instance and verifies the stored
+   * data against the configured data (if applicable).
+   */
+  def initializeData[F[_]: Async: Logger](
+    appConfig: ApplicationConfig
+  ): Resource[F, (FullBlock, DataStores[F])] =
+    appConfig.bifrost.bigBang match {
+      case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
+        for {
+          testnetStakerInitializers <- Sync[F]
+            .delay(PrivateTestnet.stakerInitializers(privateBigBang.timestamp, privateBigBang.stakerCount))
+            .toResource
+          bigBangConfig <- Sync[F]
+            .delay(
+              PrivateTestnet
+                .config(
+                  privateBigBang.timestamp,
+                  testnetStakerInitializers,
+                  privateBigBang.stakes,
+                  PrivateTestnet.DefaultProtocolVersion,
+                  appConfig.bifrost.protocols(0)
+                )
+            )
+            .toResource
+          bigBangBlock = BigBang.fromConfig(bigBangConfig)
+          dataStores <- DataStoresInit.create[F](appConfig)(bigBangBlock.header.id)
+          _ <- DataStoresInit
+            .isInitialized(dataStores)
+            .ifM(DataStoresInit.repair(dataStores, bigBangBlock), DataStoresInit.initialize(dataStores, bigBangBlock))
+            .toResource
+          _ <- privateBigBang.localStakerIndex
+            .filter(_ >= 0)
+            .traverse(index =>
+              PrivateTestnet
+                .writeStaker[F](
+                  Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.staking.directory)),
+                  testnetStakerInitializers(index),
+                  privateBigBang.stakes.fold(PrivateTestnet.defaultStake(privateBigBang.stakerCount))(_.apply(index))
+                )
+                .toResource
+            )
+        } yield (bigBangBlock, dataStores)
+      case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
+        DataStoresInit
+          .create[F](appConfig)(publicBigBang.genesisId)
+          .flatMap(dataStores =>
+            DataStoresInit
+              .isInitialized(dataStores)
+              .toResource
+              .ifM(
+                for {
+                  header       <- dataStores.headers.getOrRaise(publicBigBang.genesisId).toResource
+                  body         <- dataStores.bodies.getOrRaise(publicBigBang.genesisId).toResource
+                  transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
+                  fullBlock = FullBlock(header, FullBlockBody(transactions))
+                  _ <- DataStoresInit.repair[F](dataStores, fullBlock).toResource
+                } yield fullBlock,
+                DataReaders
+                  .fromSourcePath[F](publicBigBang.sourcePath)
+                  .use(reader =>
+                    BlockHeaderToBodyValidation
+                      .make[F]()
+                      .flatMap(
+                        BigBang.fromRemote(reader)(_)(publicBigBang.genesisId)
+                      )
+                      .flatTap(DataStoresInit.initialize(dataStores, _))
+                  )
+                  .toResource
+              )
+              .tupleRight(dataStores)
+          )
+
+    }
+
+  private def buildLevelDbFactory[F[_]: Async: Logger](appConfig: ApplicationConfig): Resource[F, DBFactory] =
+    for {
+      databaseType <- appConfig.bifrost.data.databaseType
+        .pure[F]
+        .ensure(new IllegalArgumentException(s"Invalid databaseType=${appConfig.bifrost.data.databaseType}"))(dbType =>
+          Set(DatabaseTypes.LevelDbJni, DatabaseTypes.LevelDbJava).contains(dbType)
+        )
+        .toResource
+      levelDbFactory <- LevelDbStore.makeFactory[F](useJni = databaseType == DatabaseTypes.LevelDbJni)
+    } yield levelDbFactory
 
   private def makeDb[F[_]: Async, Key: Persistable, Value: Persistable](dataDir: Path, dbFactory: DBFactory)(
     name: String
