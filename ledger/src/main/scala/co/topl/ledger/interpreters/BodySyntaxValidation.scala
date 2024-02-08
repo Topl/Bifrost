@@ -3,15 +3,13 @@ package co.topl.ledger.interpreters
 import cats.data.{EitherT, NonEmptySet, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
-import cats.{Foldable, Order, Parallel}
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.TransactionOutputAddress
+import cats.{Foldable, Monoid, Order, Parallel}
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.{TransactionId, TransactionOutputAddress}
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.node.models.BlockBody
-import co.topl.brambl.syntax._
 import com.google.protobuf.ByteString
 
 import scala.collection.immutable.SortedSet
@@ -96,29 +94,42 @@ object BodySyntaxValidation {
             if (transactions.isEmpty)
               (BodySyntaxErrors.InvalidReward(rewardTransaction): BodySyntaxError).invalidNec[Unit].pure[F]
             else
-              EitherT
-                .cond[F](
-                  rewardTransaction.inputs.length == 1 &&
-                  rewardTransaction.outputs.length == 1 &&
-                  rewardTransaction.outputs.head.value.value.isLvl,
-                  rewardTransaction.outputs.head.value.value.lvl,
-                  BodySyntaxErrors.InvalidReward(rewardTransaction)
-                )
-                .subflatMap(_.toRight(BodySyntaxErrors.InvalidReward(rewardTransaction)))
-                .map(_.quantity: BigInt)
-                .flatMapF(definedQuantity =>
-                  if (definedQuantity <= 0)
-                    BodySyntaxErrors.InvalidReward(rewardTransaction).asLeft[Unit].pure[F]
-                  else
-                    transactions
-                      .parFoldMapA(rewardCalculator.rewardsOf(_).map(_.lvl))
-                      .map(maxReward =>
-                        Either.cond(definedQuantity <= maxReward, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
-                      )
-                )
-                .leftWiden[BodySyntaxError]
-                .toValidatedNec
+              {
+                def cond(f: => Boolean) =
+                  EitherT.cond[F](f, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
+                for {
+                  _ <- cond(rewardTransaction.inputs.length == 1)
+                  // Prohibit policy/statement creation
+                  _ <- cond(rewardTransaction.groupPolicies.isEmpty)
+                  _ <- cond(rewardTransaction.seriesPolicies.isEmpty)
+                  _ <- cond(rewardTransaction.mintingStatements.isEmpty)
+                  _ <- cond(rewardTransaction.mergingStatements.isEmpty)
+                  _ <- cond(rewardTransaction.splittingStatements.isEmpty)
+                  // Prohibit registrations in Topl rewards
+                  _ <- cond(rewardTransaction.outputs.forall(_.value.value.topl.forall(_.registration.isEmpty)))
+                  // Verify quantities
+                  maximumReward <- EitherT.liftF(transactions.parFoldMapA(rewardCalculator.rewardsOf))
+                  claimedLvls = TransactionRewardCalculator.sumLvls(rewardTransaction.outputs)(_.value)
+                  _ <- cond(maximumReward.lvl >= claimedLvls)
+                  claimedTopls = TransactionRewardCalculator.sumTopls(rewardTransaction.outputs)(_.value)
+                  _ <- cond(maximumReward.topl >= claimedTopls)
+                  claimedAssets = TransactionRewardCalculator.sumAssets(rewardTransaction.outputs)(_.value)
+                  _ <- claimedAssets.toList.traverse { case (id, quantity) =>
+                    cond(maximumReward.assets.get(id).exists(_ >= quantity))
+                  }
+                } yield ()
+              }.leftWiden[BodySyntaxError].toValidatedNec
           )
       }
     }
+
+  implicit val monoidTransactionRewardQuantities: Monoid[RewardQuantities] = Monoid.instance[RewardQuantities](
+    RewardQuantities(),
+    (q1, q2) =>
+      RewardQuantities(
+        q1.lvl + q2.lvl,
+        q1.topl + q2.topl,
+        (q1.assets.toList ++ q2.assets.toList).groupBy(_._1).view.mapValues(_.map(_._2).sum).toMap
+      )
+  )
 }

@@ -29,7 +29,7 @@ object TransactionRewardCalculator {
    * @tparam T an abstract type (SpentTransactionOutput or UnspentTransactionOutput)
    * @return a BigInt sum
    */
-  private def sumLvls[T](containsValues: Iterable[T])(extractValue: T => Value): BigInt =
+  def sumLvls[T](containsValues: Iterable[T])(extractValue: T => Value): BigInt =
     containsValues
       .map(extractValue)
       .flatMap(_.value.lvl)
@@ -44,7 +44,7 @@ object TransactionRewardCalculator {
    * @tparam T an abstract type (SpentTransactionOutput or UnspentTransactionOutput)
    * @return a BigInt sum
    */
-  private def sumTopls[T](containsValues: Iterable[T])(extractValue: T => Value): BigInt =
+  def sumTopls[T](containsValues: Iterable[T])(extractValue: T => Value): BigInt =
     containsValues
       .map(extractValue)
       .flatMap(_.value.topl)
@@ -59,7 +59,7 @@ object TransactionRewardCalculator {
    * @tparam T an abstract type (SpentTransactionOutput or UnspentTransactionOutput)
    * @return a mapping from AssetId to BigInt sum
    */
-  private def sumAssets[T](containsValues: Iterable[T])(extractValue: T => Value): Map[AssetId, BigInt] =
+  def sumAssets[T](containsValues: Iterable[T])(extractValue: T => Value): Map[AssetId, BigInt] =
     containsValues
       .map(extractValue)
       .flatMap(_.value.asset)
@@ -83,7 +83,7 @@ object TransactionRewardCalculator {
    * Determines the excess assets of the given transactions
    * @return a mapping from AssetId to BigInt sum
    */
-  private def diffAssets(transaction: IoTransaction): Map[AssetId, BigInt] = {
+  def diffAssets(transaction: IoTransaction): Map[AssetId, BigInt] = {
     val in = sumAssets(transaction.inputs)(_.value)
     val out = sumAssets(transaction.outputs)(_.value)
     out.foldLeft(in) { case (result, (assetId, quantity)) =>
