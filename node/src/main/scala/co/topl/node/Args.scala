@@ -39,6 +39,11 @@ object Args {
     )
     cli: Boolean = false,
     @arg(
+      doc = "Path to pruned data folder. " +
+        "NODE WILL RUN IN DATASTORES PRUNE MODE if that path is defined (unless running in idle mode is already defined)"
+    )
+    pruneDir: Option[String] = None,
+    @arg(
       doc = "An optional flag to run in no-op mode.  The application will sit idle until terminated.  This is useful" +
         " for creating backups of the node's data."
     )

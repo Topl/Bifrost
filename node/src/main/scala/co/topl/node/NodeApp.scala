@@ -4,11 +4,10 @@ import cats.data.OptionT
 import cats.effect.implicits._
 import cats.effect.std.Random
 import cats.effect.std.SecureRandom
-import cats.effect.{IO, Resource, Sync}
+import cats.effect.{Async, IO, Resource, Sync}
 import cats.implicits._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter, NodeMetadata}
-import co.topl.brambl.syntax._
 import co.topl.buildinfo.node.BuildInfo
 import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
@@ -32,7 +31,6 @@ import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
 import co.topl.node.cli.ConfiguredCliApp
-import co.topl.node.models.{FullBlock, FullBlockBody}
 import co.topl.version.VersionReplicator
 import com.google.protobuf.ByteString
 import com.typesafe.config.Config
@@ -57,6 +55,7 @@ abstract class AbstractNodeApp
   def run(cmdArgs: Args, config: Config, appConfig: ApplicationConfig): IO[Unit] =
     if (cmdArgs.startup.cli) new ConfiguredCliApp(appConfig).run
     else if (cmdArgs.startup.idle) new IdleApp(appConfig).run
+    else if (cmdArgs.startup.pruneDir.isDefined) new PrunedDataStoresApp(appConfig, cmdArgs.startup.pruneDir.get).run
     else new ConfiguredNodeApp(cmdArgs, appConfig).run
 }
 
@@ -68,19 +67,19 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   type F[A] = IO[A]
 
-  implicit private val logger: Logger[F] =
-    Slf4jLogger.getLoggerFromName[F]("Bifrost.Node")
-
   def run: IO[Unit] = applicationResource.use_
 
   private def applicationResource: Resource[F, Unit] =
     for {
+      implicit0(syncF: Async[F])   <- Resource.pure(implicitly[Async[F]])
+      implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Bifrost.Node"))
+
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
       _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
 
       cryptoResources            <- CryptoResources.make[F].toResource
-      (bigBangBlock, dataStores) <- initializeData
+      (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)
 
       metadata <- NodeMetadata.make(dataStores.metadata)
       _        <- metadata.setAppVersion(BuildInfo.version).toResource
@@ -533,77 +532,4 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       )
     } yield leaderElectionThreshold
 
-  /**
-   * Based on the application config, determines if the genesis block is a public network or a private testnet, and
-   * initialize it accordingly.  In addition, creates the underlying `DataStores` instance and verifies the stored
-   * data against the configured data (if applicable).
-   */
-  private def initializeData: Resource[F, (FullBlock, DataStores[F])] =
-    appConfig.bifrost.bigBang match {
-      case privateBigBang: ApplicationConfig.Bifrost.BigBangs.Private =>
-        for {
-          testnetStakerInitializers <- Sync[F]
-            .delay(PrivateTestnet.stakerInitializers(privateBigBang.timestamp, privateBigBang.stakerCount))
-            .toResource
-          bigBangConfig <- Sync[F]
-            .delay(
-              PrivateTestnet
-                .config(
-                  privateBigBang.timestamp,
-                  testnetStakerInitializers,
-                  privateBigBang.stakes,
-                  PrivateTestnet.DefaultProtocolVersion,
-                  appConfig.bifrost.protocols(0)
-                )
-            )
-            .toResource
-          bigBangBlock = BigBang.fromConfig(bigBangConfig)
-          dataStores <- DataStoresInit.create[F](appConfig)(bigBangBlock.header.id)
-          _ <- DataStoresInit
-            .isInitialized(dataStores)
-            .ifM(DataStoresInit.repair(dataStores, bigBangBlock), DataStoresInit.initialize(dataStores, bigBangBlock))
-            .toResource
-          _ <- privateBigBang.localStakerIndex
-            .filter(_ >= 0)
-            .traverse(index =>
-              PrivateTestnet
-                .writeStaker[F](
-                  Path(interpolateBlockId(bigBangBlock.header.id)(appConfig.bifrost.staking.directory)),
-                  testnetStakerInitializers(index),
-                  privateBigBang.stakes.fold(PrivateTestnet.defaultStake(privateBigBang.stakerCount))(_.apply(index))
-                )
-                .toResource
-            )
-        } yield (bigBangBlock, dataStores)
-      case publicBigBang: ApplicationConfig.Bifrost.BigBangs.Public =>
-        DataStoresInit
-          .create[F](appConfig)(publicBigBang.genesisId)
-          .flatMap(dataStores =>
-            DataStoresInit
-              .isInitialized(dataStores)
-              .toResource
-              .ifM(
-                for {
-                  header       <- dataStores.headers.getOrRaise(publicBigBang.genesisId).toResource
-                  body         <- dataStores.bodies.getOrRaise(publicBigBang.genesisId).toResource
-                  transactions <- body.transactionIds.traverse(dataStores.transactions.getOrRaise).toResource
-                  fullBlock = FullBlock(header, FullBlockBody(transactions))
-                  _ <- DataStoresInit.repair[F](dataStores, fullBlock).toResource
-                } yield fullBlock,
-                DataReaders
-                  .fromSourcePath[F](publicBigBang.sourcePath)
-                  .use(reader =>
-                    BlockHeaderToBodyValidation
-                      .make[F]()
-                      .flatMap(
-                        BigBang.fromRemote(reader)(_)(publicBigBang.genesisId)
-                      )
-                      .flatTap(DataStoresInit.initialize(dataStores, _))
-                  )
-                  .toResource
-              )
-              .tupleRight(dataStores)
-          )
-
-    }
 }

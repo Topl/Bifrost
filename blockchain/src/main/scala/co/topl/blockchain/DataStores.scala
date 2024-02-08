@@ -42,6 +42,20 @@ case class DataStores[F[_]](
   metadata:                     Store[F, Array[Byte], Array[Byte]]
 )
 
+/**
+ * Data stores which are used during pruning data stores
+ */
+case class PrunedDataStores[F[_]](
+  baseDirectory:        Path,
+  parentChildTree:      Store[F, BlockId, (Long, BlockId)],
+  slotData:             Store[F, BlockId, SlotData],
+  headers:              Store[F, BlockId, BlockHeader],
+  bodies:               Store[F, BlockId, BlockBody],
+  transactions:         Store[F, TransactionId, IoTransaction],
+  blockHeightTreeLocal: Store[F, Long, BlockId],
+  blockHeightTreeP2P:   Store[F, Long, BlockId]
+)
+
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {
   import CurrentEventIdGetterSetters.Indices
 
