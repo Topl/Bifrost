@@ -37,12 +37,16 @@ class PrunedDataStoresApp(appConfig: ApplicationConfig, prunedDataStorePath: Str
       (bigBangBlock, dataStores) <- DataStoresInit
         .initializeData(appConfig)
         .onError(_ => log(s"Failed to load db from ${appConfig.bifrost.data.directory}"))
+      genesisId   <- Resource.pure(bigBangBlock.header.id)
       sourcePath  <- Resource.pure(dataStores.baseDirectory)
       _           <- log(show"Successfully loaded blockchain data from $sourcePath")
-      _           <- log(show"with genesis block id ${bigBangBlock.header.id}")
+      _           <- log(show"with genesis block id $genesisId")
       lastBlockId <- dataStores.canonicalHead.toResource
       _           <- log(show"Top of processed chain is: $lastBlockId")
-      _           <- checkInitialDbConsistency(dataStores, lastBlockId)
+      _ <- checkBlockInInitialDb(dataStores, genesisId)
+        .onError(_ => log(s"Genesis block was not found in DB, please check configuration file"))
+      _ <- checkBlockInInitialDb(dataStores, lastBlockId)
+        .onError(_ => log(s"Last block was not found in DB, please check database consistency"))
 
       prunedDataStores <- DataStoresInit
         .createPrunedDataStores(appConfig, prunedDataStorePath)
@@ -60,7 +64,7 @@ class PrunedDataStoresApp(appConfig: ApplicationConfig, prunedDataStorePath: Str
       _ <- log(show"Metadata had been copied to $targetPath")
 
       _ <- log("Check pruned db data consistency")
-      _ <- checkPrunedDbConsistency(prunedDataStores, lastBlockId, bigBangBlock.header.id)
+      _ <- checkPrunedDbConsistency(prunedDataStores, lastBlockId, genesisId)
         .onError(_ => log(s"Pruned data is not consistent DO NOT USE IT"))
     } yield ()
 
@@ -80,15 +84,15 @@ class PrunedDataStoresApp(appConfig: ApplicationConfig, prunedDataStorePath: Str
     blockIds(lastBlockId)
   }
 
-  private def checkInitialDbConsistency(dataStores: DataStores[F], lastBlockId: BlockId)(implicit log: Logger[F]) =
+  private def checkBlockInInitialDb(dataStores: DataStores[F], blockId: BlockId)(implicit log: Logger[F]) =
     dataStores.headers
-      .get(lastBlockId)
+      .get(blockId)
       .map(_.isDefined)
       .ifM(
-        Logger[F].info(show"$lastBlockId had been found in database"),
+        Logger[F].info(show"$blockId had been found in database"),
         Async[F].delay(
           throw new IllegalStateException(
-            show"Provided directory ${dataStores.baseDirectory} does not contain data for $lastBlockId. Aborting"
+            show"Provided directory ${dataStores.baseDirectory} does not contain data for $blockId. Aborting"
           )
         )
       )
