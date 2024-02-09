@@ -109,7 +109,8 @@ Consider the following example, with one isolated relay node and two directly-co
 Once you have created the experiment definition file, you can run the compiler to generate a set of experiments:
 
     $ source venv/bin/activate
-    $ python3.11 compiler.py --experiment-definition <experiment-definition-file> --output-dir <output-directory>
+    $ mkdir job_output
+    $ python ExperimentCompiler.py example-experiment.yaml --output-dir job_output
 
 The compiler will generate the requested set of experiments in the output directory. Each experiment is YAML file
 containing all the information needed to execute that simulation. As these experiments will be evaluated by the
