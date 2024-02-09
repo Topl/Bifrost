@@ -2,17 +2,18 @@ import sbt._
 
 object Dependencies {
 
-  val circeVersion = "0.14.5"
-  val kamonVersion = "2.6.3"
+  val circeVersion = "0.14.6"
+  val kamonVersion = "2.7.0"
   val simulacrumVersion = "1.0.1"
-  val catsCoreVersion = "2.9.0"
-  val catsEffectVersion = "3.5.1"
-  val fs2Version = "3.7.0"
-  val logback = "1.4.8"
-  val orientDbVersion = "3.2.21"
-  val ioGrpcVersion = "1.57.0"
-  val protobufSpecsVersion = "2.0.0-alpha2+5-7af64172-SNAPSHOT"
-  val bramblScVersion = "2.0.0-alpha3+2-6cdca5c2-SNAPSHOT"
+  val catsCoreVersion = "2.10.0"
+  val catsEffectVersion = "3.5.2"
+  val fs2Version = "3.9.3"
+  val logback = "1.4.14"
+  val orientDbVersion = "3.2.26"
+  val ioGrpcVersion = "1.60.1"
+  val http4sVersion = "0.23.25"
+  val protobufSpecsVersion = "2.0.0-beta1" // scala-steward:off
+  val bramblScVersion = "2.0.0-beta2+2-8e98ff76-SNAPSHOT" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -21,24 +22,12 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.7",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.11",
     catsSlf4j
-  )
-
-  val scalacheck: Seq[ModuleID] = Seq(
-    "org.scalacheck"    %% "scalacheck"      % "1.16.0"   % "test",
-    "org.scalatestplus" %% "scalacheck-1-16" % "3.2.14.0" % "test"
   )
 
   val scalamockBase = "org.scalamock" %% "scalamock" % "5.2.0"
   val scalamock = scalamockBase        % Test
-
-  val test: Seq[ModuleID] = Seq(
-    "org.scalatest"    %% "scalatest"                     % "3.2.16" % "test",
-    "com.ironcorelabs" %% "cats-scalatest"                % "3.1.1"  % "test",
-    "org.typelevel"    %% "cats-effect-testing-scalatest" % "1.4.0"  % "test",
-    scalamock
-  ) ++ scalacheck
 
   private val mUnitTestBase: Seq[ModuleID] = Seq(
     "org.scalameta" %% "munit"                   % "0.7.29",
@@ -69,7 +58,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.2.1"
+    "org.typelevel" %% "mouse"     % "1.2.2"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
@@ -85,7 +74,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.75"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.77"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -95,13 +84,15 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.10",
-    "org.scodec" %% "scodec-bits" % "1.1.37",
+    "org.scodec" %% "scodec-bits" % "1.1.38",
     "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.5.0"
+    "com.lihaoyi" %% "mainargs" % "0.5.4"
   )
+
+  val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
 
   val monocle: Seq[ModuleID] = Seq(
     "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
@@ -112,8 +103,17 @@ object Dependencies {
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
-  val circeYaml = "io.circe"               %% "circe-yaml"           % "0.15.0-RC1"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "18.0.1"
+  val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
+
+  val http4s = Seq(
+    "org.http4s" %% "http4s-ember-client" % http4sVersion,
+    "org.http4s" %% "http4s-dsl"          % http4sVersion
+  )
+
+  val http4sServer = http4s ++ Seq(
+    "org.http4s" %% "http4s-ember-server" % http4sVersion
+  )
 
   val bramblScCrypto = "co.topl" %% "crypto"     % bramblScVersion
   val bramblScSdk = "co.topl"    %% "brambl-sdk" % bramblScVersion
@@ -124,7 +124,7 @@ object Dependencies {
   )
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.9.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.10.0"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -144,7 +144,11 @@ object Dependencies {
     monocle ++
     monitoring ++
     mUnitTestBase ++
-    Seq(grpcServices)
+    Seq(grpcServices) ++
+    http4s
+
+  val nodeIt =
+    http4sServer.map(_ % Test)
 
   val networkDelayer: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ Seq(
@@ -161,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.25.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.30.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -169,13 +173,13 @@ object Dependencies {
   lazy val algebras: Seq[sbt.ModuleID] =
     circe ++
     protobufSpecs ++
-    test ++
+    munitScalamock ++
     catsEffect.map(_ % Test) ++
     Seq(catsSlf4j % Test)
 
   val commonApplication: Seq[ModuleID] =
     cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
-    simulacrum ++ Seq(
+    simulacrum ++ http4s ++ Seq(
       catsSlf4j,
       pureConfig,
       circeYaml
@@ -185,7 +189,7 @@ object Dependencies {
     scodec ++
     externalCrypto ++
     cats ++
-    test ++
+    mUnitTest ++
     Seq(bramblScCrypto, bramblScCrypto.classifier("tests") % Test) ++
     circe.map(_ % Test)
 
@@ -193,7 +197,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val catsUtils: Seq[ModuleID] =
-    cats ++ catsEffect ++ logging ++ Seq(fs2Core, fs2IO, fs2ReactiveStreams)
+    cats ++ catsEffect ++ logging ++ Seq(fs2Core, fs2IO, fs2ReactiveStreams) ++ mUnitTest
 
   lazy val models: Seq[ModuleID] =
     cats ++ simulacrum ++ newType ++ scodec ++ protobufSpecs ++
@@ -204,10 +208,10 @@ object Dependencies {
     Dependencies.mUnitTest ++ externalCrypto ++ catsEffect ++ logging ++ scalacache
 
   lazy val minting: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.test ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
@@ -230,7 +234,7 @@ object Dependencies {
     )
 
   lazy val byteCodecs: Seq[sbt.ModuleID] =
-    test ++
+    munitScalamock ++
     simulacrum ++
     scodec ++
     cats
@@ -256,7 +260,6 @@ object Dependencies {
     Seq(
       "com.orientechnologies" % "orientdb-core"   % orientDbVersion,
       "com.orientechnologies" % "orientdb-server" % orientDbVersion,
-      "com.orientechnologies" % "orientdb-client" % orientDbVersion,
       "com.orientechnologies" % "orientdb-tools"  % orientDbVersion,
       "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude ("commons-beanutils", "commons-beanutils") exclude ("commons-beanutils", "commons-beanutils-core"),
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
@@ -274,5 +277,5 @@ object Dependencies {
     mUnitTest
 
   lazy val byzantineIt: Seq[ModuleID] =
-    (mUnitTestBase :+ dockerClient).map(_ % Test)
+    (mUnitTestBase :+ dockerClient :+ fastparse).map(_ % Test)
 }

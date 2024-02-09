@@ -1,0 +1,71 @@
+name: Publish Docker Images (Dev)
+
+on:
+  workflow_call:
+    inputs:
+      remote-repository:
+        description: "Name of the GCP managed Artifact Registry."
+        default: "us-central1-docker.pkg.dev/topl-shared-project-dev/topl-artifacts-dev/"
+        required: false
+        type: string
+      registry-auth-location:
+        description: "Name of the GCP managed Artifact Registry."
+        default: "us-central1-docker.pkg.dev"
+        required: false
+        type: string
+
+jobs:
+  publish_docker_images:
+    name: Publish Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      # First publish bifrost-node to Dockerhub and GHCR (dev image).
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Log in to the Github Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push images to registries
+        run: DOCKER_PUBLISH_DEV_TAG=true sbt node/Docker/publish
+
+      # Then publish other iamges to GCP Artifact Registry
+      - id: "auth"
+        name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v0
+        with:
+          workload_identity_provider: ${{ secrets.GCP_OIDC_PROVIDER_NAME }}
+          service_account: ${{ secrets.GCP_OIDC_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Set up gcloud
+        uses: "google-github-actions/setup-gcloud@v0"
+
+      - name: Auth Artifact Registry
+        run: gcloud auth configure-docker ${{ inputs.registry-auth-location }}
+
+      - name: Stage Docker Image
+        run: sbt Docker/publishLocal
+
+      - name: Tag and push image to remote registry
+        run: |
+          docker tag $(docker images toplprotocol/testnet-simulation-orchestrator --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}/testnet-simulation-orchestrator:$(docker images toplprotocol/testnet-simulation-orchestrator --format "{{.Tag}}" | head -n 1)
+          docker tag $(docker images toplprotocol/network-delayer --format "{{.ID}}" | head -n 1) ${{ inputs.remote-repository }}/network-delayer:$(docker images toplprotocol/network-delayer --format "{{.Tag}}" | head -n 1)
+          docker push --all-tags ${{ inputs.remote-repository }}/testnet-simulation-orchestrator
+          docker push --all-tags ${{ inputs.remote-repository }}/network-delayer

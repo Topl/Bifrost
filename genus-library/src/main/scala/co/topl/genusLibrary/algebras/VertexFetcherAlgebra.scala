@@ -1,6 +1,6 @@
 package co.topl.genusLibrary.algebras
 
-import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
+import co.topl.brambl.models.{GroupId, LockAddress, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.{BlockStats, BlockchainSizeStats, TxoStats}
 import co.topl.genusLibrary.model.GE
@@ -53,10 +53,20 @@ trait VertexFetcherAlgebra[F[_]] {
   /**
    * Fetch Transactions Vertices, which depends on header Vertex the stored Ledger, using the link to BlockHeader defined in the schema
    *
+   * Does not include the reward transaction
+   *
    * @param headerVertex filter by field
    * @return transactions vertices
    */
   def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]]
+
+  /**
+   * Fetch the optional "Reward" Transaction Vertex associated with the given BlockHeader
+   *
+   * @param headerVertex filter by field
+   * @return optional transactions vertex
+   */
+  def fetchRewardTransaction(headerVertex: Vertex): F[Either[GE, Option[Vertex]]]
 
   /**
    * Fetch Transaction Vertex, using TransactionIndex
@@ -96,4 +106,18 @@ trait VertexFetcherAlgebra[F[_]] {
    */
   def fetchBlockStats(): F[Either[GE, BlockStats]]
 
+  /**
+   * Fetch Group Policy vertex
+   * @param groupId groupId
+   * @return a group policy
+   */
+  def fetchGroupPolicy(groupId: GroupId): F[Either[GE, Option[Vertex]]]
+
+  /**
+   * Fetch Series Policy vertex
+   *
+   * @param seriesId series Id
+   * @return a series policy
+   */
+  def fetchSeriesPolicy(seriesId: SeriesId): F[Either[GE, Option[Vertex]]]
 }

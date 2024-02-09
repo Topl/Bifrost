@@ -5,6 +5,8 @@ import cats.effect._
 import cats.implicits._
 import cats.effect.implicits._
 import co.topl.buildinfo.node.BuildInfo
+import co.topl.consensus.models.StakingAddress
+import co.topl.typeclasses.implicits._
 import com.spotify.docker.client.messages.ContainerConfig
 import com.spotify.docker.client.messages.HostConfig
 import com.spotify.docker.client.messages.NetworkConfig
@@ -63,7 +65,7 @@ object DockerSupport {
             .void
         )
       )
-      _ <- containerLogsDirectory.fold(Resource.unit[F])(Files[F].createDirectories(_).toResource)
+      _ <- containerLogsDirectory.fold(Resource.unit[F])(Files.forAsync[F].createDirectories(_).toResource)
       dockerSupport = new Impl[F](containerLogsDirectory, debugLoggingEnabled, nodeCache, networkCache)
     } yield (dockerSupport, dockerClient)
 
@@ -123,7 +125,6 @@ object DockerSupport {
       environment: Map[String, String],
       config:      TestNodeConfig
     ): ContainerConfig = {
-      val configDirectory = "/opt/docker/config"
       val bifrostImage: String = s"toplprotocol/bifrost-node:${BuildInfo.version}"
       val exposedPorts: Seq[String] = List(config.rpcPort, config.p2pPort, config.jmxRemotePort).map(_.toString)
       val env =
@@ -136,21 +137,29 @@ object DockerSupport {
           "-Dcom.sun.management.jmxremote.ssl=false",
           "-Dcom.sun.management.jmxremote.local.only=false",
           "-Dcom.sun.management.jmxremote.authenticate=false",
-          "--config",
-          "/opt/docker/config/node.yaml",
           "--logbackFile",
-          "/opt/docker/config/logback.xml",
+          "/bifrost/config/logback.xml",
           "--debug"
         )
 
       val hostConfig =
-        HostConfig.builder().build()
+        config.stakingBindSourceDir
+          .foldLeft(HostConfig.builder().privileged(true))((b, sourceDir) =>
+            b.appendBinds(
+              HostConfig.Bind
+                .builder()
+                .from(sourceDir)
+                .to("/bifrost-staking")
+                .selinuxLabeling(true)
+                .build()
+            )
+          )
+          .build()
 
       ContainerConfig
         .builder()
         .image(bifrostImage)
         .env(env: _*)
-        .volumes(configDirectory)
         .cmd(cmd: _*)
         .hostname(name)
         .hostConfig(hostConfig)
@@ -161,15 +170,19 @@ object DockerSupport {
 }
 
 case class TestNodeConfig(
-  bigBangTimestamp: Instant = Instant.now().plusSeconds(5),
-  stakerCount:      Int = 1,
-  localStakerIndex: Int = 0,
-  knownPeers:       List[String] = Nil,
-  stakes:           Option[List[BigInt]] = None,
-  rpcPort:          Int = 9084,
-  p2pPort:          Int = 9085,
-  jmxRemotePort:    Int = 9083,
-  genusEnabled:     Boolean = false
+  bigBangTimestamp:     Instant = Instant.now().plusSeconds(5),
+  stakerCount:          Int = 1,
+  localStakerIndex:     Int = 0,
+  knownPeers:           List[String] = Nil,
+  stakes:               Option[List[BigInt]] = None,
+  rpcPort:              Int = 9084,
+  p2pPort:              Int = 9085,
+  jmxRemotePort:        Int = 9083,
+  genusEnabled:         Boolean = false,
+  stakingBindSourceDir: Option[String] = None,
+  serverHost:           Option[String] = None,
+  serverPort:           Option[Int] = None,
+  stakingAddress:       Option[StakingAddress] = None
 ) {
 
   def yaml: String = {
@@ -181,9 +194,13 @@ case class TestNodeConfig(
        |  rpc:
        |    bind-host: 0.0.0.0
        |    port: "$rpcPort"
+       |  staking:
+       |    staking-address: ${stakingAddress.fold("")(_.show)}
        |  p2p:
        |    bind-host: 0.0.0.0
+       |    ${serverHost.map(sh => s"public-host: $sh").getOrElse("")}
        |    port: "$p2pPort"
+       |    ${serverPort.map(sp => s"public-port: $sp").getOrElse("")}
        |    known-peers: "${knownPeers.map(p => s"$p:9085").mkString(",")}"
        |  big-bang:
        |    staker-count: $stakerCount
@@ -192,10 +209,16 @@ case class TestNodeConfig(
        |    $stakesStr
        |  protocols:
        |    0:
-       |      slot-duration: 200 milli
+       |      slot-duration: 500 milli
+       |      chain-selection-k-lookback: 6
+       |      operational-periods-per-epoch: 2
        |genus:
        |  enable: "$genusEnabled"
        |""".stripMargin
   }
 
+}
+
+object TestNodeConfig {
+  val epochSlotLength: Long = 150 // See co.topl.node.ApplicationConfig.Bifrost.Protocol
 }

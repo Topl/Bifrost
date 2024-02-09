@@ -2,12 +2,19 @@ package co.topl.actor
 
 import cats.effect.{Concurrent, Deferred, IO, Ref, Resource}
 import cats.implicits._
+import co.topl.actor.ActorSpec._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
+
+object ActorSpec {
+  type F[A] = IO[A]
+  implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+}
 
 class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
-  type F[A] = IO[A]
 
   test("Actor effective handle parallel requests") {
     case class Ping(value: Int)
@@ -20,7 +27,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
       }
 
     def getActor: F[Actor[F, Ping, Pong]] =
-      Actor.make[F, State[F, Ping, Pong], Ping, Pong](State(0), pingFsm[F]).allocated.map(_._1)
+      Actor.make[F, State[F, Ping, Pong], Ping, Pong]("", State(0), pingFsm[F]).allocated.map(_._1)
 
     PropF.forAllF { (inputs: Seq[Int]) =>
       for {
@@ -32,8 +39,9 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
   }
 
   test("Actor release all resources taken by child actors") {
-    def makeChildActor[F[_]: Concurrent](resourceCounter: Ref[F, Long])(): Resource[F, Actor[F, Unit, Unit]] =
+    def makeChildActor[F[_]: Concurrent: Logger](resourceCounter: Ref[F, Long])(): Resource[F, Actor[F, Unit, Unit]] =
       Actor.makeWithFinalize(
+        "",
         resourceCounter,
         Fsm[F, Ref[F, Long], Unit, Unit] { case (state, _) => state.update(v => v + 1) as (state, ()) },
         (s: Ref[F, Long]) => s.update(s => s - 1)
@@ -43,7 +51,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
     case class Pong(c: Long)
     case class State[F[_], I, O](resourceCounter: Ref[F, Long])
 
-    def pingFsm[F[_]: Concurrent](thisActor: Actor[F, Ping, Pong]): Fsm[F, State[F, Ping, Pong], Ping, Pong] =
+    def pingFsm[F[_]: Concurrent: Logger](thisActor: Actor[F, Ping, Pong]): Fsm[F, State[F, Ping, Pong], Ping, Pong] =
       Fsm { case (state, Ping()) =>
         thisActor.acquireActor(makeChildActor(state.resourceCounter)).flatMap(a => a.send(())) >>
         state.resourceCounter.get.map(c => (state, Pong(c)))
@@ -55,6 +63,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
         ref <- Ref.of[F, Long](1)
         _ <- Actor
           .makeFull[F, State[F, Ping, Pong], Ping, Pong](
+            "",
             State(ref),
             pingFsm[F],
             s => s.resourceCounter.update(v => v - 1)
@@ -83,6 +92,7 @@ class ActorSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMoc
     def getActor(ref: Ref[F, Long], finishedFlag: Deferred[F, Boolean]): F[(Actor[F, Ping, Pong], F[Unit])] =
       Actor
         .makeWithFinalize[F, State[F, Ping, Pong], Ping, Pong](
+          "",
           State(0),
           pingFsm[F],
           s => ref.set(s.counter) *> finishedFlag.complete(true) as ()

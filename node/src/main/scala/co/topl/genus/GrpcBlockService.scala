@@ -7,7 +7,6 @@ import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.BlockFetcherAlgebra
 import co.topl.genusLibrary.model.GEs
 import co.topl.node.models.FullBlock
-import co.topl.node.models.FullBlockBody
 import co.topl.typeclasses.implicits._
 import io.grpc.Metadata
 
@@ -23,7 +22,7 @@ class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extend
               .raiseError[BlockData](GEs.NotFound(s"BlockId:${request.blockId.show}"))
           )
       )
-      .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+      .map(blockData => BlockResponse(FullBlock(blockData.header, blockData.body)))
       .adaptErrorsToGrpc
 
   override def getBlockByHeight(request: GetBlockByHeightRequest, ctx: Metadata): F[BlockResponse] =
@@ -35,7 +34,7 @@ class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extend
             Async[F].raiseError[BlockData](GEs.NotFound(s"Height:${request.height.value.show}"))
           )
       )
-      .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+      .map(blockData => BlockResponse(FullBlock(blockData.header, blockData.body)))
       .adaptErrorsToGrpc
 
   override def getBlockByDepth(request: GetBlockByDepthRequest, ctx: Metadata): F[BlockResponse] =
@@ -47,7 +46,7 @@ class GrpcBlockService[F[_]: Async](blockFetcher: BlockFetcherAlgebra[F]) extend
             Async[F].raiseError[BlockData](GEs.NotFound(s"Depth:${request.depth.value.show}"))
           )
       )
-      .map(blockData => BlockResponse.of(FullBlock.of(blockData.header, FullBlockBody.of(blockData.transactions))))
+      .map(blockData => BlockResponse(FullBlock(blockData.header, blockData.body)))
       .adaptErrorsToGrpc
 
 }

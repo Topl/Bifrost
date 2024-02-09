@@ -18,11 +18,7 @@ object BlockApplyError {
     case class UnknownError(ex: Throwable) extends HeaderApplyException {
       this.initCause(ex)
 
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        show"Unknown error during applying block header due next throwable $name : $message"
-      }
+      override def toString: String = show"Unknown error during applying block header due next throwable ${ex.toString}"
     }
   }
 
@@ -36,11 +32,8 @@ object BlockApplyError {
     case class UnknownError(ex: Throwable) extends BodyApplyException {
       this.initCause(ex)
 
-      override def toString: String = {
-        val name = Option(ex.getClass.getName).getOrElse("")
-        val message = Option(ex.getLocalizedMessage).getOrElse("")
-        show"Unknown error during applying block body due next throwable $name : $message"
-      }
+      override def toString: String =
+        show"Unknown error during applying block body due next throwable ${ex.toString}"
     }
   }
 }

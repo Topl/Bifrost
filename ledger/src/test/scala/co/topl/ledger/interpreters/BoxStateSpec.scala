@@ -37,7 +37,7 @@ class BoxStateSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           parentChildTree <- ParentChildTree.FromRef.make[IO, BlockId]
           _               <- parentChildTree.associate(blockId1, blockId0)
           _               <- parentChildTree.associate(blockId2, blockId1)
-          underTest <- BoxState.make[IO](
+          (underTest, _) <- BoxState.make[IO](
             blockId0.pure[IO],
             Map(
               blockId1 -> BlockBody(List(transaction1.id)).pure[IO],

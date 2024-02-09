@@ -1,7 +1,7 @@
 package co.topl.ledger.interpreters
 
-import cats.data.{EitherT, NonEmptyChain, Validated, ValidatedNec}
-import cats.effect.Sync
+import cats.data.{EitherT, NonEmptyChain, OptionT, Validated, ValidatedNec}
+import cats.effect.Async
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -11,12 +11,12 @@ import co.topl.node.models.BlockBody
 
 object BodySemanticValidation {
 
-  def make[F[_]: Sync](
+  def make[F[_]: Async](
     fetchTransaction:              TransactionId => F[IoTransaction],
     transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
     registrationAccumulator:       RegistrationAccumulatorAlgebra[F]
   ): F[BodySemanticValidationAlgebra[F]] =
-    Sync[F].delay {
+    Async[F].delay {
       new BodySemanticValidationAlgebra[F] {
 
         /**
@@ -24,13 +24,19 @@ object BodySemanticValidation {
          * the outputs of previous transactions in the block, but no two transactions may spend the same input.
          */
         def validate(context: BodyValidationContext)(body: BlockBody): F[ValidatedNec[BodySemanticError, BlockBody]] =
-          body.transactionIds
-            .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
-              case (Validated.Valid(prefix), transactionId) =>
-                validateTransaction(context, prefix)(transactionId).map(prefix :+ _).value.map(_.toValidated)
-              case (invalid, _) => invalid.pure[F]
-            }
-            .map(_.as(body))
+          EitherT(validateReward(context)(body))
+            .flatMapF(_ =>
+              body.transactionIds
+                .foldLeftM(List.empty[IoTransaction].validNec[BodySemanticError]) {
+                  case (Validated.Valid(prefix), transactionId) =>
+                    Async[F].cede >>
+                    validateTransaction(context, prefix)(transactionId).map(prefix :+ _).value.map(_.toValidated)
+                  case (invalid, _) => invalid.pure[F]
+                }
+                .map(_.toEither)
+            )
+            .as(body)
+            .toValidated
 
         /**
          * Fetch the given transaction ID and (semantically) validate it in the context of the given block ID.
@@ -41,7 +47,7 @@ object BodySemanticValidation {
         private def validateTransaction(
           context: BodyValidationContext,
           prefix:  Seq[IoTransaction]
-        )(transactionId: TransactionId) =
+        )(transactionId: TransactionId): EitherT[F, NonEmptyChain[BodySemanticError], IoTransaction] =
           for {
             transaction <- EitherT.liftF(fetchTransaction(transactionId))
             transactionValidationContext = StaticTransactionValidationContext(
@@ -75,6 +81,25 @@ object BodySemanticValidation {
                 )
               )
           } yield transaction
+
+        /**
+         * Verify that the reward transaction (if included) attempts to "spend" the parent header ID.
+         */
+        private def validateReward(context: BodyValidationContext)(body: BlockBody) =
+          OptionT
+            .fromOption[F](body.rewardTransactionId)
+            .semiflatMap(fetchTransaction)
+            .fold(
+              ().asRight[NonEmptyChain[BodySemanticError]]
+            )(reward =>
+              reward.inputs.headOption
+                .toRight(BodySemanticErrors.RewardTransactionError(reward))
+                .ensure(BodySemanticErrors.RewardTransactionError(reward))(
+                  _.address.id.value == context.parentHeaderId.value
+                )
+                .leftMap(NonEmptyChain[BodySemanticError](_))
+                .void
+            )
       }
     }
 

@@ -1,9 +1,11 @@
 package co.topl.consensus.interpreters
 
 import cats.data._
-import cats.effect.kernel.Sync
+import cats.effect.Resource
+import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, Store, UnsafeResource}
+import co.topl.algebras.ClockAlgebra.implicits.clockAsClockOps
+import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -29,7 +31,7 @@ import scalacache.caffeine.CaffeineCache
  */
 object BlockHeaderValidation {
 
-  def make[F[_]: Sync](
+  def make[F[_]: Async](
     etaInterpreter:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElection:           LeaderElectionValidationAlgebra[F],
@@ -37,12 +39,12 @@ object BlockHeaderValidation {
     clockAlgebra:             ClockAlgebra[F],
     blockHeaderStore:         Store[F, BlockId, BlockHeader],
     bigBangBlockId:           BlockId,
-    ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    kesProductResource:       UnsafeResource[F, KesProduct],
-    ed25519Resource:          UnsafeResource[F, Ed25519],
-    blake2b256Resource:       UnsafeResource[F, Blake2b256]
+    ed25519VRFResource:       Resource[F, Ed25519VRF],
+    kesProductResource:       Resource[F, KesProduct],
+    ed25519Resource:          Resource[F, Ed25519],
+    blake2b256Resource:       Resource[F, Blake2b256]
   ): F[BlockHeaderValidationAlgebra[F]] =
-    Sync[F].delay(
+    Async[F].delay(
       new Impl[F](
         etaInterpreter,
         consensusValidationState,
@@ -58,7 +60,7 @@ object BlockHeaderValidation {
       )
     )
 
-  private class Impl[F[_]: Sync](
+  private class Impl[F[_]: Async](
     etaInterpreter:           EtaCalculationAlgebra[F],
     consensusValidationState: ConsensusValidationStateAlgebra[F],
     leaderElection:           LeaderElectionValidationAlgebra[F],
@@ -66,24 +68,37 @@ object BlockHeaderValidation {
     clockAlgebra:             ClockAlgebra[F],
     blockHeaderStore:         Store[F, BlockId, BlockHeader],
     bigBangBlockId:           BlockId,
-    ed25519VRFResource:       UnsafeResource[F, Ed25519VRF],
-    kesProductResource:       UnsafeResource[F, KesProduct],
-    ed25519Resource:          UnsafeResource[F, Ed25519],
-    blake2b256Resource:       UnsafeResource[F, Blake2b256]
+    ed25519VRFResource:       Resource[F, Ed25519VRF],
+    kesProductResource:       Resource[F, KesProduct],
+    ed25519Resource:          Resource[F, Ed25519],
+    blake2b256Resource:       Resource[F, Blake2b256]
   ) extends BlockHeaderValidationAlgebra[F] {
+
+    def couldBeValidated(header: BlockHeader, lastProcessedBodyInChain: SlotData): F[Boolean] =
+      for {
+        checkedHeaderEpoch <- clockAlgebra.epochOf(header.slot)
+        bestBlockEpoch     <- clockAlgebra.epochOf(lastProcessedBodyInChain.slotId.slot)
+      } yield (checkedHeaderEpoch - bestBlockEpoch) < 2
 
     def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] = {
       if (header.id === bigBangBlockId) EitherT.rightT[F, BlockHeaderValidationFailure](header)
       else
         for {
           parent    <- EitherT.liftF(blockHeaderStore.getOrRaise(header.parentHeaderId))
+          _         <- EitherT.liftF(Async[F].cede)
           _         <- statelessVerification(header, parent)
+          _         <- EitherT.liftF(Async[F].cede)
           _         <- EitherT(timeSlotVerification(header))
           _         <- vrfVerification(header)
+          _         <- EitherT.liftF(Async[F].cede)
           _         <- kesVerification(header)
+          _         <- EitherT.liftF(Async[F].cede)
           _         <- registrationVerification(header)
+          _         <- EitherT.liftF(Async[F].cede)
           threshold <- vrfThresholdFor(header, parent)
+          _         <- EitherT.liftF(Async[F].cede)
           _         <- vrfThresholdVerification(header, threshold, blake2b256Resource)
+          _         <- EitherT.liftF(Async[F].cede)
           _         <- eligibilityVerification(header, threshold)
         } yield header
     }.value
@@ -127,6 +142,7 @@ object BlockHeaderValidation {
       header: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
+        _ <- EitherT.liftF(Async[F].cede)
         expectedEta <- EitherT.liftF(
           etaInterpreter.etaToBe(
             SlotId(header.parentSlot, header.parentHeaderId),
@@ -134,15 +150,17 @@ object BlockHeaderValidation {
           )
         )
         eta = Sized.strictUnsafe(header.eligibilityCertificate.eta): Eta
+        _ <- EitherT.liftF(Async[F].cede)
         _ <- EitherT.cond[F](
           eta === expectedEta,
           (),
           BlockHeaderValidationFailures.InvalidEligibilityCertificateEta(eta, expectedEta)
         )
+        _ <- EitherT.liftF(Async[F].cede)
         signatureVerificationResult <- EitherT.liftF(
           ed25519VRFResource
             .use(ed25519vrf =>
-              Sync[F].delay(
+              Async[F].delay(
                 ed25519vrf
                   .verify(
                     header.eligibilityCertificate.vrfSig.toByteArray,
@@ -152,6 +170,7 @@ object BlockHeaderValidation {
               )
             )
         )
+        _ <- EitherT.liftF(Async[F].cede)
         _ <- EitherT
           .cond[F](
             signatureVerificationResult,
@@ -170,14 +189,15 @@ object BlockHeaderValidation {
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
         message <- EitherT.liftF(
-          Sync[F].delay(
+          Async[F].delay(
             header.operationalCertificate.childVK.toByteArray ++ Longs.toByteArray(header.slot)
           )
         )
+        _ <- EitherT.liftF(Async[F].cede)
         parentCommitmentResult <- EitherT.liftF(
           kesProductResource
             .use(kesProduct =>
-              Sync[F].delay(
+              Async[F].delay(
                 kesProduct
                   .verify(
                     header.operationalCertificate.parentSignature,
@@ -187,16 +207,18 @@ object BlockHeaderValidation {
               )
             )
         )
+        _ <- EitherT.liftF(Async[F].cede)
         _ <- EitherT.cond[F](
           parentCommitmentResult,
           (),
           BlockHeaderValidationFailures.InvalidOperationalParentSignature(header.operationalCertificate)
         )
+        _ <- EitherT.liftF(Async[F].cede)
         childSignatureResult <- EitherT.liftF(
           ed25519Resource
             .use(ed25519 =>
               // Use the ed25519 instance to verify the childSignature against the header's bytes
-              Sync[F].delay(
+              Async[F].delay(
                 ed25519
                   .verify(
                     header.operationalCertificate.childSignature.toByteArray,
@@ -206,6 +228,7 @@ object BlockHeaderValidation {
               )
             )
         )
+        _ <- EitherT.liftF(Async[F].cede)
         _ <- EitherT
           .cond[F](
             childSignatureResult,
@@ -236,14 +259,15 @@ object BlockHeaderValidation {
     private[consensus] def vrfThresholdVerification(
       header:             BlockHeader,
       threshold:          Ratio,
-      blake2b256Resource: UnsafeResource[F, Blake2b256]
+      blake2b256Resource: Resource[F, Blake2b256]
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
         evidence <-
           EitherT
             .liftF[F, BlockHeaderValidationFailure, ByteString](
-              blake2b256Resource.use(b => Sync[F].delay(thresholdEvidence(threshold)(b)))
+              blake2b256Resource.use(b => Async[F].delay(thresholdEvidence(threshold)(b)))
             )
+        _ <- EitherT.liftF(Async[F].cede)
         _ <-
           EitherT.cond[F](
             header.eligibilityCertificate.thresholdEvidence === evidence,
@@ -264,7 +288,7 @@ object BlockHeaderValidation {
           .liftF(
             ed25519VRFResource
               .use(ed25519Vrf =>
-                Sync[F].delay(
+                Async[F].delay(
                   ed25519Vrf.proofToHash(header.eligibilityCertificate.vrfSig.toByteArray)
                 )
               )
@@ -301,27 +325,31 @@ object BlockHeaderValidation {
       header: BlockHeader
     ): EitherT[F, BlockHeaderValidationFailure, BlockHeader] =
       for {
+        _ <- EitherT.liftF(Async[F].cede)
         staker <-
           EitherT.fromOptionF(
             consensusValidationState.staker(header.id, header.slot)(header.address),
             BlockHeaderValidationFailures.Unregistered(header.address)
           )
+        _ <- EitherT.liftF(Async[F].cede)
         message <- EitherT.liftF(
           blake2b256Resource
             .use(b =>
-              Sync[F].delay(
+              Async[F].delay(
                 b.hash(header.eligibilityCertificate.vrfVK, header.address.value)
               )
             )
         )
+        _ <- EitherT.liftF(Async[F].cede)
         isValid <- EitherT.liftF(
           kesProductResource
             .use(p =>
-              Sync[F].delay(
+              Async[F].delay(
                 p.verify(staker.registration.signature, message, header.operationalCertificate.parentVK.copy(step = 0))
               )
             )
         )
+        _ <- EitherT.liftF(Async[F].cede)
         _ <- EitherT
           .cond[F](
             isValid,
@@ -349,24 +377,28 @@ object BlockHeaderValidation {
      * @param underlying The base header validation implementation
      * @param cacheSize The maximum number of header IDs to store
      */
-    def make[F[_]: Sync](
+    def make[F[_]: Async](
       underlying: BlockHeaderValidationAlgebra[F],
       cacheSize:  Int = 512
     ): F[BlockHeaderValidationAlgebra[F]] =
-      Sync[F]
+      Async[F]
         .delay(CaffeineCache[F, BlockId, Unit](Caffeine.newBuilder.maximumSize(cacheSize).build[BlockId, Entry[Unit]]))
         .map(implicit cache =>
           new BlockHeaderValidationAlgebra[F] {
 
+            def couldBeValidated(header: BlockHeader, currentHead: SlotData): F[Boolean] =
+              underlying.couldBeValidated(header, currentHead)
+
             def validate(header: BlockHeader): F[Either[BlockHeaderValidationFailure, BlockHeader]] =
               cache
                 .cachingF(header.id)(ttl = None)(
-                  EitherT(Sync[F].defer(underlying.validate(header))).void
+                  EitherT(Async[F].defer(underlying.validate(header))).void
                     .leftMap(new WrappedFailure(_))
                     .rethrowT
                 )
                 .as(header.asRight[BlockHeaderValidationFailure])
                 .recover { case w: WrappedFailure => w.failure.asLeft[BlockHeader] }
+
           }
         )
 

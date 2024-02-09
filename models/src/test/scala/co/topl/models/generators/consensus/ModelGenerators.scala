@@ -201,15 +201,24 @@ trait ModelGenerators {
     count match {
       case 0 => slotData
       case _ =>
-        addSlotDataToChain(slotData.append(gen.sample.get.copy(parentSlotId = slotData.last.slotId)), gen, count - 1)
+        addSlotDataToChain(
+          slotData.append(gen.sample.get.copy(parentSlotId = slotData.last.slotId, height = slotData.last.height + 1)),
+          gen,
+          count - 1
+        )
     }
 
-  def arbitraryLinkedSlotDataChainFor(sizeGen: Gen[Long]): Arbitrary[NonEmptyChain[SlotData]] =
+  def arbitraryLinkedSlotDataChainFor(
+    sizeGen:  Gen[Long],
+    parentId: Option[SlotData] = None
+  ): Arbitrary[NonEmptyChain[SlotData]] =
     Arbitrary(
       for {
         size <- sizeGen
         root <- arbitrarySlotData.arbitrary
-      } yield addSlotDataToChain(NonEmptyChain.one(root), arbitrarySlotData.arbitrary, size)
+        updatedRoot =
+          parentId.map(p => root.copy(parentSlotId = p.slotId, height = p.height + 1)).getOrElse(root.copy(height = 0))
+      } yield addSlotDataToChain(NonEmptyChain.one(updatedRoot), arbitrarySlotData.arbitrary, size)
     )
 
   implicit val arbitraryLinkedSlotDataChain: Arbitrary[NonEmptyChain[SlotData]] =

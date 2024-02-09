@@ -1,16 +1,15 @@
 package co.topl.codecs.bytes.tetra
 
 import co.topl.codecs.bytes.scodecs._
+import co.topl.codecs.bytes.scodecs.valuetypes.byteStringCodec
 import co.topl.consensus.models._
 import co.topl.crypto.{models => nodeCryptoModels}
 import co.topl.models._
 import co.topl.models.utility._
-import scodec.codecs.discriminated
-import scodec.codecs.lazily
+import co.topl.node.models.KnownHost
 import scodec.Codec
-import shapeless.::
-import shapeless.HList
-import shapeless.HNil
+import scodec.codecs.{discriminated, lazily, utf8_32}
+import shapeless.{::, HList, HNil}
 
 /**
  * Use this object or the package object to access all of the codecs from outside of this package.
@@ -154,4 +153,11 @@ trait TetraScodecCodecs {
       byteStringCodec :: // metadata
       stakingAddressCodec // address
   ).as[UnsignedBlockHeader]
+
+  implicit val knownHostCodec: Codec[KnownHost] = (
+    byteStringCodec ::
+      utf8_32 ::
+      intCodec ::
+      unknownFieldSetCodec
+  ).as[KnownHost]
 }

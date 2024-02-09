@@ -31,6 +31,10 @@ trait TetraTransmittableCodecs {
     override def fromTransmittableBytes(bytes: ByteString): Either[String, Unit] = Right(())
   }
 
+  implicit val booleanTransmittable: Transmittable[Boolean] = Transmittable.instanceFromCodec(boolCodec)
+
+  implicit val intTransmittable: Transmittable[Int] = Transmittable.instanceFromCodec(intCodec)
+
   implicit val longTransmittable: Transmittable[Long] = Transmittable.instanceFromCodec(longCodec)
 
   implicit val longBlockIdOptTransmittable: Transmittable[(Long, Option[BlockId])] =

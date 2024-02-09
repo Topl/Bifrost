@@ -19,12 +19,12 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   type F[A] = IO[A]
 
   test("getBlockById: OK") {
-    PropF.forAllF { (blockId: BlockId, blockHeader: BlockHeader, blockBody: BlockBody) =>
+    PropF.forAllF { (blockId: BlockId, blockHeader: BlockHeader, blockBody: FullBlockBody) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
         val underTest = new GrpcBlockService[F](blockFetcher)
 
-        val blockData = BlockData(blockHeader, blockBody, Seq.empty)
+        val blockData = BlockData(blockHeader, blockBody)
 
         (blockFetcher.fetchBlock _)
           .expects(blockId)
@@ -35,7 +35,7 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
           res <- underTest.getBlockById(GetBlockByIdRequest(blockId), new Metadata())
           _ = assert(
             res == BlockResponse(
-              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions))
+              FullBlock(blockData.header, blockData.body)
             )
           )
         } yield ()
@@ -86,12 +86,12 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   }
 
   test("getBlockByHeight: OK") {
-    PropF.forAllF { (height: Long, blockHeader: BlockHeader, blockBody: BlockBody) =>
+    PropF.forAllF { (height: Long, blockHeader: BlockHeader, blockBody: FullBlockBody) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
         val underTest = new GrpcBlockService[F](blockFetcher)
 
-        val blockData = BlockData(blockHeader, blockBody, Seq.empty)
+        val blockData = BlockData(blockHeader, blockBody)
 
         (blockFetcher.fetchBlockByHeight _)
           .expects(height)
@@ -100,11 +100,7 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
         for {
           res <- underTest.getBlockByHeight(GetBlockByHeightRequest(ChainDistance(height)), new Metadata())
-          _ = assert(
-            res == BlockResponse(
-              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions))
-            )
-          )
+          _ = assert(res == BlockResponse(FullBlock(blockData.header, blockData.body)))
         } yield ()
       }
     }
@@ -153,12 +149,12 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   }
 
   test("getBlockByDepth: OK") {
-    PropF.forAllF { (depth: Long, blockHeader: BlockHeader, blockBody: BlockBody) =>
+    PropF.forAllF { (depth: Long, blockHeader: BlockHeader, blockBody: FullBlockBody) =>
       withMock {
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
         val underTest = new GrpcBlockService[F](blockFetcher)
 
-        val blockData = BlockData(blockHeader, blockBody, Seq.empty)
+        val blockData = BlockData(blockHeader, blockBody)
 
         (blockFetcher.fetchBlockByDepth _)
           .expects(depth)
@@ -168,9 +164,7 @@ class GrpcBlockServiceTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
         for {
           res <- underTest.getBlockByDepth(GetBlockByDepthRequest(ChainDistance(depth)), new Metadata())
           _ = assert(
-            res == BlockResponse(
-              FullBlock(blockData.header, fullBody = FullBlockBody(blockData.transactions))
-            )
+            res == BlockResponse(FullBlock(blockData.header, blockData.body))
           )
         } yield ()
       }

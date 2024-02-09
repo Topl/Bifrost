@@ -99,7 +99,7 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
     }
   }
 
-  test("validation should if a duplicate staking address is found") {
+  test("validation should fail if a duplicate staking address is found") {
     withMock {
       val parentBlockId = arbitraryBlockId.arbitrary.first
       val lock: Lock = Lock().withPredicate(Lock.Predicate())
@@ -131,6 +131,50 @@ class BodySemanticValidationSpec extends CatsEffectSuite with ScalaCheckEffectSu
         .returning(true.pure[F])
 
       val body = BlockBody(List(tx0.id))
+      for {
+        underTest <- BodySemanticValidation
+          .make[F](fetchTransaction, transactionSemanticValidation, registrationAccumulator)
+        result <- underTest.validate(StaticBodyValidationContext(parentBlockId, 5, 10))(body)
+        _      <- IO(result.isInvalid).assert
+      } yield ()
+    }
+  }
+
+  test("validation should fail if a the reward transaction does not spend the parent header ID") {
+    withMock {
+      val parentBlockId = arbitraryBlockId.arbitrary.first
+
+      val rewardTx = IoTransaction.defaultInstance
+        .withInputs(
+          List(
+            SpentTransactionOutput(
+              arbitraryTransactionOutputAddress.arbitrary.first,
+              arbitraryAttestation.arbitrary.first,
+              Value().withLvl(Value.LVL(100L))
+            )
+          )
+        )
+        .withOutputs(
+          List(
+            UnspentTransactionOutput(
+              arbitraryLockAddress.arbitrary.first,
+              Value().withLvl(Value.LVL(100L))
+            )
+          )
+        )
+        .embedId
+
+      val fetchTransaction = mockFunction[TransactionId, F[IoTransaction]]
+      val transactionSemanticValidation = mock[TransactionSemanticValidationAlgebra[F]]
+      val registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
+
+      fetchTransaction
+        .expects(rewardTx.id)
+        .once()
+        .returning(rewardTx.pure[F])
+
+      // Note: Body Syntax Validation would ordinarily prohibit the case of a reward transaction for an empty body
+      val body = BlockBody(Nil, rewardTx.id.some)
       for {
         underTest <- BodySemanticValidation
           .make[F](fetchTransaction, transactionSemanticValidation, registrationAccumulator)

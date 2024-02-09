@@ -2,11 +2,10 @@ package co.topl.genusLibrary.orientDb.instances
 
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models._
-import co.topl.genusLibrary.orientDb.schema.OIndexable.Instances._
 import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 import co.topl.codecs.bytes.typeclasses.ImmutableCodec
 import co.topl.genusLibrary.orientDb.schema.OTyped.Instances._
-import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genusLibrary.orientDb.schema.{GraphDataEncoder, OIndexable, VertexSchema}
 import com.google.protobuf.ByteString
 
 object SchemaBlockHeader {
@@ -34,6 +33,7 @@ object SchemaBlockHeader {
     val Size = "size"
     val Version = "version"
     val BlockHeaderIndex = "blockHeaderIndex"
+    val BlockHeaderHeightIndex = "blockHeaderHeightIndex"
   }
 
   private[genusLibrary] def size(blockHeader: BlockHeader): Long =
@@ -57,7 +57,8 @@ object SchemaBlockHeader {
       .withProperty(Field.Address,_.address.toByteArray,mandatory = true, readOnly = true, notNull = true)
       .withProperty(Field.Size, blockHeader => java.lang.Long.valueOf(size(blockHeader)) ,mandatory = true, readOnly = true, notNull = true)
       .withProperty(Field.Version, blockHeader => blockHeader.version.toByteArray ,mandatory = true, readOnly = true, notNull = true)
-      .withIndex[BlockHeader](Field.BlockHeaderIndex, Field.BlockId),
+      .withIndex[BlockHeader](Field.BlockHeaderIndex, Field.BlockId)(OIndexable.Instances.blockHeader)
+      .withIndex[BlockHeader](Field.BlockHeaderHeightIndex, Field.Height)(OIndexable.Instances.blockHeightHeader),
       // @formatter:on
     v =>
       BlockHeader(

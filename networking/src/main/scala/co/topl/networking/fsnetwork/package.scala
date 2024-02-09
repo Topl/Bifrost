@@ -1,27 +1,30 @@
 package co.topl.networking
 
-import cats.data.{NonEmptyChain, OptionT}
+import cats.data.{Chain, NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.implicits._
-import cats.{Applicative, Monad, MonadThrow, Show}
+import cats.{Applicative, Monad, MonadThrow}
 import co.topl.algebras.Store
-import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
+import co.topl.codecs.bytes.scodecs.valuetypes._
+import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models._
-import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
-import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
-import co.topl.networking.fsnetwork.ReputationAggregator.Message.PingPongMessagePing
+import co.topl.eventtree.EventSourcedState
+import co.topl.models.Bytes
+import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
+import scodec.Codec
+import scodec.codecs.{cstring, double, int32, vlong}
 
-import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
-import scala.util.Random
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 package object fsnetwork {
 
-  type HostId = RemoteAddress // IP address? IP address could be changed and bad for identify good peer
+  val hostIdBytesLen: Int = 32
+  case class HostId(id: Bytes) extends AnyVal
 
   type HostReputationValue =
     Double // will be more complex, to get high reputation host shall fulfill different criteria
@@ -30,20 +33,44 @@ package object fsnetwork {
   // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
   val chunkSize = 1
 
-  val requestCacheSize = 100
+  val requestCacheSize = 256
+  val slotIdResponseCacheSize = 256
 
-  val blockSourceCacheSize = 512
+  val blockSourceCacheSize = 1024
+
+  // requests in proxy shall be expired, there is no strict guarantee that we will receive responses
+  val proxyBlockDataTTL: FiniteDuration = 1.seconds
+  val proxySlotDataTTL: FiniteDuration = 30.seconds
+
+  type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
 
   implicit class CacheOps[K, V](cache: Cache[K, V]) {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
 
     def get(key: K): Option[V] = Option(cache.getIfPresent(key))
+
+    def getOrElse[B >: V](key: K, default: => V): V =
+      get(key).getOrElse(default)
   }
 
   implicit class StreamOps[T, F[_]: Async](stream: fs2.Stream[F, T]) {
 
     def evalDropWhile(p: T => F[Boolean]): fs2.Stream[F, T] =
       stream.evalMap(a => p(a).map(b => (b, a))).dropWhile(_._1).map(_._2)
+  }
+
+  implicit class NonEmptyChainFOps[T, F[_]: Async](seq: NonEmptyChain[T]) {
+
+    def dropWhileF(p: T => F[Boolean]): F[Chain[T]] = {
+      def go(rem: Chain[T]): F[Chain[T]] =
+        rem.uncons match {
+          case Some((a, tail)) =>
+            p(a).ifM(go(tail), rem.pure[F])
+          case None => Chain.empty[T].pure[F]
+        }
+
+      go(seq.toChain)
+    }
   }
 
   implicit class SeqFOps[T, F[_]: Async](seq: Seq[T]) {
@@ -67,34 +94,26 @@ package object fsnetwork {
         .toList
   }
 
-  // TODO move Show instances to separate file
-  implicit val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
-    Show.fromToString
+  def commonAncestor[F[_]: Async: Logger](
+    client:       BlockchainPeerClient[F],
+    blockHeights: BlockHeights[F],
+    localChain:   LocalChainAlgebra[F]
+  ): F[BlockId] =
+    client
+      .findCommonAncestor(
+        getLocalBlockIdAtHeight(localChain, blockHeights),
+        () => localChain.head.map(_.height)
+      )
 
-  implicit val showBodySyntaxError: Show[BodySyntaxError] =
-    Show.fromToString
-
-  implicit val showBodySemanticError: Show[BodySemanticError] =
-    Show.fromToString
-
-  implicit val showBodyAuthorizationError: Show[BodyAuthorizationError] =
-    Show.fromToString
-
-  implicit val showHeaderToBodyError: Show[BlockHeaderToBodyValidationFailure] =
-    Show.fromToString
-
-  implicit val showBodyValidationError: Show[BodyValidationError] =
-    Show.fromToString
-
-  implicit val showNoPongMessage: Show[NetworkQualityError] = {
-    case _: NoPongMessage.type        => "Failed to receive pong message"
-    case _: IncorrectPongMessage.type => "Receive incorrect pong message"
-  }
-
-  implicit val showPongMessage: Show[PingPongMessagePing] = {
-    case PingPongMessagePing(host, Right(delay))       => show"Received pong delay $delay from host $host"
-    case PingPongMessagePing(host, Left(networkError)) => show"$networkError from host $host"
-  }
+  private def getLocalBlockIdAtHeight[F[_]: Async](
+    localChain:   LocalChainAlgebra[F],
+    blockHeights: BlockHeights[F]
+  )(height: Long): F[BlockId] =
+    OptionT(
+      localChain.head
+        .map(_.slotId.blockId)
+        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
+    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
 
   /**
    * Get some T from chain until reach terminateOn condition, f.e.
@@ -105,25 +124,25 @@ package object fsnetwork {
    * @param getSlotDataFromT define how slot data could be obtained for T
    * @param getT define how T could be get by Id
    * @param terminateOn terminate condition
-   * @param from start point to process chain
+   * @param last start point to process chain
    * @tparam F effect
    * @tparam T type of data retrieved from chain
    * @return chain with data T
    */
-  def getFromChainUntil[F[_]: Monad, T](
+  def prependOnChainUntil[F[_]: Monad, T](
     getSlotDataFromT: T => F[SlotData],
     getT:             BlockId => F[T],
     terminateOn:      T => F[Boolean]
-  )(from: BlockId): F[List[T]] = {
-    def iteration(acc: List[T], blockId: BlockId): F[List[T]] =
+  )(last: BlockId): F[List[T]] = {
+    def iteration(acc: Chain[T], blockId: BlockId): F[Chain[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
           acc.pure[F],
-          getSlotDataFromT(t).flatMap(slotData => iteration(acc.appended(t), slotData.parentSlotId.blockId))
+          getSlotDataFromT(t).flatMap(slotData => iteration(acc.append(t), slotData.parentSlotId.blockId))
         )
       }
 
-    iteration(List.empty[T], from).map(_.reverse)
+    iteration(Chain.empty[T], last).map(_.toList.reverse)
   }
 
   /**
@@ -143,7 +162,7 @@ package object fsnetwork {
     size:      Int
   ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
+      prependOnChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )
@@ -162,62 +181,24 @@ package object fsnetwork {
     downloadTimeTxMs: Seq[Long] = Seq.empty
   )
 
-  case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: FiniteDuration) {
+  case class RemotePeer(
+    peerId:  HostId,
+    address: RemoteAddress
+  )
 
-    /**
-     * Block providing novelty reputation if new unknown block is received in current slot.
-     * Shall be always equal one.
-     */
-    val blockNoveltyInitialValue: Double = 1
+  case class KnownRemotePeer(
+    peerId:              HostId,
+    address:             RemoteAddress,
+    blockReputation:     HostReputationValue,
+    perfReputation:      HostReputationValue,
+    lastOpenedTimestamp: Option[Long]
+  )
 
-    /**
-     * Reducing block novelty reputation for each already known source, i.e:
-     * blockNoveltyReputation = 1 - knewSourceForThatBlockId * blockNoveltyReputationStep
-     */
-    val blockNoveltyReputationStep: Double = 0.2
+  private val hostIdCodec: Codec[HostId] = byteStringCodec.as[HostId]
+  private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
 
-    /**
-     * Block novelty reputation shall be reducing every slot by X number.
-     * If we have reputation of "blockNoveltyInitialValue" then after "expectedSlotsPerBlock" slots that
-     * reputation shall be equal to "blockNoveltyInitialValue" - "blockNoveltyReputationStep".
-     * Thus we need such X number where:
-     *  pow(X, expectedSlotsPerBlock - 1) == "blockNoveltyInitialValue" - blockNoveltyReputationStep,
-     * then:
-     *  X = root of (1 - blockNoveltyReputationStep) with index (expectedSlotsPerBlock - 1)
-     */
-    val blockNoveltyDecoy: Double =
-      Math.pow(blockNoveltyInitialValue - blockNoveltyReputationStep, 1 / (networkProperties.expectedSlotsPerBlock - 1))
-
-    /**
-     * Maximum possible performance reputation, i.e. reputation for host with delay in 0 ms
-     */
-    val performanceReputationInitialValue: Double = 1
-
-    /**
-     * Any remote peer with "ping" equal or more than performanceReputationMaxDelay will have 0 performance reputation
-     */
-    val performanceReputationMaxDelay: Double = slotDuration.toMillis * networkProperties.maxPerformanceDelayInSlots
-
-    /**
-     * New remote peer will not be closed during "remotePeerNoveltyInSlots" slots even if reputation is low.
-     * It gives a chance to build-up reputation for remote peer
-     */
-    val remotePeerNoveltyInSlots: Long =
-      Math.ceil(networkProperties.expectedSlotsPerBlock * networkProperties.remotePeerNoveltyInExpectedBlocks).toLong
-
-    /**
-     * How often we update our list of warm hosts
-     */
-    val warmHostsUpdateInterval: FiniteDuration =
-      FiniteDuration(Math.round(networkProperties.warmHostsUpdateEveryNBlock * slotDuration.toMillis), MILLISECONDS)
-  }
-
-  trait ColdToWarmSelector {
-    def select(coldHosts: Set[HostId], countToReceive: Int): Set[HostId]
-  }
-
-  val RandomColdToWarmSelector: ColdToWarmSelector =
-    (coldHosts: Set[HostId], countToReceive: Int) => Random.shuffle(coldHosts).take(countToReceive)
+  implicit val peerToAddCodec: Codec[KnownRemotePeer] =
+    (hostIdCodec :: remoteAddressCodec :: double :: double :: optionCodec[Long](vlong)).as[KnownRemotePeer]
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
 

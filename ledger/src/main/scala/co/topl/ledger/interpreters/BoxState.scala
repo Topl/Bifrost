@@ -35,7 +35,7 @@ object BoxState {
     parentChildTree:     ParentChildTree[F, BlockId],
     currentEventChanged: BlockId => F[Unit],
     initialState:        F[State[F]]
-  ): F[BoxStateAlgebra[F]] =
+  ): F[(BoxStateAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
       eventSourcedState <- EventSourcedState.OfTree.make[F, State[F], BlockId](
         initialState,
@@ -45,13 +45,14 @@ object BoxState {
         parentChildTree,
         currentEventChanged
       )
-    } yield new BoxStateAlgebra[F] {
+      interpreter = new BoxStateAlgebra[F] {
 
-      def boxExistsAt(blockId: BlockId)(boxId: TransactionOutputAddress): F[Boolean] =
-        eventSourcedState
-          .useStateAt(blockId)(_.get(boxId.id))
-          .map(_.exists(_.contains(boxId.index.toShort)))
-    }
+        def boxExistsAt(blockId: BlockId)(boxId: TransactionOutputAddress): F[Boolean] =
+          eventSourcedState
+            .useStateAt(blockId)(_.get(boxId.id))
+            .map(_.exists(_.contains(boxId.index.toShort)))
+      }
+    } yield (interpreter, eventSourcedState)
 
   /**
    * Apply the given block to the state.
@@ -65,26 +66,29 @@ object BoxState {
     fetchTransaction: TransactionId => F[IoTransaction]
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
-      transactions <- body.traverse(fetchTransaction)
-      _ <- transactions.traverse(transaction =>
-        transaction.inputs.traverse { input =>
-          val txId = input.address.id
-          state
-            .getOrRaise(txId)
-            .flatMap(unspentIndices =>
-              OptionT
-                .fromOption[F](
-                  NonEmptySet.fromSet(unspentIndices - input.address.index.toShort)
-                )
-                .foldF(state.remove(txId))(state.put(txId, _))
+      body <- fetchBlockBody(blockId)
+      _ <- body.transactionIds.traverse(transactionId =>
+        fetchTransaction(transactionId).flatMap(transaction =>
+          transaction.inputs.traverse { input =>
+            val txId = input.address.id
+            state
+              .getOrRaise(txId)
+              .flatMap(unspentIndices =>
+                OptionT
+                  .fromOption[F](
+                    NonEmptySet.fromSet(unspentIndices - input.address.index.toShort)
+                  )
+                  .foldF(state.remove(txId))(state.put(txId, _))
+              )
+          } >> OptionT
+            .fromOption[F](
+              NonEmptySet.fromSet(SortedSet.from(transaction.outputs.indices.map(_.toShort)))
             )
-        } >> OptionT
-          .fromOption[F](
-            NonEmptySet.fromSet(SortedSet.from(transaction.outputs.void.zipWithIndex.map(_._2.toShort)))
-          )
-          .foldF(Applicative[F].unit)(state.put(transaction.id, _))
+            .foldF(Applicative[F].unit)(state.put(transaction.id, _))
+        )
       )
+      // The reward transaction should have exactly one spendable output
+      _ <- body.rewardTransactionId.traverse(state.put(_, NonEmptySet.one(0: Short)))
     } yield state
 
   /**
@@ -99,18 +103,20 @@ object BoxState {
     fetchTransaction: TransactionId => F[IoTransaction]
   )(state: State[F], blockId: BlockId): F[State[F]] =
     for {
-      body         <- fetchBlockBody(blockId).map(_.transactionIds.toList)
-      transactions <- body.traverse(fetchTransaction)
-      _ <- transactions.traverse(transaction =>
-        state.remove(transaction.id) >>
-        transaction.inputs.traverse { input =>
-          val txId = input.address.id
-          OptionT(state.get(txId))
-            .fold(NonEmptySet.one(input.address.index.toShort))(
-              _.add(input.address.index.toShort)
-            )
-            .flatMap(state.put(txId, _))
-        }
+      body <- fetchBlockBody(blockId)
+      _ <- body.transactionIds.traverse(transaction =>
+        fetchTransaction(transaction).flatMap(transaction =>
+          state.remove(transaction.id) >>
+          transaction.inputs.traverse { input =>
+            val txId = input.address.id
+            OptionT(state.get(txId))
+              .fold(NonEmptySet.one(input.address.index.toShort))(
+                _.add(input.address.index.toShort)
+              )
+              .flatMap(state.put(txId, _))
+          }
+        )
       )
+      _ <- body.rewardTransactionId.traverse(state.remove)
     } yield state
 }

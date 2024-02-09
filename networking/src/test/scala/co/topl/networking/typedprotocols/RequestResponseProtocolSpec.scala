@@ -2,70 +2,61 @@ package co.topl.networking.typedprotocols
 
 import cats.Applicative
 import cats.effect.{Deferred, IO}
-import cats.effect.unsafe.implicits.global
 import cats.implicits._
+import co.topl.algebras.testInterpreters.NoOpLogger
 import co.topl.networking.{NetworkTypeTag, Parties}
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{BeforeAndAfterAll, EitherValues, OptionValues}
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalamock.munit.AsyncMockFactory
+import org.typelevel.log4cats.Logger
 
-class RequestResponseProtocolSpec
-    extends AnyFlatSpec
-    with BeforeAndAfterAll
-    with MockFactory
-    with Matchers
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks
-    with EitherValues
-    with OptionValues {
+class RequestResponseProtocolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   import RequestResponseProtocolSpec._
 
   type F[A] = IO[A]
 
-  behavior of "RequestResponseProtocol"
+  implicit private val logger: Logger[F] = new NoOpLogger[F]
 
-  it should "run messages" in {
-    val handlerF = mockFunction[String, F[Unit]]
-    val instance = {
-      val transitions = {
-        val protocol = new RequestResponseProtocol[String, Int] {}
-        new protocol.ServerStateTransitions[F](handlerF)
+  test("run messages") {
+    withMock {
+      val handlerF = mockFunction[String, F[Unit]]
+      val instance = {
+        val transitions = {
+          val protocol = new RequestResponseProtocol[String, Int] {}
+          new protocol.ServerStateTransitions[F](handlerF)
+        }
+        import transitions._
+        TypedProtocolInstance(Parties.A)
+          .withTransition(startNoneIdle)
+          .withTransition(getIdleBusy)
+          .withTransition(responseBusyIdle)
+          .withTransition(doneIdleDone)
       }
-      import transitions._
-      TypedProtocolInstance(Parties.A)
-        .withTransition(startNoneIdle)
-        .withTransition(getIdleBusy)
-        .withTransition(responseBusyIdle)
-        .withTransition(doneIdleDone)
+
+      instance
+        .applier(TypedProtocol.CommonStates.None)(_ => Applicative[F].unit)
+        .use { applier =>
+          for {
+            _ <- applier(TypedProtocol.CommonMessages.Start, Parties.A)
+
+            d1 <- Deferred[F, Unit]
+            _ = handlerF.expects(*).once().returning(d1.complete(()).void)
+            _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B)
+            _ <- d1.get
+
+            _ = handlerF.expects(*).never()
+            _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A)
+
+            d2 <- Deferred[F, Unit]
+            _ = handlerF.expects(*).once().returning(d2.complete(()).void)
+            _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B)
+            _ <- d2.get
+
+            _ = handlerF.expects(*).never()
+            _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A)
+            _ <- applier(TypedProtocol.CommonMessages.Done, Parties.B)
+          } yield ()
+        }
     }
-
-    instance
-      .applier(TypedProtocol.CommonStates.None)(_ => Applicative[F].unit)
-      .use { applier =>
-        for {
-          _ <- applier(TypedProtocol.CommonMessages.Start, Parties.A)
-
-          d1 <- Deferred[F, Unit]
-          _ = handlerF.expects(*).once().returning(d1.complete(()).void)
-          _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B)
-          _ <- d1.get
-
-          _ = handlerF.expects(*).never()
-          _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A)
-
-          d2 <- Deferred[F, Unit]
-          _ = handlerF.expects(*).once().returning(d2.complete(()).void)
-          _ <- applier(TypedProtocol.CommonMessages.Get("foo"), Parties.B)
-          _ <- d2.get
-
-          _ = handlerF.expects(*).never()
-          _ <- applier(TypedProtocol.CommonMessages.Response(none[Int]), Parties.A)
-          _ <- applier(TypedProtocol.CommonMessages.Done, Parties.B)
-        } yield ()
-      }
-      .unsafeRunSync()
   }
 
 }

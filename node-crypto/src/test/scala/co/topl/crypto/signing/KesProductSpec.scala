@@ -1,22 +1,25 @@
 package co.topl.crypto.signing
 
+import cats.effect.IO
+import cats.implicits._
 import co.topl.crypto.models._
 import co.topl.crypto.utils.Generators._
 import co.topl.crypto.utils.Hex.implicits._
 import co.topl.crypto.utils.KesTestHelper
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
+import org.scalacheck.effect.PropF
 
-class KesProductSpec
-    extends AnyFlatSpec
-    with ScalaCheckPropertyChecks
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers {
+class KesProductSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
 
-  "KesProduct" should "verify a message signed with the appropriate public key" in {
-    forAll(
+  type F[A] = IO[A]
+
+  override def scalaCheckTestParameters =
+    super.scalaCheckTestParameters
+      .withMinSuccessfulTests(10)
+
+  test("verify a message signed with the appropriate public key") {
+    PropF.forAllF(
       genRandomlySizedByteArray,
       genRandomlySizedByteArray,
       genRandomlySizedByteArray,
@@ -32,43 +35,33 @@ class KesProductSpec
         supHeight: Int,
         subHeight: Int
       ) =>
-        whenever(!(seed1 sameElements seed2) && !(message1 sameElements message2)) {
+        if (!(seed1 sameElements seed2) && !(message1 sameElements message2)) {
           val kesProduct = new KesProduct
           val (sk1, vk1) = kesProduct.createKeyPair(seed1, (supHeight, subHeight), 0)
           val (_, vk2) = kesProduct.createKeyPair(seed2, (supHeight, subHeight), 0)
           val sig = kesProduct.sign(sk1, message1)
 
-          kesProduct.verify(
-            sig,
-            message1,
-            vk1
-          ) shouldBe true
-          kesProduct.verify(
-            sig,
-            message1,
-            vk2
-          ) shouldBe false
-          kesProduct.verify(
-            sig,
-            message2,
-            vk1
-          ) shouldBe false
-        }
+          (
+            kesProduct.verify(sig, message1, vk1) &&
+            !kesProduct.verify(sig, message1, vk2) &&
+            !kesProduct.verify(sig, message2, vk1)
+          ).pure[F].assert
+        } else ().pure[F]
     }
   }
 
-  it should "generate identical keypairs given the same seed" in {
-    forAll(genByteArrayWithBoundedSize(1, 1024), Gen.choose(1, 12), Gen.choose(1, 12)) {
+  test("generate identical keypairs given the same seed") {
+    PropF.forAllF(genByteArrayWithBoundedSize(1, 1024), Gen.choose(1, 12), Gen.choose(1, 12)) {
       (seedBytes, supHeight: Int, subHeight: Int) =>
         val kesProduct = new KesProduct
         val (_, vk1) = kesProduct.createKeyPair(Array.from(seedBytes), (supHeight, subHeight), 0)
         val (_, vk2) = kesProduct.createKeyPair(Array.from(seedBytes), (supHeight, subHeight), 0)
 
-        vk1 shouldBe vk2
+        vk1.pure[F].assertEquals(vk2)
     }
   }
 
-  it should "test private key 1 - generate the correct private key at a given time step" in {
+  test("test private key 1 - generate the correct private key at a given time step") {
     val kesProduct = new KesProduct()
     val specIn_seed = "38c2775bc7e6866e69c6acd5e12ee366fd57f7df1b30e200cae610ec4ecf378c".hexStringToBytes
     val specIn_height = (1, 2)
@@ -123,11 +116,13 @@ class KesProductSpec
     )
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed.toArray, specIn_height, 0)
     val sk_t = kesProduct.update(sk, 6)
-    vk shouldBe specOut_vk
-    KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
+    (
+      vk == specOut_vk &&
+      KesTestHelper.areEqual(sk_t, specOut_sk)
+    ).pure[F].assert
   }
 
-  it should "test private key 2 - generate the correct private key at a given time step" in {
+  test("test private key 2 - generate the correct private key at a given time step") {
     val kesProduct = new KesProduct()
     val specIn_seed = "768f9760f74bab4f56fa46b7030525f227368d553c1b6de57026b675bdd6295a".hexStringToBytes.toArray
     val specIn_height = (4, 4)
@@ -225,11 +220,13 @@ class KesProductSpec
     )
     val (sk, vk) = kesProduct.createKeyPair(specIn_seed, specIn_height, 0)
     val sk_t = kesProduct.update(sk, 85)
-    vk shouldBe specOut_vk
-    KesTestHelper.areEqual(sk_t, specOut_sk) shouldBe true
+    vk.pure[F].assertEquals(specOut_vk) >>
+    KesTestHelper.areEqual(sk_t, specOut_sk).pure[F].assert
   }
 
-  it should "Test Vector - 1 - Generate and verify a specified product composition signature at t = [0, 1, 2, 3] using a provided seed, message, and heights of the two trees" in {
+  test(
+    "Test Vector - 1 - Generate and verify a specified product composition signature at t = [0, 1, 2, 3] using a provided seed, message, and heights of the two trees"
+  ) {
     val kesProduct = new KesProduct()
     val specIn_seed = "2a6367c85f416ccef46a4521004228f74f24f7b0770ecced07c0dc035135bf6f".hexStringToBytes
     val specIn_height = (1, 1)
@@ -333,34 +330,22 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(
-      sig_0,
-      specIn_msg,
-      vk
-    ) shouldBe true
-    kesProduct.verify(
-      sig_1,
-      specIn_msg,
-      vk_1
-    ) shouldBe true
-    kesProduct.verify(
-      sig_2,
-      specIn_msg,
-      vk_2
-    ) shouldBe true
-    kesProduct.verify(
-      sig_3,
-      specIn_msg,
-      vk_3
-    ) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesProduct.verify(sig_0, specIn_msg, vk) &&
+      kesProduct.verify(sig_1, specIn_msg, vk_1) &&
+      kesProduct.verify(sig_2, specIn_msg, vk_2) &&
+      kesProduct.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 2 - Generate and verify a specified product composition signature at t = [0, 2, 4, 6] using a provided seed, message, and heights of the two trees" in {
+  test(
+    "Test Vector - 2 - Generate and verify a specified product composition signature at t = [0, 2, 4, 6] using a provided seed, message, and heights of the two trees"
+  ) {
     val kesProduct = new KesProduct()
     val specIn_seed = "38c2775bc7e6866e69c6acd5e12ee366fd57f7df1b30e200cae610ec4ecf378c".hexStringToBytes.toArray
     val specIn_height = (1, 2)
@@ -476,34 +461,22 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(
-      sig_0,
-      specIn_msg,
-      vk
-    ) shouldBe true
-    kesProduct.verify(
-      sig_1,
-      specIn_msg,
-      vk_1
-    ) shouldBe true
-    kesProduct.verify(
-      sig_2,
-      specIn_msg,
-      vk_2
-    ) shouldBe true
-    kesProduct.verify(
-      sig_3,
-      specIn_msg,
-      vk_3
-    ) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesProduct.verify(sig_0, specIn_msg, vk) &&
+      kesProduct.verify(sig_1, specIn_msg, vk_1) &&
+      kesProduct.verify(sig_2, specIn_msg, vk_2) &&
+      kesProduct.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 3 - Generate and verify a specified product composition signature at t = [1, 3, 5, 7] using a provided seed, message, and heights of the two trees" in {
+  test(
+    "Test Vector - 3 - Generate and verify a specified product composition signature at t = [1, 3, 5, 7] using a provided seed, message, and heights of the two trees"
+  ) {
     val kesProduct = new KesProduct()
     val specIn_seed = "450daa6ca8aefdba78c142a659c438d1347e76e11e665237c9aae429f175789f".hexStringToBytes.toArray
     val specIn_height = (2, 1)
@@ -622,34 +595,22 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(
-      sig_0,
-      specIn_msg,
-      vk_0
-    ) shouldBe true
-    kesProduct.verify(
-      sig_1,
-      specIn_msg,
-      vk_1
-    ) shouldBe true
-    kesProduct.verify(
-      sig_2,
-      specIn_msg,
-      vk_2
-    ) shouldBe true
-    kesProduct.verify(
-      sig_3,
-      specIn_msg,
-      vk_3
-    ) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesProduct.verify(sig_0, specIn_msg, vk_0) &&
+      kesProduct.verify(sig_1, specIn_msg, vk_1) &&
+      kesProduct.verify(sig_2, specIn_msg, vk_2) &&
+      kesProduct.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 4 - Generate and verify a specified product composition signature at t = [0, 5, 10, 15] using a provided seed, message, and heights of the two trees" in {
+  test(
+    "Test Vector - 4 - Generate and verify a specified product composition signature at t = [0, 5, 10, 15] using a provided seed, message, and heights of the two trees"
+  ) {
     val kesProduct = new KesProduct()
     val specIn_seed = "cbf5a7f7f8b807b5bc588b3c54e46fb20b680325890aa85c44ee360f99a0c483".hexStringToBytes.toArray
     val specIn_height = (2, 2)
@@ -769,34 +730,22 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(
-      sig_0,
-      specIn_msg,
-      vk
-    ) shouldBe true
-    kesProduct.verify(
-      sig_1,
-      specIn_msg,
-      vk_1
-    ) shouldBe true
-    kesProduct.verify(
-      sig_2,
-      specIn_msg,
-      vk_2
-    ) shouldBe true
-    kesProduct.verify(
-      sig_3,
-      specIn_msg,
-      vk_3
-    ) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesProduct.verify(sig_0, specIn_msg, vk) &&
+      kesProduct.verify(sig_1, specIn_msg, vk_1) &&
+      kesProduct.verify(sig_2, specIn_msg, vk_2) &&
+      kesProduct.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 
-  it should "Test Vector - 5 - Generate and verify a specified product composition signature at t = [0, 21, 42, 63] using a provided seed, message, and heights of the two trees" in {
+  test(
+    "Test Vector - 5 - Generate and verify a specified product composition signature at t = [0, 21, 42, 63] using a provided seed, message, and heights of the two trees"
+  ) {
     val kesProduct = new KesProduct()
     val specIn_seed = "50c3e574fa16956b384f9c46ecf976a0eb42fd82b9e8be381d5a24b3697d9e6d".hexStringToBytes.toArray
     val specIn_height = (3, 3)
@@ -924,30 +873,16 @@ class KesProductSpec
     val vk_3 = kesProduct.getVerificationKey(sk_3)
     val sig_3 = kesProduct.sign(sk_3, specIn_msg)
 
-    vk shouldBe specOut_vk
-    sig_0 shouldBe specOut_sig_0
-    sig_1 shouldBe specOut_sig_1
-    sig_2 shouldBe specOut_sig_2
-    sig_3 shouldBe specOut_sig_3
-    kesProduct.verify(
-      sig_0,
-      specIn_msg,
-      vk
-    ) shouldBe true
-    kesProduct.verify(
-      sig_1,
-      specIn_msg,
-      vk_1
-    ) shouldBe true
-    kesProduct.verify(
-      sig_2,
-      specIn_msg,
-      vk_2
-    ) shouldBe true
-    kesProduct.verify(
-      sig_3,
-      specIn_msg,
-      vk_3
-    ) shouldBe true
+    (
+      vk == specOut_vk &&
+      sig_0 == specOut_sig_0 &&
+      sig_1 == specOut_sig_1 &&
+      sig_2 == specOut_sig_2 &&
+      sig_3 == specOut_sig_3 &&
+      kesProduct.verify(sig_0, specIn_msg, vk) &&
+      kesProduct.verify(sig_1, specIn_msg, vk_1) &&
+      kesProduct.verify(sig_2, specIn_msg, vk_2) &&
+      kesProduct.verify(sig_3, specIn_msg, vk_3)
+    ).pure[F].assert
   }
 }

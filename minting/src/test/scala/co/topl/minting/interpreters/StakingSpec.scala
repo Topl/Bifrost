@@ -1,16 +1,12 @@
 package co.topl.minting.interpreters
 
 import cats.Monad
-import cats.effect.IO
+import cats.effect._
 import cats.effect.IO.asyncForIO
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
-import co.topl.consensus.algebras.{
-  ConsensusValidationStateAlgebra,
-  EtaCalculationAlgebra,
-  LeaderElectionValidationAlgebra
-}
-import co.topl.consensus.models.{EligibilityCertificate, SlotId, _}
+import co.topl.brambl.models.{LockAddress, LockId}
+import co.topl.consensus.algebras._
+import co.topl.consensus.models._
 import co.topl.consensus.thresholdEvidence
 import co.topl.crypto.hash.Blake2b256
 import co.topl.minting.algebras.{OperationalKeyMakerAlgebra, VrfCalculatorAlgebra}
@@ -25,6 +21,7 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import scodec.bits._
+import co.topl.models.ModelGenerators.GenHelper
 
 class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -37,6 +34,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
         val eta = Sized.strictUnsafe(ByteString.copyFrom(Array.fill[Byte](32)(0))): Eta
         val relativeStake = Ratio.One
         val address = StakingAddress(ByteString.copyFrom(Array.fill[Byte](32)(0)))
+        val rewardAddress = LockAddress(0, 0, LockId(ByteString.copyFrom(Array.fill[Byte](32)(0))))
 
         val vkVrf = ByteString.copyFrom(Array.fill[Byte](32)(0))
         val proof = ByteString.copyFrom(
@@ -90,14 +88,13 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           staking <- Staking
             .make[F](
               a = address,
+              rewardAddress = rewardAddress,
               vkVrf,
               operationalKeyMaker = null,
               consensusState,
               etaCalculation,
               ed25519Resource = null,
-              blake2b256Resource = new UnsafeResource[F, Blake2b256] {
-                def use[Res](f: Blake2b256 => F[Res]): F[Res] = f(new Blake2b256)
-              },
+              blake2b256Resource = Resource.pure(new Blake2b256),
               vrfCalculator,
               leaderElectionValidation,
               ProtocolVersion(0, 0, 1)
@@ -126,8 +123,9 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
     PropF.forAllF { (parentSlotId: SlotId, slot: Slot) =>
       withMock {
         val operationalKeyMaker = mock[OperationalKeyMakerAlgebra[F]]
+        val eta = etaGen.first
         (operationalKeyMaker.operationalKeyForSlot _)
-          .expects(slot, parentSlotId)
+          .expects(slot, parentSlotId, eta)
           .once()
           .returning(Option.empty[OperationalKeyOut].pure[F])
 
@@ -135,6 +133,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           staking <- Staking
             .make[F](
               a = null,
+              rewardAddress = null,
               vkVrf = null,
               operationalKeyMaker,
               consensusState = null,
@@ -147,7 +146,7 @@ class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
             )
 
           _ <- staking
-            .certifyBlock(parentSlotId, slot, _ => throw new NotImplementedError("unsignedBlockBuilder"))
+            .certifyBlock(parentSlotId, slot, _ => throw new NotImplementedError("unsignedBlockBuilder"), eta)
             .assertEquals(None)
             .toResource
         } yield ()

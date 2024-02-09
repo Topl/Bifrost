@@ -1,45 +1,58 @@
 package co.topl.algebras
 
-import cats._
 import cats.implicits._
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.EitherValues
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import ClockAlgebra.implicits._
+import cats.effect.IO
+import co.topl.models.{Epoch, Slot}
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalamock.munit.AsyncMockFactory
 
-class ClockAlgebraOpsSpec
-    extends AnyFlatSpec
-    with ScalaCheckDrivenPropertyChecks
-    with Matchers
-    with MockFactory
-    with EitherValues {
+class ClockAlgebraOpsSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
-  type F[A] = Id[A]
+  type F[A] = IO[A]
 
-  behavior of "ClockAlgebra.ClockOps"
+  test("calculate the epoch of a slot") {
+    withMock {
+      val clock = mock[ClockAlgebra[F]]
+      (() => clock.slotsPerEpoch)
+        .expects()
+        .anyNumberOfTimes()
+        .returning(500L.pure[F])
 
-  it should "calculate the epoch of a slot" in {
-    val clock = mock[ClockAlgebra[F]]
-    (() => clock.slotsPerEpoch)
-      .expects()
-      .once()
-      .returning(500L.pure[F])
-
-    clock.epochOf(500L) shouldBe 1L
+      clock.epochOf(0L).assertEquals(-1L) >>
+      clock.epochOf(1L).assertEquals(0L) >>
+      clock.epochOf(500L).assertEquals(0L) >>
+      clock.epochOf(499L).assertEquals(0L) >>
+      clock.epochOf(501L).assertEquals(1L) >>
+      clock.epochOf(1000L).assertEquals(1L) >>
+      clock.epochOf(1001L).assertEquals(2L) >>
+      clock.epochOf(1500L).assertEquals(2L) >>
+      clock.epochOf(1500L).assertEquals(2L)
+      clock.epochOf(1501L).assertEquals(3L)
+    }
   }
 
-  it should "calculate the epoch boundary" in {
-    val clock = mock[ClockAlgebra[F]]
-    (() => clock.slotsPerEpoch)
-      .expects()
-      .once()
-      .returning(500L.pure[F])
+  test("calculate the epoch boundary") {
+    withMock {
+      val clock = mock[ClockAlgebra[F]]
+      (() => clock.slotsPerEpoch)
+        .expects()
+        .anyNumberOfTimes()
+        .returning(500L.pure[F])
 
-    val boundary = clock.epochRange(3)
+      def check(epoch: Epoch)(expectedStart: Slot, expectedEnd: Slot) =
+        clock
+          .epochRange(epoch)
+          .flatMap(boundary =>
+            boundary.start.pure[F].assertEquals(expectedStart) *> boundary.end.pure[F].assertEquals(expectedEnd)
+          )
 
-    boundary.start shouldBe 1500L
-    boundary.end shouldBe 1999L
+      check(-2)(-1, -1) *>
+      check(-1)(0, 0) *>
+      check(0)(1, 500) *>
+      check(1)(501, 1000) *>
+      check(2)(1001, 1500) *>
+      check(3)(1501, 2000)
+    }
   }
 }

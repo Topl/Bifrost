@@ -20,6 +20,7 @@ object SchemaIoTransaction {
     val Transaction = "transaction"
     val Size = "size"
     val TransactionIndex = "transactionIdIndex"
+    val IsReward = "isReward"
   }
 
   private[genusLibrary] def size(ioTransaction: IoTransaction): Long =
@@ -43,6 +44,13 @@ object SchemaIoTransaction {
           ioTransaction => java.lang.Long.valueOf(size(ioTransaction)),
           mandatory = true,
           readOnly = true,
+          notNull = true
+        )
+        .withProperty(
+          Field.IsReward,
+          _ => java.lang.Boolean.valueOf(false),
+          mandatory = false,
+          readOnly = false,
           notNull = true
         )
         .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)

@@ -1,12 +1,11 @@
 package co.topl.networking.fsnetwork
 
-import cats.effect.IO
+import cats.effect.{IO, Sync}
 import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.networking.fsnetwork.NotifierTest.{defaultP2PConfig, F}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
-import co.topl.networking.fsnetwork.ReputationAggregator.ReputationAggregatorActor
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -19,7 +18,15 @@ object NotifierTest {
   val defaultSlotDuration: FiniteDuration = FiniteDuration(10, MILLISECONDS)
 
   val defaultP2PConfig: P2PNetworkConfig =
-    P2PNetworkConfig(NetworkProperties(pingPongInterval = FiniteDuration(50, MILLISECONDS)), defaultSlotDuration)
+    P2PNetworkConfig(
+      NetworkProperties(
+        pingPongInterval = FiniteDuration(20, MILLISECONDS),
+        p2pTrackInterval = FiniteDuration(20, MILLISECONDS),
+        warmHostsUpdateEveryNBlock = 0.01,
+        aggressiveP2P = true
+      ),
+      defaultSlotDuration
+    )
 }
 
 class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
@@ -32,31 +39,122 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
         .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
         .atLeastOnce()
         .returns(().pure[F])
-
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.ReputationUpdateTick)
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.PrintP2PState)
         .atLeastOnce()
         .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.UpdateWarmHosts)
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.UpdatedReputationTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.UpdatePeersTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.AggressiveP2PUpdate)
         .atLeastOnce()
         .returns(().pure[F])
 
       val delay =
-        Math.max(
-          Math.max(defaultP2PConfig.slotDuration.toMillis, defaultP2PConfig.warmHostsUpdateInterval.toMillis),
-          defaultP2PConfig.networkProperties.pingPongInterval.toMillis
-        )
+        Seq(
+          defaultP2PConfig.slotDuration.toMillis,
+          defaultP2PConfig.peersUpdateInterval.toMillis,
+          defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
+          defaultP2PConfig.networkProperties.p2pTrackInterval.toMillis,
+          defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
+        ).max
 
       Notifier
-        .makeActor(peersManager, reputationAggregator, defaultP2PConfig)
+        .makeActor(peersManager, defaultP2PConfig)
         .use { actor =>
           for {
             state <- actor.send(Notifier.Message.StartNotifications)
-            _ = assert(state.warmHostsUpdateFiber.isDefined)
+            _ = assert(state.peersUpdateFiber.isDefined)
             _ = assert(state.networkQualityFiber.isDefined)
             _ = assert(state.slotNotificationFiber.isDefined)
+            _ = assert(state.commonAncestorFiber.isDefined)
+            _ = assert(state.aggressiveP2PFiber.isDefined)
+            _ <- Async[F].delayBy(().pure[F], FiniteDuration(delay, MILLISECONDS))
+          } yield ()
+        }
+    }
+  }
+
+  test("Notifier shall correctly started and doesn't send all notifications if configuration is wrong") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val config: P2PNetworkConfig =
+        P2PNetworkConfig(
+          NetworkProperties(
+            pingPongInterval = FiniteDuration(0, MILLISECONDS),
+            p2pTrackInterval = FiniteDuration(0, MILLISECONDS),
+            warmHostsUpdateEveryNBlock = 0,
+            aggressiveP2P = true
+          ),
+          FiniteDuration(0, MILLISECONDS)
+        )
+      Notifier
+        .makeActor(peersManager, config)
+        .use { actor =>
+          for {
+            state <- actor.send(Notifier.Message.StartNotifications)
+            _ = assert(state.peersUpdateFiber.isEmpty)
+            _ = assert(state.networkQualityFiber.isEmpty)
+            _ = assert(state.slotNotificationFiber.isEmpty)
+            _ = assert(state.commonAncestorFiber.isEmpty)
+            _ = assert(state.aggressiveP2PFiber.isEmpty)
+            _ <- Async[F].delayBy(().pure[F], FiniteDuration(100, MILLISECONDS))
+          } yield ()
+        }
+    }
+  }
+
+  test("Notifier shall not start aggressiveP2P if it is disabled ") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.PrintP2PState)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.UpdatedReputationTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.UpdatePeersTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.AggressiveP2PUpdate)
+        .never()
+        .returns(().pure[F])
+
+      val delay =
+        Seq(
+          defaultP2PConfig.slotDuration.toMillis,
+          defaultP2PConfig.peersUpdateInterval.toMillis,
+          defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
+          defaultP2PConfig.networkProperties.p2pTrackInterval.toMillis,
+          defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
+        ).max
+
+      val netProp = defaultP2PConfig.networkProperties.copy(aggressiveP2P = false)
+      Notifier
+        .makeActor(peersManager, defaultP2PConfig.copy(networkProperties = netProp))
+        .use { actor =>
+          for {
+            state <- actor.send(Notifier.Message.StartNotifications)
+            _ = assert(state.peersUpdateFiber.isDefined)
+            _ = assert(state.networkQualityFiber.isDefined)
+            _ = assert(state.slotNotificationFiber.isDefined)
+            _ = assert(state.commonAncestorFiber.isDefined)
+            _ = assert(state.aggressiveP2PFiber.isEmpty)
             _ <- Async[F].delayBy(().pure[F], FiniteDuration(delay, MILLISECONDS))
           } yield ()
         }
@@ -68,36 +166,52 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
       val peersManager = mock[PeersManagerActor[F]]
       (peersManager.sendNoWait _)
         .expects(PeersManager.Message.GetNetworkQualityForWarmHosts)
-        .anyNumberOfTimes()
+        .atLeastOnce()
         .returns(().pure[F])
-
-      val reputationAggregator = mock[ReputationAggregatorActor[F]]
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.ReputationUpdateTick)
-        .anyNumberOfTimes()
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.PrintP2PState)
+        .atLeastOnce()
         .returns(().pure[F])
-      (reputationAggregator.sendNoWait _)
-        .expects(ReputationAggregator.Message.UpdateWarmHosts)
-        .anyNumberOfTimes()
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.UpdatedReputationTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.UpdatePeersTick)
+        .atLeastOnce()
+        .returns(().pure[F])
+      (peersManager.sendNoWait _)
+        .expects(PeersManager.Message.AggressiveP2PUpdate)
+        .atLeastOnce()
         .returns(().pure[F])
 
       var warmFlag = false
       var networkQualityFlag = false
       var slotNotificationFlag = false
+      var commonAncestorFlag = false
+      var aggressiveP2PFlag = false
+
       Notifier
-        .makeActor(peersManager, reputationAggregator, defaultP2PConfig)
+        .makeActor(peersManager, defaultP2PConfig)
         .use { actor =>
           for {
-            state <- actor.send(Notifier.Message.StartNotifications)
-            _ = state.warmHostsUpdateFiber.get.joinWith({ warmFlag = true }.pure[F])
+            state <- Sync[F].andWait(
+              actor.send(Notifier.Message.StartNotifications),
+              FiniteDuration(500, MILLISECONDS)
+            )
+            _ = state.peersUpdateFiber.get.joinWith({ warmFlag = true }.pure[F])
             _ = state.networkQualityFiber.get.joinWith({ networkQualityFlag = true }.pure[F])
             _ = state.slotNotificationFiber.get.joinWith({ slotNotificationFlag = true }.pure[F])
+            _ = state.commonAncestorFiber.get.joinWith({ commonAncestorFlag = true }.pure[F])
+            _ = state.aggressiveP2PFiber.get.joinWith({ aggressiveP2PFlag = true }.pure[F])
           } yield ()
         }
         .flatMap { _ =>
           assert(warmFlag).pure[F] >>
           assert(networkQualityFlag).pure[F] >>
-          assert(slotNotificationFlag).pure[F]
+          assert(slotNotificationFlag).pure[F] >>
+          assert(commonAncestorFlag).pure[F] >>
+          assert(aggressiveP2PFlag).pure[F]
         }
     }
   }

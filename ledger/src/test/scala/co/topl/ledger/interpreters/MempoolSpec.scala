@@ -68,6 +68,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               _ => Applicative[F].unit,
               Long.MaxValue
             )
+            .map(_._1)
             .use(underTest =>
               for {
                 _ <- underTest.read(bodies.last._1).map(_.transactions.keySet).assertEquals(Set.empty[TransactionId])
@@ -121,6 +122,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               _ => Applicative[F].unit,
               Long.MaxValue
             )
+            .map(_._1)
             .use(_.add(transaction.id).assert)
         } yield ()
       }
@@ -152,7 +154,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                 .once()
                 .returning(clockDeferred.get)
             expirationDeferred <- Deferred[F, Unit].toResource
-            underTest <-
+            (underTest, _) <-
               Mempool
                 .make[F](
                   currentBlockId.pure[F],
@@ -205,7 +207,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                 .once()
                 .returning(clockDeferred.get)
             expirationDeferred <- Deferred[F, Unit].toResource
-            underTest <-
+            (underTest, _) <-
               Mempool
                 .make[F](
                   currentBlockId.pure[F],

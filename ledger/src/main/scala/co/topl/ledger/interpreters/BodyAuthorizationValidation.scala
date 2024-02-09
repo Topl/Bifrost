@@ -27,6 +27,7 @@ object BodyAuthorizationValidation {
         def validate(
           context: IoTransaction => DynamicContext[F, String, Datum]
         )(body: BlockBody): F[ValidatedNec[BodyAuthorizationError, BlockBody]] =
+          // Note: Do not run authorization validation on the reward transaction
           body.transactionIds
             .foldMapM(transactionId =>
               for {

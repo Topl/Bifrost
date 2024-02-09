@@ -1,25 +1,27 @@
 package co.topl.genusLibrary.interpreter
 
-import cats.data.{Chain, EitherT, OptionT}
-import cats.effect.Resource
-import cats.effect.kernel.Async
+import cats.data.{EitherT, OptionT}
+import cats.effect._
+import cats.effect.implicits._
+import EitherT._
 import cats.implicits._
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction._
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.algebras.NodeBlockFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
-import co.topl.node.models.BlockBody
+import co.topl.node.models.FullBlockBody
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+
 import scala.collection.immutable.ListSet
 
 object NodeBlockFetcher {
 
   def make[F[_]: Async: Logger](
-    toplRpc: NodeRpc[F, Stream[F, *]]
+    toplRpc:          NodeRpc[F, Stream[F, *]],
+    fetchConcurrency: Int
   ): Resource[F, NodeBlockFetcherAlgebra[F, Stream[F, *]]] =
     Resource.pure {
 
@@ -31,7 +33,7 @@ object NodeBlockFetcher {
               // If start height is one, then the range would be [1, 2, 3, ...]
               .range(startHeight, endHeight)
               .covary[F]
-              .evalMap(fetch)
+              .parEvalMap(fetchConcurrency)(fetch)
               .takeWhile(_.exists(_.nonEmpty), takeFailure = true)
               .evalMapFilter {
                 case Left(ex) =>
@@ -57,38 +59,30 @@ object NodeBlockFetcher {
                 Option.empty[BlockData].asRight[GE].pure[F]
             }
 
-        // TODO: TSDK-186 | Do calls concurrently.
-        override def fetch(blockId: BlockId): F[Either[GE, BlockData]] = (
-          for {
-            header       <- OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE)
-            body         <- OptionT(toplRpc.fetchBlockBody(blockId)).toRight(GEs.BodyNotFound(blockId): GE)
-            transactions <- EitherT(fetchTransactions(body, toplRpc))
-          } yield BlockData(header, body, transactions.toList)
-        ).value
-
-        /*
-         * If all transactions were retrieved correctly, then all transactions are returned.
-         * If one or more transactions is missing, then a GenusException listing all missing transactions is returned.
-         */
-        private def fetchTransactions(
-          body:    BlockBody,
-          toplRpc: NodeRpc[F, Stream[F, *]]
-        ): F[Either[GE, Chain[IoTransaction]]] =
-          body.transactionIds.toList.traverse(ioTx32 =>
-            toplRpc
-              .fetchTransaction(ioTx32)
-              .map(maybeTransaction => (ioTx32, maybeTransaction))
-          ) map { e =>
-            e.foldLeft(Chain.empty[IoTransaction].asRight[ListSet[TransactionId]]) {
-              case (Right(transactions), (_, Some(transaction)))     => (transactions :+ transaction).asRight
-              case (Right(_), (ioTx32, None))                        => ListSet(ioTx32).asLeft
-              case (nonExistentTransactions @ Left(_), (_, Some(_))) => nonExistentTransactions
-              case (Left(nonExistentTransactions), (ioTx32, None)) =>
-                Left(nonExistentTransactions + ioTx32)
-            }
-          } map [Either[GE, Chain[IoTransaction]]] (_.left.map(
-            GEs.TransactionsNotFound
-          ))
+        override def fetch(blockId: BlockId): F[Either[GE, BlockData]] =
+          (
+            OptionT(toplRpc.fetchBlockHeader(blockId)).toRight(GEs.HeaderNotFound(blockId): GE),
+            OptionT(toplRpc.fetchBlockBody(blockId))
+              .toRight(GEs.BodyNotFound(blockId): GE)
+              .flatMap(body =>
+                (
+                  fs2.Stream
+                    .iterable[EitherT[F, GE, *], TransactionId](body.transactionIds)
+                    .parEvalMap(fetchConcurrency)(id =>
+                      OptionT(toplRpc.fetchTransaction(id))
+                        .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
+                    )
+                    .compile
+                    .toList,
+                  body.rewardTransactionId.traverse(id =>
+                    OptionT(toplRpc.fetchTransaction(id))
+                      .toRight(GEs.TransactionsNotFound(ListSet(id)): GE)
+                  )
+                ).parMapN((transactions, reward) => FullBlockBody(transactions, reward))(
+                  catsDataParallelForEitherTWithParallelEffect2
+                )
+              )
+          ).parMapN(BlockData(_, _))(catsDataParallelForEitherTWithParallelEffect2).value
 
         def fetchHeight(): F[Option[Long]] =
           (for {

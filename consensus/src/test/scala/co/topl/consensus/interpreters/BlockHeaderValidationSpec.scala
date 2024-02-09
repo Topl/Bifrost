@@ -6,7 +6,8 @@ import cats.effect._
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
 import co.topl.algebras.Store
-import co.topl.algebras.UnsafeResource
+import co.topl.brambl.utils.CatsUnsafeResource
+import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.implicits._
 import co.topl.consensus.algebras._
@@ -17,7 +18,6 @@ import co.topl.crypto.hash.Blake2b256
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.models.SecretKeyKesProduct
 import co.topl.crypto.signing._
-import co.topl.interpreters.CatsUnsafeResource
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models._
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
@@ -663,10 +663,10 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
     eligibilityCache:          EligibilityCacheAlgebra[F] = mock[EligibilityCacheAlgebra[F]],
     clock:                     ClockAlgebra[F] = mock[ClockAlgebra[F]],
     headerStore:               Store[F, BlockId, BlockHeader] = mock[Store[F, BlockId, BlockHeader]],
-    ed25519VRFResource:        UnsafeResource[F, Ed25519VRF] = mock[UnsafeResource[F, Ed25519VRF]],
-    kesProductResource:        UnsafeResource[F, KesProduct] = mock[UnsafeResource[F, KesProduct]],
-    ed25519Resource:           UnsafeResource[F, Ed25519] = mock[UnsafeResource[F, Ed25519]],
-    blake2b256Resource:        UnsafeResource[F, Blake2b256] = mock[UnsafeResource[F, Blake2b256]]
+    ed25519VRFResource:        Resource[F, Ed25519VRF] = Resource.never,
+    kesProductResource:        Resource[F, KesProduct] = Resource.never,
+    ed25519Resource:           Resource[F, Ed25519] = Resource.never,
+    blake2b256Resource:        Resource[F, Blake2b256] = Resource.never
   ): Resource[F, BlockHeaderValidationAlgebra[F]] =
     BlockHeaderValidation
       .make[F](

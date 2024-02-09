@@ -10,11 +10,14 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.p2p.RemoteAddress
-import co.topl.node.models.BlockBody
-import org.scalacheck.{Arbitrary, Gen}
-import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
+import co.topl.node.models.{BlockBody, KnownHost}
 import co.topl.typeclasses.implicits._
+import com.google.protobuf.ByteString
+import org.scalacheck.{Arbitrary, Gen}
+import org.scalamock.function.FunctionAdapter1
+import org.scalamock.handlers.{CallHandler1, CallHandler2, CallHandler3}
 
 import scala.annotation.tailrec
 
@@ -45,12 +48,44 @@ object TestHelper extends TransactionGenerator {
         addHeaderToChain(headers.append(gen.sample.get.copy(parentHeaderId = parentId)), gen, count - 1)
     }
 
+  val arbitraryIpString: Arbitrary[String] = Arbitrary(
+    for {
+      first  <- Arbitrary.arbitrary[Byte]
+      second <- Arbitrary.arbitrary[Byte]
+      third  <- Arbitrary.arbitrary[Byte]
+      fourth <- Arbitrary.arbitrary[Byte]
+    } yield s"${first & 0xff}.${second & 0xff}.${third & 0xff}.${fourth & 0xff}" // & 0xFF -- to unsigned byte
+  )
+
+  implicit val arbitraryKnownHost: Arbitrary[KnownHost] = Arbitrary(
+    for {
+      idBytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
+      host    <- arbitraryIpString.arbitrary
+      port    <- Gen.long
+    } yield KnownHost(ByteString.copyFrom(idBytes.toArray), host.take(12), port.toInt)
+  )
+
+  implicit val arbitraryRemoteAddress: Arbitrary[RemoteAddress] = Arbitrary(
+    for {
+      host <- arbitraryIpString.arbitrary
+      port <- Gen.long
+    } yield RemoteAddress(host, port.toInt)
+  )
+
+  implicit val arbitraryRemotePeer: Arbitrary[RemotePeer] = Arbitrary(
+    for {
+      idBytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
+      address <- arbitraryRemoteAddress.arbitrary
+    } yield (RemotePeer(HostId(ByteString.copyFrom(idBytes.toArray)), address))
+  )
+
   val arbitraryHost: Arbitrary[HostId] = Arbitrary(
     for {
-      host <- Arbitrary.arbitrary[String]
-      port <- Arbitrary.arbitrary[Byte]
-    } yield RemoteAddress(host, port)
+      bytes <- Gen.listOfN(hostIdBytesLen, Arbitrary.arbitrary[Byte])
+    } yield (HostId(ByteString.copyFrom(bytes.toArray)))
   )
+
+  type BlockBodyOrTransactionErrorByName = () => BlockBodyOrTransactionError
 
   val arbitraryHostBlockId: Arbitrary[(HostId, BlockId)] = Arbitrary(
     for {
@@ -74,7 +109,16 @@ object TestHelper extends TransactionGenerator {
     Arbitrary(
       for {
         txs <- Gen.listOfN(maxTxsCount, arbitraryIoTransaction.arbitrary.map(_.embedId))
-      } yield (txs, BlockBody.of(txs.map(tx => tx.id)))
+        // TODO: Reward
+      } yield (txs, BlockBody(txs.map(tx => tx.id)))
+    )
+
+  implicit val arbitraryTxAndBlock: Arbitrary[(IoTransaction, BlockBody)] =
+    Arbitrary(
+      for {
+        tx <- arbitraryIoTransaction.arbitrary.map(_.embedId)
+        // TODO: Reward
+      } yield (tx, BlockBody(Seq(tx.id)))
     )
 
   def headerToSlotData(header: BlockHeader): SlotData = {
@@ -104,4 +148,44 @@ object TestHelper extends TransactionGenerator {
         })
         .get
     )
+
+  def compareDownloadedHeaderWithoutDownloadTimeMatcher(
+    rawExpectedMessage: RequestsProxy.Message
+  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
+    val matchingFunction: RequestsProxy.Message => Boolean =
+      (rawActualMessage: RequestsProxy.Message) =>
+        (rawExpectedMessage, rawActualMessage) match {
+          case (
+                expectedMessage: RequestsProxy.Message.DownloadHeadersResponse,
+                actualMessage: RequestsProxy.Message.DownloadHeadersResponse
+              ) =>
+            val newResp =
+              actualMessage.response.map { case (header, res) =>
+                (header, res.map(b => b.copy(downloadTimeMs = 0)))
+              }
+            expectedMessage == actualMessage.copy(response = newResp)
+          case (_, _) => throw new IllegalStateException("Unexpected case")
+        }
+    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
+  }
+
+  def compareDownloadedBodiesWithoutDownloadTimeMatcher(
+    rawExpectedMessage: RequestsProxy.Message
+  ): FunctionAdapter1[RequestsProxy.Message, Boolean] = {
+    val matchingFunction: RequestsProxy.Message => Boolean =
+      (rawActualMessage: RequestsProxy.Message) =>
+        (rawExpectedMessage, rawActualMessage) match {
+          case (
+                expectedMessage: RequestsProxy.Message.DownloadBodiesResponse,
+                actualMessage: RequestsProxy.Message.DownloadBodiesResponse
+              ) =>
+            val newResp =
+              actualMessage.response.map { case (header, res) =>
+                (header, res.map(b => b.copy(downloadTimeMs = 0, downloadTimeTxMs = Seq.empty)))
+              }
+            expectedMessage == actualMessage.copy(response = newResp)
+          case (_, _) => throw new IllegalStateException("Unexpected case")
+        }
+    new FunctionAdapter1[RequestsProxy.Message, Boolean](matchingFunction)
+  }
 }

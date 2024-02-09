@@ -27,6 +27,8 @@ object BodySemanticErrors {
   ) extends BodySemanticError
 
   case class TransactionRegistrationError(transaction: IoTransaction) extends BodySemanticError
+
+  case class RewardTransactionError(transaction: IoTransaction) extends BodySemanticError
 }
 
 sealed trait BodySyntaxError extends BodyValidationError
@@ -39,4 +41,6 @@ object BodySyntaxErrors {
   ) extends BodySyntaxError
 
   case class DoubleSpend(boxIds: NonEmptySet[TransactionOutputAddress]) extends BodySyntaxError
+
+  case class InvalidReward(rewardTransaction: IoTransaction) extends BodySyntaxError
 }

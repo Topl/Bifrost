@@ -2,7 +2,7 @@ package co.topl.genusLibrary.interpreter
 
 import cats.effect.Resource
 import cats.implicits._
-import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
+import co.topl.brambl.models.{GroupId, LockAddress, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.brambl.syntax.transactionIdAsIdSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services._
@@ -10,7 +10,14 @@ import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.OrientThread
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
-import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
+import co.topl.genusLibrary.orientDb.instances.{
+  SchemaBlockHeader,
+  SchemaGroupPolicy,
+  SchemaIoTransaction,
+  SchemaLockAddress,
+  SchemaSeriesPolicy,
+  SchemaTxo
+}
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
@@ -99,12 +106,27 @@ object GraphVertexFetcher {
               orientGraph
                 .getVertices(
                   ioTransactionSchema.name,
-                  Array(SchemaBlockHeader.Field.BlockId),
-                  Array(headerVertex.getId)
+                  Array(SchemaBlockHeader.Field.BlockId, SchemaIoTransaction.Field.IsReward),
+                  Array(headerVertex.getId, false)
                 )
                 .asScala
             ).toEither
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", tx))
+          )
+
+        def fetchRewardTransaction(headerVertex: Vertex): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  ioTransactionSchema.name,
+                  Array(SchemaBlockHeader.Field.BlockId, SchemaIoTransaction.Field.IsReward),
+                  Array(headerVertex.getId, true)
+                )
+                .asScala
+                .headOption
+            ).toEither
+              .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchRewardTransaction", tx))
           )
 
         def fetchTransaction(ioTransaction32: TransactionId): F[Either[GE, Option[Vertex]]] =
@@ -246,6 +268,35 @@ object GraphVertexFetcher {
                 GEs.InternalMessageCause("GraphVertexFetcher:fetchBlockStats", tx)
               }
           )
+
+        def fetchGroupPolicy(groupId: GroupId): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaGroupPolicy.Field.GroupPolicyId,
+                  groupId.value.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](th => GEs.InternalMessageCause("GraphVertexFetcher:fetchGroupPolicy", th))
+          )
+
+        def fetchSeriesPolicy(seriesId: SeriesId): F[Either[GE, Option[Vertex]]] =
+          OrientThread[F].delay(
+            Try(
+              orientGraph
+                .getVertices(
+                  SchemaSeriesPolicy.Field.SeriesPolicyId,
+                  seriesId.value.toByteArray
+                )
+                .asScala
+            ).toEither
+              .map(_.headOption)
+              .leftMap[GE](th => GEs.InternalMessageCause("GraphVertexFetcher:fetchSeriesPolicy", th))
+          )
+
       }
     }
 }

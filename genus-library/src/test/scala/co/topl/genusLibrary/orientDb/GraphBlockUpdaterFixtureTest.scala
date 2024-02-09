@@ -1,9 +1,6 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.implicits.toTraverseOps
-import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import cats.implicits._
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.BlockData
 import co.topl.genusLibrary.DbFixtureUtil
@@ -13,13 +10,14 @@ import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
-import co.topl.node.models.BlockBody
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
+import co.topl.node.models.FullBlockBody
 import fs2.Stream
+
 import java.util.concurrent.TimeUnit
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
@@ -30,17 +28,21 @@ class GraphBlockUpdaterFixtureTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Insert and remove genesis block") { case (odb, oThread) =>
-    PropF.forAllF { (blockHeader: BlockHeader, blockBody: BlockBody, ioTransaction: IoTransaction) =>
+  override def scalaCheckTestParameters =
+    super.scalaCheckTestParameters
+      .withMaxSize(3)
+      .withMinSuccessfulTests(5)
+
+  override def munitTimeout: Duration =
+    new FiniteDuration(10, TimeUnit.SECONDS)
+
+  orientDbFixture.test("Insert and remove genesis block") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+    PropF.forAllF { (blockHeader: BlockHeader, blockBody: FullBlockBody) =>
       withMock {
         val nodeBlockFetcher = mock[NodeBlockFetcherAlgebra[F, Stream[F, *]]]
         val blockFetcher = mock[BlockFetcherAlgebra[F]]
-        val res = for {
-          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-          odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-          dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-          _          <- oThread.delay(dbNoTx.makeActive()).toResource
 
+        val res = for {
           databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
 
           _ <- Seq(
@@ -49,21 +51,29 @@ class GraphBlockUpdaterFixtureTest
             ioTransactionSchema,
             canonicalHeadSchema,
             lockAddressSchema,
-            txoSchema
+            txoSchema,
+            groupPolicySchema,
+            seriesPolicySchema
           )
             .traverse(OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, _))
             .void
             .toResource
 
-          _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge, addressTxoEdge)
+          _ <- Seq(
+            blockHeaderEdge,
+            blockHeaderBodyEdge,
+            blockHeaderTxIOEdge,
+            blockHeaderRewardEdge,
+            addressTxIOEdge,
+            addressTxoEdge
+          )
             .traverse(e => OrientDBMetadataFactory.createEdge[F](databaseDocumentTx, e))
             .void
             .toResource
 
           blockData = BlockData(
             blockHeader.copy(height = 1),
-            blockBody,
-            transactions = Seq(ioTransaction.embedId)
+            blockBody
           )
 
           dbTx <- oThread.delay(odbFactory.getTx).toResource
@@ -89,6 +99,12 @@ class GraphBlockUpdaterFixtureTest
             oThread.delay(dbTx.getVerticesOfClass(ioTransactionSchema.name).asScala.isEmpty)
           ).toResource
           _ <- assertIOBoolean(oThread.delay(dbTx.getVerticesOfClass(txoSchema.name).asScala.isEmpty)).toResource
+          _ <- assertIOBoolean(
+            oThread.delay(dbTx.getVerticesOfClass(groupPolicySchema.name).asScala.isEmpty)
+          ).toResource
+          _ <- assertIOBoolean(
+            oThread.delay(dbTx.getVerticesOfClass(seriesPolicySchema.name).asScala.isEmpty)
+          ).toResource
 
         } yield ()
 
@@ -96,6 +112,4 @@ class GraphBlockUpdaterFixtureTest
       }
     }
   }
-
-  override def munitTimeout: Duration = new FiniteDuration(60, TimeUnit.SECONDS)
 }

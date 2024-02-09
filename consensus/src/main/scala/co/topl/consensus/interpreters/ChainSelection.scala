@@ -2,21 +2,20 @@ package co.topl.consensus.interpreters
 
 import cats._
 import cats.data._
-import cats.effect.kernel.Sync
+import cats.effect._
 import cats.implicits._
-import co.topl.algebras.UnsafeResource
 import co.topl.consensus.algebras.ChainSelectionAlgebra
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, SlotData}
+import co.topl.consensus.rhoToRhoTestHash
 import co.topl.crypto.hash.Blake2b512
 import co.topl.models._
 import co.topl.models.utility._
-import co.topl.consensus.models.SlotData
-import co.topl.consensus.rhoToRhoTestHash
 import co.topl.typeclasses.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.annotation.tailrec
+import scala.language.implicitConversions
 
 /**
  * Provides functionality for deterministically choosing the "better" of two tines (segments of blocks)
@@ -47,9 +46,9 @@ object ChainSelection {
    * @param kLookback The number of blocks in the backward-moving window of blocks for longest-chain rule
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
-  def make[F[_]: Sync](
+  def make[F[_]: Async](
     fetchSlotData:      BlockId => F[SlotData],
-    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
   ): ChainSelectionAlgebra[F, SlotData] =
@@ -58,9 +57,9 @@ object ChainSelection {
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
-  private class ChainSelectionImpl[F[_]: Sync](
+  private class ChainSelectionImpl[F[_]: Async](
     fetchSlotData:      BlockId => F[SlotData],
-    blake2b512Resource: UnsafeResource[F, Blake2b512],
+    blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
   ) extends ChainSelectionAlgebra[F, SlotData] {
@@ -68,30 +67,43 @@ object ChainSelection {
     implicit private val logger: Logger[F] =
       Slf4jLogger.getLoggerFromName("Bifrost.ChainSelection")
 
+    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = {
+      val densitySelection = (currentHeight - commonHeight) > kLookback
+      if (densitySelection) {
+        Math.min(commonHeight + sWindow, proposedHeight).pure[F]
+      } else {
+        Math.min(currentHeight + kLookback, proposedHeight).pure[F]
+      }
+    }
+
     override def compare(x: SlotData, y: SlotData): F[Int] =
-      if (x === y) 0.pure[F]
-      else
-        TineComparisonTraversal
-          .build(x, y)
-          .flatTap(logTraversal)
-          .flatMap(_.comparisonResult)
+      Async[F].defer(
+        if (x === y) 0.pure[F]
+        else if (x.parentSlotId.blockId === y.slotId.blockId) 1.pure[F]
+        else if (y.parentSlotId.blockId === x.slotId.blockId) (-1).pure[F]
+        else
+          TineComparisonTraversal
+            .build(x, y)
+            .flatTap(logTraversal)
+            .flatMap(_.comparisonResult)
+      )
 
     /**
      * Print out the traversal result, but only if an actual chain selection takes place (and not just a simple append)
      */
     private def logTraversal(traversal: TineComparisonTraversal): F[Unit] =
       traversal match {
-        case LongestChainTraversal(xSegment, ySegment) if xSegment.length > 1 && ySegment.length > 1 =>
+        case LongestChainTraversal(xSegment, ySegment) if xSegment.tineLength > 1 && ySegment.tineLength > 1 =>
           Logger[F].info(
             "Performing standard chain selection" +
-            show" tineX=[${xSegment.length}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
-            show" tineY=[${ySegment.length}](${ySegment.head.slotId}..${ySegment.last.slotId})"
+            show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
+            show" tineY=[${ySegment.tineLength}](${ySegment.head.slotId}..${ySegment.last.slotId})"
           )
         case DensityChainTraversal(xSegment, ySegment) =>
           Logger[F].info(
             "Performing density chain selection" +
-            show" tineX=[${xSegment.length}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
-            show" tineY=[${ySegment.length}](${ySegment.head.slotId}..${ySegment.last.slotId})"
+            show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
+            show" tineY=[${ySegment.tineLength}](${ySegment.head.slotId}..${ySegment.last.slotId})"
           )
         case _ =>
           Applicative[F].unit
@@ -145,7 +157,7 @@ object ChainSelection {
        */
       def build(x: SlotData, y: SlotData): F[TineComparisonTraversal] =
         (LongestChainTraversal(NonEmptyChain.one(x), NonEmptyChain.one(y)): TineComparisonTraversal)
-          .iterateWhileM(_.next)(!_.sharesCommonAncestor)
+          .iterateWhileM(c => Async[F].cede >> c.next)(!_.sharesCommonAncestor)
     }
 
     /**
@@ -163,7 +175,7 @@ object ChainSelection {
         for {
           (newXSegment, newYSegment) <- prependSegments(xSegment, ySegment)
           // Once we've traversed back K number of blocks, switch to the chain density rule
-          switchToChainDensity = (newXSegment.length > kLookback) || (newYSegment.length > kLookback)
+          switchToChainDensity = (newXSegment.tineLength > kLookback) || (newYSegment.tineLength > kLookback)
           nextTraversal =
             if (switchToChainDensity)
               DensityChainTraversal(newXSegment.toNonEmptyVector, newYSegment.toNonEmptyVector).slicedWithinSWindow
@@ -197,7 +209,7 @@ object ChainSelection {
         xSegment.head === ySegment.head
 
       def comparisonResult: F[Int] =
-        Sync[F].delay(xSegment.length.compare(ySegment.length)).flatMap {
+        Sync[F].delay(xSegment.tineLength.compare(ySegment.tineLength)).flatMap {
           case 0 =>
             // When the two chains have equal density, fallback to a rhoTestHash comparison on the latest blocks
             // in the density segments
@@ -219,7 +231,7 @@ object ChainSelection {
       def slicedWithinSWindow: DensityChainTraversal = {
         @tailrec
         def inner(segment: NonEmptyVector[SlotData]): NonEmptyVector[SlotData] =
-          if (segment.length === 1) segment
+          if (segment.tineLength === 1) segment
           else if (segment.last.slotId.slot - segment.head.slotId.slot > sWindow)
             NonEmptyVector.fromVector(segment.init) match {
               case Some(value) => inner(value)
@@ -243,6 +255,7 @@ object ChainSelection {
  */
 private trait NonEmpty[F[_]] {
   def head[A](c: F[A]): A
+  def last[A](c: F[A]): A
 }
 
 private object NonEmpty {
@@ -254,11 +267,13 @@ private object NonEmpty {
     implicit val nonEmptyChainNonEmpty: NonEmpty[NonEmptyChain] =
       new NonEmpty[NonEmptyChain] {
         def head[A](c: NonEmptyChain[A]): A = c.head
+        def last[A](c: NonEmptyChain[A]): A = c.last
       }
 
     implicit val nonEmptyVectorNonEmpty: NonEmpty[NonEmptyVector] =
       new NonEmpty[NonEmptyVector] {
         def head[A](c: NonEmptyVector[A]): A = c.head
+        def last[A](c: NonEmptyVector[A]): A = c.last
       }
   }
 
@@ -287,7 +302,17 @@ private object Prepend {
       new Prepend[NonEmptyVector] {
         def prepend[A](a: A, c: NonEmptyVector[A]): NonEmptyVector[A] = c.prepend(a)
       }
+    implicit def gAsTineLengthOps[G[_]](g: G[SlotData]): TineLengthOps[G] = new TineLengthOps(g)
   }
 
   object instances extends Instances
+
+  class TineLengthOps[G[_]](val v: G[SlotData]) extends AnyVal {
+
+    def tineLength(implicit nonEmptyG: NonEmpty[G]): Long = {
+      val s0 = nonEmptyG.head(v)
+      val sN = nonEmptyG.last(v)
+      sN.height - s0.height
+    }
+  }
 }

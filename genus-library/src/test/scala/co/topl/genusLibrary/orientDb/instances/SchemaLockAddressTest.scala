@@ -1,18 +1,17 @@
 package co.topl.genusLibrary.orientDb.instances
 
 import cats.implicits._
-import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress.Field
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
-import co.topl.models.ModelGenerators.GenHelper
+import co.topl.brambl.codecs.AddressCodecs
 import co.topl.brambl.generators.{ModelGenerators => BramblGens}
 import co.topl.brambl.models.LockAddress
-import co.topl.brambl.codecs.AddressCodecs
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.lockAddressSchema
 import co.topl.genusLibrary.DbFixtureUtil
+import co.topl.genusLibrary.orientDb.instances.SchemaLockAddress.Field
+import co.topl.genusLibrary.orientDb.OrientThread
+import co.topl.models.ModelGenerators.GenHelper
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
-
 import scala.jdk.CollectionConverters._
 
 class SchemaLockAddressTest
@@ -22,19 +21,13 @@ class SchemaLockAddressTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Address Schema Metadata") { case (odb, oThread) =>
+  orientDbFixture.test("Address Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-      _          <- oThread.delay(dbNoTx.makeActive()).toResource
-
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
-      schema = SchemaLockAddress.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema).toResource
 
-      oClass <- oThread.delay(databaseDocumentTx.getClass(schema.name)).toResource
+      oClass <- oThread.delay(databaseDocumentTx.getClass(Field.SchemaName)).toResource
 
-      _ <- assertIO(oClass.getName.pure[F], schema.name, s"${schema.name} Class was not created").toResource
+      _ <- assertIO(oClass.getName.pure[F], Field.SchemaName, s"${Field.SchemaName} Class was not created").toResource
 
       networkProperty <- oClass.getProperty(Field.Network).pure[F].toResource
       _ <- (
@@ -78,72 +71,66 @@ class SchemaLockAddressTest
 
   }
 
-  orientDbFixture.test("Address Schema Add vertex Lock Address") { case (odb, oThread) =>
-    val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
+  orientDbFixture.test("Address Schema Add vertex Lock Address") {
+    case (odbFactory, implicit0(oThread: OrientThread[F])) =>
+      val res = for {
+        dbTx <- oThread.delay(odbFactory.getTx).toResource
 
-      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-      _      <- oThread.delay(dbNoTx.makeActive()).toResource
-
-      schema = SchemaLockAddress.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
-
-      dbTx <- oThread.delay(odbFactory.getTx).toResource
-      _    <- oThread.delay(dbTx.makeActive()).toResource
-
-      address <- BramblGens.arbitraryLockAddress.arbitrary
-        .map(lockAddress =>
-          LockAddress(
-            lockAddress.network,
-            lockAddress.ledger,
-            lockAddress.id
+        address <- BramblGens.arbitraryLockAddress.arbitrary
+          .map(lockAddress =>
+            LockAddress(
+              lockAddress.network,
+              lockAddress.ledger,
+              lockAddress.id
+            )
           )
-        )
-        .first
-        .pure[F]
-        .toResource
+          .first
+          .pure[F]
+          .toResource
 
-      vertex <- oThread
-        .delay(
-          dbTx
-            .addVertex(s"class:${schema.name}", schema.encode(address).asJava)
-        )
-        .toResource
+        vertex <- oThread
+          .delay(dbTx.addVertex(s"class:${lockAddressSchema.name}", lockAddressSchema.encode(address).asJava))
+          .toResource
 
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Network).head.name).pure[F],
-        address.network
-      ).toResource
+        _ <- assertIO(
+          vertex.getProperty[Int](lockAddressSchema.properties.filter(_.name == Field.Network).head.name).pure[F],
+          address.network
+        ).toResource
 
-      _ <- assertIO(
-        vertex.getProperty[Int](schema.properties.filter(_.name == Field.Ledger).head.name).pure[F],
-        address.ledger
-      ).toResource
+        _ <- assertIO(
+          vertex.getProperty[Int](lockAddressSchema.properties.filter(_.name == Field.Ledger).head.name).pure[F],
+          address.ledger
+        ).toResource
 
-      _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.AddressId).head.name).toSeq.pure[F],
-        address.id.value.toByteArray.toSeq
-      ).toResource
-
-      _ <- assertIO(
-        vertex.getProperty[String](schema.properties.filter(_.name == Field.AddressEncodedId).head.name).pure[F],
-        AddressCodecs.encodeAddress(address)
-      ).toResource
-
-      _ <- assertIO(
-        oThread.delay(
-          dbTx
-            .getVertices(SchemaLockAddress.Field.AddressId, address.id.value.toByteArray)
-            .iterator()
-            .next()
-            .getProperty[Array[Byte]](Field.AddressId)
+        _ <- assertIO(
+          vertex
+            .getProperty[Array[Byte]](lockAddressSchema.properties.filter(_.name == Field.AddressId).head.name)
             .toSeq
-        ),
-        address.id.value.toByteArray.toSeq
-      ).toResource
+            .pure[F],
+          address.id.value.toByteArray.toSeq
+        ).toResource
 
-    } yield ()
-    res.use_
+        _ <- assertIO(
+          vertex
+            .getProperty[String](lockAddressSchema.properties.filter(_.name == Field.AddressEncodedId).head.name)
+            .pure[F],
+          AddressCodecs.encodeAddress(address)
+        ).toResource
+
+        _ <- assertIO(
+          oThread.delay(
+            dbTx
+              .getVertices(SchemaLockAddress.Field.AddressId, address.id.value.toByteArray)
+              .iterator()
+              .next()
+              .getProperty[Array[Byte]](Field.AddressId)
+              .toSeq
+          ),
+          address.id.value.toByteArray.toSeq
+        ).toResource
+
+      } yield ()
+      res.use_
 
   }
 

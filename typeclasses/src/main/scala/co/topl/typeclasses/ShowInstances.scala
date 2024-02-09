@@ -2,8 +2,9 @@ package co.topl.typeclasses
 
 import cats.Show
 import cats.implicits._
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.TransactionOutputAddress
+import co.topl.brambl.models.box.{Box, Value}
+import co.topl.brambl.models.transaction.SpentTransactionOutput
+import co.topl.brambl.models.{GroupId, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.models.BlockHeader
 import co.topl.consensus.models.SlotId
@@ -12,6 +13,7 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
+import quivr.models.Int128
 
 import java.time.Instant
 
@@ -44,7 +46,7 @@ trait ShowInstances {
       show"id=${header.id}" +
       show" parentId=${header.parentHeaderId}" +
       show" parentSlot=${header.parentSlot}" +
-      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString})" +
+      show" timestamp=${Instant.ofEpochMilli(header.timestamp).toString}" +
       show" height=${header.height}" +
       show" slot=${header.slot}" +
       // Don't show these fields because they create too much noise in the logs
@@ -56,10 +58,37 @@ trait ShowInstances {
       show")"
 
   implicit val showNodeBlockBody: Show[BlockBody] =
-    body => show"${body.transactionIds}"
+    body => show"Body(transactionIds=${body.transactionIds}, reward=${body.rewardTransactionId})"
 
   implicit val showBoxId: Show[TransactionOutputAddress] =
     boxId => show"${boxId.id}.outputs[${boxId.index}]"
+
+  implicit val showGroupId: Show[GroupId] =
+    g => show"g_${g.value: Bytes}"
+
+  implicit val showSeriesId: Show[SeriesId] =
+    s => show"s_${s.value: Bytes}"
+
+  implicit val showInt128: Show[Int128] =
+    v => BigInt(v.value.toByteArray).toString()
+
+  implicit val showValue: Show[Value] =
+    value =>
+      value.value match {
+        case Value.Value.Lvl(lvl)   => show"LVL(${lvl.quantity})"
+        case Value.Value.Topl(topl) => show"TOPL(${topl.quantity})"
+        case v                      => v.getClass.getName
+      }
+
+  implicit val showStxo: Show[SpentTransactionOutput] =
+    stxo => show"Stxo(utxo=${stxo.address}, value=${stxo.value})"
+
+  implicit val showBox: Show[Box] =
+    box => show"Box(value=${box.value})"
+
+  implicit val showRatio: Show[co.topl.models.utility.Ratio] =
+    r => s"${r.numerator}/${r.denominator}"
+
 }
 
 object ShowInstances extends ShowInstances

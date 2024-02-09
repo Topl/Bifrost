@@ -11,7 +11,4 @@ case class BestChain(slotData: NonEmptyChain[SlotData]) {
   val lastId: BlockId = last.slotId.blockId
 
   def isLastId(id: BlockId): Boolean = lastId === id
-
-  def containsBlockId(id: BlockId): Boolean =
-    slotData.map(_.slotId.blockId).contains(id)
 }

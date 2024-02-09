@@ -1,11 +1,11 @@
 package co.topl.consensus.interpreters
 
 import cats.data.NonEmptyChain
-import cats.effect.Sync
+import cats.effect._
 import cats.implicits._
 import cats.{MonadThrow, Parallel}
 import co.topl.algebras.ClockAlgebra.implicits._
-import co.topl.algebras.{ClockAlgebra, UnsafeResource}
+import co.topl.algebras.ClockAlgebra
 import co.topl.consensus.algebras.EtaCalculationAlgebra
 import co.topl.consensus.models.BlockId
 import co.topl.consensus.models.{EtaCalculationArgs, SlotData, SlotId}
@@ -35,8 +35,8 @@ object EtaCalculation {
     fetchSlotData:      BlockId => F[SlotData],
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,
-    blake2b256Resource: UnsafeResource[F, Blake2b256],
-    blake2b512Resource: UnsafeResource[F, Blake2b512]
+    blake2b256Resource: Resource[F, Blake2b256],
+    blake2b512Resource: Resource[F, Blake2b512]
   ): F[EtaCalculationAlgebra[F]] =
     for {
       implicit0(cache: CaffeineCache[F, Bytes, Eta]) <- Sync[F].delay(
@@ -51,8 +51,8 @@ object EtaCalculation {
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,
     slotsPerEpoch:      Long,
-    blake2b256Resource: UnsafeResource[F, Blake2b256],
-    blake2b512Resource: UnsafeResource[F, Blake2b512]
+    blake2b256Resource: Resource[F, Blake2b256],
+    blake2b512Resource: Resource[F, Blake2b512]
   )(implicit cache: CaffeineCache[F, Bytes, Eta])
       extends EtaCalculationAlgebra[F] {
 
@@ -61,18 +61,29 @@ object EtaCalculation {
     private val twoThirdsLength = slotsPerEpoch * 2 / 3
 
     override def etaToBe(parentSlotId: SlotId, childSlot: Slot): F[Eta] =
-      if (childSlot < slotsPerEpoch) genesisEta.pure[F]
-      else {
-        for {
-          parentEpoch    <- clock.epochOf(parentSlotId.slot)
-          childEpoch     <- clock.epochOf(childSlot)
-          parentSlotData <- fetchSlotData(parentSlotId.blockId)
-          eta <-
-            if (parentEpoch === childEpoch) Sized.strictUnsafe[Bytes, Eta.Length](parentSlotData.eta).pure[F]
-            else if (childEpoch - parentEpoch > 1) emptyEpochDetected(parentEpoch - 1)
-            else locateTwoThirdsBest(parentSlotData).flatMap(calculate)
-        } yield eta
-      }
+      clock
+        .epochOf(childSlot)
+        .flatMap(childEpoch =>
+          if (childEpoch === 0L) genesisEta.pure[F]
+          else
+            for {
+              parentEpoch    <- clock.epochOf(parentSlotId.slot)
+              parentSlotData <- fetchSlotData(parentSlotId.blockId)
+              eta <-
+                if (parentEpoch === childEpoch) Sized.strictUnsafe[Bytes, Eta.Length](parentSlotData.eta).pure[F]
+                else if (childEpoch - parentEpoch > 1)
+                  MonadThrow[F].raiseError(
+                    new IllegalStateException(
+                      show"Eta calculation encountered empty epoch for" +
+                      show" parentSlotId=$parentSlotId" +
+                      show" childSlot=$childSlot" +
+                      show" parentEpoch=$parentEpoch" +
+                      show" childEpoch=$childEpoch"
+                    )
+                  )
+                else locateTwoThirdsBest(parentSlotData).flatMap(calculate)
+            } yield eta
+        )
 
     /**
      * Given some header near the end of an epoch, traverse the chain (toward genesis) until reaching a block
@@ -154,7 +165,5 @@ object EtaCalculation {
         .map(v => v: ByteString)
         .map(Sized.strictUnsafe(_): Eta)
 
-    private def emptyEpochDetected(epoch: Epoch) =
-      MonadThrow[F].raiseError(new IllegalStateException(s"Eta calculation encountered empty epoch=$epoch"))
   }
 }

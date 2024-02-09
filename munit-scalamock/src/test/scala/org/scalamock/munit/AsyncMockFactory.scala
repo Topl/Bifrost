@@ -13,7 +13,7 @@ trait AsyncMockFactory extends MockContext with Mock with MockFunctions with Mat
   override def newExpectationException(message: String, methodName: Option[Symbol]): AssertionError =
     new AssertionError(message)
 
-  implicit val _factory = this
+  implicit val _factory: AsyncMockFactory = this
 
   def withMock[Res](test: => IO[Res]): IO[Res] = {
     if (expectationContext == null) {

@@ -6,11 +6,10 @@ import cats.effect.kernel.Sync
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, SlotData}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.utility.Ratio
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, PingMessage, PongMessage}
 import co.topl.networking.p2p.ConnectedPeer
+import co.topl.node.models._
 import co.topl.numerics.implicits._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
@@ -25,6 +24,11 @@ trait BlockchainPeerClient[F[_]] {
    * The ConnectedPeer for this current connection
    */
   def remotePeer: F[ConnectedPeer]
+
+  /**
+   * Representation of remote peer which is ready for incoming connections
+   */
+  def remotePeerAsServer: F[Option[KnownHost]]
 
   /**
    * A Source of block IDs that were adopted by the remote node
@@ -79,6 +83,14 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]]
 
   /**
+   * A lookup to retrieve a remote transaction by ID, or throw specified Error
+   */
+  def getRemoteTransactionOrError[E <: Throwable](id: TransactionId, error: => E)(implicit
+    MonadThrow: MonadThrow[F]
+  ): F[IoTransaction] =
+    OptionT(getRemoteTransaction(id)).getOrRaise(error)
+
+  /**
    * A lookup to retrieve the remote node's block ID associated with the given height.
    * @param height The height to lookup
    * @param localBlockId The block ID of the local node at the requested height (the remote peer can cache this to avoid
@@ -94,8 +106,23 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]]
 
   /**
+   * Simple ping-pong message for measure network quality
+   * @param request ping message
+   * @return pong message, pong message body expected to contains reversed string message from ping message
    */
   def getPongMessage(request: PingMessage): F[Option[PongMessage]]
+
+  /**
+   * Notify remote peer about THIS peer application level, i.e.
+   * do we track remote peer from blocks, download blocks data etc.
+   * @param networkLevel this peer network level
+   */
+  def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit]
+
+  /**
+   * Close connection on underlying level
+   */
+  def closeConnection(): F[Unit]
 
   /**
    * Find the common ancestor block ID between the local node and the remote peer.

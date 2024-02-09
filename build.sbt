@@ -1,7 +1,9 @@
+import com.typesafe.sbt.packager.docker.{DockerChmodType, ExecCmd}
 import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
+import NativePackagerHelper.*
 
-val scala213 = "2.13.11"
+val scala213 = "2.13.12"
 
 inThisBuild(
   List(
@@ -36,10 +38,6 @@ lazy val commonSettings = Seq(
     }
   },
   crossScalaVersions := Seq(scala213),
-  Test / testOptions ++= Seq(
-    Tests.Argument(TestFrameworks.ScalaCheck, "-verbosity", "2"),
-    Tests.Argument(TestFrameworks.ScalaTest, "-f", "sbttest.log", "-oDGG", "-u", "target/test-reports")
-  ),
   resolvers ++= Seq(
     "Typesafe Repository" at "https://repo.typesafe.com/typesafe/releases/",
     "Sonatype Staging" at "https://s01.oss.sonatype.org/content/repositories/staging",
@@ -55,7 +53,7 @@ lazy val commonSettings = Seq(
 
 lazy val dockerSettings = Seq(
   dockerBaseImage := "eclipse-temurin:11-jre",
-  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(true)(_.toBoolean),
+  dockerUpdateLatest := sys.env.get("DOCKER_PUBLISH_LATEST_TAG").fold(false)(_.toBoolean),
   dockerLabels ++= Map(
     "bifrost.version" -> version.value
   ),
@@ -64,14 +62,28 @@ lazy val dockerSettings = Seq(
       alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
-  }
+  },
+  dockerAliases ++= (
+    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
+      Seq(
+        DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
+        DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
+      )
+    else Seq()
+  )
 )
 
 lazy val nodeDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084, 9085),
-    dockerExposedVolumes += "/opt/docker/.bifrost",
-    Docker / packageName := "bifrost-node"
+    Docker / packageName := "bifrost-node",
+    dockerExposedVolumes += "/bifrost",
+    dockerExposedVolumes += "/bifrost-staking",
+    dockerEnvVars ++= Map(
+      "BIFROST_APPLICATION_DATA_DIR"    -> "/bifrost/data/{genesisBlockId}",
+      "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost-staking/{genesisBlockId}",
+      "BIFROST_CONFIG_FILE"             -> "/bifrost/config/user.yaml"
+    )
   )
 
 lazy val networkDelayerDockerSettings =
@@ -100,6 +112,7 @@ def assemblySettings(main: String) = Seq(
       case PathList("org", "iq80", "leveldb", xs @ _*) => MergeStrategy.first
       case PathList("module-info.java")                => MergeStrategy.discard
       case PathList("local.conf")                      => MergeStrategy.discard
+      case "META-INF/io.netty.versions.properties"     => MergeStrategy.last
       case "META-INF/truffle/instrument"               => MergeStrategy.concat
       case "META-INF/truffle/language"                 => MergeStrategy.rename
       case x if x.contains("google/protobuf")          => MergeStrategy.last
@@ -121,8 +134,9 @@ lazy val commonScalacOptions = Seq(
   "-language:higherKinds",
   "-language:postfixOps",
   "-unchecked",
-  "-Ywarn-unused:-implicits,-privates,_",
-  "-Yrangepos"
+  "-Ywarn-unused:_",
+  "-Yrangepos",
+  "-Ywarn-macros:after"
 )
 
 javaOptions ++= Seq(
@@ -292,8 +306,9 @@ lazy val models = project
   )
   .settings(scalamacrosParadiseSettings)
   .settings(
-    libraryDependencies ++= Dependencies.models ++ Dependencies.test
+    libraryDependencies ++= Dependencies.models ++ Dependencies.mUnitTest
   )
+  .dependsOn(munitScalamock % "test->test")
 
 lazy val numerics = project
   .in(file("numerics"))
@@ -305,7 +320,7 @@ lazy val numerics = project
     buildInfoPackage := "co.topl.buildinfo.numerics"
   )
   .settings(scalamacrosParadiseSettings)
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.scalacache)
+  .settings(libraryDependencies ++= Dependencies.mUnitTest ++ Dependencies.scalacache)
   .dependsOn(models)
 
 lazy val eventTree = project
@@ -335,6 +350,7 @@ lazy val byteCodecs = project
     libraryDependencies ++= Dependencies.byteCodecs ++ Dependencies.protobufSpecs
   )
   .settings(scalamacrosParadiseSettings)
+  .dependsOn(munitScalamock % "test->test")
 
 lazy val tetraByteCodecs = project
   .in(file("tetra-byte-codecs"))
@@ -345,9 +361,13 @@ lazy val tetraByteCodecs = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.codecs.bytes.tetra"
   )
-  .settings(libraryDependencies ++= Dependencies.test ++ Dependencies.protobufSpecs)
+  .settings(libraryDependencies ++= Dependencies.munitScalamock ++ Dependencies.protobufSpecs)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", nodeCrypto % "compile->compile;test->test")
+  .dependsOn(
+    models     % "compile->compile;test->test",
+    byteCodecs % "compile->compile;test->test",
+    nodeCrypto % "compile->compile;test->test"
+  )
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))
@@ -359,7 +379,7 @@ lazy val typeclasses: Project = project
     buildInfoPackage := "co.topl.buildinfo.typeclasses"
   )
   .settings(
-    libraryDependencies ++= Dependencies.test ++ Dependencies.logging
+    libraryDependencies ++= Dependencies.mUnitTest ++ Dependencies.logging
   )
   .settings(scalamacrosParadiseSettings)
   .dependsOn(models % "compile->compile;test->test", nodeCrypto, tetraByteCodecs)
@@ -375,7 +395,7 @@ lazy val algebras = project
   )
   .settings(libraryDependencies ++= Dependencies.algebras)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models, nodeCrypto, tetraByteCodecs)
+  .dependsOn(models, nodeCrypto, tetraByteCodecs, munitScalamock % "test->test")
 
 lazy val actor = project
   .in(file("actor"))
@@ -411,7 +431,8 @@ lazy val commonInterpreters = project
     tetraByteCodecs,
     catsUtils,
     eventTree,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    levelDbStore   % "test->test"
   )
 
 lazy val consensus = project
@@ -424,7 +445,7 @@ lazy val consensus = project
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.consensus"
   )
-  .settings(libraryDependencies ++= Dependencies.test)
+  .settings(libraryDependencies ++= Dependencies.mUnitTest)
   .settings(
     libraryDependencies ++= Dependencies.consensus
   )
@@ -438,7 +459,7 @@ lazy val consensus = project
     numerics,
     eventTree,
     commonInterpreters % "compile->test",
-    munitScalamock % "test->test"
+    munitScalamock     % "test->test"
   )
 
 lazy val minting = project
@@ -492,7 +513,7 @@ lazy val networking = project
     eventTree,
     ledger,
     actor,
-    munitScalamock     % "test->test"
+    munitScalamock % "test->test"
   )
 
 lazy val transactionGenerator = project
@@ -540,7 +561,7 @@ lazy val ledger = project
     typeclasses,
     eventTree,
     munitScalamock % "test->test",
-    numerics % "test->compile"
+    numerics
   )
 
 lazy val blockchain = project
@@ -597,7 +618,7 @@ lazy val levelDbStore = project
   )
   .dependsOn(
     byteCodecs,
-    algebras,
+    algebras % "compile->compile;test->test",
     catsUtils
   )
 
@@ -658,7 +679,8 @@ lazy val nodeIt = project
   .settings(
     name := "node-it",
     commonSettings,
-    crossScalaVersions := Seq(scala213)
+    crossScalaVersions := Seq(scala213),
+    libraryDependencies ++= Dependencies.nodeIt
   )
   .dependsOn(
     node,
@@ -680,6 +702,6 @@ lazy val byzantineIt = project
 lazy val integration = (project in file("integration"))
   .aggregate(nodeIt, byzantineIt)
 
-addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/compile")
-addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/compile")
-addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/compile")
+addCommandAlias("checkPR", s"; scalafixAll --check; scalafmtCheckAll; +test; integration/Test/compile")
+addCommandAlias("preparePR", s"; scalafixAll; scalafmtAll; +test; integration/Test/compile")
+addCommandAlias("checkPRTestQuick", s"; scalafixAll --check; scalafmtCheckAll; testQuick; integration/Test/compile")

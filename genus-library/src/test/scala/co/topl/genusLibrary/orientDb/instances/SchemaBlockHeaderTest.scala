@@ -3,12 +3,12 @@ package co.topl.genusLibrary.orientDb.instances
 import cats.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genusLibrary.DbFixtureUtil
-import co.topl.genusLibrary.orientDb.OrientDBMetadataFactory
+import co.topl.genusLibrary.orientDb.OrientThread
+import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances.blockHeaderSchema
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType
-import com.tinkerpop.blueprints.impls.orient.OrientGraphFactoryV2
 import munit.{CatsEffectFunFixtures, CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import scala.jdk.CollectionConverters._
@@ -20,19 +20,13 @@ class SchemaBlockHeaderTest
     with CatsEffectFunFixtures
     with DbFixtureUtil {
 
-  orientDbFixture.test("Block Header Schema Metadata") { case (odb, oThread) =>
+  orientDbFixture.test("Block Header Schema Metadata") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-      dbNoTx     <- oThread.delay(odbFactory.getNoTx).toResource
-      _          <- oThread.delay(dbNoTx.makeActive()).toResource
-
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
-      schema = SchemaBlockHeader.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](databaseDocumentTx, schema).toResource
 
-      oClass <- oThread.delay(databaseDocumentTx.getClass(schema.name)).toResource
+      oClass <- oThread.delay(databaseDocumentTx.getClass(Field.SchemaName)).toResource
 
-      _ <- assertIO(oClass.getName.pure[F], schema.name, s"${schema.name} Class was not created").toResource
+      _ <- assertIO(oClass.getName.pure[F], Field.SchemaName, s"${Field.SchemaName} Class was not created").toResource
 
       blockIdProperty <- oClass.getProperty(Field.BlockId).pure[F].toResource
       _ <- (
@@ -165,73 +159,73 @@ class SchemaBlockHeaderTest
 
   }
 
-  orientDbFixture.test("Block Header Schema Add vertex") { case (odb, oThread) =>
+  orientDbFixture.test("Block Header Schema Add vertex") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>
     val res = for {
-      odbFactory <- oThread.delay(new OrientGraphFactoryV2(odb, "testDb", "testUser", "testPass")).toResource
-
-      dbNoTx <- oThread.delay(odbFactory.getNoTx).toResource
-      _      <- oThread.delay(dbNoTx.makeActive()).toResource
-
-      schema = SchemaBlockHeader.make()
-      _ <- OrientDBMetadataFactory.createVertex[F](dbNoTx.getRawGraph, schema).toResource
 
       dbTx <- oThread.delay(odbFactory.getTx).toResource
-      _    <- oThread.delay(dbTx.makeActive()).toResource
 
       blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
       vertex <- oThread
-        .delay(
-          dbTx
-            .addVertex(s"class:${schema.name}", schema.encode(blockHeader).asJava)
-        )
+        .delay(dbTx.addVertex(s"class:${Field.SchemaName}", blockHeaderSchema.encode(blockHeader).asJava))
         .toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.BlockId).head.name).toSeq.pure[F],
+        vertex
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.BlockId).head.name)
+          .toSeq
+          .pure[F],
         blockHeader.id.value.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
         vertex
-          .getProperty[Array[Byte]](schema.properties.filter(_.name == Field.ParentHeaderId).head.name)
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.ParentHeaderId).head.name)
           .toSeq
           .pure[F],
         blockHeader.parentHeaderId.value.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Long](schema.properties.filter(_.name == Field.ParentSlot).head.name).pure[F],
+        vertex.getProperty[Long](blockHeaderSchema.properties.filter(_.name == Field.ParentSlot).head.name).pure[F],
         blockHeader.parentSlot
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.TxRoot).head.name).toSeq.pure[F],
+        vertex
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.TxRoot).head.name)
+          .toSeq
+          .pure[F],
         blockHeader.txRoot.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.BloomFilter).head.name).toSeq.pure[F],
+        vertex
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.BloomFilter).head.name)
+          .toSeq
+          .pure[F],
         blockHeader.bloomFilter.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Long](schema.properties.filter(_.name == Field.Timestamp).head.name).pure[F],
+        vertex.getProperty[Long](blockHeaderSchema.properties.filter(_.name == Field.Timestamp).head.name).pure[F],
         blockHeader.timestamp
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Long](schema.properties.filter(_.name == Field.Height).head.name).pure[F],
+        vertex.getProperty[Long](blockHeaderSchema.properties.filter(_.name == Field.Height).head.name).pure[F],
         blockHeader.height
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Long](schema.properties.filter(_.name == Field.Slot).head.name).pure[F],
+        vertex.getProperty[Long](blockHeaderSchema.properties.filter(_.name == Field.Slot).head.name).pure[F],
         blockHeader.slot
       ).toResource
 
       _ <- assertIO(
         vertex
-          .getProperty[Array[Byte]](schema.properties.filter(_.name == Field.EligibilityCertificate).head.name)
+          .getProperty[Array[Byte]](
+            blockHeaderSchema.properties.filter(_.name == Field.EligibilityCertificate).head.name
+          )
           .toSeq
           .pure[F],
         blockHeader.eligibilityCertificate.toByteArray.toSeq
@@ -239,29 +233,40 @@ class SchemaBlockHeaderTest
 
       _ <- assertIO(
         vertex
-          .getProperty[Array[Byte]](schema.properties.filter(_.name == Field.OperationalCertificate).head.name)
+          .getProperty[Array[Byte]](
+            blockHeaderSchema.properties.filter(_.name == Field.OperationalCertificate).head.name
+          )
           .toSeq
           .pure[F],
         blockHeader.operationalCertificate.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.Metadata).head.name).toSeq.pure[F],
+        vertex
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.Metadata).head.name)
+          .toSeq
+          .pure[F],
         blockHeader.metadata.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.Address).head.name).toSeq.pure[F],
+        vertex
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.Address).head.name)
+          .toSeq
+          .pure[F],
         blockHeader.address.toByteArray.toSeq
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Long](schema.properties.filter(_.name == Field.Size).head.name).pure[F],
+        vertex.getProperty[Long](blockHeaderSchema.properties.filter(_.name == Field.Size).head.name).pure[F],
         SchemaBlockHeader.size(blockHeader)
       ).toResource
 
       _ <- assertIO(
-        vertex.getProperty[Array[Byte]](schema.properties.filter(_.name == Field.Version).head.name).toSeq.pure[F],
+        vertex
+          .getProperty[Array[Byte]](blockHeaderSchema.properties.filter(_.name == Field.Version).head.name)
+          .toSeq
+          .pure[F],
         blockHeader.version.toByteArray.toSeq
       ).toResource
 

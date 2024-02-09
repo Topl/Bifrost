@@ -1,5 +1,6 @@
 package co.topl.minting.interpreters
 
+import cats.Show
 import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
@@ -21,6 +22,7 @@ import scala.collection.immutable.ListSet
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 import co.topl.ledger.interpreters.{QuivrContext, RegistrationAccumulator}
 import cats.data.EitherT
+import co.topl.brambl.validation.TransactionAuthorizationError
 import org.typelevel.log4cats.Logger
 
 import scala.concurrent.duration._
@@ -36,7 +38,8 @@ object BlockPacker {
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:             FiniteDuration = 1.second
   ): Resource[F, BlockPackerAlgebra[F]] =
     Resource.pure(
       new Impl(
@@ -45,7 +48,8 @@ object BlockPacker {
         transactionRewardCalculator,
         transactionCostCalculator,
         transactionAuthorizationValidation,
-        registrationAccumulator
+        registrationAccumulator,
+        emptyMempoolPollPeriod
       )
     )
 
@@ -55,7 +59,8 @@ object BlockPacker {
     transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
     transactionCostCalculator:          TransactionCostCalculator[F],
     transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F]
+    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:             FiniteDuration
   ) extends BlockPackerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -89,12 +94,12 @@ object BlockPacker {
                     .as(FullBlockBody.defaultInstance)
                 } else {
                   // If the mempool was empty, wait and try again
-                  Logger[F].debug(s"Mempool is empty.  Retrying in 5 seconds") *>
+                  Logger[F].debug(s"Mempool is empty.  Retrying in $emptyMempoolPollPeriod") *>
                   Async[F].delayBy(
                     nextIterationFunction
                       .set(((_: FullBlockBody) => initFromMempool).some)
                       .as(FullBlockBody.defaultInstance),
-                    5.seconds
+                    emptyMempoolPollPeriod
                   )
                 }
               )
@@ -103,18 +108,23 @@ object BlockPacker {
            * Step through each transaction in the mempool, and remove any transaction sub-trees that are not (currently) authorized
            */
           private def filterValidTransactions(graph: MempoolGraph): F[FullBlockBody] =
+            Logger[F].debug("Validating available transactions") >>
             graph.transactions.values.toList
               .foldLeftM(graph) { case (graph, transaction) =>
                 if (graph.transactions.contains(transaction.id))
                   transactionIsValid(transaction)
                     .ifM(
                       graph.pure[F],
+                      Async[F].cede >>
                       Sync[F]
                         .delay(graph.removeSubtree(transaction))
                         .flatMap { case (graph, evicted) =>
                           Logger[F]
-                            .debug(show"Ignoring invalid transaction subgraph.  ids=${evicted.toList.map(_.id)}")
-                            .as(graph)
+                            .debug(
+                              show"Evicting invalid transaction subgraph from mempool.  ids=${evicted.toList.map(_.id)}"
+                            ) >>
+                          evicted.toList.map(_.id).traverse(mempool.remove) >>
+                          graph.pure[F]
                         }
                     )
                 else
@@ -129,6 +139,7 @@ object BlockPacker {
            * be removed from the graph since they can't be applied to the chain yet.
            */
           private def pruneUnresolvedTransactions(graph: MempoolGraph): F[FullBlockBody] =
+            Logger[F].debug("Discarding transactions which spend unknown/unspendable UTxOs") >>
             graph.unresolved.toList
               .traverseFilter { case (id, indices) =>
                 val transaction = graph.transactions(id)
@@ -150,6 +161,7 @@ object BlockPacker {
            * Some of the "unresolved" transactions of the mempool may be double-spends, so prune away the lower-value sub-graphs.
            */
           private def stripDoubleSpendUnresolved(graph: MempoolGraph): F[FullBlockBody] =
+            Logger[F].debug("Discarding lower-value double-spend transactions") >>
             Sync[F]
               .delay(
                 graph.unresolved.toList
@@ -270,7 +282,7 @@ object BlockPacker {
            */
           private def transactionScore(transaction: IoTransaction): F[BigInt] =
             (
-              transactionRewardCalculator.rewardOf(transaction),
+              transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
               transactionCostCalculator.costOf(transaction)
             ).mapN(_ - _)
 
@@ -302,6 +314,7 @@ object BlockPacker {
            * from the returned graph
            */
           private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]): F[MempoolGraph] =
+            Logger[F].debug("Searching for double-spend transactions") >>
             spenders.toList
               .map(graph.transactions)
               .traverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
@@ -323,11 +336,17 @@ object BlockPacker {
               )
             )
               .leftSemiflatTap(error =>
-                Logger[F].warn(s"Transaction ${transaction.id} failed authorization validation: $error")
+                Logger[F].warn(show"Transaction id=${transaction.id} failed authorization validation. reason=$error")
               )
               .isRight
         }
       } yield iterative
+  }
+
+  implicit val showAuthorizationError: Show[TransactionAuthorizationError] = {
+    case TransactionAuthorizationError.AuthorizationFailed(errors) => errors.mkString("[", ", ", "]")
+    case TransactionAuthorizationError.Contextual(error)           => s"Contextual($error)"
+    case TransactionAuthorizationError.Permanent(error)            => s"Permanent($error)"
   }
 
 }

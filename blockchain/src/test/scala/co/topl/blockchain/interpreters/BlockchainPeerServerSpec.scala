@@ -8,7 +8,7 @@ import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import co.topl.models.ModelGenerators._
 import co.topl.consensus.models._
-import co.topl.node.models.BlockBody
+import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost}
 import co.topl.models.generators.node.ModelGenerators._
 import co.topl.models.generators.consensus.ModelGenerators._
 import fs2._
@@ -17,9 +17,14 @@ import org.scalacheck.effect.PropF
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.generators.ModelGenerators.arbitraryIoTransaction
 import co.topl.ledger.models.MempoolGraph
 import co.topl.networking.NetworkGen._
+import co.topl.networking.fsnetwork.RemotePeer
+import co.topl.networking.fsnetwork.TestHelper.arbitraryRemotePeer
+import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
+import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange}
+import co.topl.networking.fsnetwork.TestHelper._
 
 import scala.concurrent.duration._
 
@@ -33,7 +38,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     PropF.forAllF { slotData: SlotData =>
       withMock {
         val f = mockFunction[BlockId, F[Option[SlotData]]]
-        (f.expects(slotData.slotId.blockId).once().returning(slotData.some.pure[F]))
+        f.expects(slotData.slotId.blockId).once().returning(slotData.some.pure[F])
         for {
           _ <- makeServer(fetchSlotData = f)
             .use(underTest => underTest.getLocalSlotData(slotData.slotId.blockId).assertEquals(slotData.some))
@@ -46,7 +51,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     PropF.forAllF { (header: BlockHeader, id: BlockId) =>
       withMock {
         val f = mockFunction[BlockId, F[Option[BlockHeader]]]
-        (f.expects(id).once().returning(header.some.pure[F]))
+        f.expects(id).once().returning(header.some.pure[F])
         for {
           _ <- makeServer(fetchHeader = f)
             .use(underTest => underTest.getLocalHeader(id).assertEquals(header.some))
@@ -59,7 +64,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     PropF.forAllF { (body: BlockBody, id: BlockId) =>
       withMock {
         val f = mockFunction[BlockId, F[Option[BlockBody]]]
-        (f.expects(id).once().returning(body.some.pure[F]))
+        f.expects(id).once().returning(body.some.pure[F])
         for {
           _ <- makeServer(fetchBody = f)
             .use(underTest => underTest.getLocalBody(id).assertEquals(body.some))
@@ -72,13 +77,59 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
     PropF.forAllF { (transaction: IoTransaction, id: TransactionId) =>
       withMock {
         val f = mockFunction[TransactionId, F[Option[IoTransaction]]]
-        (f.expects(id).once().returning(transaction.some.pure[F]))
+        f.expects(id).once().returning(transaction.some.pure[F])
         for {
           _ <- makeServer(fetchTransaction = f)
             .use(underTest => underTest.getLocalTransaction(id).assertEquals(transaction.some))
         } yield ()
       }
     }
+  }
+
+  test("serve this peer address") {
+    PropF.forAllF { asServer: KnownHost =>
+      withMock {
+        val f = mockFunction[Option[KnownHost]]
+        f.expects().once().returning(Option(asServer))
+        for {
+          _ <- makeServer(asServer = f)
+            .use(underTest => underTest.peerAsServer.assertEquals(asServer.some))
+        } yield ()
+      }
+    }
+  }
+
+  test("serve hot peers") {
+    PropF.forAllF { hotPeers: Set[RemotePeer] =>
+      withMock {
+        val f = mockFunction[F[Set[RemotePeer]]]
+        f.expects().once().returning(hotPeers.pure[F])
+        val expected =
+          CurrentKnownHostsRes(hotPeers.toSeq.map(rp => KnownHost(rp.peerId.id, rp.address.host, rp.address.port)))
+        for {
+          _ <- makeServer(currentHotPeers = f)
+            .use(underTest => underTest.getKnownHosts(CurrentKnownHostsReq(hotPeers.size)).assertEquals(expected.some))
+        } yield ()
+      }
+    }
+  }
+
+  test("serve hot peers, we have more than requested") {
+    withMock {
+      val host1 = arbitraryRemotePeer.arbitrary.first
+      val host2 = arbitraryRemotePeer.arbitrary.first
+
+      val allPeers: Set[RemotePeer] = Set(host1, host2)
+
+      val f = mockFunction[F[Set[RemotePeer]]]
+      f.expects().once().returning(allPeers.pure[F])
+      val expected = CurrentKnownHostsRes(Seq(KnownHost(host1.peerId.id, host1.address.host, host1.address.port)))
+      for {
+        _ <- makeServer(currentHotPeers = f)
+          .use(underTest => underTest.getKnownHosts(CurrentKnownHostsReq(1)).assertEquals(expected.some))
+      } yield ()
+    }
+
   }
 
   test("serve block ID at height") {
@@ -110,10 +161,41 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         for {
           topic <- Topic[F, BlockId]
           publisher = Stream(adoptionA, adoptionB, adoptionC).through(topic.publish)
-          result <- makeServer(localChain = localChain, newBlockIds = topic.pure[F])
+          result <- makeServer(localChain = localChain, newBlockIdsF = topic.pure[F])
             .use(server => Stream.force(server.localBlockAdoptions).concurrently(publisher).compile.toList)
           _ <- IO(result).assertEquals(List(head.slotId.blockId, adoptionA, adoptionB, adoptionC))
         } yield ()
+      }
+    }
+  }
+
+  test("serve changed connection") {
+    PropF.forAllF { (enable1: Boolean, enable2: Boolean) =>
+      withMock {
+        val underTest =
+          for {
+            topic        <- Resource.liftK(Topic[F, PeerConnectionChange])
+            peer         <- Resource.pure(arbitraryConnectedPeer.arbitrary.first)
+            changeStream <- topic.subscribeAwaitUnbounded
+            server       <- makeServer(connectionStatusF = topic.pure[F], peer = peer)
+          } yield (server, peer, changeStream, topic)
+
+        underTest.use { case (server, peer, stream, topic) =>
+          for {
+            _   <- server.notifyApplicationLevel(enable1)
+            _   <- server.notifyApplicationLevel(enable2)
+            _   <- topic.close
+            res <- stream.compile.toList
+            _ = assert(res.head match {
+              case RemotePeerApplicationLevel(`peer`, `enable1`) => true
+              case _                                             => false
+            })
+            _ = assert(res.last match {
+              case RemotePeerApplicationLevel(`peer`, `enable2`) => true
+              case _                                             => false
+            })
+          } yield ()
+        }
       }
     }
   }
@@ -146,7 +228,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
           for {
             topic <- Topic[F, TransactionId]
             publisher = Stream(adoptionA, adoptionB, adoptionC).through(topic.publish)
-            result <- makeServer(localChain = localChain, mempool = mempool, newTransactionIds = topic.pure[F])
+            result <- makeServer(localChain = localChain, mempool = mempool, newTransactionIdsF = topic.pure[F])
               .use(server => Stream.force(server.localTransactionNotifications).concurrently(publisher).compile.toList)
             _ <- IO(result).assertEquals(List(mempoolTxA, mempoolTxB, mempoolTxC, adoptionA, adoptionB, adoptionC))
           } yield ()
@@ -155,19 +237,23 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   }
 
   private def makeServer(
-    fetchSlotData:    BlockId => F[Option[SlotData]] = _ => ???,
-    fetchHeader:      BlockId => F[Option[BlockHeader]] = _ => ???,
-    fetchBody:        BlockId => F[Option[BlockBody]] = _ => ???,
-    fetchTransaction: TransactionId => F[Option[IoTransaction]] = _ => ???,
+    fetchSlotData:     BlockId => F[Option[SlotData]] = _ => ???,
+    fetchHeader:       BlockId => F[Option[BlockHeader]] = _ => ???,
+    fetchBody:         BlockId => F[Option[BlockBody]] = _ => ???,
+    fetchTransaction:  TransactionId => F[Option[IoTransaction]] = _ => ???,
+    asServer:          () => Option[KnownHost] = () => ???,
+    connectionStatusF: F[Topic[F, PeerConnectionChange]] = Topic[F, PeerConnectionChange],
+    currentHotPeers:   () => F[Set[RemotePeer]] = () => Set.empty[RemotePeer].pure[F],
     blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
       mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
-    localChain:        LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
-    mempool:           MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
-    newBlockIds:       F[Topic[F, BlockId]] = Topic[F, BlockId],
-    newTransactionIds: F[Topic[F, TransactionId]] = Topic[F, TransactionId]
+    localChain:         LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
+    mempool:            MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
+    newBlockIdsF:       F[Topic[F, BlockId]] = Topic[F, BlockId],
+    newTransactionIdsF: F[Topic[F, TransactionId]] = Topic[F, TransactionId],
+    peer:               ConnectedPeer = arbitraryConnectedPeer.arbitrary.first
   ) =
-    (Resource.eval(newBlockIds), Resource.eval(newTransactionIds)).tupled
-      .flatMap { case (newBlockIds, newTransactionIds) =>
+    (Resource.eval(newBlockIdsF), Resource.eval(newTransactionIdsF), Resource.eval(connectionStatusF)).tupled
+      .flatMap { case (newBlockIds, newTransactionIds, connectionStatus) =>
         BlockchainPeerServer
           .make(
             fetchSlotData,
@@ -175,10 +261,13 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             fetchBody,
             fetchTransaction,
             blockHeights,
+            asServer,
+            currentHotPeers,
             localChain,
             mempool,
             newBlockIds,
-            newTransactionIds
-          )(arbitraryConnectedPeer.arbitrary.first)
+            newTransactionIds,
+            connectionStatus
+          )(peer)
       }
 }

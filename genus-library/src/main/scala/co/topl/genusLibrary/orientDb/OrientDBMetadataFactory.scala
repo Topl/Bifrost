@@ -3,6 +3,8 @@ package co.topl.genusLibrary.orientDb
 import cats.effect.Async
 import cats.effect.{Resource, Sync, SyncIO}
 import cats.implicits._
+import co.topl.consensus.models.BlockHeader
+import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader
 import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
@@ -11,7 +13,7 @@ import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.typelevel.log4cats.Logger
-
+import scala.jdk.CollectionConverters.SetHasAsScala
 import scala.util.Try
 
 /**
@@ -44,7 +46,9 @@ object OrientDBMetadataFactory {
               ioTransactionSchema,
               canonicalHeadSchema,
               lockAddressSchema,
-              txoSchema
+              txoSchema,
+              groupPolicySchema,
+              seriesPolicySchema
             )
               .traverse(createVertex(db, _))
               .void
@@ -54,12 +58,21 @@ object OrientDBMetadataFactory {
       _ <- Resource.eval(
         OrientThread[F].defer(
           for {
-            _ <- Seq(blockHeaderEdge, blockHeaderBodyEdge, blockHeaderTxIOEdge, addressTxIOEdge, addressTxoEdge)
+            _ <- Seq(
+              blockHeaderEdge,
+              blockHeaderBodyEdge,
+              blockHeaderTxIOEdge,
+              blockHeaderRewardEdge,
+              addressTxIOEdge,
+              addressTxoEdge
+            )
               .traverse(e => createEdge(db, e))
               .void
           } yield ()
         )
       )
+
+      _ <- Resource.eval(OrientThread[F].defer(updateBlockHeaderHeightIndex(db, blockHeaderSchema)))
     } yield ()
 
   private[genusLibrary] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
@@ -138,4 +151,50 @@ object OrientDBMetadataFactory {
         case _ =>
           Sync[F].delay(db.createClass(edge.label, "E")).void
       }
+
+  /**
+   * This method updates an existing BlockHeader schema, createVertex skip vertex creating if they already exist.
+   * This new index was proposed after some DBs was on test/production mode, for this reason was isolated from the schema definition.
+   * If there is no database, createVertex method will create 2 indices and this method will be not used.
+   * This method could be safely removed if it was executed on a previous Database at least once,
+   * or the db schemas was created from scratch
+   * @param db
+   * @param schema
+   * @tparam F
+   * @return
+   */
+  private[orientDb] def updateBlockHeaderHeightIndex[F[_]: Sync: Logger](
+    db:     ODatabaseDocumentInternal,
+    schema: VertexSchema[BlockHeader]
+  ): F[Unit] =
+    Sync[F].delay(db.activateOnCurrentThread()) >>
+    Sync[F]
+      .delay(Option(db.getClass(schema.name)))
+      .flatMap {
+        case Some(oClass) =>
+          oClass.getIndexes.asScala
+            .map(_.getName)
+            .contains(SchemaBlockHeader.Field.BlockHeaderHeightIndex)
+            .pure[F]
+            .ifM(
+              Sync[F].unit,
+              SyncIO
+                .fromTry(
+                  Try(
+                    schema.indices
+                      .filter(_.name == SchemaBlockHeader.Field.BlockHeaderHeightIndex)
+                      .foreach(i => oClass.createIndex(i.name, i.indexType, i.propertyNames: _*))
+                  )
+                )
+                .to[F]
+                .onError { case e => Logger[F].error(e)(s"Failed to update Schema BlockHeader") }
+                .void
+            )
+
+        case _ =>
+          Logger[F]
+            .info(s"Class ${schema.name} not found, index height was not created")
+
+      }
+
 }
