@@ -19,7 +19,7 @@ object TransactionRewardCalculator {
         Sync[F].delay((sumLvls(tx.inputs)(_.value) - sumLvls(tx.outputs)(_.value)).max(BigInt(0))),
         Sync[F].delay((sumTopls(tx.inputs)(_.value) - sumTopls(tx.outputs)(_.value)).max(BigInt(0))),
         Sync[F].delay(diffAssets(tx))
-      ).mapN(RewardQuantities)
+      ).mapN(RewardQuantities.apply)
     )
 
   /**

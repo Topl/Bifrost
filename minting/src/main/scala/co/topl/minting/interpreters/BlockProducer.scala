@@ -24,6 +24,7 @@ import fs2._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import quivr.models.SmallData
+
 import scala.concurrent.duration._
 
 object BlockProducer {
@@ -204,9 +205,9 @@ object BlockProducer {
      */
     private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
       base.transactions
-        .foldMapM(rewardCalculator.rewardsOf(_).map(_.lvl))
-        .flatMap(rewardQuantity =>
-          if (rewardQuantity > 0) {
+        .foldMapM(rewardCalculator.rewardsOf)
+        .flatMap(rewardQuantities =>
+          if (!rewardQuantities.isEmpty) {
             staker.rewardAddress
               .map(rewardAddress =>
                 base.withRewardTransaction(
@@ -229,16 +230,36 @@ object BlockProducer {
                       )
                     )
                     .withOutputs(
-                      List(
-                        UnspentTransactionOutput(
-                          rewardAddress,
-                          Value.defaultInstance.withLvl(Value.LVL(rewardQuantity))
-                        )
+                      (
+                        List(rewardQuantities.lvl)
+                          .filter(_ > 0)
+                          .map(Value.LVL(_))
+                          .map(Value.defaultInstance.withLvl(_)) ++
+                        List(rewardQuantities.topl)
+                          .filter(_ > 0)
+                          .map(Value.TOPL(_))
+                          .map(Value.defaultInstance.withTopl(_)) ++
+                        rewardQuantities.assets.toList
+                          .filter(_._2 > 0)
+                          .map { case (assetId, quantity) =>
+                            Value.defaultInstance.withAsset(
+                              Value.Asset(
+                                assetId.groupId,
+                                assetId.seriesId,
+                                quantity,
+                                assetId.groupAlloy,
+                                assetId.seriesAlloy,
+                                assetId.fungibilityType,
+                                assetId.quantityDescriptor
+                              )
+                            )
+                          }
                       )
+                        .map(UnspentTransactionOutput(rewardAddress, _))
                     )
                 )
               )
-              .flatTap(_ => Logger[F].info(s"Collecting block reward quantity=$rewardQuantity"))
+              .flatTap(_ => Logger[F].info(show"Collecting block reward=$rewardQuantities"))
           } else {
             // To avoid dust accumulation for 0-reward blocks, don't include a reward transaction
             base.clearRewardTransaction

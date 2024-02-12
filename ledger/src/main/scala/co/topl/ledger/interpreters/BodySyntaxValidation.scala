@@ -3,7 +3,7 @@ package co.topl.ledger.interpreters
 import cats.data.{EitherT, NonEmptySet, ValidatedNec}
 import cats.effect.Sync
 import cats.implicits._
-import cats.{Foldable, Monoid, Order, Parallel}
+import cats.{Foldable, Order, Parallel}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{TransactionId, TransactionOutputAddress}
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
@@ -109,6 +109,7 @@ object BodySyntaxValidation {
                   _ <- cond(rewardTransaction.outputs.forall(_.value.value.topl.forall(_.registration.isEmpty)))
                   // Verify quantities
                   maximumReward <- EitherT.liftF(transactions.parFoldMapA(rewardCalculator.rewardsOf))
+                  _             <- cond(!maximumReward.isEmpty)
                   claimedLvls = TransactionRewardCalculator.sumLvls(rewardTransaction.outputs)(_.value)
                   _ <- cond(maximumReward.lvl >= claimedLvls)
                   claimedTopls = TransactionRewardCalculator.sumTopls(rewardTransaction.outputs)(_.value)
@@ -122,14 +123,4 @@ object BodySyntaxValidation {
           )
       }
     }
-
-  implicit val monoidTransactionRewardQuantities: Monoid[RewardQuantities] = Monoid.instance[RewardQuantities](
-    RewardQuantities(),
-    (q1, q2) =>
-      RewardQuantities(
-        q1.lvl + q2.lvl,
-        q1.topl + q2.topl,
-        (q1.assets.toList ++ q2.assets.toList).groupBy(_._1).view.mapValues(_.map(_._2).sum).toMap
-      )
-  )
 }
