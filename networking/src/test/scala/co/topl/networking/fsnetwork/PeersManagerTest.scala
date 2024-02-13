@@ -1840,9 +1840,10 @@ class PeersManagerTest
       val initialCash = defaultCache()
       initialCash.putAll(blockWithSource.asJava)
 
+      val initialNewRep = 1L
       val peer: PeerActor[F] = mockPeerActor[F]()
       val initialPeersMap: Map[HostId, Peer[F]] = Map(
-        buildSimplePeerEntry(PeerState.Hot, Option(peer), blockSource),
+        buildSimplePeerEntry(PeerState.Hot, Option(peer), blockSource, newRep = initialNewRep),
         buildSimplePeerEntry(PeerState.Cold, Option(mockPeerActor[F]()), coldPeer),
         buildSimplePeerEntry(PeerState.Warm, Option(mockPeerActor[F]()), preWarmPeer),
         buildSimplePeerEntry(PeerState.Banned, Option(mockPeerActor[F]()), bannedPeer),
@@ -1859,9 +1860,10 @@ class PeersManagerTest
       buildActorFromMockData(mockData)
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
-            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
-            _ <- actor.send(messageToSend)
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            endState <- actor.send(messageToSend)
+            _ = assert(endState.peersHandler.peers(blockSource).newRep == initialNewRep + 1)
           } yield ()
         }
     }

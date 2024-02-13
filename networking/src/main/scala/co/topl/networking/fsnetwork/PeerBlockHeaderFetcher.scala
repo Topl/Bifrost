@@ -122,28 +122,55 @@ object PeerBlockHeaderFetcher {
   private def slotDataFetcher[F[_]: Async: Logger](
     state:             State[F],
     newBlockIdsStream: Stream[F, BlockId]
-  ): Stream[F, Unit] =
+  ): Stream[F, Option[Long]] =
     // TODO close connection to remote peer in case of error
     newBlockIdsStream
-      .evalMap { newBlockId =>
-        processBlockId(state, newBlockId)
+      .evalScan(Option.empty[Long]) { (lastProcessedHeight, newBlockId) =>
+        processRemoteBlockId(state, newBlockId, lastProcessedHeight)
           .handleErrorWith(
-            Logger[F].error(_)(
-              show"Fetching slot data for $newBlockId from remote host ${state.hostIdString} return error"
-            ) >>
-            state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
+            Logger[F].error(_)(show"Fetching slot data $newBlockId from remote ${state.hostIdString} returns error") >>
+            state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId)) >>
+            Option.empty[Long].pure[F]
           )
       }
 
-  private def processBlockId[F[_]: Async: Logger](
-    state:   State[F],
-    blockId: BlockId
-  ): F[Unit] =
+  private def processRemoteBlockId[F[_]: Async: Logger](
+    state:      State[F],
+    blockId:    BlockId,
+    lastHeight: Option[Long]
+  ): F[Option[Long]] =
     for {
-      hostId <- state.hostIdString.pure[F]
+      remoteSlotData <- getSlotDataFromStorageOrRemote(state)(blockId)
+      remoteHeight   <- remoteSlotData.height.pure[F]
+      currentHeight  <- state.localChain.head.map(_.height)
+      res <- remoteSlotShallBeProcessed(remoteHeight, currentHeight, lastHeight).ifM(
+        ifTrue = processRemoteSlotData(state, remoteSlotData),
+        ifFalse = Logger[F].info(
+          show"Skip slot $blockId from ${state.hostIdString}: rh=$remoteHeight, ch=$currentHeight, lh=$lastHeight"
+        ) >>
+          lastHeight.pure[F]
+      )
+    } yield res
 
-      _          <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
-      (from, to) <- slotDataToSync(state, blockId)
+  private def remoteSlotShallBeProcessed[F[_]: Async](
+    remoteHeight:           Long,
+    currentHeight:          Long,
+    lastProcessedHeightOpt: Option[Long]
+  ): F[Boolean] = {
+    val lastProcessedHeight = lastProcessedHeightOpt.getOrElse(Long.MaxValue)
+    (lastProcessedHeight >= remoteHeight || currentHeight >= lastProcessedHeight).pure[F]
+  }
+
+  private def processRemoteSlotData[F[_]: Async: Logger](
+    state:       State[F],
+    endSlotData: SlotData
+  ): F[Option[Long]] =
+    for {
+      blockId <- endSlotData.slotId.blockId.pure[F]
+      hostId  <- state.hostIdString.pure[F]
+      _       <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
+      // endSlotData <- getSlotDataFromStorageOrRemote(state)(blockId)
+      (from, to) <- slotDataToSync(state, endSlotData)
       _ <- Logger[F].info(show"Sync ${from.slotId.blockId}:${to.slotId.blockId} from peer $hostId for $blockId")
 
       downloadedSlotData <- downloadSlotDataChain(state, to)
@@ -156,14 +183,13 @@ object PeerBlockHeaderFetcher {
 
       chainToCheckHead = chainToCheck.headOption.map(_.slotId.blockId)
       chainToCheckLast = chainToCheck.lastOption.map(_.slotId.blockId)
-      _ <- Logger[F].debug(
-        show"ChainToCheck $chainToCheckHead:$chainToCheckLast len=${chainToCheck.length} from peer $hostId for $blockId"
-      )
+      _ <- Logger[F]
+        .debug(
+          show"CheckChain $chainToCheckHead:$chainToCheckLast len=${chainToCheck.length} from $hostId for $blockId"
+        )
 
       compareResult <- compareSlotDataWithLocal(chainToCheck, state)
-        .logDuration(
-          show"Compare slot data end=$chainToCheckLast chain from peer $hostId for $blockId with local chain"
-        )
+        .logDuration(show"Compare slot data end=$chainToCheckLast chain from $hostId for $blockId with local chain")
       betterChain <- compareResult match {
         case CompareResult.NoRemote =>
           Logger[F].info(show"Already adopted $blockId from peer $hostId") >>
@@ -184,16 +210,16 @@ object PeerBlockHeaderFetcher {
       blockSourceOpt <- buildBlockSource(state, to, betterChain)
       _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer $hostId for $blockId")
       _ <- blockSourceOpt.traverse_(s => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(s)))
-    } yield ()
+    } yield endSlotData.height.some
 
   // return slot data for sync where "from" common accepted ancestor "to" top slot data to sync,
   // "from" could be equal to "to"
   private def slotDataToSync[F[_]: Async: Logger](
-    state:      State[F],
-    endBlockId: BlockId
+    state:       State[F],
+    endSlotData: SlotData
   ): F[(SlotData, SlotData)] =
     for {
-      endSlotData <- getSlotDataFromStorageOrRemote(state)(endBlockId)
+      endBlockId <- endSlotData.slotId.blockId.pure[F]
       (from, to) <- state.bodyStore.contains(endBlockId).flatMap {
         case true =>
           Logger[F].debug(show"Build sync data for $endBlockId: no sync is required") >>
@@ -356,7 +382,7 @@ object PeerBlockHeaderFetcher {
     for {
       _   <- OptionT.liftF(Logger[F].info(show"Requested current tip from peer ${state.hostIdString}"))
       tip <- OptionT(state.client.remoteCurrentTip())
-      _   <- OptionT.liftF(processBlockId(state, tip))
+      _   <- OptionT.liftF(processRemoteBlockId(state, tip, None))
       _   <- OptionT.liftF(Logger[F].info(show"Processed current tip $tip from peer ${state.hostIdString}"))
     } yield (state, state)
   }.getOrElse((state, state))

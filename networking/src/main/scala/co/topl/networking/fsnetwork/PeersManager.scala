@@ -455,9 +455,13 @@ object PeersManager {
     // thus we could use it for detect block source. TODO make request parallel
     getHotPeerByBlockId(state, blockIds.last, hostId) match {
       case Some((source, peer)) =>
-        Logger[F].info(show"Forward to $source download block header(s) $blockIds")
-        peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds)) >>
-        (state, state).pure[F]
+        for {
+          _      <- Logger[F].info(show"Forward to $source download block header(s) $blockIds")
+          _      <- peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds))
+          newRep <- (source -> Math.min(peer.newRep + 1, state.p2pNetworkConfig.remotePeerNoveltyInSlots)).pure[F]
+          newPeerHandler <- state.peersHandler.copyWithUpdatedReputation(noveltyRepMap = Map(newRep)).pure[F]
+          newState       <- state.copy(peersHandler = newPeerHandler).pure[F]
+        } yield (newState, newState)
       case None =>
         Logger[F].error(show"Failed to get source host for getting header(s) $blockIds") >>
         state.blocksChecker
