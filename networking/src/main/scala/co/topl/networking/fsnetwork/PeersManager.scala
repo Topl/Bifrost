@@ -456,9 +456,9 @@ object PeersManager {
     getHotPeerByBlockId(state, blockIds.last, hostId) match {
       case Some((source, peer)) =>
         for {
-          _      <- Logger[F].info(show"Forward to $source download block header(s) $blockIds")
-          _      <- peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds))
-          newRep <- (source -> Math.min(peer.newRep + 1, state.p2pNetworkConfig.remotePeerNoveltyInSlots)).pure[F]
+          _              <- Logger[F].info(show"Forward to $source download block header(s) $blockIds")
+          _              <- peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds))
+          newRep         <- (source -> (peer.newRep + 1)).pure[F]
           newPeerHandler <- state.peersHandler.copyWithUpdatedReputation(noveltyRepMap = Map(newRep)).pure[F]
           newState       <- state.copy(peersHandler = newPeerHandler).pure[F]
         } yield (newState, newState)

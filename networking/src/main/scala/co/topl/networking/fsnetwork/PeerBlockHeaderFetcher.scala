@@ -166,10 +166,9 @@ object PeerBlockHeaderFetcher {
     endSlotData: SlotData
   ): F[Option[Long]] =
     for {
-      blockId <- endSlotData.slotId.blockId.pure[F]
-      hostId  <- state.hostIdString.pure[F]
-      _       <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
-      // endSlotData <- getSlotDataFromStorageOrRemote(state)(blockId)
+      blockId    <- endSlotData.slotId.blockId.pure[F]
+      hostId     <- state.hostIdString.pure[F]
+      _          <- Logger[F].info(show"Got blockId: $blockId from peer $hostId")
       (from, to) <- slotDataToSync(state, endSlotData)
       _ <- Logger[F].info(show"Sync ${from.slotId.blockId}:${to.slotId.blockId} from peer $hostId for $blockId")
 
