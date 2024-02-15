@@ -27,8 +27,6 @@ object SchemaTxo {
     val SpendingTransaction = "spendingTransaction"
     // This is the _property_
     val SpendingInputIndex = "spendingInputIndex"
-    // This is the _index_ of the above property
-    val SpendingInputIndexIndex = "spendingInputIndexIndex"
   }
 
   def make(): VertexSchema[Txo] =
@@ -71,8 +69,7 @@ object SchemaTxo {
           mandatory = false,
           readOnly = false,
           notNull = false
-        )
-        .withIndex[Txo](Field.SpendingInputIndexIndex, Field.SpendingInputIndex),
+        ),
       v =>
         Txo(
           transactionOutput = UnspentTransactionOutput.parseFrom(v(Field.TransactionOutput): Array[Byte]),

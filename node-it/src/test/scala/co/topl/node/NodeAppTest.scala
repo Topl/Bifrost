@@ -14,7 +14,7 @@ import co.topl.brambl.syntax._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.{BlockId, ProtocolVersion}
-import co.topl.genus.services.TransactionServiceFs2Grpc
+import co.topl.genus.services._
 import co.topl.grpc.NodeGrpc
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.models.utility._
@@ -22,8 +22,9 @@ import co.topl.node.models.{BlockBody, FullBlock}
 import co.topl.transactiongenerator.interpreters.{Fs2TransactionGenerator, GenusWalletInitializer}
 import co.topl.typeclasses.implicits._
 import com.comcast.ip4s.Port
-import fs2._
 import fs2.io.file.{Files, Path}
+import fs2.{io => _, _}
+import io.grpc.Metadata
 import munit._
 import org.http4s._
 import org.http4s.dsl.io._
@@ -128,12 +129,12 @@ class NodeAppTest extends CatsEffectSuite {
               rpcClients = List(rpcClientA, rpcClientB)
               implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
               _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
-              wallet <- co.topl.grpc
-                .makeChannel[F]("localhost", 9151, tls = false)
-                .flatMap(TransactionServiceFs2Grpc.stubResource[F])
-                .flatMap(GenusWalletInitializer.make[F])
-                .use(_.initialize)
-                .toResource
+              genusChannelA                <- co.topl.grpc.makeChannel[F]("localhost", 9151, tls = false)
+              genusTxServiceA              <- TransactionServiceFs2Grpc.stubResource[F](genusChannelA)
+              genusBlockServiceA           <- BlockServiceFs2Grpc.stubResource[F](genusChannelA)
+              _                            <- awaitGenusReady(genusBlockServiceA).timeout(45.seconds).toResource
+              wallet <- GenusWalletInitializer.make[F](genusTxServiceA).use(_.initialize).toResource
+              _      <- IO(wallet.spendableBoxes.nonEmpty).assert.toResource
               implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
               // Construct two competing graphs of transactions.
               // Graph 1 has higher fees and should be included in the chain
@@ -147,6 +148,7 @@ class NodeAppTest extends CatsEffectSuite {
                 .compile
                 .toList
                 .toResource
+              _ <- IO(transactionGraph1.length == 10).assert.toResource
               // Graph 2 has lower fees, so the Block Packer should never choose them
               transactionGenerator2 <-
                 Fs2TransactionGenerator
@@ -158,6 +160,7 @@ class NodeAppTest extends CatsEffectSuite {
                 .compile
                 .toList
                 .toResource
+              _ <- IO(transactionGraph2.length == 10).assert.toResource
               _ <- rpcClients.parTraverse(fetchUntilHeight(_, 2)).toResource
               // Broadcast _all_ of the good transactions to the nodes randomly
               _ <-
@@ -188,6 +191,16 @@ class NodeAppTest extends CatsEffectSuite {
               _ <- rpcClients
                 .parTraverse(verifyNotConfirmed(_)(transactionGraph2.map(_.id).toSet))
                 .toResource
+              spentTxos <- genusTxServiceA
+                .getTxosByLockAddress(
+                  QueryByLockAddressRequest(wallet.propositions.keys.head, None, TxoState.SPENT),
+                  new Metadata()
+                )
+                .map(_.txos)
+                .toResource
+              _ <- IO(
+                spentTxos.exists(_.spender.exists(_.inputAddress.id == transactionGraph1.head.id))
+              ).assert.toResource
               // Now check consensus
               idsAtTargetHeight <- rpcClients
                 .traverse(client =>
@@ -360,6 +373,11 @@ class NodeAppTest extends CatsEffectSuite {
       .lastOrError
       .assert
 
+  private def awaitGenusReady(blockService: BlockServiceFs2Grpc[F, Metadata]): F[Unit] =
+    blockService
+      .getBlockByHeight(GetBlockByHeightRequest(ChainDistance(1)), new Metadata())
+      .void
+      .handleErrorWith(_ => Async[F].delayBy(awaitGenusReady(blockService), 1.seconds))
 }
 
 case class TestnetConfig(
