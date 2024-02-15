@@ -4,16 +4,17 @@ import cats.data.EitherT
 import cats.effect.Resource
 import cats.effect.kernel.Async
 import cats.implicits._
-import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt, Txo, TxoState}
+import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.{TransactionFetcherAlgebra, VertexFetcherAlgebra}
-import co.topl.genusLibrary.model.GE
+import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances.addressTxoEdge
 import com.tinkerpop.blueprints.{Direction, Vertex}
+
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -27,7 +28,7 @@ object GraphTransactionFetcher {
           transactionId: TransactionId
         ): F[Either[GE, Option[IoTransaction]]] =
           EitherT(vertexFetcher.fetchTransaction(transactionId))
-            .map(_.map(ioTransactionSchema.decodeVertex))
+            .map(_.map(ioTransactionSchema.decode))
             .value
 
         override def fetchTransactionReceipt(
@@ -45,9 +46,9 @@ object GraphTransactionFetcher {
           res.map {
             _.map {
               case (Some(ioTxV), Some(blockHeaderV)) =>
-                val blockHeader = blockHeaderSchema.decodeVertex(blockHeaderV)
+                val blockHeader = blockHeaderSchema.decode(blockHeaderV)
                 TransactionReceipt(
-                  transaction = ioTransactionSchema.decodeVertex(ioTxV),
+                  transaction = ioTransactionSchema.decode(ioTxV),
                   ConfidenceFactor.defaultInstance,
                   blockId = blockHeader.id,
                   depth = ChainDistance(blockHeader.height)
@@ -62,13 +63,18 @@ object GraphTransactionFetcher {
         override def fetchTransactionByLockAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]] =
           (for {
             lockAddressVertex <- EitherT(vertexFetcher.fetchLockAddress(lockAddress))
-            txos <- EitherT.fromEither[F](
-              lockAddressVertex
-                .map(_.getVertices(Direction.OUT, addressTxoEdge.label).asScala.map(txoSchema.decodeVertex).toSeq)
-                .map(_.filter(_.state.value == state.value))
-                .getOrElse(Seq.empty)
-                .asRight[GE]
-            )
+            txos <-
+              EitherT.fromEither[F](
+                Try(
+                  lockAddressVertex.toSeq
+                    .flatMap(_.getVertices(Direction.OUT, addressTxoEdge.label).asScala)
+                    .map(txoSchema.decode)
+                    .filter(_.state.value == state.value)
+                ).toEither
+                  .leftMap[GE](tx =>
+                    GEs.InternalMessageCause("GraphTransactionFetcher:fetchTransactionByLockAddress", tx)
+                  )
+              )
           } yield txos).value
       }
 

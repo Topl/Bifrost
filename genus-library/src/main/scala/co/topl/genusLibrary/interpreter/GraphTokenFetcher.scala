@@ -16,12 +16,12 @@ object GraphTokenFetcher {
       new TokenFetcherAlgebra[F] {
         def fetchGroupPolicy(groupId: GroupId): F[Either[GE, Option[GroupPolicy]]] =
           EitherT(vertexFetcher.fetchGroupPolicy(groupId))
-            .map(_.map(groupPolicySchema.decodeVertex))
+            .map(_.map(groupPolicySchema.decode))
             .value
 
         override def fetchSeriesPolicy(seriesId: SeriesId): F[Either[GE, Option[Event.SeriesPolicy]]] =
           EitherT(vertexFetcher.fetchSeriesPolicy(seriesId))
-            .map(_.map(seriesPolicySchema.decodeVertex))
+            .map(_.map(seriesPolicySchema.decode))
             .value
 
       }

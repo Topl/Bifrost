@@ -6,12 +6,7 @@ import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax.{
-  groupPolicyAsGroupPolicySyntaxOps,
-  ioTransactionAsTransactionSyntaxOps,
-  seriesPolicyAsSeriesPolicySyntaxOps
-}
-import co.topl.typeclasses.implicits._
+import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, ioTransactionAsTransactionSyntaxOps, seriesPolicyAsSeriesPolicySyntaxOps}
 import co.topl.genus.services.{BlockData, Txo, TxoState}
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockUpdaterAlgebra, NodeBlockFetcherAlgebra}
 import co.topl.genusLibrary.model.{GE, GEs}
@@ -20,11 +15,13 @@ import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader.Field
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.instances.{SchemaIoTransaction, SchemaLockAddress, SchemaTxo}
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
-import co.topl.node.models.BlockBody
 import co.topl.models.utility._
+import co.topl.node.models.BlockBody
+import co.topl.typeclasses.implicits._
 import com.tinkerpop.blueprints.impls.orient.OrientGraph
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+
 import scala.util.Try
 
 object GraphBlockUpdater {
@@ -86,11 +83,14 @@ object GraphBlockUpdater {
                   )
 
                   // Lookup previous unspent TXOs, and update the state
-                  ioTx.inputs.foreach { spentTransactionOutput =>
+                  ioTx.inputs.zipWithIndex.foreach { case (spentTransactionOutput, inputIndex) =>
                     graph
                       .getTxo(spentTransactionOutput.address)
-                      .map(_.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value))
-                      .getOrElse(())
+                      .foreach { vertex =>
+                        vertex.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value)
+                        vertex.setProperty(SchemaTxo.Field.SpendingTransaction, ioTxVertex.getId)
+                        vertex.setProperty(SchemaTxo.Field.SpendingInputIndex, java.lang.Integer.valueOf(inputIndex))
+                      }
                   }
                 }
 
@@ -114,6 +114,7 @@ object GraphBlockUpdater {
                       TransactionOutputAddress(utxo.address.network, utxo.address.ledger, index, ioTx.id)
                     )
                   )
+                  ioTxVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex.getId)
                   graph.addEdge(s"class:${addressTxoEdge.name}", lockAddressVertex, txoVertex, addressTxoEdge.label)
 
                 }
@@ -171,6 +172,19 @@ object GraphBlockUpdater {
                   headerVertex.some
                 ).flatten.map(graph.removeVertex)
               }
+
+              // Lookup previous unspent TXOs, and update the state
+              block.body.allTransactions.foreach(ioTx =>
+                ioTx.inputs.foreach { spentTransactionOutput =>
+                  graph
+                    .getTxo(spentTransactionOutput.address)
+                    .foreach { vertex =>
+                      vertex.setProperty(SchemaTxo.Field.State, TxoState.UNSPENT.value)
+                      vertex.setProperty(SchemaTxo.Field.SpendingTransaction, null)
+                      vertex.setProperty(SchemaTxo.Field.SpendingInputIndex, null)
+                    }
+                }
+              )
 
               block.body.allTransactions.flatMap(_.groupPolicies).map(_.event).foreach { policy =>
                 graph.getGroupPolicy(policy.computeId).foreach(graph.removeVertex)

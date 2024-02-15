@@ -99,7 +99,7 @@ class SchemaCanonicalHeadTest
         blockHeaderVertex
       ).toResource
 
-      blockHeaderDecoded = blockHeaderSchema.decodeVertex(blockHeaderFromCanonicalHead)
+      blockHeaderDecoded = blockHeaderSchema.decode(blockHeaderFromCanonicalHead)
       _ <- assertIOBoolean((blockHeader == blockHeaderDecoded).pure[F]).toResource
 
     } yield ()

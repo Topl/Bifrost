@@ -107,7 +107,7 @@ class SchemaGroupPolicyTest
             groupPolicy.fixedSeries.get.value.toByteArray.toSeq
       )
 
-      groupPolicyDecoded = groupPolicySchema.decodeVertex(vertex_test_1)
+      groupPolicyDecoded = groupPolicySchema.decode(vertex_test_1)
       _ = assert(groupPolicyDecoded == groupPolicy)
 
       registrationUtxo = TransactionOutputAddress(1, 1, 1, transactionId)
@@ -146,7 +146,7 @@ class SchemaGroupPolicyTest
           Array.empty[Byte].toSeq
       )
 
-      groupPolicyDecoded = groupPolicySchema.decodeVertex(vertex_test_2)
+      groupPolicyDecoded = groupPolicySchema.decode(vertex_test_2)
       _ = assert(groupPolicyDecoded == groupPolicyWithNoneSeries)
 
     } yield ()
