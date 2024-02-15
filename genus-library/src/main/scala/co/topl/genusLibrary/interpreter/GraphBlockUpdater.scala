@@ -6,7 +6,11 @@ import cats.effect._
 import cats.implicits._
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, ioTransactionAsTransactionSyntaxOps, seriesPolicyAsSeriesPolicySyntaxOps}
+import co.topl.brambl.syntax.{
+  groupPolicyAsGroupPolicySyntaxOps,
+  ioTransactionAsTransactionSyntaxOps,
+  seriesPolicyAsSeriesPolicySyntaxOps
+}
 import co.topl.genus.services.{BlockData, Txo, TxoState}
 import co.topl.genusLibrary.algebras.{BlockFetcherAlgebra, BlockUpdaterAlgebra, NodeBlockFetcherAlgebra}
 import co.topl.genusLibrary.model.{GE, GEs}

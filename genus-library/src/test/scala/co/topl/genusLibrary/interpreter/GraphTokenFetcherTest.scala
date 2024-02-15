@@ -57,17 +57,6 @@ class GraphTokenFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite w
           vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           vertex        <- mock[Vertex].pure[F].toResource
 
-          _ = (vertex.getPropertyKeys _)
-            .expects()
-            .once()
-            .returning(
-              java.util.Set.of(
-                SchemaGroupPolicy.Field.Label,
-                SchemaGroupPolicy.Field.RegistrationUtxo,
-                SchemaGroupPolicy.Field.FixedSeries
-              )
-            )
-
           groupPolicy = GroupPolicy("fooboo", address, Some(seriesId))
 
           _ = (vertexFetcher.fetchGroupPolicy _)
@@ -139,21 +128,6 @@ class GraphTokenFetcherTest extends CatsEffectSuite with ScalaCheckEffectSuite w
         val res = for {
           vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           vertex        <- mock[Vertex].pure[F].toResource
-
-          _ = (vertex.getPropertyKeys _)
-            .expects()
-            .once()
-            .returning(
-              java.util.Set.of(
-                SchemaSeriesPolicy.Field.Label,
-                SchemaSeriesPolicy.Field.TokenSupply,
-                SchemaSeriesPolicy.Field.RegistrationUtxo,
-                SchemaSeriesPolicy.Field.QuantityDescriptor,
-                SchemaSeriesPolicy.Field.Fungibility,
-                SchemaSeriesPolicy.Field.EphemeralMetadataScheme,
-                SchemaSeriesPolicy.Field.PermanentMetadataScheme
-              )
-            )
 
           seriesPolicy = SeriesPolicy(
             label = "fooboo",

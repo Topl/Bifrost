@@ -14,11 +14,7 @@
         <appender-ref ref="STDOUT" />
     </appender>
 
-    <logger name="co.topl" level="INFO" />
-    <logger name="Bifrost.BlockProducer" level="WARN" />
-
-
-    <root level="INFO">
+    <root level="WARN">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>
