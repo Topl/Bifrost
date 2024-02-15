@@ -209,7 +209,7 @@ object PeerBlockHeaderFetcher {
       blockSourceOpt <- buildBlockSource(state, to, betterChain)
       _              <- Logger[F].debug(show"Built block source=$blockSourceOpt from peer $hostId for $blockId")
       _ <- blockSourceOpt.traverse_(s => state.peersManager.sendNoWait(PeersManager.Message.BlocksSource(s)))
-    } yield endSlotData.height.some
+    } yield to.height.some
 
   // return slot data for sync where "from" common accepted ancestor "to" top slot data to sync,
   // "from" could be equal to "to"
