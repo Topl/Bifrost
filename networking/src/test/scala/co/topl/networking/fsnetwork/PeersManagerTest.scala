@@ -1886,7 +1886,8 @@ class PeersManagerTest
       initialCash.putAll(blockWithSource.asJava)
 
       val peer: PeerActor[F] = mockPeerActor[F]()
-      val initialPeersMap: Map[HostId, Peer[F]] = Map(buildSimplePeerEntry(PeerState.Hot, Option(peer), blockSource))
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(buildSimplePeerEntry(PeerState.Hot, Option(peer), blockSource, newRep = Long.MaxValue - 1))
 
       val expectedMessage = PeerActor.Message.DownloadBlockHeaders(NonEmptyChain(blockHeader1.id, blockHeader2.id))
       (peer.sendNoWait _).expects(expectedMessage).once().returns(Applicative[F].unit)
@@ -1898,9 +1899,10 @@ class PeersManagerTest
       buildActorFromMockData(mockData)
         .use { actor =>
           for {
-            _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
-            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
-            _ <- actor.send(messageToSend)
+            _        <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _        <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            endState <- actor.send(messageToSend)
+            _ = assert(endState.peersHandler.peers(blockSource).newRep == mockData.p2pConfig.maxPeerNovelty)
           } yield ()
         }
 
@@ -2396,6 +2398,7 @@ class PeersManagerTest
           for {
             res <- actor.send(PeersManager.Message.BlocksSource(update))
             _ = assert(res.peersHandler(host1).blockRep == bestReputation)
+            _ = assert(res.peersHandler(host1).newRep == mockData.p2pConfig.remotePeerNoveltyInSlots)
             _ = assert(res.peersHandler(host2).blockRep == okReputation)
             _ = assert(res.peersHandler(host3).blockRep == bestReputation)
             _ = assert(res.peersHandler(host4).blockRep == worstReputation)

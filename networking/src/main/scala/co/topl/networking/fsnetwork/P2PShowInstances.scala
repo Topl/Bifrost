@@ -81,6 +81,7 @@ trait P2PShowInstances {
     s" PerformanceReputationIdealValue=${config.performanceReputationIdealValue};" ++
     s" PerformanceReputationMaxDelay=${config.performanceReputationMaxDelay} ms;" ++
     s" RemotePeerNoveltyInSlots=${config.remotePeerNoveltyInSlots};" ++
+    s" MaxPeerNovelty=${config.maxPeerNovelty};" ++
     s" WarmHostsUpdateInterval=${config.peersUpdateInterval.toMillis} ms;" ++
     s" AggressiveP2PRequestInterval=${config.aggressiveP2PRequestInterval.toMillis} ms;"
 
@@ -95,8 +96,6 @@ trait P2PShowInstances {
     s" Remote peer=${if (peer.remoteNetworkLevel) "active" else "no active"};" +
     f" Rep: block=${peer.blockRep}%.2f, perf=${peer.perfRep}%.2f, new=${peer.newRep}, mean=${peer.reputation}%.2f;" +
     s" With total ${peer.closedTimestamps.size} closes with" +
-    s" first 5 timestamps ${peer.closedTimestamps.take(5)};" +
-    s" last 5 timestamps ${peer.closedTimestamps.takeRight(5)};" +
     s" last close ${peer.closedTimestamps.lastOption.map(l => Instant.ofEpochMilli(l).toString).getOrElse("none")};" +
     s" >>>"
   }

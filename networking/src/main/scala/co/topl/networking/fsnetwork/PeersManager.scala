@@ -458,7 +458,7 @@ object PeersManager {
         for {
           _              <- Logger[F].info(show"Forward to $source download block header(s) $blockIds")
           _              <- peer.sendNoWait(PeerActor.Message.DownloadBlockHeaders(blockIds))
-          newRep         <- (source -> (peer.newRep + 1)).pure[F]
+          newRep         <- (source -> Math.min(peer.newRep + 1, state.p2pNetworkConfig.maxPeerNovelty)).pure[F]
           newPeerHandler <- state.peersHandler.copyWithUpdatedReputation(noveltyRepMap = Map(newRep)).pure[F]
           newState       <- state.copy(peersHandler = newPeerHandler).pure[F]
         } yield (newState, newState)
@@ -533,7 +533,7 @@ object PeersManager {
     val noveltyRepUpdate =
       peerToKnownSource
         .filter(_._2 == 1) // select peer which provide completely new block
-        .map { case (source, _) => source -> state.p2pNetworkConfig.remotePeerNoveltyInSlots }
+        .map { case (source, oldRep) => source -> Math.max(oldRep, state.p2pNetworkConfig.remotePeerNoveltyInSlots) }
 
     val newPeerHandler =
       state.peersHandler.copyWithUpdatedReputation(blockRepMap = perfRepUpdate, noveltyRepMap = noveltyRepUpdate)
