@@ -48,6 +48,17 @@ case class P2PNetworkConfig(networkProperties: NetworkProperties, slotDuration: 
     Math.ceil(networkProperties.expectedSlotsPerBlock * networkProperties.remotePeerNoveltyInExpectedBlocks).toLong
 
   /**
+   * Each header download request increase peer novelty, it allows to keep connection if we sync from scratch.
+   * It is required because of stopping processing new slot data from remote peer during processing already
+   * received slot data, i.e. remote peer block providing reputation will be reduced to 0 over some time.
+   */
+  val maxPeerNovelty: Long =
+    if (slotDuration.toMillis != 0)
+      (1000L * 60 * 30) / slotDuration.toMillis // 30 minutes
+    else
+      remotePeerNoveltyInSlots
+
+  /**
    * How often we update our list of warm hosts
    */
   val peersUpdateInterval: FiniteDuration =
