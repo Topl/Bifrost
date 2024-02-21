@@ -1,18 +1,19 @@
 package co.topl.genusLibrary.interpreter
 
+import cats.data.EitherT
 import cats.effect.IO
 import cats.implicits._
 import co.topl.brambl.generators.ModelGenerators._
-import co.topl.brambl.models.transaction.{IoTransaction, UnspentTransactionOutput}
-import co.topl.brambl.models.{LockAddress, TransactionId, TransactionOutputAddress}
+import co.topl.brambl.models.transaction.{IoTransaction, SpentTransactionOutput, UnspentTransactionOutput}
+import co.topl.brambl.models.{LockAddress, TransactionId, TransactionInputAddress, TransactionOutputAddress}
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.genus.services.{ChainDistance, ConfidenceFactor, TransactionReceipt, Txo, TxoState}
+import co.topl.genus.services._
 import co.topl.genusLibrary.algebras.VertexFetcherAlgebra
 import co.topl.genusLibrary.model.{GE, GEs}
 import co.topl.genusLibrary.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaTxo}
+import co.topl.models.generators.consensus.ModelGenerators._
 import com.tinkerpop.blueprints.{Direction, Vertex}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -86,25 +87,10 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
           vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           vertex        <- mock[Vertex].pure[F].toResource
 
-          _ = (vertex.getPropertyKeys _)
-            .expects()
-            .once()
-            .returning(
-              java.util.Set.of(
-                SchemaIoTransaction.Field.TransactionId,
-                SchemaIoTransaction.Field.Transaction
-              )
-            )
-
           _ = (vertex.getProperty[Array[Byte]] _)
             .expects(SchemaIoTransaction.Field.Transaction)
             .once()
             .returning(ioTransaction.toByteArray)
-
-          _ = (vertex.getProperty[Array[Byte]] _)
-            .expects(SchemaIoTransaction.Field.TransactionId)
-            .once()
-            .returning(ioTransaction.id.value.toByteArray)
 
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -195,20 +181,9 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             .once()
             .returning(Option(iotxVertex).asRight[GE].pure[F])
 
-          _ = (iotxVertex.getPropertyKeys _)
-            .expects()
-            .once()
-            .returning(
-              java.util.Set.of(
-                SchemaIoTransaction.Field.TransactionId,
-                SchemaIoTransaction.Field.Transaction,
-                SchemaBlockHeader.Field.BlockId
-              )
-            )
-
           _ = (iotxVertex.getProperty[Vertex] _)
-            .expects(SchemaBlockHeader.Field.BlockId)
-            .twice()
+            .expects(SchemaIoTransaction.Field.ParentBlock)
+            .once()
             .returning(blockHeaderVertex)
 
           _ = (blockHeaderVertex
@@ -289,36 +264,10 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             .once()
             .returning(blockHeader.version.toByteArray)
 
-          _ = (blockHeaderVertex.getPropertyKeys _)
-            .expects()
-            .once()
-            .returning(
-              java.util.Set.of(
-                SchemaBlockHeader.Field.BlockId,
-                SchemaBlockHeader.Field.ParentHeaderId,
-                SchemaBlockHeader.Field.ParentSlot,
-                SchemaBlockHeader.Field.TxRoot,
-                SchemaBlockHeader.Field.BloomFilter,
-                SchemaBlockHeader.Field.Timestamp,
-                SchemaBlockHeader.Field.Height,
-                SchemaBlockHeader.Field.Slot,
-                SchemaBlockHeader.Field.EligibilityCertificate,
-                SchemaBlockHeader.Field.OperationalCertificate,
-                SchemaBlockHeader.Field.Metadata,
-                SchemaBlockHeader.Field.Address,
-                SchemaBlockHeader.Field.Version
-              )
-            )
-
           _ = (iotxVertex.getProperty[Array[Byte]] _)
             .expects(SchemaIoTransaction.Field.Transaction)
             .once()
             .returning(ioTransaction.toByteArray)
-
-          _ = (iotxVertex.getProperty[Array[Byte]] _)
-            .expects(SchemaIoTransaction.Field.TransactionId)
-            .once()
-            .returning(ioTransaction.id.value.toByteArray)
 
           expectedTransactionReceipt =
             TransactionReceipt(
@@ -426,17 +375,6 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
               .once()
               .returning(Option(lockAddressVertex).asRight[GE].pure[F])
 
-            _ = (() => txoVertex.getPropertyKeys)
-              .expects()
-              .once()
-              .returning(
-                java.util.Set.of(
-                  SchemaTxo.Field.TransactionOutput,
-                  SchemaTxo.Field.State,
-                  SchemaTxo.Field.OutputAddress
-                )
-              )
-
             _ = (txoVertex.getProperty[Array[Byte]] _)
               .expects(SchemaTxo.Field.TransactionOutput)
               .once()
@@ -446,6 +384,11 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
               .expects(SchemaTxo.Field.State)
               .once()
               .returning(TxoState.UNSPENT.value)
+
+            _ = (txoVertex.getProperty[java.lang.Integer] _)
+              .expects(SchemaTxo.Field.SpendingInputIndex)
+              .once()
+              .returning(null)
 
             _ = (txoVertex.getProperty[Array[Byte]] _)
               .expects(SchemaTxo.Field.OutputAddress)
@@ -479,30 +422,22 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       (
         lockAddress:              LockAddress,
         transactionOutputAddress: TransactionOutputAddress,
-        transactionOutput:        UnspentTransactionOutput
+        transactionOutput:        UnspentTransactionOutput,
+        spendingTransactionInput: SpentTransactionOutput
       ) =>
         withMock {
 
           val res = for {
             vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
             lockAddressVertex = mock[Vertex]
+            spendingTransactionVertex = mock[Vertex]
             txoVertex = mock[Vertex]
+            spendingTransaction = IoTransaction.defaultInstance.withInputs(List(spendingTransactionInput))
 
             _ = (vertexFetcher.fetchLockAddress _)
               .expects(lockAddress)
               .once()
               .returning(Option(lockAddressVertex).asRight[GE].pure[F])
-
-            _ = (() => txoVertex.getPropertyKeys)
-              .expects()
-              .once()
-              .returning(
-                java.util.Set.of(
-                  SchemaTxo.Field.TransactionOutput,
-                  SchemaTxo.Field.State,
-                  SchemaTxo.Field.OutputAddress
-                )
-              )
 
             _ = (txoVertex.getProperty[Array[Byte]] _)
               .expects(SchemaTxo.Field.TransactionOutput)
@@ -513,6 +448,21 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
               .expects(SchemaTxo.Field.State)
               .once()
               .returning(TxoState.SPENT.value)
+
+            _ = (txoVertex.getProperty[java.lang.Integer] _)
+              .expects(SchemaTxo.Field.SpendingInputIndex)
+              .once()
+              .returning(0)
+
+            _ = (txoVertex.getProperty[Vertex] _)
+              .expects(SchemaTxo.Field.SpendingTransaction)
+              .once()
+              .returning(spendingTransactionVertex)
+
+            _ = (spendingTransactionVertex.getProperty[Array[Byte]] _)
+              .expects(SchemaIoTransaction.Field.Transaction)
+              .once()
+              .returning(spendingTransaction.toByteArray)
 
             _ = (txoVertex.getProperty[Array[Byte]] _)
               .expects(SchemaTxo.Field.OutputAddress)
@@ -528,10 +478,23 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
               .returning(getVerticesRes)
 
             graphTransactionFetcher <- GraphTransactionFetcher.make[F](vertexFetcher)
-            _ <- assertIO(
-              graphTransactionFetcher.fetchTransactionByLockAddress(lockAddress, TxoState.SPENT).map(_.map(_.size)),
-              1.asRight[GE]
-            ).toResource
+            txos <- EitherT(graphTransactionFetcher.fetchTransactionByLockAddress(lockAddress, TxoState.SPENT))
+              .valueOrF(IO.raiseError)
+              .toResource
+            _ <- IO.pure(txos.length).assertEquals(1).toResource
+            txo = txos.head
+            _ <- IO
+              .pure(txo.spender.get.inputAddress)
+              .assertEquals(
+                TransactionInputAddress(
+                  network = spendingTransactionInput.address.network,
+                  ledger = spendingTransactionInput.address.ledger,
+                  index = 0,
+                  id = spendingTransaction.id
+                )
+              )
+              .toResource
+            _ <- IO.pure(txo.spender.get.input).assertEquals(spendingTransactionInput).toResource
           } yield ()
 
           res.use_

@@ -35,7 +35,7 @@ case class GraphDataEncoder[T] private (
     notNull:   Boolean
   ): GraphDataEncoder[T] =
     copy(
-      encode = t => encode(t).updated(name, extract(t)),
+      encode = t => encode(t).updatedWith(name)(_ => Option(extract(t))),
       properties = properties.incl(Property(name, OTyped[V].oType, mandatory, readOnly, notNull))
     )
 

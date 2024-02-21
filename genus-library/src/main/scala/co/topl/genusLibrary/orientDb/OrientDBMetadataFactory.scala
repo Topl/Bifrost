@@ -1,20 +1,14 @@
 package co.topl.genusLibrary.orientDb
 
-import cats.effect.Async
-import cats.effect.{Resource, Sync, SyncIO}
+import cats.effect.{Async, Resource, Sync}
 import cats.implicits._
-import co.topl.consensus.models.BlockHeader
-import co.topl.genusLibrary.orientDb.instances.SchemaBlockHeader
-import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
 import co.topl.genusLibrary.orientDb.instances.VertexSchemaInstances.instances._
 import co.topl.genusLibrary.orientDb.schema.EdgeSchemaInstances._
+import co.topl.genusLibrary.orientDb.schema.{EdgeSchema, VertexSchema}
 import com.orientechnologies.orient.core.db.ODatabaseDocumentInternal
-import com.orientechnologies.orient.core.metadata.schema.OClass
-import com.orientechnologies.orient.core.metadata.schema.OType
+import com.orientechnologies.orient.core.metadata.schema.{OClass, OType}
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import org.typelevel.log4cats.Logger
-import scala.jdk.CollectionConverters.SetHasAsScala
-import scala.util.Try
 
 /**
  * Metadata Factory which has control over the following actions
@@ -71,8 +65,6 @@ object OrientDBMetadataFactory {
           } yield ()
         )
       )
-
-      _ <- Resource.eval(OrientThread[F].defer(updateBlockHeaderHeightIndex(db, blockHeaderSchema)))
     } yield ()
 
   private[genusLibrary] def createVertex[F[_]: Sync: Logger](db: ODatabaseDocumentInternal, schema: VertexSchema[_]) =
@@ -80,41 +72,36 @@ object OrientDBMetadataFactory {
     // may directly invoke this method without first initializing
     Sync[F].delay(db.activateOnCurrentThread()) >>
     Sync[F]
-      .delay(Option(db.getClass(schema.name)))
-      .flatMap {
-        case Some(oClass) =>
-          Logger[F]
-            .debug(s"${oClass.getName} class found, schema remains equals")
-            .as(oClass)
-        case _ =>
-          Sync[F]
-            .delay(db.createClass(schema.name, "V"))
-            .flatTap(oClass => createProps(schema, oClass))
-            .flatTap(oClass => createIndices(schema, oClass))
-            .flatTap(oClass => createLinks(db, schema, oClass))
-      }
+      .delay(Option(db.getClass(schema.name)).getOrElse(db.createClass(schema.name, "V")))
+      .flatTap(oClass => createProps(schema, oClass))
+      .flatTap(oClass => createIndices(schema, oClass))
+      .flatTap(oClass => createLinks(db, schema, oClass))
 
   private def createProps[F[_]: Sync: Logger](vs: VertexSchema[_], oClass: OClass): F[Unit] =
-    SyncIO
-      .fromTry(
-        Try(
-          vs.properties.foreach(property =>
+    Sync[F]
+      .catchNonFatal(
+        vs.properties
+          .filter(property => oClass.getProperty(property.name) == null)
+          .foreach(property =>
             oClass
               .createProperty(property.name, property.propertyType)
               .setReadonly(property.readOnly)
               .setMandatory(property.mandatory)
               .setNotNull(property.notNull)
           )
-        )
       )
-      .to[F]
       .onError { case e => Logger[F].error(e)(s"Failed to create properties on ${vs.name}") }
       .void
 
   private def createIndices[F[_]: Sync: Logger](vs: VertexSchema[_], oClass: OClass): F[Unit] =
-    SyncIO
-      .fromTry(Try(vs.indices.foreach(i => oClass.createIndex(i.name, i.indexType, i.propertyNames: _*))))
-      .to[F]
+    Sync[F]
+      .catchNonFatal {
+        import scala.jdk.CollectionConverters._
+        val currentIndices = oClass.getIndexes.asScala.map(_.getName)
+        vs.indices
+          .filterNot(i => currentIndices.contains(i.name))
+          .foreach(i => oClass.createIndex(i.name, i.indexType, i.propertyNames: _*))
+      }
       .onError { case e => Logger[F].error(e)(s"Failed to create indices on ${vs.name}") }
       .void
 
@@ -123,18 +110,15 @@ object OrientDBMetadataFactory {
     vs:     VertexSchema[_],
     oClass: OClass
   ): F[Unit] =
-    SyncIO
-      .fromTry(
-        Try(
-          vs.links.foreach { l =>
-            val property = Option(oClass.getProperty(l.propertyName))
-              .getOrElse(oClass.createProperty(l.propertyName, OType.LINK))
-            if (oClass.getProperty(l.propertyName).getLinkedClass == null)
-              property.setLinkedClass(db.getClass(l.linkedClass))
-          }
-        )
+    Sync[F]
+      .catchNonFatal(
+        vs.links.foreach { l =>
+          val property = Option(oClass.getProperty(l.propertyName))
+            .getOrElse(oClass.createProperty(l.propertyName, OType.LINK))
+          if (oClass.getProperty(l.propertyName).getLinkedClass == null)
+            property.setLinkedClass(db.getClass(l.linkedClass))
+        }
       )
-      .to[F]
       .onError { case e => Logger[F].error(e)(s"Failed to create link on ${vs.name}") }
       .void
 
@@ -150,51 +134,6 @@ object OrientDBMetadataFactory {
           Logger[F].debug(s"${oClass.getName} class found, schema remains equals")
         case _ =>
           Sync[F].delay(db.createClass(edge.label, "E")).void
-      }
-
-  /**
-   * This method updates an existing BlockHeader schema, createVertex skip vertex creating if they already exist.
-   * This new index was proposed after some DBs was on test/production mode, for this reason was isolated from the schema definition.
-   * If there is no database, createVertex method will create 2 indices and this method will be not used.
-   * This method could be safely removed if it was executed on a previous Database at least once,
-   * or the db schemas was created from scratch
-   * @param db
-   * @param schema
-   * @tparam F
-   * @return
-   */
-  private[orientDb] def updateBlockHeaderHeightIndex[F[_]: Sync: Logger](
-    db:     ODatabaseDocumentInternal,
-    schema: VertexSchema[BlockHeader]
-  ): F[Unit] =
-    Sync[F].delay(db.activateOnCurrentThread()) >>
-    Sync[F]
-      .delay(Option(db.getClass(schema.name)))
-      .flatMap {
-        case Some(oClass) =>
-          oClass.getIndexes.asScala
-            .map(_.getName)
-            .contains(SchemaBlockHeader.Field.BlockHeaderHeightIndex)
-            .pure[F]
-            .ifM(
-              Sync[F].unit,
-              SyncIO
-                .fromTry(
-                  Try(
-                    schema.indices
-                      .filter(_.name == SchemaBlockHeader.Field.BlockHeaderHeightIndex)
-                      .foreach(i => oClass.createIndex(i.name, i.indexType, i.propertyNames: _*))
-                  )
-                )
-                .to[F]
-                .onError { case e => Logger[F].error(e)(s"Failed to update Schema BlockHeader") }
-                .void
-            )
-
-        case _ =>
-          Logger[F]
-            .info(s"Class ${schema.name} not found, index height was not created")
-
       }
 
 }

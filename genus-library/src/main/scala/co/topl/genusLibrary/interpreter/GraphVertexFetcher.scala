@@ -75,7 +75,7 @@ object GraphVertexFetcher {
                 orientGraph.command(new OSQLSynchQuery[OrientVertex](queryString)).execute()
 
               query.asScala.headOption
-                .map(blockHeaderSchema.decodeVertex)
+                .map(blockHeaderSchema.decode)
                 .map(_.height)
                 .map(_ - depth)
                 .map(height =>
