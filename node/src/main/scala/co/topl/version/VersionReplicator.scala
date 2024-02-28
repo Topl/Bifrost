@@ -21,6 +21,7 @@ object VersionReplicator {
   ): Resource[F, SoftwareVersionAlgebra[F]] =
     Resource.pure {
       new SoftwareVersionAlgebra[F] {
+
         override def fetchSoftwareVersion(): F[String] =
           OptionT(nodeMetadataAlgebra.readAppVersion).getOrElse("Undefined")
 

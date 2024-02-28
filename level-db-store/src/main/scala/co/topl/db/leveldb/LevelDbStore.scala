@@ -26,6 +26,7 @@ object LevelDbStore {
   def make[F[_]: Sync, Key: Persistable, Value: Persistable](db: DB): F[Store[F, Key, Value]] =
     Sync[F].delay {
       new Store[F, Key, Value] {
+
         def put(id: Key, t: Value): F[Unit] =
           (Sync[F].delay(id.persistedBytes.toByteArray), Sync[F].delay(t.persistedBytes.toByteArray)).tupled
             .flatMap { case (idB, tB) => useDb(_.put(idB, tB)) }

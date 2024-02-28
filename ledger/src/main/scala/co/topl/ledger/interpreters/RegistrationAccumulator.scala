@@ -123,6 +123,7 @@ object RegistrationAccumulator {
     )(augmentation: Augmentation): Resource[F, RegistrationAccumulatorAlgebra[F]] =
       Resource.pure {
         new RegistrationAccumulatorAlgebra[F] {
+
           def contains(blockId: BlockId)(address: StakingAddress): F[Boolean] =
             if (augmentation.newRegistrationAddresses.contains(address)) true.pure[F]
             else if (augmentation.spentRegistrationAddresses.contains(address)) false.pure[F]

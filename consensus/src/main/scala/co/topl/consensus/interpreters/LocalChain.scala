@@ -26,6 +26,7 @@ object LocalChain {
       Ref.of[F, SlotData](initialHead).toResource
     ).mapN((adoptionsTopic, headRef) =>
       new LocalChainAlgebra[F] {
+
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.LocalChain")
 

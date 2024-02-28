@@ -467,6 +467,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val enoughHeightDelta = 1
       val chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
         override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+
         override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
           (proposedHeight - enoughHeightDelta).pure[F]
       }

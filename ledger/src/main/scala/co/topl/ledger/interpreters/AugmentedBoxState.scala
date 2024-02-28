@@ -21,6 +21,7 @@ object AugmentedBoxState {
   def make[F[_]: Sync](boxState: BoxStateAlgebra[F])(stateAugmentation: StateAugmentation): F[BoxStateAlgebra[F]] =
     Sync[F].delay {
       new BoxStateAlgebra[F] {
+
         def boxExistsAt(blockId: BlockId)(boxId: TransactionOutputAddress): F[Boolean] =
           if (stateAugmentation.newBoxIds.contains(boxId)) true.pure[F]
           else if (stateAugmentation.spentBoxIds.contains(boxId)) false.pure[F]
