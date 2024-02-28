@@ -102,7 +102,7 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.6"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
   val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
 
