@@ -663,6 +663,7 @@ lazy val genus = project
     tetraByteCodecs,
     toplGrpc,
     commonInterpreters,
+    commonApplication,
     munitScalamock % "test->test",
     numerics       % "test->compile"
   )

@@ -179,8 +179,8 @@ object GraphBlockUpdater {
                     .getTxo(spentTransactionOutput.address)
                     .foreach { vertex =>
                       vertex.setProperty(SchemaTxo.Field.State, TxoState.UNSPENT.value)
-                      vertex.setProperty(SchemaTxo.Field.SpendingTransaction, null)
-                      vertex.setProperty(SchemaTxo.Field.SpendingInputIndex, null)
+                      vertex.removeProperty(SchemaTxo.Field.SpendingTransaction)
+                      vertex.removeProperty(SchemaTxo.Field.SpendingInputIndex)
                     }
                 }
               )
