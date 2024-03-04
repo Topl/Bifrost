@@ -86,6 +86,13 @@ lazy val nodeDockerSettings =
     )
   )
 
+lazy val genusDockerSettings =
+  dockerSettings ++ Seq(
+    dockerExposedPorts := Seq(9084),
+    Docker / packageName := "genus",
+    dockerExposedVolumes += "/genus"
+  )
+
 lazy val networkDelayerDockerSettings =
   dockerSettings ++ Seq(
     Docker / packageName := "network-delayer"
@@ -647,16 +654,17 @@ lazy val catsUtils = project
 
 lazy val genus = project
   .in(file("genus"))
-  .enablePlugins(BuildInfoPlugin)
   .settings(
     name := "genus",
     commonSettings,
     scalamacrosParadiseSettings,
+    publish / skip := true,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "co.topl.buildinfo.genus",
-    libraryDependencies ++= Dependencies.genusLibrary
+    libraryDependencies ++= Dependencies.genus
   )
+  .settings(genusDockerSettings)
   .dependsOn(
     typeclasses,
     models % "compile->compile;test->test",
@@ -667,6 +675,7 @@ lazy val genus = project
     munitScalamock % "test->test",
     numerics       % "test->compile"
   )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))

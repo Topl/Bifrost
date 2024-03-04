@@ -83,10 +83,10 @@ object GenusArgs {
 }
 
 case class GenusApplicationConfig(
-  rpcBindHost:       String,
-  rpcBindPort:       Int,
+  rpcBindHost:       String = "0.0.0.0",
+  rpcBindPort:       Int = 9084,
   nodeRpcHost:       String,
-  nodeRpcPort:       Int,
+  nodeRpcPort:       Int = 9084,
   nodeRpcTls:        Boolean = false,
   orientDbDirectory: String,
   orientDbPassword:  String,
