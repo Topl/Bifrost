@@ -13,7 +13,7 @@ object Dependencies {
   val ioGrpcVersion = "1.60.2"
   val http4sVersion = "0.23.25"
   val protobufSpecsVersion = "2.0.0-beta2" // scala-steward:off
-  val bramblScVersion = "2.0.0-beta2+2-8e98ff76-SNAPSHOT" // scala-steward:off
+  val bramblScVersion = "2.0.0-beta3" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -104,7 +104,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.6"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "20.0.0"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
 
   val http4s = Seq(
     "org.http4s" %% "http4s-ember-client" % http4sVersion,
