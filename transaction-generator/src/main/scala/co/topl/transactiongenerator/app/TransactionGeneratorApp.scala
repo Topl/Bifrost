@@ -99,7 +99,7 @@ object TransactionGeneratorApp
   ) =
     transactionStream
       // Send 1 transaction per _this_ duration
-      .meteredStartImmediately((1_000_000_000d / targetTps).nanos)
+      .meteredStartImmediately((1000000000d / targetTps).nanos)
       // Broadcast+log the transaction
       .evalTap(transaction =>
         Logger[F].debug(show"Broadcasting transaction id=${transaction.id}") >>
