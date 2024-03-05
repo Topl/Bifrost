@@ -40,6 +40,7 @@ object Staking {
       .pure {
         val _rewardAddress = rewardAddress
         new StakingAlgebra[F] {
+
           implicit private val logger: SelfAwareStructuredLogger[F] =
             Slf4jLogger.getLoggerFromName[F]("Bifrost.Staking")
           val address: F[StakingAddress] = a.pure[F]

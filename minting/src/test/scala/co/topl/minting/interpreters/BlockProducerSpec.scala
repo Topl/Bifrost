@@ -99,8 +99,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             blockPackerQueue <- Queue.unbounded[F, FullBlockBody]
             _                <- blockPackerQueue.offer(outputBody)
             blockPacker = new BlockPackerAlgebra[F] {
+
               def improvePackedBlock(parentBlockId: BlockId, height: Long, slot: Long): F[Iterative[F, FullBlockBody]] =
                 new Iterative[F, FullBlockBody] {
+
                   def improve(current: FullBlockBody): F[FullBlockBody] =
                     blockPackerQueue.take.flatTap(_ => (IO.sleep(100.milli) >> clockDeferment.complete(())).start)
                 }.pure[F]

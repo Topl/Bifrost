@@ -3,7 +3,7 @@ import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
 import NativePackagerHelper.*
 
-val scala213 = "2.13.12"
+val scala213 = "2.13.13"
 
 inThisBuild(
   List(
@@ -45,7 +45,7 @@ lazy val commonSettings = Seq(
     "Bintray" at "https://jcenter.bintray.com/",
     "jitpack" at "https://jitpack.io"
   ),
-  addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.3" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1"),
   testFrameworks += TestFrameworks.MUnit,
   dependencyOverrides ++= Dependencies.protobufSpecs ++ Seq(Dependencies.quivr4s)

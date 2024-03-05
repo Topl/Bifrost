@@ -14,6 +14,7 @@ object GraphTokenFetcher {
   def make[F[_]: Async](vertexFetcher: VertexFetcherAlgebra[F]): Resource[F, TokenFetcherAlgebra[F]] =
     Resource.pure {
       new TokenFetcherAlgebra[F] {
+
         def fetchGroupPolicy(groupId: GroupId): F[Either[GE, Option[GroupPolicy]]] =
           EitherT(vertexFetcher.fetchGroupPolicy(groupId))
             .map(_.map(groupPolicySchema.decode))

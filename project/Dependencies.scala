@@ -6,14 +6,14 @@ object Dependencies {
   val kamonVersion = "2.7.0"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
-  val catsEffectVersion = "3.5.2"
-  val fs2Version = "3.9.3"
-  val logback = "1.4.14"
-  val orientDbVersion = "3.2.26"
-  val ioGrpcVersion = "1.60.1"
+  val catsEffectVersion = "3.5.3"
+  val fs2Version = "3.9.4"
+  val logback = "1.5.0"
+  val orientDbVersion = "3.2.28"
+  val ioGrpcVersion = "1.60.2"
   val http4sVersion = "0.23.25"
   val protobufSpecsVersion = "2.0.0-beta2" // scala-steward:off
-  val bramblScVersion = "2.0.0-beta2+2-8e98ff76-SNAPSHOT" // scala-steward:off
+  val bramblScVersion = "2.0.0-beta3" // scala-steward:off
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -22,7 +22,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.11",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.12",
     catsSlf4j
   )
 
@@ -58,7 +58,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.2.2"
+    "org.typelevel" %% "mouse"     % "1.2.3"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
@@ -89,7 +89,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.5.4"
+    "com.lihaoyi" %% "mainargs" % "0.6.2"
   )
 
   val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
@@ -102,7 +102,7 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.4"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.6"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
   val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
 
@@ -165,7 +165,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.30.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.30.2"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All

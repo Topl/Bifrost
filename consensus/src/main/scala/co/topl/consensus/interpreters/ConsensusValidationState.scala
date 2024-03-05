@@ -27,6 +27,7 @@ object ConsensusValidationState {
   ): F[ConsensusValidationStateAlgebra[F]] =
     Applicative[F].pure {
       new ConsensusValidationStateAlgebra[F] {
+
         def totalActiveStake(currentBlockId: BlockId, slot: Slot): F[BigInt] =
           useStateAtTargetBoundary(currentBlockId, slot)(_.totalActiveStake.getOrRaise(()))
 
