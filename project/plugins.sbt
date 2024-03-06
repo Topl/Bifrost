@@ -12,7 +12,7 @@ Seq(
   "com.github.cb372"        % "sbt-explicit-dependencies" % "0.3.1",
   "pl.project13.scala"      % "sbt-jmh"                   % "0.4.7",
   "org.scalameta"           % "sbt-scalafmt"              % "2.5.2",
-  "ch.epfl.scala"           % "sbt-scalafix"              % "0.11.1",
+  "ch.epfl.scala"           % "sbt-scalafix"              % "0.12.0",
   "org.wartremover"         % "sbt-wartremover"           % "3.1.6",
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.16",
   "com.eed3si9n"            % "sbt-buildinfo"             % "0.11.0",
