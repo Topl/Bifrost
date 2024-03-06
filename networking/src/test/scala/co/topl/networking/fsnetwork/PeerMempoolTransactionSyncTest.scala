@@ -73,7 +73,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
           }
         (transactionSyntaxValidation.validate _).expects(tx).once().returns(Either.right(tx).pure[F])
         (transactionStore.put _).expects(tx.id, tx).once().returns(Applicative[F].unit)
-        (mempool.add _).expects(tx.id).once().returns(Applicative[F].unit)
+        (mempool.add _).expects(tx.id).once().returns(true.pure[F])
       }
 
       transactionInStore.map { tx =>
@@ -127,7 +127,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
           .once()
           .returns(Applicative[F].unit)
         (transactionStore.put _).expects(tx.id, tx).never().returns(Applicative[F].unit)
-        (mempool.add _).expects(tx.id).never().returns(Applicative[F].unit)
+        (mempool.add _).expects(tx.id).never().returns(true.pure[F])
       }
 
       PeerMempoolTransactionSync
@@ -172,7 +172,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
           .returns(Applicative[F].unit)
         (transactionSyntaxValidation.validate _).expects(tx).never().returns(Either.right(tx).pure[F])
         (transactionStore.put _).expects(tx.id, tx).never().returns(Applicative[F].unit)
-        (mempool.add _).expects(tx.id).never().returns(Applicative[F].unit)
+        (mempool.add _).expects(tx.id).never().returns(true.pure[F])
       }
 
       PeerMempoolTransactionSync
@@ -218,7 +218,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
           .returns(Applicative[F].unit)
         (transactionSyntaxValidation.validate _).expects(tx).never().returns(Either.right(tx).pure[F])
         (transactionStore.put _).expects(tx.id, tx).never().returns(Applicative[F].unit)
-        (mempool.add _).expects(tx.id).never().returns(Applicative[F].unit)
+        (mempool.add _).expects(tx.id).never().returns(true.pure[F])
       }
 
       transactionInStore.map { tx =>

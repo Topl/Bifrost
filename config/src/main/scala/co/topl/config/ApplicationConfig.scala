@@ -84,7 +84,17 @@ object ApplicationConfig {
     case class RPC(bindHost: String, bindPort: Int)
 
     @Lenses
-    case class Mempool(defaultExpirationSlots: Long)
+    case class Mempool(defaultExpirationSlots: Long, protection: MempoolProtection = MempoolProtection())
+
+    case class MempoolProtection(
+      enabled: Boolean = false,
+      // do not perform checks if number of transactions in mempool less than that value
+      noCheckIfLess: Long = 10,
+      // during semantic check we will include all transactions from memory pool in context
+      // if total tx count in memory pool is less that that value
+      useMempoolForSemanticIfLess: Long = 100
+    )
+
     sealed abstract class BigBang
 
     object BigBangs {
