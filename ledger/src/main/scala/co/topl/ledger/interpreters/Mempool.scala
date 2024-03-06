@@ -89,8 +89,8 @@ object Mempool {
           eventSourcedState
             .useStateAt(blockId)(_.get)
 
-        def add(transactionId: TransactionId): F[Unit] =
-          fetchTransaction(transactionId).flatMap(addWithExpiration)
+        def add(transactionId: TransactionId): F[Boolean] =
+          fetchTransaction(transactionId).flatMap(addWithExpiration) >> true.pure[F]
 
         def remove(transactionId: TransactionId): F[Unit] =
           fetchTransaction(transactionId).flatMap(removeWithExpiration)

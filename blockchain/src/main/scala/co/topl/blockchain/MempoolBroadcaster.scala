@@ -22,12 +22,16 @@ object MempoolBroadcaster {
           new MempoolAlgebra[F] {
             def read(blockId: BlockId): F[MempoolGraph] = mempool.read(blockId)
 
-            def add(transactionId: TransactionId): F[Unit] =
-              mempool.add(transactionId) >>
-              EitherT(topic.publish1(transactionId))
-                .leftMap(_ => new IllegalStateException("MempoolBroadcaster topic unexpectedly closed"))
-                .rethrowT
-
+            def add(transactionId: TransactionId): F[Boolean] =
+              mempool
+                .add(transactionId)
+                .ifM(
+                  ifTrue = EitherT(topic.publish1(transactionId))
+                    .leftMap(_ => new IllegalStateException("MempoolBroadcaster topic unexpectedly closed"))
+                    .rethrowT >>
+                    true.pure[F],
+                  ifFalse = false.pure[F]
+                )
             def remove(transactionId: TransactionId): F[Unit] = mempool.remove(transactionId)
 
             def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =

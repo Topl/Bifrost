@@ -12,9 +12,10 @@ trait MempoolAlgebra[F[_]] {
   def read(blockId: BlockId): F[MempoolGraph]
 
   /**
-   * Inserts an externally sourced Transaction ID into the Mempool
+   * Inserts an externally sourced Transaction ID into the Mempool,
+   * return true if tx had been added to memory pool, false otherwise
    */
-  def add(transactionId: TransactionId): F[Unit]
+  def add(transactionId: TransactionId): F[Boolean]
 
   /**
    * Remove/evict the given Transaction ID from the Mempool
