@@ -4,10 +4,14 @@ import cats.data.EitherT
 import cats.implicits._
 import co.topl.brambl.generators.{ModelGenerators => BramblGenerator}
 import co.topl.brambl.models.Event.{GroupPolicy, SeriesPolicy}
-import co.topl.brambl.syntax.{groupPolicyAsGroupPolicySyntaxOps, ioTransactionAsTransactionSyntaxOps, seriesPolicyAsSeriesPolicySyntaxOps}
+import co.topl.brambl.syntax.{
+  groupPolicyAsGroupPolicySyntaxOps,
+  ioTransactionAsTransactionSyntaxOps,
+  seriesPolicyAsSeriesPolicySyntaxOps
+}
 import co.topl.genus.services.{BlockStats, BlockchainSizeStats, Txo, TxoState, TxoStats}
 import co.topl.genus.DbFixtureUtil
-import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances.{Ops, blockBodySchema}
+import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances.{blockBodySchema, Ops}
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.interpreter.GraphVertexFetcher
 import co.topl.genus.model.GE

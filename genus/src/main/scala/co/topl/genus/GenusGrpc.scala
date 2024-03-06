@@ -4,7 +4,12 @@ import cats.{Eval, Now}
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits._
 import co.topl.algebras.ToplGenusRpc
-import co.topl.genus.algebras.{BlockFetcherAlgebra, TokenFetcherAlgebra, TransactionFetcherAlgebra, VertexFetcherAlgebra}
+import co.topl.genus.algebras.{
+  BlockFetcherAlgebra,
+  TokenFetcherAlgebra,
+  TransactionFetcherAlgebra,
+  VertexFetcherAlgebra
+}
 import co.topl.genus.services._
 import fs2.grpc.syntax.all._
 import io.grpc.{Metadata, ServerServiceDefinition}

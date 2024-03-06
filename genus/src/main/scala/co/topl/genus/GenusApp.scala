@@ -3,11 +3,11 @@ package co.topl.genus
 import cats.Show
 import cats.effect.IO
 import cats.implicits.showInterpolator
-import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs, IOBaseApp}
+import co.topl.common.application.{ContainsDebugFlag, ContainsUserConfigs, IOBaseApp, YamlConfig}
 import co.topl.grpc.{HealthCheckGrpc, ToplGrpc}
 import co.topl.node.services.NodeRpcFs2Grpc
 import com.typesafe.config.Config
-import mainargs.{Flag, ParserForClass, arg, main}
+import mainargs.{arg, main, Flag, ParserForClass}
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 
@@ -15,7 +15,7 @@ object GenusApp
     extends IOBaseApp[GenusArgs, GenusApplicationConfig](
       createArgs = a => IO.delay(GenusArgs.parserArgs.constructOrThrow(a)),
       createConfig = IOBaseApp.createTypesafeConfig(_),
-      parseConfig = (_, conf) => IO.delay(GenusApplicationConfig.unsafe(conf))
+      parseConfig = (args, conf) => IO.delay(GenusApplicationConfig.unsafe(args, conf))
     ) {
 
   override def run(cmdArgs: GenusArgs, config: Config, appConfig: GenusApplicationConfig): IO[Unit] = (
@@ -48,7 +48,7 @@ object GenusApp
 }
 
 @main
-case class GenusArgs(startup: GenusArgs.Startup)
+case class GenusArgs(startup: GenusArgs.Startup, runtime: GenusArgs.Runtime)
 
 object GenusArgs {
 
@@ -66,8 +66,30 @@ object GenusArgs {
     debug: Flag
   )
 
+  @main case class Runtime(
+    @arg(doc = "The host to bind for the RPC layer (i.e. 0.0.0.0)")
+    rpcBindHost: Option[String] = None,
+    @arg(doc = "The port to bind for the RPC layer (i.e. 9084)")
+    rpcBindPort: Option[Int] = None,
+    @arg(doc = "The host for the Node RPC Client (i.e. localhost)")
+    nodeRpcHost: Option[String] = None,
+    @arg(doc = "The port for the Node RPC Client (i.e. 9084)")
+    nodeRpcPort: Option[Int] = None,
+    @arg(doc = "Flag indicating if TLS should be used when connecting to the node.")
+    nodeRpcTls: Option[Boolean] = None,
+    @arg(doc = "Directory to use for the local database")
+    dataDir: Option[String] = None,
+    @arg(doc = "The password to use when interacting with OrientDB")
+    orientDbPassword: Option[String] = None,
+    @arg(doc = "Flag indicating if data should be copied from the node to the local database")
+    enableReplicator: Option[Boolean] = None
+  )
+
   implicit val parserStartupArgs: ParserForClass[Startup] =
     ParserForClass[Startup]
+
+  implicit val parserRuntimeArgs: ParserForClass[Runtime] =
+    ParserForClass[Runtime]
 
   implicit val parserArgs: ParserForClass[GenusArgs] =
     ParserForClass[GenusArgs]
@@ -79,13 +101,22 @@ object GenusArgs {
     _.startup.debug.value
 
   implicit val showArgs: Show[GenusArgs] =
-    Show.fromToString
+    args =>
+      show"GenusApplicationConfig(" +
+      show"rpcBindHost=${args.runtime.rpcBindHost}" +
+      show" rpcBindPort=${args.runtime.rpcBindPort}" +
+      show" nodeRpcHost=${args.runtime.nodeRpcHost}" +
+      show" nodeRpcPort=${args.runtime.nodeRpcPort}" +
+      show" dataDir=${args.runtime.dataDir}" +
+      show" enableReplicator=${args.runtime.enableReplicator}" +
+      // NOTE: Do not show orientDbPassword
+      show")"
 }
 
 case class GenusApplicationConfig(
   rpcBindHost:      String = "0.0.0.0",
   rpcBindPort:      Int = 9084,
-  nodeRpcHost:      String,
+  nodeRpcHost:      String = "localhost",
   nodeRpcPort:      Int = 9084,
   nodeRpcTls:       Boolean = false,
   dataDir:          String,
@@ -95,17 +126,33 @@ case class GenusApplicationConfig(
 
 object GenusApplicationConfig {
 
-  def unsafe(config: Config): GenusApplicationConfig =
-    ConfigSource.fromConfig(config).loadOrThrow[GenusApplicationConfig]
+  def unsafe(args: GenusArgs, config: Config): GenusApplicationConfig = {
+    val argsAsConfig = {
+      val entries = List(
+        args.runtime.rpcBindHost.map("rpc-bind-host: " + _),
+        args.runtime.rpcBindPort.map("rpc-bind-port: " + _),
+        args.runtime.nodeRpcHost.map("node-rpc-host: " + _),
+        args.runtime.nodeRpcPort.map("node-rpc-port: " + _),
+        args.runtime.nodeRpcTls.map("node-rpc-tls: " + _),
+        args.runtime.dataDir.map("data-dir: " + _),
+        args.runtime.orientDbPassword.map("orient-db-password: " + _),
+        args.runtime.enableReplicator.map("enable-replicator: " + _)
+      ).flatten
+      YamlConfig.parse(entries.mkString("\n"))
+    }
+
+    ConfigSource.fromConfig(config.withFallback(argsAsConfig)).loadOrThrow[GenusApplicationConfig]
+  }
 
   implicit val showApplicationConfig: Show[GenusApplicationConfig] =
     config =>
       show"GenusApplicationConfig(" +
-      show"rpcbindHost=${config.rpcBindHost}" +
-      show" rpcbindPort=${config.rpcBindPort}" +
+      show"rpcBindHost=${config.rpcBindHost}" +
+      show" rpcBindPort=${config.rpcBindPort}" +
       show" nodeRpcHost=${config.nodeRpcHost}" +
       show" nodeRpcPort=${config.nodeRpcPort}" +
-      show" orientDbDirectory=${config.dataDir}" +
+      show" dataDir=${config.dataDir}" +
+      show" enableReplicator=${config.enableReplicator}" +
       // NOTE: Do not show orientDbPassword
       show")"
 }
