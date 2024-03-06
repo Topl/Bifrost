@@ -1,7 +1,7 @@
 package co.topl.config
 
 import co.topl.brambl.models.LockAddress
-import co.topl.consensus.models.BlockId
+import co.topl.consensus.models.{BlockId, StakingAddress}
 import co.topl.models.Slot
 import co.topl.models.utility.Ratio
 import co.topl.numerics.implicits._
@@ -40,7 +40,7 @@ object ApplicationConfig {
     case class Data(directory: String, databaseType: String)
 
     @Lenses
-    case class Staking(directory: String, rewardAddress: LockAddress)
+    case class Staking(directory: String, rewardAddress: LockAddress, stakingAddress: Option[StakingAddress])
 
     @Lenses
     case class P2P(
@@ -61,18 +61,21 @@ object ApplicationConfig {
       minimumBlockProvidingReputationPeers: Int = 2,
       minimumPerformanceReputationPeers:    Int = 2,
       minimumRequiredReputation:            Double = 0.66,
-      minimumEligibleColdConnections:       Int = 50,
-      maximumEligibleColdConnections:       Int = 100,
-      minimumHotConnections:                Int = 7,
-      maximumWarmConnections:               Int = 12,
-      warmHostsUpdateEveryNBlock:           Double = 4.0,
-      commonAncestorTrackInterval:          FiniteDuration = FiniteDuration(10, SECONDS),
+      // any non-new peer require that reputation to be hot
+      minimumBlockProvidingReputation: Double = 0.15,
+      minimumEligibleColdConnections:  Int = 50,
+      maximumEligibleColdConnections:  Int = 100,
+      clearColdIfNotActiveForInMs:     Long = 7 * 24 * 60 * 60 * 1000, // 7 days
+      minimumHotConnections:           Int = 7,
+      maximumWarmConnections:          Int = 12,
+      warmHostsUpdateEveryNBlock:      Double = 4.0,
+      p2pTrackInterval:                FiniteDuration = FiniteDuration(10, SECONDS),
       // we could try to connect to remote peer again after
       // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
       closeTimeoutFirstDelayInMs: Long = 1000,
       closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24, // 1 day
       aggressiveP2P:              Boolean = true, // always try to found new good remote peers
-      aggressiveP2PCount:         Int = 2 // how many new connection will be opened
+      aggressiveP2PCount:         Int = 1 // how many new connection will be opened
     )
 
     case class KnownPeer(host: String, port: Int)
@@ -161,7 +164,8 @@ object ApplicationConfig {
       blockHeightTree:         Cache.CacheConfig,
       eligibilities:           Cache.CacheConfig,
       epochData:               Cache.CacheConfig,
-      registrationAccumulator: Cache.CacheConfig
+      registrationAccumulator: Cache.CacheConfig,
+      containsCacheSize:       Long = 16384
     )
 
     object Cache {

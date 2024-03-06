@@ -164,6 +164,7 @@ object BlockchainSocketHandler {
           val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
           val remotePeerAsServer: F[Option[KnownHost]] = peerServerCallback(())
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
+
           val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
             remoteTransactionIdsSource.pure[F]
 

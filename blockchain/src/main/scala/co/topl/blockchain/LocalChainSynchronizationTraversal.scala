@@ -44,6 +44,7 @@ object LocalChainSynchronizationTraversal {
     }
 
     new SynchronizationTraversal[F, Stream[F, *]] {
+
       override def headChanges: F[Stream[F, SynchronizationTraversalStep]] =
         Async[F].delay(
           adoptionsStream.through(pullSteps)

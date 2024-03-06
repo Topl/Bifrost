@@ -21,7 +21,7 @@ object NotifierTest {
     P2PNetworkConfig(
       NetworkProperties(
         pingPongInterval = FiniteDuration(20, MILLISECONDS),
-        commonAncestorTrackInterval = FiniteDuration(20, MILLISECONDS),
+        p2pTrackInterval = FiniteDuration(20, MILLISECONDS),
         warmHostsUpdateEveryNBlock = 0.01,
         aggressiveP2P = true
       ),
@@ -61,7 +61,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           defaultP2PConfig.slotDuration.toMillis,
           defaultP2PConfig.peersUpdateInterval.toMillis,
           defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
-          defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis,
+          defaultP2PConfig.networkProperties.p2pTrackInterval.toMillis,
           defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
         ).max
 
@@ -81,7 +81,37 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
     }
   }
 
-  test("Notifier shall correctly not started aggressiveP2P if it is disabled ") {
+  test("Notifier shall correctly started and doesn't send all notifications if configuration is wrong") {
+    withMock {
+      val peersManager = mock[PeersManagerActor[F]]
+
+      val config: P2PNetworkConfig =
+        P2PNetworkConfig(
+          NetworkProperties(
+            pingPongInterval = FiniteDuration(0, MILLISECONDS),
+            p2pTrackInterval = FiniteDuration(0, MILLISECONDS),
+            warmHostsUpdateEveryNBlock = 0,
+            aggressiveP2P = true
+          ),
+          FiniteDuration(0, MILLISECONDS)
+        )
+      Notifier
+        .makeActor(peersManager, config)
+        .use { actor =>
+          for {
+            state <- actor.send(Notifier.Message.StartNotifications)
+            _ = assert(state.peersUpdateFiber.isEmpty)
+            _ = assert(state.networkQualityFiber.isEmpty)
+            _ = assert(state.slotNotificationFiber.isEmpty)
+            _ = assert(state.commonAncestorFiber.isEmpty)
+            _ = assert(state.aggressiveP2PFiber.isEmpty)
+            _ <- Async[F].delayBy(().pure[F], FiniteDuration(100, MILLISECONDS))
+          } yield ()
+        }
+    }
+  }
+
+  test("Notifier shall not start aggressiveP2P if it is disabled ") {
     withMock {
       val peersManager = mock[PeersManagerActor[F]]
       (peersManager.sendNoWait _)
@@ -110,7 +140,7 @@ class NotifierTest extends CatsEffectSuite with ScalaCheckEffectSuite with Async
           defaultP2PConfig.slotDuration.toMillis,
           defaultP2PConfig.peersUpdateInterval.toMillis,
           defaultP2PConfig.networkProperties.pingPongInterval.toMillis,
-          defaultP2PConfig.networkProperties.commonAncestorTrackInterval.toMillis,
+          defaultP2PConfig.networkProperties.p2pTrackInterval.toMillis,
           defaultP2PConfig.aggressiveP2PRequestInterval.toMillis
         ).max
 

@@ -1,21 +1,24 @@
 package co.topl.minting.interpreters
 
-import cats.effect.{Async, IO}
 import cats.effect.std.Queue
+import cats.effect.{Async, IO}
 import cats.implicits._
 import co.topl.algebras.ClockAlgebra
-import co.topl.brambl.models.LockAddress
+import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.models.box.{FungibilityType, QuantityDescriptorType}
+import co.topl.brambl.models.{GroupId, LockAddress, SeriesId}
 import co.topl.brambl.syntax._
 import co.topl.catsutils.Iterative
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, StakingAddress}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
+import co.topl.ledger.models.{AssetId, RewardQuantities}
 import co.topl.minting.algebras.{BlockPackerAlgebra, StakingAlgebra}
 import co.topl.minting.models._
 import co.topl.models.ModelGenerators._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
-import co.topl.brambl.generators.ModelGenerators._
 import co.topl.node.models.{FullBlock, FullBlockBody}
+import com.google.protobuf.ByteString
 import fs2._
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
@@ -73,17 +76,33 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             .expects(vrfHit.slot)
             .once()
             .returning(NumericRange.inclusive(50L, 99L, 1L).pure[F])
+          (() => clock.currentTimestamp)
+            .expects()
+            .once()
+            .returning(55L.pure[F])
+
+          val assetId1 = AssetId(
+            groupId = GroupId(ByteString.copyFrom(Array.fill[Byte](32)(1))).some,
+            seriesId = SeriesId(ByteString.copyFrom(Array.fill[Byte](32)(2))).some,
+            groupAlloy = none,
+            seriesAlloy = none,
+            fungibilityType = FungibilityType.GROUP_AND_SERIES,
+            quantityDescriptor = QuantityDescriptorType.LIQUID
+          )
+          val rewardQuantities = RewardQuantities(BigInt(10L), BigInt(5L), Map(assetId1 -> BigInt(30L)))
 
           val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-          (rewardCalculator.rewardOf(_)).expects(*).anyNumberOfTimes().returning(BigInt(10L).pure[F])
+          (rewardCalculator.rewardsOf(_)).expects(*).anyNumberOfTimes().returning(rewardQuantities.pure[F])
 
           for {
             clockDeferment   <- IO.deferred[Unit]
             blockPackerQueue <- Queue.unbounded[F, FullBlockBody]
             _                <- blockPackerQueue.offer(outputBody)
             blockPacker = new BlockPackerAlgebra[F] {
+
               def improvePackedBlock(parentBlockId: BlockId, height: Long, slot: Long): F[Iterative[F, FullBlockBody]] =
                 new Iterative[F, FullBlockBody] {
+
                   def improve(current: FullBlockBody): F[FullBlockBody] =
                     blockPackerQueue.take.flatTap(_ => (IO.sleep(100.milli) >> clockDeferment.complete(())).start)
                 }.pure[F]
@@ -111,9 +130,30 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               val rewardTx = result.get.fullBody.rewardTransaction.get
               assert(rewardTx.inputs.length == 1)
               assert(rewardTx.inputs.head.address.id.value == parentSlotData.slotId.blockId.value)
-              assert(rewardTx.outputs.length == 1)
+              assert(rewardTx.outputs.length == 3)
               assert(
-                (rewardTx.outputs.head.value.getLvl.quantity: BigInt) == BigInt(outputBody.transactions.length * 10L)
+                rewardTx.outputs.exists(
+                  _.value.value.lvl.map(_.quantity: BigInt).contains(BigInt(outputBody.transactions.length * 10L))
+                )
+              )
+              assert(
+                rewardTx.outputs.exists(
+                  _.value.value.topl.map(_.quantity: BigInt).contains(BigInt(outputBody.transactions.length * 5L))
+                )
+              )
+              assert(
+                rewardTx.outputs.exists(
+                  _.value.value.asset.exists(a =>
+                    (a.quantity: BigInt) == BigInt(outputBody.transactions.length * 30L)
+                    &&
+                    a.groupId == assetId1.groupId &&
+                    a.seriesId == assetId1.seriesId &&
+                    a.groupAlloy == assetId1.groupAlloy &&
+                    a.seriesAlloy == assetId1.seriesAlloy &&
+                    a.fungibility == assetId1.fungibilityType &&
+                    a.quantityDescriptor == assetId1.quantityDescriptor
+                  )
+                )
               )
             }
             _ <- parents.offer(none)

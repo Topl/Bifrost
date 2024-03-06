@@ -10,6 +10,7 @@ import co.topl.brambl.models.{Datum, Event}
 import co.topl.brambl.models.transaction.Schedule
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig
+import co.topl.consensus.models.StakingAddress
 import co.topl.crypto.generation.EntropyToSeed
 import co.topl.crypto.generation.mnemonic.Entropy
 import co.topl.crypto.signing.{Ed25519, Ed25519VRF, KesProduct}
@@ -153,17 +154,24 @@ class RegistrationCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implici
           ) >> askIfExistingNetwork
       }
 
-  private def finalInstructions(isExistingNetwork: Boolean) =
+  private def finalInstructions(isExistingNetwork: Boolean, stakingAddress: StakingAddress) = {
+    val configYaml =
+      show"bifrost:\n" +
+      show"  staking:\n" +
+      show"    staking-address: $stakingAddress\n"
     writeMessage[F](
       if (isExistingNetwork)
         "Your staking keys have been saved.  The Transaction that was saved should be imported into Brambl for input selection and broadcast." +
-        "  Once broadcasted, save the updated transaction back to disk (overwrite the previous)." +
+        "  Once broadcasted, update your node's configuration to include:\n" +
+        s"$configYaml" +
         "  Next, you can launch your node, and it will search the chain for your registration Transaction." +
         "  It may take up to two epochs before your node begins producing new blocks."
       else
         "Your staking keys have been saved.  The Transaction that was saved should be submitted to your" +
-        " genesis coordinator contact at Topl for further processing."
+        " genesis coordinator contact at Topl for further processing.  Be sure to update your node's configuration to include:\n" +
+        s"$configYaml"
     )
+  }
 
   /**
    * Generates four files:
@@ -207,6 +215,6 @@ class RegistrationCommandImpl[F[_]: Async](appConfig: ApplicationConfig)(implici
         "Registration Transaction",
         StakingInit.RegistrationTxName
       )
-      _ <- finalInstructions(isExistingNetwork)
+      _ <- finalInstructions(isExistingNetwork, stakerInitializer.registration.address)
     } yield StageResult.Menu
 }

@@ -24,6 +24,7 @@ import fs2._
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import quivr.models.SmallData
+
 import scala.concurrent.duration._
 
 object BlockProducer {
@@ -118,8 +119,11 @@ object BlockProducer {
           show" eligibilitySlot=${nextHit.slot}"
         )
         // Assemble the transactions to be placed in our new block
-        fullBody  <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
-        timestamp <- clock.slotToTimestamps(nextHit.slot).map(_.last)
+        fullBody <- packBlock(parentSlotData.slotId.blockId, parentSlotData.height + 1, nextHit.slot)
+        // Assign the block's timestamp to the current time, unless it falls outside the window for the target slot
+        timestamp <- (clock.slotToTimestamps(nextHit.slot), clock.currentTimestamp).mapN((boundary, currentTimestamp) =>
+          currentTimestamp.min(boundary.last).max(boundary.head)
+        )
         blockMaker = prepareUnsignedBlock(parentSlotData, fullBody, timestamp, nextHit)
         eta: Eta = Sized.strictUnsafe[ByteString, Eta.Length](nextHit.cert.eta)
         _           <- Logger[F].info("Certifying block")
@@ -201,9 +205,9 @@ object BlockProducer {
      */
     private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
       base.transactions
-        .foldMapM(rewardCalculator.rewardOf)
-        .flatMap(rewardQuantity =>
-          if (rewardQuantity > 0) {
+        .foldMapM(rewardCalculator.rewardsOf)
+        .flatMap(rewardQuantities =>
+          if (!rewardQuantities.isEmpty) {
             staker.rewardAddress
               .map(rewardAddress =>
                 base.withRewardTransaction(
@@ -226,16 +230,36 @@ object BlockProducer {
                       )
                     )
                     .withOutputs(
-                      List(
-                        UnspentTransactionOutput(
-                          rewardAddress,
-                          Value.defaultInstance.withLvl(Value.LVL(rewardQuantity))
-                        )
+                      (
+                        List(rewardQuantities.lvl)
+                          .filter(_ > 0)
+                          .map(Value.LVL(_))
+                          .map(Value.defaultInstance.withLvl(_)) ++
+                        List(rewardQuantities.topl)
+                          .filter(_ > 0)
+                          .map(Value.TOPL(_))
+                          .map(Value.defaultInstance.withTopl(_)) ++
+                        rewardQuantities.assets.toList
+                          .filter(_._2 > 0)
+                          .map { case (assetId, quantity) =>
+                            Value.defaultInstance.withAsset(
+                              Value.Asset(
+                                assetId.groupId,
+                                assetId.seriesId,
+                                quantity,
+                                assetId.groupAlloy,
+                                assetId.seriesAlloy,
+                                assetId.fungibilityType,
+                                assetId.quantityDescriptor
+                              )
+                            )
+                          }
                       )
+                        .map(UnspentTransactionOutput(rewardAddress, _))
                     )
                 )
               )
-              .flatTap(_ => Logger[F].info(s"Collecting block reward quantity=$rewardQuantity"))
+              .flatTap(_ => Logger[F].info(show"Collecting block reward=$rewardQuantities"))
           } else {
             // To avoid dust accumulation for 0-reward blocks, don't include a reward transaction
             base.clearRewardTransaction

@@ -62,6 +62,7 @@ object ToplRpcServer {
   ): F[NodeRpc[F, Stream[F, *]]] =
     Async[F].delay {
       new NodeRpc[F, Stream[F, *]] {
+
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.RPC.Server")
 

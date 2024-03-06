@@ -1,6 +1,5 @@
 package co.topl.networking.fsnetwork
 
-import cats.MonadThrow
 import cats.data._
 import cats.effect.{Async, Resource}
 import cats.implicits._
@@ -21,15 +20,11 @@ import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models._
 import co.topl.typeclasses.implicits._
-import com.github.benmanes.caffeine.cache.Caffeine
 import fs2.Stream
 import org.typelevel.log4cats.Logger
-import scalacache.Entry
-import scalacache.caffeine.CaffeineCache
 
-/**
- * TODO consider to split to two separate actors
- */
+import scala.collection.Searching
+
 object BlockChecker {
   sealed trait Message
 
@@ -70,7 +65,6 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    bodyStoreCache:              CaffeineCache[F, BlockId, Boolean],
     chainSelection:              ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -105,9 +99,6 @@ object BlockChecker {
     bestChain:                   Option[BestChain] = None,
     bestKnownRemoteSlotDataHost: Option[HostId] = None
   ): Resource[F, BlockCheckerActor[F]] = {
-    val bodyContainsCache =
-      CaffeineCache(Caffeine.newBuilder.maximumSize(bodyStoreContainsCacheSize).build[BlockId, Entry[Boolean]]())
-
     val initialState =
       State(
         requestsProxy,
@@ -115,7 +106,6 @@ object BlockChecker {
         slotDataStore,
         headerStore,
         bodyStore,
-        bodyContainsCache,
         chainSelectionAlgebra,
         headerValidation,
         bodySyntaxValidation,
@@ -137,17 +127,51 @@ object BlockChecker {
     val bestRemoteBlockId: BlockId = bestRemoteSlotData.slotId.blockId
 
     for {
-      _ <- Logger[F].info(show"Received slot data proposal with best block id $bestRemoteBlockId")
-      newState <- remoteSlotDataBetter(state, bestRemoteSlotData).ifM(
+      _ <- Logger[F].debug(show"Received slot data proposal with best block id $bestRemoteBlockId")
+      newState <- remoteSlotDataBetter(state, slotData).ifM(
         ifTrue = processNewBestSlotData(state, slotData, candidateHostId),
         ifFalse = Logger[F].debug(show"Ignore weaker slot data $bestRemoteBlockId") >> state.pure[F]
       )
     } yield (newState, newState)
   }
 
-  private def remoteSlotDataBetter[F[_]: Async](state: State[F], bestRemoteSlotData: SlotData): F[Boolean] = {
-    val localBestSlotData = state.bestKnownRemoteSlotDataOpt.map(_.last.pure[F]).getOrElse(state.localChain.head)
-    localBestSlotData.flatMap(local => state.chainSelection.compare(bestRemoteSlotData, local).map(_ > 0))
+  private def remoteSlotDataBetter[F[_]: Async: Logger](
+    state:               State[F],
+    remoteSlotDataChain: NonEmptyChain[SlotData]
+  ): F[Boolean] =
+    for {
+      bestRemoteSlotData <- remoteSlotDataChain.last.pure[F]
+      localBestSlotData  <- state.bestKnownRemoteSlotDataOpt.map(_.last.pure[F]).getOrElse(state.localChain.head)
+      chainComparing = Async[F].defer(state.chainSelection.compare(bestRemoteSlotData, localBestSlotData).map(_ > 0))
+      res <-
+        // if received slot data chain could be appended to the END of current best slot data,
+        // then we could skip chain comparing because
+        // if chain N is better than chain M then chain N + a1 + an is better than chain M as well
+        if (couldAppend(localBestSlotData, remoteSlotDataChain)) {
+          Logger[F].info(show"Could be append ${bestRemoteSlotData.slotId.blockId} to best chain") >>
+          true.pure[F]
+        } else {
+          chainComparing.logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId.blockId}")
+        }
+    } yield res
+
+  /**
+   * Check if given remoteSlotDataChain is extension of localBestSlotData.
+   * remoteSlotDataChain could be extension of localBestSlotData ONLY
+   * if some element of remoteSlotDataChain have parent with id equal to id of localBestSlotData
+   *
+   * @param localBestSlotData slot data to append
+   * @param remoteSlotDataChain chain to append
+   * @return true if whole remoteSlotDataChain or it part could be appended to localBestSlotData, false otherwise
+   */
+  private def couldAppend(localBestSlotData: SlotData, remoteSlotDataChain: NonEmptyChain[SlotData]): Boolean = {
+    // pattern for binary search, we interesting only in height, so any slot data with correct height will be ok
+    val dummySlotData = localBestSlotData.copy(height = localBestSlotData.height + 1)
+    val chainAsVector = remoteSlotDataChain.toNonEmptyVector.toVector
+    chainAsVector.search(dummySlotData)(Ordering.by(_.height)) match {
+      case Searching.Found(height)     => chainAsVector(height).parentSlotId == localBestSlotData.slotId
+      case Searching.InsertionPoint(_) => false
+    }
   }
 
   private def processNewBestSlotData[F[_]: Async: Logger](
@@ -159,6 +183,7 @@ object BlockChecker {
     for {
       fullSlotData <- buildFullSlotDataChain(state, remoteSlotData)
         .logDurationRes(fullSlotData => show"Build full slot data for len=${fullSlotData.size}")
+      _        <- Async[F].cede
       _        <- Logger[F].debug(show"Extend slot data $remoteIds to ${fullSlotData.map(_.slotId.blockId)}")
       newState <- changeLocalSlotData(state, fullSlotData, candidateHostId)
       _        <- requestNextHeaders(newState)
@@ -181,11 +206,10 @@ object BlockChecker {
     remoteSlotData: NonEmptyChain[SlotData]
   ): F[NonEmptyChain[SlotData]] = {
     val from = remoteSlotData.head.parentSlotId.blockId
-    val missedSlotDataF = getFromChainUntil[F, SlotData](
+    val missedSlotDataF = prependOnChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
       getT = state.slotDataStore.getOrRaise,
-      terminateOn =
-        sd => state.bodyStoreCache.cachingF(sd.slotId.blockId)(None)(state.bodyStore.contains(sd.slotId.blockId))
+      terminateOn = sd => state.bodyStore.contains(sd.slotId.blockId)
     )(from)
 
     missedSlotDataF.map(sd => remoteSlotData.prependChain(Chain.fromSeq(sd)))
@@ -201,14 +225,22 @@ object BlockChecker {
       .copy(bestKnownRemoteSlotDataOpt = Option(BestChain(newSlotData)), bestKnownRemoteSlotDataHost = Option(hostId))
       .pure[F]
 
-  private def requestNextHeaders[F[_]: MonadThrow: Logger](state: State[F]): F[Unit] =
-    state.bestKnownRemoteSlotDataOpt
-      .traverse_ { slotData =>
-        getFirstNMissedInStore(state.headerStore, state.slotDataStore, slotData.lastId, chunkSize)
-          .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
-          .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
-          .foreachF(state.requestsProxy.sendNoWait)
-      }
+  private def requestNextHeaders[F[_]: Async: Logger](state: State[F]): F[Unit] = {
+    for {
+      bestChain     <- OptionT.fromOption[F](state.bestKnownRemoteSlotDataOpt)
+      missedHeaders <- OptionT.liftF(bestChain.slotData.dropWhileF(sd => state.headerStore.contains(sd.slotId.blockId)))
+      missedNeC     <- OptionT.fromOption[F](NonEmptyChain.fromChain(missedHeaders))
+      blockId       <- OptionT.some[F](missedNeC.iterator.drop(chunkSize).nextOption().getOrElse(missedNeC.last))
+      res           <- OptionT.liftF(requestHeadersUpToId(state, blockId.slotId.blockId))
+    } yield res
+  }.getOrElseF(().pure[F]).logDuration("Request next headers total time")
+
+  private def requestHeadersUpToId[F[_]: Async: Logger](state: State[F], headerId: BlockId): F[Unit] =
+    getFirstNMissedInStore(state.headerStore, state.slotDataStore, headerId, chunkSize)
+      .logDuration(show"Find N-missing header")
+      .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
+      .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
+      .foreachF(state.requestsProxy.sendNoWait)
       .handleErrorWith(e => Logger[F].error(show"Failed to request next headers due ${e.toString}"))
 
   private def processRemoteHeaders[F[_]: Async: Logger](
@@ -242,7 +274,7 @@ object BlockChecker {
             .logDuration(show"Verified header ${header.blockHeader.id}")
         )
         .evalTap(header => state.headerStore.put(header.id, header))
-        .map(Right.apply)
+        .map(Right.apply[HeaderApplyException, BlockHeader])
         .handleErrorWith {
           case e: HeaderValidationException => Stream.emit(Left(e: HeaderApplyException))
           case e                            => Stream.emit(Left(HeaderApplyException.UnknownError(e)))
@@ -258,8 +290,8 @@ object BlockChecker {
 
     val hostId = blockHeaders.head.source
     for {
-      unknownBodies           <- getMissedBodiesId(state, blockHeaders.last.blockHeader.id)
-      lastProcessedBody       <- unknownBodies.map(_.head).get.pure[F] // shall always be defined
+      unknownBodies     <- getMissedBodiesId(state, blockHeaders.last.blockHeader.id).logDuration("Get missed bodies")
+      lastProcessedBody <- unknownBodies.map(_.head).get.pure[F] // shall always be defined
       lastProcessedBodySlot   <- state.slotDataStore.getOrRaise(lastProcessedBody)
       (appliedHeaders, error) <- processedHeadersAndErrors(lastProcessedBodySlot)
       newState                <- processHeaderValidationError(state, error)
@@ -326,7 +358,9 @@ object BlockChecker {
         case HeaderValidationException(blockId, source, _) =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.InvalidateBlockId(source, blockId)) >>
           invalidateBlockId(state, NonEmptyChain.one(blockId))
-        case _ => state.pure[F] // TODO any error message for underlying exception?
+        case e =>
+          Logger[F].error(show"Header apply error: ${e.toString}") >>
+          state.pure[F]
       }
       .getOrElse(state.pure[F])
 
@@ -399,7 +433,7 @@ object BlockChecker {
           (successfullyProcessed, error)
         }
 
-    val hostId = blocks.head._2.source // TODO temporary solution
+    val hostId = blocks.head._2.source // fallback in case if block source cache will be purged
     for {
       _                        <- Logger[F].info(show"Start processing bodies for ids: ${blocks.map(_._1.id)}")
       (appliedBlockIds, error) <- processedBlocksAndError
@@ -434,10 +468,11 @@ object BlockChecker {
       lastBlockSlotData <- state.slotDataStore.getOrRaise(id)
       _ <- state.localChain
         .isWorseThan(lastBlockSlotData)
+        .logDuration(show"Compare local chain after block apply")
         .ifM(
           ifTrue = state.localChain.adopt(Validated.Valid(lastBlockSlotData)) >>
             Logger[F].info(show"Successfully adopted block: $id"),
-          ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block header id=$id")
+          ifFalse = Logger[F].info(show"Ignoring weaker (or equal) block body with id=$id")
         )
     } yield ()
   }
@@ -461,7 +496,9 @@ object BlockChecker {
         case BodyValidationException(blockId, source, _) =>
           state.requestsProxy.sendNoWait(RequestsProxy.Message.InvalidateBlockId(source, blockId)) >>
           invalidateBlockId(state, NonEmptyChain.one(blockId))
-        case _ => state.pure[F] // TODO any error message for underlying exception?
+        case e =>
+          Logger[F].error(show"Body apply error: ${e.toString}") >>
+          state.pure[F]
       }
       .getOrElse(state.pure[F])
 
@@ -501,7 +538,7 @@ object BlockChecker {
   private def requestNextBodiesOrHeader[F[_]: Async: Logger](state: State[F], hostId: HostId): F[Unit] =
     state.bestKnownRemoteSlotDataOpt.map(_.lastId).traverse_ { bestId =>
       for {
-        unknownIds   <- getMissedBodiesId(state, bestId)
+        unknownIds   <- getMissedBodiesId(state, bestId).logDuration("Get missed bodies")
         requestedIds <- requestMissedBodies(state, hostId, unknownIds)
         _            <- if (requestedIds.isEmpty) requestNextHeaders(state) else ().pure[F]
       } yield ()

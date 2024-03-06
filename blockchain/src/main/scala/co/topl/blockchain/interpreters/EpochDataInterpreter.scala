@@ -212,7 +212,7 @@ object EpochDataEventSourcedState {
                 .flatMap(transaction =>
                   (
                     // TODO: Read reward transaction from body
-                    transactionRewardCalculator.rewardOf(transaction),
+                    transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
                     Sync[F].delay(
                       ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
                     )
@@ -296,7 +296,7 @@ object EpochDataEventSourcedState {
                 .flatMap(transaction =>
                   (
                     // TODO: Read reward transaction from body
-                    transactionRewardCalculator.rewardOf(transaction),
+                    transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
                     Sync[F].delay(
                       ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
                     )

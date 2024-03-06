@@ -61,8 +61,8 @@ case class PeersHandler[F[_]: Async: Logger](
   def getRemotePeers: Set[KnownRemotePeer] =
     peers
       .filterNot(_._2.state == PeerState.Banned)
-      .collect { case (_, Peer(_, _, _, Some(server), _, _, blockProvidingRep, performanceRep, _)) =>
-        KnownRemotePeer(server.peerId, server.address, blockProvidingRep, performanceRep)
+      .collect { case (_, Peer(_, _, _, Some(server), _, _, blockProvidingRep, performanceRep, _, lastOpen)) =>
+        KnownRemotePeer(server.peerId, server.address, blockProvidingRep, performanceRep, lastOpen)
       }
       .toSet
 
@@ -128,27 +128,37 @@ case class PeersHandler[F[_]: Async: Logger](
         val newPeers = (peers - oldId) + (newId -> peerForOldId)
         this.copy(peers = newPeers).pure[F]
       case (Some(peerForOldId), Some(outdatedPeer)) =>
-        val newPeers = (peers - oldId) + (newId -> peerForOldId)
-        Logger[F].warn(
-          show"Change id from $oldId to $newId but peer for $newId already exist, close outdated peer for $newId first"
-        ) >>
-        peerActorRelease(outdatedPeer) >>
-        this.copy(peers = newPeers).pure[F]
+        if (outdatedPeer.state == PeerState.Banned) {
+          val newPeers = peers - oldId
+          Logger[F].warn(
+            show"Change id from $oldId to $newId but peer $newId already exist and banned, close peer $peerForOldId"
+          ) >>
+          peerActorRelease(peerForOldId) >>
+          this.copy(peers = newPeers).pure[F]
+        } else {
+          val newPeers = (peers - oldId) + (newId -> peerForOldId)
+          Logger[F].warn(
+            show"Change id from $oldId to $newId but peer $newId already exist, close outdated peer $newId first"
+          ) >>
+          peerActorRelease(outdatedPeer) >>
+          this.copy(peers = newPeers).pure[F]
+        }
       case (None, _) =>
         Logger[F].error(show"Try to change id from $oldId to $newId but $oldId is not exist") >>
         Async[F].pure(this)
     }
 
   def copyWithUpdatedPeer(
-    host:      HostId,
-    address:   RemoteAddress,
-    asServer:  Option[RemotePeer],
-    peerActor: PeerActor[F]
+    hostId:        HostId,
+    address:       RemoteAddress,
+    asServer:      Option[RemotePeer],
+    peerActor:     PeerActor[F],
+    openTimestamp: Long
   ): PeersHandler[F] = {
     val peerToAdd =
-      peers.get(host) match {
+      peers.get(hostId) match {
         case None =>
-          host -> Peer(
+          hostId -> Peer(
             PeerState.Cold,
             peerActor.some,
             address.some,
@@ -157,17 +167,24 @@ case class PeersHandler[F[_]: Async: Logger](
             remoteNetworkLevel = false,
             0,
             0,
-            0
+            0,
+            openTimestamp.some
           )
         case Some(peer) =>
-          host -> peer.copy(connectedAddress = address.some, asServer = asServer, actorOpt = peerActor.some)
+          val mergedServerAddress = asServer.orElse(peer.asServer).map(_.copy(peerId = hostId))
+          hostId -> peer.copy(
+            connectedAddress = address.some,
+            asServer = mergedServerAddress,
+            actorOpt = peerActor.some,
+            activeConnectionTimestamp = openTimestamp.some
+          )
       }
     this.copy(peers = peers + peerToAdd)
   }
 
   def copyWithAddedPeers(newPeers: Chain[KnownRemotePeer]): PeersHandler[F] = {
     val peersToAdd: Map[HostId, Peer[F]] =
-      newPeers.toList.map { case KnownRemotePeer(id, ra, initialBlockReputation, initialPerfReputation) =>
+      newPeers.toList.map { case KnownRemotePeer(id, ra, initialBlockReputation, initialPerfReputation, timestamp) =>
         peers.get(id) match {
           case None =>
             id -> Peer(
@@ -179,7 +196,8 @@ case class PeersHandler[F[_]: Async: Logger](
               remoteNetworkLevel = false,
               initialBlockReputation,
               initialPerfReputation,
-              0
+              0,
+              timestamp
             )
           case Some(peer) => id -> peer.copy(asServer = RemotePeer(id, ra).some)
         }
@@ -225,42 +243,61 @@ case class PeersHandler[F[_]: Async: Logger](
     updatedPeersF.map(peers => this.copy(peers = this.peers ++ peers.toMap))
   }
 
-  def copyWithRemovedColdPeersWithoutActor(toRemove: Set[HostId]): PeersHandler[F] = {
+  // Some cold peers can't be removed, for example if there is actor present OR remote peer is active
+  def removeColdPeers(toRemove: Set[HostId]): PeersHandler[F] = {
     val filteredToRemove =
-      getColdPeers.view.filterKeys(toRemove).filter(_._2.actorOpt.isEmpty).keySet
+      getColdPeers.view
+        .filterKeys(toRemove)
+        .filterNot(_._2.isActive)
+        .keySet
     val newPeers = peers -- filteredToRemove
     this.copy(peers = newPeers)
   }
 
-  def copyWithClearedTimestamps: PeersHandler[F] = {
+  def copyWithUpdatedTimestamps: PeersHandler[F] = {
     val timeStampWindow = networkConfig.networkProperties.closeTimeoutWindowInMs
     val timeNow = System.currentTimeMillis()
 
-    val newPeers = peers.map { case (id, peer) =>
+    val withClearedTimestamps = peers.map { case (id, peer) =>
       val eligibleTimestamps = peer.closedTimestamps.filter(_ >= (timeNow - timeStampWindow))
       id -> peer.copy(closedTimestamps = eligibleTimestamps)
     }
+
+    val newPeers = withClearedTimestamps.map { case (id, peer) =>
+      val newPeer = if (peer.haveConnection) peer.copy(activeConnectionTimestamp = timeNow.some) else peer
+      id -> newPeer
+    }
+
     this.copy(peers = newPeers)
   }
 }
 
 case class Peer[F[_]: Logger](
-  state:              PeerState,
-  actorOpt:           Option[PeerActor[F]],
-  connectedAddress:   Option[RemoteAddress],
-  asServer:           Option[RemotePeer],
-  closedTimestamps:   Seq[Long],
-  remoteNetworkLevel: Boolean,
-  blockRep:           HostReputationValue,
-  perfRep:            HostReputationValue,
-  newRep:             Long
+  state:                     PeerState,
+  actorOpt:                  Option[PeerActor[F]],
+  connectedAddress:          Option[RemoteAddress],
+  asServer:                  Option[RemotePeer],
+  closedTimestamps:          Seq[Long],
+  remoteNetworkLevel:        Boolean,
+  blockRep:                  HostReputationValue,
+  perfRep:                   HostReputationValue,
+  newRep:                    Long,
+  activeConnectionTimestamp: Option[Long]
 ) {
+  def couldOpenConnection: Boolean = asServer.isDefined || actorOpt.isDefined
+
+  def isActive: Boolean = actorOpt.isDefined || remoteNetworkLevel
+
+  def isUseful: Boolean = isActive || couldOpenConnection
+
   def haveNoConnection: Boolean = actorOpt.isEmpty
+
+  def haveConnection: Boolean = actorOpt.isDefined
 
   def sendNoWait(message: PeerActor.Message): F[Unit] =
     actorOpt match {
       case Some(actor) => actor.sendNoWait(message)
-      case None        => Logger[F].trace(show"Send message to peer with no running client")
+      case None        => Logger[F].trace(show"Send message to peer with no running actor")
     }
 
   val reputation: Double = (blockRep + perfRep) / 2

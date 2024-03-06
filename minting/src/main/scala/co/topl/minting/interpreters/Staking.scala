@@ -40,6 +40,7 @@ object Staking {
       .pure {
         val _rewardAddress = rewardAddress
         new StakingAlgebra[F] {
+
           implicit private val logger: SelfAwareStructuredLogger[F] =
             Slf4jLogger.getLoggerFromName[F]("Bifrost.Staking")
           val address: F[StakingAddress] = a.pure[F]
@@ -108,6 +109,7 @@ object Staking {
                   )
                   unsignedBlock = unsignedBlockBuilder(partialCertificate)
                   messageToSign = unsignedBlock.signableBytes.toByteArray
+                  _ <- Async[F].cede
                   signature <- ed25519Resource.use(ed25519 =>
                     Sync[F].delay(
                       ed25519.sign(
@@ -116,6 +118,7 @@ object Staking {
                       )
                     )
                   )
+                  _ <- Async[F].cede
                   operationalCertificate = OperationalCertificate(
                     operationalKeyOut.parentVK,
                     operationalKeyOut.parentSignature,

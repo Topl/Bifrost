@@ -3,7 +3,7 @@ import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
 import NativePackagerHelper.*
 
-val scala213 = "2.13.12"
+val scala213 = "2.13.13"
 
 inThisBuild(
   List(
@@ -45,7 +45,7 @@ lazy val commonSettings = Seq(
     "Bintray" at "https://jcenter.bintray.com/",
     "jitpack" at "https://jitpack.io"
   ),
-  addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.2" cross CrossVersion.full),
+  addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.3" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1"),
   testFrameworks += TestFrameworks.MUnit,
   dependencyOverrides ++= Dependencies.protobufSpecs ++ Seq(Dependencies.quivr4s)
@@ -64,10 +64,12 @@ lazy val dockerSettings = Seq(
     )
   },
   dockerAliases ++= (
-    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean)) Seq(
-      DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
-      DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
-    ) else Seq()
+    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
+      Seq(
+        DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
+        DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
+      )
+    else Seq()
   )
 )
 
@@ -78,9 +80,9 @@ lazy val nodeDockerSettings =
     dockerExposedVolumes += "/bifrost",
     dockerExposedVolumes += "/bifrost-staking",
     dockerEnvVars ++= Map(
-      "BIFROST_APPLICATION_DATA_DIR" -> "/bifrost/data/{genesisBlockId}",
+      "BIFROST_APPLICATION_DATA_DIR"    -> "/bifrost/data/{genesisBlockId}",
       "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost-staking/{genesisBlockId}",
-      "BIFROST_CONFIG_FILE" -> "/bifrost/config/user.yaml"
+      "BIFROST_CONFIG_FILE"             -> "/bifrost/config/user.yaml"
     )
   )
 
@@ -361,7 +363,11 @@ lazy val tetraByteCodecs = project
   )
   .settings(libraryDependencies ++= Dependencies.munitScalamock ++ Dependencies.protobufSpecs)
   .settings(scalamacrosParadiseSettings)
-  .dependsOn(models % "compile->compile;test->test", byteCodecs % "compile->compile;test->test", nodeCrypto % "compile->compile;test->test")
+  .dependsOn(
+    models     % "compile->compile;test->test",
+    byteCodecs % "compile->compile;test->test",
+    nodeCrypto % "compile->compile;test->test"
+  )
 
 lazy val typeclasses: Project = project
   .in(file("typeclasses"))
@@ -425,7 +431,8 @@ lazy val commonInterpreters = project
     tetraByteCodecs,
     catsUtils,
     eventTree,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    levelDbStore   % "test->test"
   )
 
 lazy val consensus = project
@@ -452,7 +459,7 @@ lazy val consensus = project
     numerics,
     eventTree,
     commonInterpreters % "compile->test",
-    munitScalamock % "test->test"
+    munitScalamock     % "test->test"
   )
 
 lazy val minting = project
@@ -506,7 +513,7 @@ lazy val networking = project
     eventTree,
     ledger,
     actor,
-    munitScalamock     % "test->test"
+    munitScalamock % "test->test"
   )
 
 lazy val transactionGenerator = project

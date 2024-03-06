@@ -157,7 +157,7 @@ object NetworkManager {
     val remoteAddressMap = remoteAddress.map { ra =>
       val id =
         ra.p2pVK.map(HostId).getOrElse(HostId(ByteString.copyFrom(Random.nextBytes(hostIdBytesLen))))
-      ra.remoteAddress -> KnownRemotePeer(id, ra.remoteAddress, 0, 0)
+      ra.remoteAddress -> KnownRemotePeer(id, ra.remoteAddress, 0, 0, None)
     }.toMap
     val remotePeersMap = remotePeers.map(p => p.address -> p).toMap
 

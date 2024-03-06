@@ -1,7 +1,6 @@
 package co.topl.genusLibrary.orientDb.schema
 
 import com.tinkerpop.blueprints.Vertex
-import scala.jdk.CollectionConverters._
 
 /**
  * Describe how data from a scala class will be stored in an OrientDB vertex.
@@ -39,24 +38,16 @@ trait VertexSchema[T] {
   /**
    * Decode a Map retrieved from the properties an OrientDB vertex to an instance of T
    *
-   * @param properties A map that contains the property values from a vertex.
+   * @param vertex The underlying graph vertex
    * @return The instance of T constructed from the property values.
    */
-  def decode(properties: Map[String, AnyRef]): T
-
-  /**
-   * Decode a  an OrientDB vertex to an instance of T
-   *
-   * @param v A vertex.
-   * @return The instance of T constructed from the property values.
-   */
-  def decodeVertex(v: Vertex): T = decode(v.getPropertyKeys.asScala.map(k => (k, v.getProperty(k))).toMap)
+  def decode(vertex: Vertex): T
 }
 
 object VertexSchema {
 
-  class DecodeHelper(properties: Map[String, AnyRef]) {
-    def apply[T](name: String): T = properties(name).asInstanceOf[T]
+  class DecodeHelper(val vertex: Vertex) extends AnyVal {
+    def apply[T](name: String): T = vertex.getProperty[T](name)
   }
 
   def create[T](schemaName: String, encoder: GraphDataEncoder[T], decoder: DecodeHelper => T): VertexSchema[T] =
@@ -65,7 +56,7 @@ object VertexSchema {
 
       def encode(t: T): Map[String, AnyRef] = encoder.encode(t)
 
-      def decode(properties: Map[String, AnyRef]): T = decoder(new DecodeHelper(properties))
+      def decode(vertex: Vertex): T = decoder(new DecodeHelper(vertex))
 
       val properties: Set[Property] = encoder.properties
 

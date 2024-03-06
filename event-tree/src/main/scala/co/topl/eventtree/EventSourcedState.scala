@@ -79,6 +79,7 @@ object EventSourcedState {
                       parentChildTree.findCommonAncestor(currentEventId, eventId),
                       currentStateRef.get
                     ).tupled
+                    _                     <- Async[F].cede
                     stateAtCommonAncestor <- unapplyEvents(unapplyChain.tail, currentState, unapplyChain.head)
                     newState              <- applyEvents(applyChain.tail, stateAtCommonAncestor)
                   } yield newState
@@ -102,6 +103,7 @@ object EventSourcedState {
                 currentEventIdRef.set(nextEventId),
                 currentEventChanged(nextEventId)
               ).tupled
+              _ <- Async[F].cede
             } yield newState
           )
         }
@@ -112,6 +114,7 @@ object EventSourcedState {
             for {
               newState <- applyEvent(state, eventId)
               _ <- (currentStateRef.set(newState), currentEventIdRef.set(eventId), currentEventChanged(eventId)).tupled
+              _ <- Async[F].cede
             } yield newState
           )
         }

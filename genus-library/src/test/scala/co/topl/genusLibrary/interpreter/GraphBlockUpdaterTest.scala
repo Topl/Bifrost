@@ -51,6 +51,7 @@ class GraphBlockUpdaterTest extends CatsEffectSuite with ScalaCheckEffectSuite w
   test("Insert genesis block, should work, if we add the vertex") {
 
     val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+
       @nowarn
       override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
     }
@@ -101,6 +102,7 @@ class GraphBlockUpdaterTest extends CatsEffectSuite with ScalaCheckEffectSuite w
   test("Insert no genesis block, should work, if we add the vertex and the edge") {
 
     val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+
       @nowarn
       override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
 
@@ -132,6 +134,7 @@ class GraphBlockUpdaterTest extends CatsEffectSuite with ScalaCheckEffectSuite w
 
   test("Insert no genesis block, should fail, if we add the vertex but no the edge") {
     val orientGraph: OrientGraph = new OrientGraph("memory:test") {
+
       @nowarn
       override def addVertex(id: Object, prop: AnyRef*): OrientVertex = new OrientVertex()
 

@@ -21,6 +21,7 @@ object SchemaIoTransaction {
     val Size = "size"
     val TransactionIndex = "transactionIdIndex"
     val IsReward = "isReward"
+    val ParentBlock = "blockId"
   }
 
   private[genusLibrary] def size(ioTransaction: IoTransaction): Long =
@@ -54,7 +55,7 @@ object SchemaIoTransaction {
           notNull = true
         )
         .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)
-        .withLink(SchemaBlockHeader.Field.BlockId, OType.LINK, SchemaBlockHeader.Field.SchemaName),
+        .withLink(Field.ParentBlock, OType.LINK, SchemaBlockHeader.Field.SchemaName),
       v => IoTransaction.parseFrom(v(Field.Transaction): Array[Byte])
     )
 

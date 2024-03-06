@@ -115,6 +115,7 @@ object BlockPacker {
                   transactionIsValid(transaction)
                     .ifM(
                       graph.pure[F],
+                      Async[F].cede >>
                       Sync[F]
                         .delay(graph.removeSubtree(transaction))
                         .flatMap { case (graph, evicted) =>
@@ -281,7 +282,7 @@ object BlockPacker {
            */
           private def transactionScore(transaction: IoTransaction): F[BigInt] =
             (
-              transactionRewardCalculator.rewardOf(transaction),
+              transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
               transactionCostCalculator.costOf(transaction)
             ).mapN(_ - _)
 

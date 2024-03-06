@@ -54,7 +54,8 @@ object Blockchain {
     chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
     blockIdTree:               ParentChildTree[F, BlockId],
     eventSourcedStates:        EventSourcedStates[F],
-    validators:                Validators[F],
+    validatorsLocal:           Validators[F],
+    validatorsP2P:             Validators[F],
     _mempool:                  MempoolAlgebra[F],
     cryptoResources:           CryptoResources[F],
     localPeer:                 LocalPeer,
@@ -74,7 +75,8 @@ object Blockchain {
     chainSelectionAlgebra,
     blockIdTree,
     eventSourcedStates,
-    validators,
+    validatorsLocal,
+    validatorsP2P,
     _mempool,
     cryptoResources,
     localPeer,
@@ -98,7 +100,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
   blockIdTree:               ParentChildTree[F, BlockId],
   eventSourcedStates:        EventSourcedStates[F],
-  validators:                Validators[F],
+  validatorsLocal:           Validators[F],
+  validatorsP2P:             Validators[F],
   _mempool:                  MempoolAlgebra[F],
   cryptoResources:           CryptoResources[F],
   localPeer:                 LocalPeer,
@@ -144,7 +147,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
     Stream
       .force(localChain.adoptions)
       .dropOldest(1)
-      .evalTap(eventSourcedStates.updateTo)
+      .evalTap(eventSourcedStates.updateLocalStatesTo)
       .compile
       .drain
       .onError { case e => Logger[F].error(e)("Event-Sourced-State Updater failed") }
@@ -168,19 +171,19 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           HostId(localPeer.p2pVK),
           localChain,
           chainSelectionAlgebra,
-          validators.header,
-          validators.headerToBody,
-          validators.transactionSyntax,
-          validators.bodySyntax,
-          validators.bodySemantics,
-          validators.bodyAuthorization,
+          validatorsP2P.header,
+          validatorsP2P.headerToBody,
+          validatorsP2P.transactionSyntax,
+          validatorsP2P.bodySyntax,
+          validatorsP2P.bodySemantics,
+          validatorsP2P.bodyAuthorization,
           dataStores.slotData,
           dataStores.headers,
           dataStores.bodies,
           dataStores.transactions,
           dataStores.knownHosts,
           blockIdTree,
-          eventSourcedStates.blockHeights,
+          eventSourcedStates.blockHeightsP2P,
           mempool,
           networkProperties,
           clock,
@@ -204,7 +207,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         dataStores.headers.get,
         dataStores.bodies.get,
         dataStores.transactions.get,
-        eventSourcedStates.blockHeights,
+        eventSourcedStates.blockHeightsP2P,
         () => peerAsServer.map(kp => KnownHost(localPeer.p2pVK, kp.host, kp.port)),
         () => currentPeers.get,
         localChain,
@@ -235,9 +238,9 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           dataStores.bodies,
           dataStores.transactions,
           mempool,
-          validators.transactionSyntax,
+          validatorsLocal.transactionSyntax,
           localChain,
-          eventSourcedStates.blockHeights,
+          eventSourcedStates.blockHeightsLocal,
           blockIdTree,
           Stream.force(localChain.adoptions).dropOldest(10),
           nodeProtocolConfiguration,
@@ -265,11 +268,11 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
             BlockPacker
               .make[F](
                 mempool,
-                validators.boxState,
-                validators.rewardCalculator,
+                validatorsLocal.boxState,
+                validatorsLocal.rewardCalculator,
                 costCalculator,
-                validators.transactionAuthorization,
-                validators.registrationAccumulator
+                validatorsLocal.transactionAuthorization,
+                validatorsLocal.registrationAccumulator
               )
           )
           // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
@@ -284,7 +287,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
                 .evalMap(dataStores.slotData.getOrRaise)
             )
           blockProducer <- Stream.eval(
-            BlockProducer.make[F](parentBlocksStream, staker, clock, blockPacker, validators.rewardCalculator)
+            BlockProducer.make[F](parentBlocksStream, staker, clock, blockPacker, validatorsLocal.rewardCalculator)
           )
           block <- Stream.force(blockProducer.blocks)
         } yield block
@@ -345,7 +348,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         Logger[F].info(show"Performing validation of local blockId=${fullBlock.header.id}")
       )
       _ <- EitherT(
-        validators.header
+        validatorsLocal.header
           .validate(fullBlock.header)
           .warnIfSlow("Validate local header")
       ).leftMap(_.show)
@@ -357,12 +360,12 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       )
       block = Block(fullBlock.header, body)
       _ <- EitherT(
-        validators.headerToBody
+        validatorsLocal.headerToBody
           .validate(block)
           .warnIfSlow("Validate local header-to-body")
       ).leftMap(_.show)
       _ <- EitherT(
-        validators.bodySyntax
+        validatorsLocal.bodySyntax
           .validate(body)
           .map(_.toEither)
           .warnIfSlow("Validate local body syntax")
@@ -373,14 +376,14 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         block.header.slot
       )
       _ <- EitherT(
-        validators.bodySemantics
+        validatorsLocal.bodySemantics
           .validate(semanticContext)(body)
           .map(_.toEither)
           .warnIfSlow("Validate local body semantics")
       ).leftMap(_.show)
       authContext = (tx: IoTransaction) => QuivrContext.forProposedBlock(block.header.height, block.header.slot, tx)
       _ <- EitherT(
-        validators.bodyAuthorization
+        validatorsLocal.bodyAuthorization
           .validate(authContext)(body)
           .map(_.toEither)
           .warnIfSlow("Validate local body authorization")

@@ -20,24 +20,24 @@ object GraphBlockFetcher {
 
         override def fetchCanonicalHead(): F[Either[GE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchCanonicalHead())
-            .map(_.map(blockHeaderSchema.decodeVertex))
+            .map(_.map(blockHeaderSchema.decode))
             .value
 
         override def fetchHeader(blockId: BlockId): F[Either[GE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeader(blockId))
-            .map(_.map(blockHeaderSchema.decodeVertex))
+            .map(_.map(blockHeaderSchema.decode))
             .value
 
         override def fetchHeaderByHeight(height: Long): F[Either[GE, Option[BlockHeader]]] =
           EitherT(vertexFetcher.fetchHeaderByHeight(height))
-            .map(_.map(blockHeaderSchema.decodeVertex))
+            .map(_.map(blockHeaderSchema.decode))
             .value
 
         override def fetchBody(blockId: BlockId): F[Either[GE, Option[BlockBody]]] =
           EitherT(vertexFetcher.fetchHeader(blockId)).flatMap {
             case Some(headerVertex) =>
               EitherT(vertexFetcher.fetchBody(headerVertex))
-                .map(_.map(blockBodySchema.decodeVertex))
+                .map(_.map(blockBodySchema.decode))
             case None =>
               EitherT.pure[F, GE](Option.empty[BlockBody])
           }.value
@@ -50,15 +50,15 @@ object GraphBlockFetcher {
         private def fetchBlockFromVertex(f: () => F[Either[GE, Option[Vertex]]]): F[Either[GE, Option[BlockData]]] =
           EitherT(f())
             .flatMap(_.traverse { headerVertex =>
-              val header = blockHeaderSchema.decodeVertex(headerVertex)
+              val header = blockHeaderSchema.decode(headerVertex)
               EitherT(vertexFetcher.fetchBody(headerVertex))
                 .flatMap(
                   _.fold(EitherT.pure[F, GE](BlockData(header, FullBlockBody())))(_ =>
                     (
                       EitherT(vertexFetcher.fetchTransactions(headerVertex))
-                        .map(_.map(ioTransactionSchema.decodeVertex)),
+                        .map(_.map(ioTransactionSchema.decode)),
                       EitherT(vertexFetcher.fetchRewardTransaction(headerVertex))
-                        .map(_.map(ioTransactionSchema.decodeVertex))
+                        .map(_.map(ioTransactionSchema.decode))
                     )
                       .mapN((transactions, reward) => BlockData(header, FullBlockBody(transactions.toList, reward)))
                   )

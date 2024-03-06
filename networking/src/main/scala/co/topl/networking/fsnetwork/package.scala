@@ -1,6 +1,6 @@
 package co.topl.networking
 
-import cats.data.{NonEmptyChain, OptionT}
+import cats.data.{Chain, NonEmptyChain, OptionT}
 import cats.effect.Async
 import cats.implicits._
 import cats.{Applicative, Monad, MonadThrow}
@@ -17,7 +17,9 @@ import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import scodec.Codec
-import scodec.codecs.{cstring, double, int32}
+import scodec.codecs.{cstring, double, int32, vlong}
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 package object fsnetwork {
 
@@ -32,10 +34,13 @@ package object fsnetwork {
   val chunkSize = 1
 
   val requestCacheSize = 256
-  val slotIdResponseCacheSize = 2048
+  val slotIdResponseCacheSize = 256
 
-  val bodyStoreContainsCacheSize = 32768
   val blockSourceCacheSize = 1024
+
+  // requests in proxy shall be expired, there is no strict guarantee that we will receive responses
+  val proxyBlockDataTTL: FiniteDuration = 1.seconds
+  val proxySlotDataTTL: FiniteDuration = 30.seconds
 
   type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
 
@@ -52,6 +57,20 @@ package object fsnetwork {
 
     def evalDropWhile(p: T => F[Boolean]): fs2.Stream[F, T] =
       stream.evalMap(a => p(a).map(b => (b, a))).dropWhile(_._1).map(_._2)
+  }
+
+  implicit class NonEmptyChainFOps[T, F[_]: Async](seq: NonEmptyChain[T]) {
+
+    def dropWhileF(p: T => F[Boolean]): F[Chain[T]] = {
+      def go(rem: Chain[T]): F[Chain[T]] =
+        rem.uncons match {
+          case Some((a, tail)) =>
+            p(a).ifM(go(tail), rem.pure[F])
+          case None => Chain.empty[T].pure[F]
+        }
+
+      go(seq.toChain)
+    }
   }
 
   implicit class SeqFOps[T, F[_]: Async](seq: Seq[T]) {
@@ -105,25 +124,25 @@ package object fsnetwork {
    * @param getSlotDataFromT define how slot data could be obtained for T
    * @param getT define how T could be get by Id
    * @param terminateOn terminate condition
-   * @param from start point to process chain
+   * @param last start point to process chain
    * @tparam F effect
    * @tparam T type of data retrieved from chain
    * @return chain with data T
    */
-  def getFromChainUntil[F[_]: Monad, T](
+  def prependOnChainUntil[F[_]: Monad, T](
     getSlotDataFromT: T => F[SlotData],
     getT:             BlockId => F[T],
     terminateOn:      T => F[Boolean]
-  )(from: BlockId): F[List[T]] = {
-    def iteration(acc: List[T], blockId: BlockId): F[List[T]] =
+  )(last: BlockId): F[List[T]] = {
+    def iteration(acc: Chain[T], blockId: BlockId): F[Chain[T]] =
       getT(blockId).flatMap { t =>
         terminateOn(t).ifM(
           acc.pure[F],
-          getSlotDataFromT(t).flatMap(slotData => iteration(acc.appended(t), slotData.parentSlotId.blockId))
+          getSlotDataFromT(t).flatMap(slotData => iteration(acc.append(t), slotData.parentSlotId.blockId))
         )
       }
 
-    iteration(List.empty[T], from).map(_.reverse)
+    iteration(Chain.empty[T], last).map(_.toList.reverse)
   }
 
   /**
@@ -143,7 +162,7 @@ package object fsnetwork {
     size:      Int
   ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      getFromChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
+      prependOnChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )
@@ -168,17 +187,18 @@ package object fsnetwork {
   )
 
   case class KnownRemotePeer(
-    peerId:          HostId,
-    address:         RemoteAddress,
-    blockReputation: HostReputationValue,
-    perfReputation:  HostReputationValue
+    peerId:              HostId,
+    address:             RemoteAddress,
+    blockReputation:     HostReputationValue,
+    perfReputation:      HostReputationValue,
+    lastOpenedTimestamp: Option[Long]
   )
 
   private val hostIdCodec: Codec[HostId] = byteStringCodec.as[HostId]
   private val remoteAddressCodec: Codec[RemoteAddress] = (cstring :: int32).as[RemoteAddress]
 
   implicit val peerToAddCodec: Codec[KnownRemotePeer] =
-    (hostIdCodec :: remoteAddressCodec :: double :: double).as[KnownRemotePeer]
+    (hostIdCodec :: remoteAddressCodec :: double :: double :: optionCodec[Long](vlong)).as[KnownRemotePeer]
 
   implicit class LoggerOps[F[_]: Applicative](logger: Logger[F]) {
 

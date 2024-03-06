@@ -239,13 +239,14 @@ object Orchestrator
       transactionStream <- Fs2TransactionGenerator
         .make[F](
           wallet,
-          TransactionCostCalculatorInterpreter.make(TransactionCostConfig())
+          TransactionCostCalculatorInterpreter.make(TransactionCostConfig()),
+          Fs2TransactionGenerator.randomMetadata[F]
         )
         .flatMap(_.generateTransactions)
       // Build the stream
       runStreamF = transactionStream
         // Send 1 transaction per _this_ duration
-        .metered((1_000_000_000d / targetTps).nanos)
+        .metered((1000000000d / targetTps).nanos)
         // Broadcast+log the transaction
         .evalTap(transaction =>
           Logger[F].debug(show"Broadcasting transaction id=${transaction.id}") >>

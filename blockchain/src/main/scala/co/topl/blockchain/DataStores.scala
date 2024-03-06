@@ -14,24 +14,46 @@ import co.topl.proto.node.EpochData
 import fs2.io.file.Path
 
 case class DataStores[F[_]](
-  baseDirectory:           Path,
-  parentChildTree:         Store[F, BlockId, (Long, BlockId)],
-  currentEventIds:         Store[F, Byte, BlockId],
-  slotData:                Store[F, BlockId, SlotData],
-  headers:                 Store[F, BlockId, BlockHeader],
-  bodies:                  Store[F, BlockId, BlockBody],
-  transactions:            Store[F, TransactionId, IoTransaction],
-  spendableBoxIds:         Store[F, TransactionId, NonEmptySet[Short]],
-  epochBoundaries:         Store[F, Long, BlockId],
-  operatorStakes:          Store[F, StakingAddress, BigInt],
-  activeStake:             Store[F, Unit, BigInt],
-  inactiveStake:           Store[F, Unit, BigInt],
-  registrations:           Store[F, StakingAddress, ActiveStaker],
-  blockHeightTree:         Store[F, Long, BlockId],
-  epochData:               Store[F, Epoch, EpochData],
-  registrationAccumulator: Store[F, StakingAddress, Unit],
-  knownHosts:              Store[F, Unit, Seq[KnownRemotePeer]],
-  metadata:                Store[F, Array[Byte], Array[Byte]]
+  baseDirectory:                Path,
+  parentChildTree:              Store[F, BlockId, (Long, BlockId)],
+  currentEventIds:              Store[F, Byte, BlockId],
+  slotData:                     Store[F, BlockId, SlotData],
+  headers:                      Store[F, BlockId, BlockHeader],
+  bodies:                       Store[F, BlockId, BlockBody],
+  transactions:                 Store[F, TransactionId, IoTransaction],
+  spendableBoxIdsLocal:         Store[F, TransactionId, NonEmptySet[Short]],
+  spendableBoxIdsP2P:           Store[F, TransactionId, NonEmptySet[Short]],
+  epochBoundariesLocal:         Store[F, Long, BlockId],
+  epochBoundariesP2P:           Store[F, Long, BlockId],
+  operatorStakesLocal:          Store[F, StakingAddress, BigInt],
+  operatorStakesP2P:            Store[F, StakingAddress, BigInt],
+  activeStakeLocal:             Store[F, Unit, BigInt],
+  activeStakeP2P:               Store[F, Unit, BigInt],
+  inactiveStakeLocal:           Store[F, Unit, BigInt],
+  inactiveStakeP2P:             Store[F, Unit, BigInt],
+  registrationsLocal:           Store[F, StakingAddress, ActiveStaker],
+  registrationsP2P:             Store[F, StakingAddress, ActiveStaker],
+  blockHeightTreeLocal:         Store[F, Long, BlockId],
+  blockHeightTreeP2P:           Store[F, Long, BlockId],
+  epochData:                    Store[F, Epoch, EpochData],
+  registrationAccumulatorLocal: Store[F, StakingAddress, Unit],
+  registrationAccumulatorP2P:   Store[F, StakingAddress, Unit],
+  knownHosts:                   Store[F, Unit, Seq[KnownRemotePeer]],
+  metadata:                     Store[F, Array[Byte], Array[Byte]]
+)
+
+/**
+ * Data stores which are used during pruning data stores
+ */
+case class PrunedDataStores[F[_]](
+  baseDirectory:        Path,
+  parentChildTree:      Store[F, BlockId, (Long, BlockId)],
+  slotData:             Store[F, BlockId, SlotData],
+  headers:              Store[F, BlockId, BlockHeader],
+  bodies:               Store[F, BlockId, BlockBody],
+  transactions:         Store[F, TransactionId, IoTransaction],
+  blockHeightTreeLocal: Store[F, Long, BlockId],
+  blockHeightTreeP2P:   Store[F, Long, BlockId]
 )
 
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {
@@ -40,17 +62,29 @@ class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockI
   val canonicalHead: CurrentEventIdGetterSetters.GetterSetter[F] =
     CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.CanonicalHead)
 
-  val consensusData: CurrentEventIdGetterSetters.GetterSetter[F] =
-    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.ConsensusData)
+  val consensusDataLocal: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.ConsensusDataLocal)
 
-  val epochBoundaries: CurrentEventIdGetterSetters.GetterSetter[F] =
-    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.EpochBoundaries)
+  val consensusDataP2P: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.ConsensusDataP2P)
 
-  val blockHeightTree: CurrentEventIdGetterSetters.GetterSetter[F] =
-    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.BlockHeightTree)
+  val epochBoundariesLocal: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.EpochBoundariesLocal)
 
-  val boxState: CurrentEventIdGetterSetters.GetterSetter[F] =
-    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.BoxState)
+  val epochBoundariesP2P: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.EpochBoundariesP2P)
+
+  val blockHeightTreeLocal: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.BlockHeightTreeLocal)
+
+  val blockHeightTreeP2P: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.BlockHeightTreeP2P)
+
+  val boxStateLocal: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.BoxStateLocal)
+
+  val boxStateP2P: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.BoxStateP2P)
 
   val mempool: CurrentEventIdGetterSetters.GetterSetter[F] =
     CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.Mempool)
@@ -58,8 +92,11 @@ class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockI
   val epochData: CurrentEventIdGetterSetters.GetterSetter[F] =
     CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.EpochData)
 
-  val registrationAccumulator: CurrentEventIdGetterSetters.GetterSetter[F] =
-    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.RegistrationAccumulator)
+  val registrationAccumulatorLocal: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.RegistrationAccumulatorLocal)
+
+  val registrationAccumulatorP2P: CurrentEventIdGetterSetters.GetterSetter[F] =
+    CurrentEventIdGetterSetters.GetterSetter.forByte(store)(Indices.RegistrationAccumulatorP2P)
 }
 
 object CurrentEventIdGetterSetters {
@@ -79,12 +116,17 @@ object CurrentEventIdGetterSetters {
 
   object Indices {
     val CanonicalHead: Byte = 0
-    val ConsensusData: Byte = 1
-    val EpochBoundaries: Byte = 2
-    val BlockHeightTree: Byte = 3
-    val BoxState: Byte = 4
+    val ConsensusDataLocal: Byte = 1
+    val EpochBoundariesLocal: Byte = 2
+    val BlockHeightTreeLocal: Byte = 3
+    val BoxStateLocal: Byte = 4
     val Mempool: Byte = 5
     val EpochData: Byte = 6
-    val RegistrationAccumulator: Byte = 7
+    val RegistrationAccumulatorLocal: Byte = 7
+    val ConsensusDataP2P: Byte = 8
+    val EpochBoundariesP2P: Byte = 9
+    val BlockHeightTreeP2P: Byte = 10
+    val BoxStateP2P: Byte = 11
+    val RegistrationAccumulatorP2P: Byte = 12
   }
 }

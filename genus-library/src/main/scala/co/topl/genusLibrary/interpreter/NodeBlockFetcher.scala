@@ -26,6 +26,7 @@ object NodeBlockFetcher {
     Resource.pure {
 
       new NodeBlockFetcherAlgebra[F, Stream[F, *]] {
+
         override def fetch(startHeight: Long, endHeight: Long): F[Stream[F, BlockData]] =
           Async[F].delay {
             Stream

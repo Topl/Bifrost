@@ -17,7 +17,7 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
-import co.topl.networking.{fsnetwork, KnownHostOps}
+import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.PeerActorTest.F
@@ -41,6 +41,104 @@ object PeerActorTest {
 }
 
 class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory with TransactionGenerator {
+
+  case class PeerActorMockData(
+    peersManager:                    PeersManagerActor[F],
+    requestsProxy:                   RequestsProxyActor[F],
+    localChain:                      LocalChainAlgebra[F],
+    slotDataStore:                   Store[F, BlockId, SlotData],
+    bodyDataStore:                   Store[F, BlockId, BlockBody],
+    transactionStore:                Store[F, TransactionId, IoTransaction],
+    blockIdTree:                     ParentChildTree[F, BlockId],
+    blockHeights:                    EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    headerToBodyValidation:          BlockHeaderToBodyValidationAlgebra[F],
+    transactionSyntaxValidation:     TransactionSyntaxVerifier[F],
+    mempool:                         MempoolAlgebra[F],
+    client:                          BlockchainPeerClient[F],
+    networkAlgebra:                  NetworkAlgebra[F],
+    blockHeaderFetcher:              PeerBlockHeaderFetcherActor[F],
+    blockBodyFetcher:                PeerBlockBodyFetcherActor[F],
+    peerMempoolTransactionSyncActor: PeerMempoolTransactionSyncActor[F]
+  ) {}
+
+  private def buildDefaultMockData(client: BlockchainPeerClient[F] = createDummyClient()): PeerActorMockData = {
+    val (networkAlgebra, peerBlockHeaderFetcherActor, peerBlockBodyFetcherActor, peerMempoolTransactionSyncActor) =
+      createDummyNetworkAlgebra()
+
+    val peersManager: PeersManagerActor[F] = mock[PeersManagerActor[F]]
+    // ping message request after start network level
+    (peersManager.sendNoWait _).expects(*).once().returns(Applicative[F].unit)
+
+    buildMockData(
+      networkAlgebra,
+      peerBlockHeaderFetcherActor,
+      peerBlockBodyFetcherActor,
+      peerMempoolTransactionSyncActor,
+      client,
+      peersManager = peersManager
+    )
+  }
+
+  private def buildMockData(
+    networkAlgebra:                  NetworkAlgebra[F],
+    peerBlockHeaderFetcherActor:     PeerBlockHeaderFetcherActor[F],
+    peerBlockBodyFetcherActor:       PeerBlockBodyFetcherActor[F],
+    peerMempoolTransactionSyncActor: PeerMempoolTransactionSyncActor[F],
+    client:                          BlockchainPeerClient[F] = createDummyClient(),
+    peersManager:                    PeersManagerActor[F] = mock[PeersManagerActor[F]],
+    requestsProxy:                   RequestsProxyActor[F] = mock[RequestsProxyActor[F]],
+    localChain:                      LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
+    slotDataStore:                   Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]],
+    bodyDataStore:                   Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
+    transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
+    blockIdTree:      ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
+    blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
+      mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
+    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]],
+    transactionSyntaxValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
+    mempool:                     MempoolAlgebra[F] = mock[MempoolAlgebra[F]]
+  ): PeerActorMockData = {
+    (() => localChain.genesis).expects().once().returning(genesis.pure[F])
+    PeerActorMockData(
+      peersManager,
+      requestsProxy,
+      localChain,
+      slotDataStore,
+      bodyDataStore,
+      transactionStore,
+      blockIdTree,
+      blockHeights,
+      headerToBodyValidation,
+      transactionSyntaxValidation,
+      mempool,
+      client,
+      networkAlgebra,
+      peerBlockHeaderFetcherActor,
+      peerBlockBodyFetcherActor,
+      peerMempoolTransactionSyncActor
+    )
+  }
+
+  private def buildPeerActorFromMockedData(peerActorMockData: PeerActorMockData): Resource[F, PeerActor.PeerActor[F]] =
+    PeerActor
+      .makeActor(
+        hostId,
+        peerActorMockData.networkAlgebra,
+        peerActorMockData.client,
+        peerActorMockData.requestsProxy,
+        peerActorMockData.peersManager,
+        peerActorMockData.localChain,
+        peerActorMockData.slotDataStore,
+        peerActorMockData.bodyDataStore,
+        peerActorMockData.transactionStore,
+        peerActorMockData.blockIdTree,
+        peerActorMockData.blockHeights,
+        peerActorMockData.headerToBodyValidation,
+        peerActorMockData.transactionSyntaxValidation,
+        peerActorMockData.mempool,
+        commonAncestor[F]
+      )
+
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
 
   val hostId: HostId = arbitraryHost.arbitrary.first
@@ -119,44 +217,10 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     (networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolTransactionSync)
   }
 
-  test("Setting application level to true shall send start fetching stream message") {
+  test("Setting application level to true shall starts sub-actors") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
-      val client = createDummyClient()
-
-      val (networkAlgebra, _, _, _) = createDummyNetworkAlgebra()
-      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
-
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      val mockData = buildDefaultMockData()
+      buildPeerActorFromMockedData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
@@ -167,45 +231,13 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Block header download shall be forwarded to header fetcher") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val client = createDummyClient()
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
-      val (networkAlgebra, blockHeaderFetcher, _, _) = createDummyNetworkAlgebra()
-
+      val mockData = buildDefaultMockData()
       val blockHeader = arbitraryHeader.arbitrary.first.embedId
-      (blockHeaderFetcher.sendNoWait _)
+      (mockData.blockHeaderFetcher.sendNoWait _)
         .expects(PeerBlockHeaderFetcher.Message.DownloadBlockHeaders(NonEmptyChain.one(blockHeader.id)))
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
@@ -217,45 +249,13 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Block body download shall be forwarded to body fetcher") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val client = createDummyClient()
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-      (peersManager.sendNoWait _).stubs(*).returns(Applicative[F].unit)
-      val (networkAlgebra, _, blockBodyFetcher, _) = createDummyNetworkAlgebra()
-
+      val mockData = buildDefaultMockData()
       val blockHeader = arbitraryHeader.arbitrary.first.embedId
-      (blockBodyFetcher.sendNoWait _)
+      (mockData.blockBodyFetcher.sendNoWait _)
         .expects(PeerBlockBodyFetcher.Message.DownloadBlocks(NonEmptyChain.one(blockHeader)))
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockData)
         .use { actor =>
           for {
             _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
@@ -267,34 +267,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Ping shall be started and result is sent to reputation aggregator") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
       val pingDelay = FiniteDuration(10, MILLISECONDS)
 
       val client = mock[BlockchainPeerClient[F]]
@@ -310,7 +282,10 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      (peersManager.sendNoWait _).expects(*).atLeastOnce().onCall { message: PeersManager.Message =>
+      val (networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolSync) = createDummyNetworkAlgebra()
+      val mockedData = buildMockData(networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolSync, client)
+
+      (mockedData.peersManager.sendNoWait _).expects(*).atLeastOnce().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
             assert(t >= pingDelay.toMillis)
@@ -319,27 +294,10 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         }
       }
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
           for {
-            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
             _ <- Async[F].andWait(actor.send(PeerActor.Message.GetNetworkQuality), pingDelay * 5)
           } yield ()
         }
@@ -349,37 +307,10 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Ping shall be started: one success and two errors") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
       val pingDelay: FiniteDuration = FiniteDuration(10, MILLISECONDS)
 
       val client = mock[BlockchainPeerClient[F]]
+      (client.notifyAboutThisNetworkLevel _).expects(true).returns(Applicative[F].unit)
       (client.getPongMessage _).expects(*).once().onCall { ping: PingMessage =>
         Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
@@ -397,7 +328,10 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      (peersManager.sendNoWait _).expects(*).once().onCall { message: PeersManager.Message =>
+      val (networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolSync) = createDummyNetworkAlgebra()
+      val mockedData = buildMockData(networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolSync, client)
+
+      (mockedData.peersManager.sendNoWait _).expects(*).once().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Right(t)) =>
             assert(t >= pingDelay.toMillis)
@@ -405,38 +339,23 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           case _ => throw new IllegalStateException()
         }
       }
-      (peersManager.sendNoWait _).expects(*).once().onCall { message: PeersManager.Message =>
+      (mockedData.peersManager.sendNoWait _).expects(*).once().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Left(NoPongMessage)) => ().pure[F]
           case _                                                  => throw new IllegalStateException()
         }
       }
-      (peersManager.sendNoWait _).expects(*).atLeastOnce().onCall { message: PeersManager.Message =>
+
+      (mockedData.peersManager.sendNoWait _).expects(*).atLeastOnce().onCall { message: PeersManager.Message =>
         message match {
           case PingPongMessagePing(`hostId`, Left(IncorrectPongMessage)) => ().pure[F]
           case _                                                         => throw new IllegalStateException()
         }
       }
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
+          actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true)) >>
           actor.send(PeerActor.Message.GetNetworkQuality) >>
           actor.send(PeerActor.Message.GetNetworkQuality) >>
           actor.send(PeerActor.Message.GetNetworkQuality)
@@ -447,67 +366,29 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Ping error shall be processed correctly") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
 
       val client = mock[BlockchainPeerClient[F]]
+      (client.notifyAboutThisNetworkLevel _).expects(true).returns(Applicative[F].unit)
       (client
         .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
         .expects(1L, genesis.slotId.blockId.some)
         .once()
         .returning(genesis.slotId.blockId.some.pure[F])
-      (client.getPongMessage _).expects(*).once().onCall { _: PingMessage => throw new RuntimeException() }
+      (client.getPongMessage _).expects(*).twice().onCall { _: PingMessage => throw new RuntimeException() }
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
       (client.closeConnection _).expects().returns(Applicative[F].unit)
 
-      (peersManager.sendNoWait _)
+      val (networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolSync) = createDummyNetworkAlgebra()
+      val mockedData = buildMockData(networkAlgebra, blockHeaderFetcher, blockBodyFetcher, mempoolSync, client)
+
+      (mockedData.peersManager.sendNoWait _)
         .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
+        .twice()
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
+          actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true)) >>
           actor.send(PeerActor.Message.GetNetworkQuality)
         }
     }
@@ -516,75 +397,24 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Common ancestor shall be tracked") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
       val commonAncestorSlotData = arbitrarySlotData.arbitrary.first
       val commonAncestor = commonAncestorSlotData.slotId.blockId
 
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
-      val client = mock[BlockchainPeerClient[F]]
-      (client
+      val mockedData = buildDefaultMockData()
+      (mockedData.client
         .findCommonAncestor(_: Long => F[BlockId], _: () => F[Long])(_: Sync[F], _: Logger[F]))
         .expects(*, *, *, *)
         .once()
         .returns(commonAncestor.pure[F])
 
-      (slotDataStore
+      (mockedData.slotDataStore
         .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
         .expects(commonAncestor, *, *)
         .returns(commonAncestorSlotData.pure[F])
 
-      (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
-        .once()
-        .returning(genesis.slotId.blockId.some.pure[F])
-      (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
-      (client.closeConnection _).expects().returns(Applicative[F].unit)
-
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          fsnetwork.commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
+          actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true)) >>
           actor.send(PeerActor.Message.PrintCommonAncestor)
         }
     }
@@ -593,80 +423,31 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Common ancestor error shall be processed") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
+
       val commonAncestorSlotData = arbitrarySlotData.arbitrary.first
       val commonAncestor = commonAncestorSlotData.slotId.blockId
 
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
+      val mockedData = buildDefaultMockData()
 
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
-      val client = mock[BlockchainPeerClient[F]]
-      (client
+      (mockedData.client
         .findCommonAncestor(_: Long => F[BlockId], _: () => F[Long])(_: Sync[F], _: Logger[F]))
         .expects(*, *, *, *)
         .once()
         .returns(Sync[F].delay(throw new RuntimeException()))
 
-      (slotDataStore
+      (mockedData.slotDataStore
         .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
         .expects(commonAncestor, *, *)
         .never()
         .returns(commonAncestorSlotData.pure[F])
 
-      (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
-        .once()
-        .returning(genesis.slotId.blockId.some.pure[F])
-      (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
-      (client.closeConnection _).expects().returns(Applicative[F].unit)
-
-      (peersManager.sendNoWait _)
+      (mockedData.peersManager.sendNoWait _)
         .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          fsnetwork.commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
+          actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true)) >>
           actor.send(PeerActor.Message.PrintCommonAncestor)
         }
     }
@@ -675,129 +456,43 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Request to get current tip shall be forwarded to block header fetcher") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val client = createDummyClient()
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
+      val mockedData = buildDefaultMockData()
 
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
-      (blockHeaderFetcher.sendNoWait _)
+      (mockedData.blockHeaderFetcher.sendNoWait _)
         .expects(PeerBlockHeaderFetcher.Message.GetCurrentTip)
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
           for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
             _ <- actor.send(PeerActor.Message.GetCurrentTip)
           } yield ()
         }
     }
   }
 
-  test("Request to get peer neighbours shall be processed if none empty known hosts received") {
+  test("Request to get peer neighbours shall be processed if non-empty known hosts received") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val client = createDummyClient()
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
-
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
+      val mockedData = buildDefaultMockData()
 
       val host1 = arbitraryKnownHost.arbitrary.first
       val host2 = arbitraryKnownHost.arbitrary.first
       val hosts = Seq(host1, host2)
-      (client.getRemoteKnownHosts _)
+      (mockedData.client.getRemoteKnownHosts _)
         .expects(CurrentKnownHostsReq(2))
         .returns(Option(CurrentKnownHostsRes(hosts)).pure[F])
 
-      (peersManager.sendNoWait _)
+      (mockedData.peersManager.sendNoWait _)
         .expects(
           PeersManager.Message.AddKnownNeighbors(hostId, NonEmptyChain.fromSeq(hosts.map(_.asRemotePeer)).get)
         )
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
           for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
             _ <- actor.send(PeerActor.Message.GetHotPeersFromPeer(2))
           } yield ()
         }
@@ -806,59 +501,16 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Request to get peer neighbours shall not be processed if empty known hosts received") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val client = createDummyClient()
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
+      val mockedData = buildDefaultMockData()
 
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
-      (client.getRemoteKnownHosts _)
+      (mockedData.client.getRemoteKnownHosts _)
         .expects(CurrentKnownHostsReq(2))
         .returns(Option(CurrentKnownHostsRes()).pure[F])
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
           for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
             _ <- actor.send(PeerActor.Message.GetHotPeersFromPeer(2))
           } yield ()
         }
@@ -867,64 +519,58 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
   test("Error of request to get peer neighbours shall be processed") {
     withMock {
-      val peersManager = mock[PeersManagerActor[F]]
-      val requestsProxy = mock[RequestsProxyActor[F]]
-      val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val slotDataStore = mock[Store[F, BlockId, SlotData]]
-      val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
-      val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      val blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-      val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
-      val client = createDummyClient()
-      val networkAlgebra = mock[NetworkAlgebra[F]]
-      val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
-      val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-      val mempool = mock[MempoolAlgebra[F]]
+      val mockedData = buildDefaultMockData()
 
-      (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
-      (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
-        .returns(Resource.pure(blockHeaderFetcher))
-
-      val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
-      (() => blockBodyFetcher.id).expects().anyNumberOfTimes().returns(2)
-      (networkAlgebra.makePeerBodyFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(blockBodyFetcher))
-
-      val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
-      (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
-
-      (client.getRemoteKnownHosts _)
+      (mockedData.client.getRemoteKnownHosts _)
         .expects(CurrentKnownHostsReq(2))
         .onCall { _: CurrentKnownHostsReq => throw new RuntimeException() }
 
-      (peersManager.sendNoWait _)
+      (mockedData.peersManager.sendNoWait _)
         .expects(PeersManager.Message.NonCriticalErrorForHost(hostId))
         .returns(Applicative[F].unit)
 
-      PeerActor
-        .makeActor(
-          hostId,
-          networkAlgebra,
-          client,
-          requestsProxy,
-          peersManager,
-          localChain,
-          slotDataStore,
-          bodyDataStore,
-          transactionStore,
-          blockIdTree,
-          blockHeights,
-          headerToBodyValidation,
-          transactionSyntaxValidation,
-          mempool,
-          commonAncestor[F]
-        )
+      buildPeerActorFromMockedData(mockedData)
         .use { actor =>
           for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
             _ <- actor.send(PeerActor.Message.GetHotPeersFromPeer(2))
+          } yield ()
+        }
+    }
+  }
+
+  test("Close connection shall be passed to the client") {
+    withMock {
+
+      val client = mock[BlockchainPeerClient[F]]
+      (client
+        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
+        .expects(1L, genesis.slotId.blockId.some)
+        .once()
+        .returning(genesis.slotId.blockId.some.pure[F])
+      (client.getPongMessage _).stubs(*).onCall { ping: PingMessage =>
+        Option(PongMessage(ping.ping.reverse)).pure[F]
+      }
+      (client.notifyAboutThisNetworkLevel _).stubs(*).returns(Applicative[F].unit)
+      (client.closeConnection _).expects().atLeastOnce().returns(Applicative[F].unit)
+
+      val mockedData = buildDefaultMockData(client)
+
+      (mockedData.blockBodyFetcher.sendNoWait _)
+        .expects(PeerBlockBodyFetcher.Message.StopActor)
+        .returning(Applicative[F].unit)
+      (mockedData.blockHeaderFetcher.sendNoWait _)
+        .expects(PeerBlockHeaderFetcher.Message.StopActor)
+        .returning(Applicative[F].unit)
+      (mockedData.peerMempoolTransactionSyncActor.sendNoWait _)
+        .expects(PeerMempoolTransactionSync.Message.StopActor)
+        .returning(Applicative[F].unit)
+
+      buildPeerActorFromMockedData(mockedData)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
+            _ <- actor.send(PeerActor.Message.CloseConnectionForActor)
           } yield ()
         }
     }
