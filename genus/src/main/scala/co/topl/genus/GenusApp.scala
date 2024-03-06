@@ -25,7 +25,7 @@ object GenusApp
           .make[F](
             appConfig.nodeRpcHost,
             appConfig.nodeRpcPort,
-            appConfig.orientDbDirectory,
+            appConfig.dataDir,
             appConfig.orientDbPassword
           )
       genusServices <-
@@ -83,14 +83,14 @@ object GenusArgs {
 }
 
 case class GenusApplicationConfig(
-  rpcBindHost:       String = "0.0.0.0",
-  rpcBindPort:       Int = 9084,
-  nodeRpcHost:       String,
-  nodeRpcPort:       Int = 9084,
-  nodeRpcTls:        Boolean = false,
-  orientDbDirectory: String,
-  orientDbPassword:  String,
-  enableReplicator:  Boolean = false
+  rpcBindHost:      String = "0.0.0.0",
+  rpcBindPort:      Int = 9084,
+  nodeRpcHost:      String,
+  nodeRpcPort:      Int = 9084,
+  nodeRpcTls:       Boolean = false,
+  dataDir:          String,
+  orientDbPassword: String,
+  enableReplicator: Boolean = false
 )
 
 object GenusApplicationConfig {
@@ -105,7 +105,7 @@ object GenusApplicationConfig {
       show" rpcbindPort=${config.rpcBindPort}" +
       show" nodeRpcHost=${config.nodeRpcHost}" +
       show" nodeRpcPort=${config.nodeRpcPort}" +
-      show" orientDbDirectory=${config.orientDbDirectory}" +
+      show" orientDbDirectory=${config.dataDir}" +
       // NOTE: Do not show orientDbPassword
       show")"
 }
