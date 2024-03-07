@@ -62,15 +62,7 @@ lazy val dockerSettings = Seq(
       alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
-  },
-  dockerAliases ++= (
-    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
-      Seq(
-        DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
-        DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
-      )
-    else Seq()
-  )
+  }
 )
 
 lazy val nodeDockerSettings =
@@ -83,14 +75,30 @@ lazy val nodeDockerSettings =
       "BIFROST_APPLICATION_DATA_DIR"    -> "/bifrost/data/{genesisBlockId}",
       "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost-staking/{genesisBlockId}",
       "BIFROST_CONFIG_FILE"             -> "/bifrost/config/user.yaml"
-    )
+    ),
+    dockerAliases ++= (
+      if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
+        Seq(
+          DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
+          DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
+        )
+      else Seq()
+      )
   )
 
 lazy val genusDockerSettings =
   dockerSettings ++ Seq(
     dockerExposedPorts := Seq(9084),
     Docker / packageName := "genus",
-    dockerExposedVolumes += "/genus"
+    dockerExposedVolumes += "/genus",
+    dockerAliases ++= (
+      if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
+        Seq(
+          DockerAlias(Some("docker.io"), Some("toplprotocol"), "genus", Some("dev")),
+          DockerAlias(Some("ghcr.io"), Some("topl"), "genus", Some("dev"))
+        )
+      else Seq()
+      )
   )
 
 lazy val networkDelayerDockerSettings =
