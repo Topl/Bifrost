@@ -267,7 +267,7 @@ object Dependencies {
       // Add jna
     )
 
-  lazy val genusLibrary: Seq[ModuleID] =
+  lazy val genus: Seq[ModuleID] =
     logging ++
     orientDb ++
     mUnitTest ++
