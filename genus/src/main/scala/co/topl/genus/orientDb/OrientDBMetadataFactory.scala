@@ -38,7 +38,6 @@ object OrientDBMetadataFactory {
               blockHeaderSchema,
               blockBodySchema,
               ioTransactionSchema,
-              canonicalHeadSchema,
               lockAddressSchema,
               txoSchema,
               groupPolicySchema,
@@ -74,8 +73,8 @@ object OrientDBMetadataFactory {
     Sync[F]
       .delay(Option(db.getClass(schema.name)).getOrElse(db.createClass(schema.name, "V")))
       .flatTap(oClass => createProps(schema, oClass))
-      .flatTap(oClass => createIndices(schema, oClass))
       .flatTap(oClass => createLinks(db, schema, oClass))
+      .flatTap(oClass => createIndices(schema, oClass))
 
   private def createProps[F[_]: Sync: Logger](vs: VertexSchema[_], oClass: OClass): F[Unit] =
     Sync[F]

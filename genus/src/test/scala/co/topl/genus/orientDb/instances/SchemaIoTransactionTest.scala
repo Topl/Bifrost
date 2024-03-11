@@ -62,7 +62,7 @@ class SchemaIoTransactionTest
       _ <- (
         assertIO(transactionLink.getName.pure[F], SchemaBlockHeader.Field.BlockId) &>
         assertIO(transactionLink.getType.pure[F], OType.LINK) &>
-        assertIO(transactionLink.getLinkedClass.getName.pure[F], SchemaBlockHeader.Field.SchemaName)
+        assertIO(transactionLink.getLinkedClass.getName.pure[F], SchemaBlockHeader.SchemaName)
       ).toResource
 
     } yield ()

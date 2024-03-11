@@ -5,6 +5,7 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.LockAddress
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.services.Txo
+import co.topl.node.models.BlockBody
 import com.orientechnologies.orient.core.metadata.schema.OClass
 import com.orientechnologies.orient.core.metadata.schema.OClass.INDEX_TYPE
 
@@ -17,31 +18,35 @@ object OIndexable {
 
   trait Instances {
 
-    implicit val blockHeader: OIndexable[BlockHeader] = new OIndexable[BlockHeader] {
+    val blockHeader: OIndexable[BlockHeader] = new OIndexable[BlockHeader] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val blockHeightHeader: OIndexable[BlockHeader] = new OIndexable[BlockHeader] {
+    val blockHeightHeader: OIndexable[BlockHeader] = new OIndexable[BlockHeader] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.NOTUNIQUE
     }
 
-    implicit val ioTransaction: OIndexable[IoTransaction] = new OIndexable[IoTransaction] {
+    val bodyHeader: OIndexable[BlockBody] = new OIndexable[BlockBody] {
+      override def indexType: INDEX_TYPE = INDEX_TYPE.UNIQUE
+    }
+
+    val ioTransaction: OIndexable[IoTransaction] = new OIndexable[IoTransaction] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val address: OIndexable[LockAddress] = new OIndexable[LockAddress] {
+    val address: OIndexable[LockAddress] = new OIndexable[LockAddress] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val txo: OIndexable[Txo] = new OIndexable[Txo] {
+    val txo: OIndexable[Txo] = new OIndexable[Txo] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val groupPolicy: OIndexable[GroupPolicy] = new OIndexable[GroupPolicy] {
+    val groupPolicy: OIndexable[GroupPolicy] = new OIndexable[GroupPolicy] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
 
-    implicit val seriesPolicy: OIndexable[SeriesPolicy] = new OIndexable[SeriesPolicy] {
+    val seriesPolicy: OIndexable[SeriesPolicy] = new OIndexable[SeriesPolicy] {
       override def indexType: OClass.INDEX_TYPE = INDEX_TYPE.UNIQUE
     }
   }

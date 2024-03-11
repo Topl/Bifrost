@@ -3,9 +3,8 @@ package co.topl.genus.orientDb.instances
 import co.topl.brambl.models.Event.GroupPolicy
 import co.topl.brambl.models.{SeriesId, TransactionOutputAddress}
 import co.topl.brambl.syntax.groupPolicyAsGroupPolicySyntaxOps
-import co.topl.genus.orientDb.schema.OIndexable.Instances.groupPolicy
 import co.topl.genus.orientDb.schema.OTyped.Instances._
-import co.topl.genus.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genus.orientDb.schema.{GraphDataEncoder, OIndexable, VertexSchema}
 import com.google.protobuf.ByteString
 
 object SchemaGroupPolicy {
@@ -33,7 +32,7 @@ object SchemaGroupPolicy {
         .withProperty(Field.Label, _.label, mandatory = true,readOnly = true,  notNull = true )
         .withProperty(Field.RegistrationUtxo, _.registrationUtxo.toByteArray,  mandatory = true, readOnly = true, notNull = true )
         .withProperty(Field.FixedSeries, _.fixedSeries.map(_.value.toByteArray).getOrElse(Array.empty[Byte]), mandatory = false, readOnly = true, notNull = false)
-        .withIndex[GroupPolicy](Field.GroupPolicyIndex, Field.GroupPolicyId),
+        .withIndex[GroupPolicy](Field.GroupPolicyIndex, Field.GroupPolicyId)(OIndexable.Instances.groupPolicy),
       // @formatter:on
       v =>
         GroupPolicy(

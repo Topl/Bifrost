@@ -10,6 +10,7 @@ import co.topl.genus.orientDb.schema.OTyped.Instances._
 import com.google.protobuf.ByteString
 
 object SchemaBlockHeader {
+  val SchemaName = "BlockHeader"
 
   /**
    * BlockHeader model fields:
@@ -17,7 +18,6 @@ object SchemaBlockHeader {
    * @see https://github.com/Topl/protobuf-specs/blob/main/proto/consensus/models/block_header.proto
    */
   object Field {
-    val SchemaName = "BlockHeader"
 
     val BlockId = "blockId"
     val ParentHeaderId = "parentHeaderId"
@@ -41,7 +41,7 @@ object SchemaBlockHeader {
     ImmutableCodec.fromScodecCodec[BlockHeader].immutableBytes(blockHeader).size
 
   def make(): VertexSchema[BlockHeader] = VertexSchema.create(
-    Field.SchemaName,
+    SchemaName,
     GraphDataEncoder[BlockHeader]
       // @formatter:off
       .withProperty(Field.BlockId, _.id.value.toByteArray,  mandatory = true, readOnly = true, notNull = true)

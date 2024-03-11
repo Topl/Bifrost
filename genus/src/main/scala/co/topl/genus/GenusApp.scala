@@ -8,6 +8,8 @@ import co.topl.grpc.{HealthCheckGrpc, ToplGrpc}
 import co.topl.node.services.NodeRpcFs2Grpc
 import com.typesafe.config.Config
 import mainargs.{arg, main, Flag, ParserForClass}
+import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
 
@@ -18,13 +20,20 @@ object GenusApp
       parseConfig = (args, conf) => IO.delay(GenusApplicationConfig.unsafe(args, conf))
     ) {
 
+  implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName("GenusApp")
+
   override def run(cmdArgs: GenusArgs, config: Config, appConfig: GenusApplicationConfig): IO[Unit] = (
     for {
+      _ <- Logger[F].info(show"Genus args=$cmdArgs").toResource
+      nodeRpcProxy <- NodeRpcProxy
+        .make[IO](appConfig.nodeRpcHost, appConfig.nodeRpcPort, appConfig.nodeRpcTls)
+        .flatMap(NodeRpcFs2Grpc.bindServiceResource[IO])
       genus <-
         Genus
           .make[F](
             appConfig.nodeRpcHost,
             appConfig.nodeRpcPort,
+            appConfig.nodeRpcTls,
             appConfig.dataDir,
             appConfig.orientDbPassword
           )
@@ -35,9 +44,6 @@ object GenusApp
           genus.vertexFetcher,
           genus.valueFetcher
         )
-      nodeRpcProxy <- NodeRpcProxy
-        .make[IO](appConfig.nodeRpcHost, appConfig.nodeRpcPort, appConfig.nodeRpcTls)
-        .flatMap(NodeRpcFs2Grpc.bindServiceResource[IO])
       healthCheck <- GenusHealthCheck.make[IO]().map(_.healthChecker).flatMap(HealthCheckGrpc.Server.services[IO])
       _ <- ToplGrpc.Server.serve[IO](appConfig.rpcBindHost, appConfig.rpcBindPort)(
         nodeRpcProxy :: healthCheck ++ genusServices

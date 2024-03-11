@@ -1,10 +1,9 @@
 package co.topl.genus.orientDb.instances
 
 import co.topl.brambl.models.{LockAddress, LockId}
-import co.topl.genus.orientDb.schema.OIndexable.Instances._
 import co.topl.genus.orientDb.schema.OTyped.Instances._
 import co.topl.brambl.codecs.AddressCodecs
-import co.topl.genus.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genus.orientDb.schema.{GraphDataEncoder, OIndexable, VertexSchema}
 
 object SchemaLockAddress {
 
@@ -54,7 +53,7 @@ object SchemaLockAddress {
           readOnly = true,
           notNull = true
         )
-        .withIndex[LockAddress](Field.AddressIndex, Field.AddressId),
+        .withIndex[LockAddress](Field.AddressIndex, Field.AddressId)(OIndexable.Instances.address),
       v =>
         LockAddress(
           network = v(Field.Network),

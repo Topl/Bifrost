@@ -4,9 +4,8 @@ import co.topl.brambl.models.Event.SeriesPolicy
 import co.topl.brambl.models.TransactionOutputAddress
 import co.topl.brambl.models.box.{FungibilityType, QuantityDescriptorType}
 import co.topl.brambl.syntax.seriesPolicyAsSeriesPolicySyntaxOps
-import co.topl.genus.orientDb.schema.OIndexable.Instances.seriesPolicy
 import co.topl.genus.orientDb.schema.OTyped.Instances._
-import co.topl.genus.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genus.orientDb.schema.{GraphDataEncoder, OIndexable, VertexSchema}
 import com.google.protobuf.struct.Struct
 
 object SchemaSeriesPolicy {
@@ -43,7 +42,7 @@ object SchemaSeriesPolicy {
         .withProperty(Field.Fungibility, seriesPolicy => java.lang.Integer.valueOf(seriesPolicy.fungibility.value), mandatory = true, readOnly = true, notNull= true)
         .withProperty(Field.EphemeralMetadataScheme, _.ephemeralMetadataScheme.map(_.toByteArray).getOrElse(Array.empty[Byte]), mandatory = true, readOnly = true, notNull= true)
         .withProperty(Field.PermanentMetadataScheme, _.permanentMetadataScheme.map(_.toByteArray).getOrElse(Array.empty[Byte]), mandatory = true, readOnly = true, notNull= true)
-        .withIndex[SeriesPolicy](Field.SeriesPolicyIndex, Field.SeriesPolicyId),
+        .withIndex[SeriesPolicy](Field.SeriesPolicyIndex, Field.SeriesPolicyId)(OIndexable.Instances.seriesPolicy),
       // @formatter:on
       v =>
         SeriesPolicy(

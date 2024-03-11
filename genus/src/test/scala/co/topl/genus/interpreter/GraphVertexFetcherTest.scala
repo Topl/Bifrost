@@ -11,7 +11,7 @@ import co.topl.brambl.syntax.{
 }
 import co.topl.genus.services.{BlockStats, BlockchainSizeStats, Txo, TxoState, TxoStats}
 import co.topl.genus.DbFixtureUtil
-import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances.{blockBodySchema, Ops}
+import co.topl.genus.orientDb.instances.VertexSchemaInstances.implicits._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.interpreter.GraphVertexFetcher
 import co.topl.genus.model.GE

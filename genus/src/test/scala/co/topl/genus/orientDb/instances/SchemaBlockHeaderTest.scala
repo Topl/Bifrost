@@ -6,7 +6,7 @@ import co.topl.genus.orientDb.OrientThread
 import co.topl.genus.orientDb.instances.SchemaBlockHeader
 import co.topl.genus.DbFixtureUtil
 import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances.blockHeaderSchema
-import co.topl.genus.orientDb.instances.SchemaBlockHeader.Field
+import co.topl.genus.orientDb.instances.SchemaBlockHeader.{Field, SchemaName}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import com.orientechnologies.orient.core.metadata.schema.OType
@@ -26,9 +26,9 @@ class SchemaBlockHeaderTest
     val res = for {
       databaseDocumentTx <- oThread.delay(odbFactory.getNoTx.getRawGraph).toResource
 
-      oClass <- oThread.delay(databaseDocumentTx.getClass(Field.SchemaName)).toResource
+      oClass <- oThread.delay(databaseDocumentTx.getClass(SchemaName)).toResource
 
-      _ <- assertIO(oClass.getName.pure[F], Field.SchemaName, s"${Field.SchemaName} Class was not created").toResource
+      _ <- assertIO(oClass.getName.pure[F], SchemaName, s"${SchemaName} Class was not created").toResource
 
       blockIdProperty <- oClass.getProperty(Field.BlockId).pure[F].toResource
       _ <- (
@@ -168,7 +168,7 @@ class SchemaBlockHeaderTest
 
       blockHeader <- ModelGenerators.arbitraryHeader.arbitrary.first.pure[F].toResource
       vertex <- oThread
-        .delay(dbTx.addVertex(s"class:${Field.SchemaName}", blockHeaderSchema.encode(blockHeader).asJava))
+        .delay(dbTx.addVertex(s"class:$SchemaName", blockHeaderSchema.encode(blockHeader).asJava))
         .toResource
 
       _ <- assertIO(
