@@ -14,6 +14,8 @@ object Dependencies {
   val http4sVersion = "0.23.26"
   val protobufSpecsVersion = "2.0.0-beta2" // scala-steward:off
   val bramblScVersion = "2.0.0-beta3" // scala-steward:off
+  // val prometheusJavaVersion = "1.1.0"
+  val epimetheusVersion = "0.6.0-M2"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -131,6 +133,11 @@ object Dependencies {
 
   val grpcServices = "io.grpc" % "grpc-services" % ioGrpcVersion
 
+  val prometheus = Seq(
+    "io.chrisdavenport" %% "epimetheus" % epimetheusVersion
+    // "io.prometheus"      % "prometheus-metrics-exporter-httpserver" % prometheusJavaVersion
+  )
+
   val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
@@ -145,7 +152,9 @@ object Dependencies {
     monitoring ++
     mUnitTestBase ++
     Seq(grpcServices) ++
-    http4s
+    http4s ++
+    http4sServer ++
+    prometheus
 
   val nodeIt =
     http4sServer.map(_ % Test)
@@ -271,7 +280,8 @@ object Dependencies {
     logging ++
     orientDb ++
     mUnitTest ++
-    simulacrum
+    simulacrum ++
+    prometheus
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest

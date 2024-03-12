@@ -10,6 +10,7 @@ import mainargs._
 import monocle.macros.GenLens
 import monocle.macros.Lenses
 import monocle.syntax.all._
+import co.topl.config.ApplicationConfig
 
 // $COVERAGE-OFF$
 
@@ -90,7 +91,8 @@ object Args {
     )
     knownPeers:  Option[String] = None,
     testnetArgs: PrivateTestnetArgs,
-    genusArgs:   GenusArgs
+    genusArgs:   GenusArgs,
+    prometheus:  PrometheusArgs
   )
 
   @main @Lenses
@@ -123,6 +125,26 @@ object Args {
       doc = "The password to use when connecting to OrientDB"
     )
     orientDbPassword: Option[String]
+  )
+
+  @main @Lenses
+  case class PrometheusArgs(
+    @arg(
+      doc = "Disables the Genus server and Genus gRPC services"
+    )
+    enable: Option[Boolean],
+    @arg(
+      doc = "The directory to use when saving/reading graph data"
+    )
+    host: Option[String],
+    @arg(
+      doc = "The password to use when connecting to OrientDB"
+    )
+    port: Option[Int],
+    @arg(
+      doc = "The password to use when connecting to OrientDB"
+    )
+    prefix: Option[String]
   )
 
   @main @Lenses
@@ -180,6 +202,9 @@ object Args {
 
   implicit val parserGenusArgs: ParserForClass[GenusArgs] =
     ParserForClass[GenusArgs]
+
+  implicit val parserPrometheusArgs: ParserForClass[PrometheusArgs] =
+    ParserForClass[PrometheusArgs]
 
   implicit val parserStartup: ParserForClass[Startup] =
     ParserForClass[Startup]

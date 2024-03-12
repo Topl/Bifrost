@@ -59,7 +59,11 @@ object ApplicationConfigOps {
           .map(parseKnownPeers)
           .map(createF(GenLens[ApplicationConfig](_.bifrost.p2p.knownPeers))),
         cmdArgs.runtime.genusArgs.orientDbDir.map(createF(GenLens[ApplicationConfig](_.genus.orientDbDirectory))),
-        cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(GenLens[ApplicationConfig](_.genus.orientDbPassword)))
+        cmdArgs.runtime.genusArgs.orientDbPassword.map(createF(GenLens[ApplicationConfig](_.genus.orientDbPassword))),
+        cmdArgs.runtime.prometheus.enable.map(createF(GenLens[ApplicationConfig](_.prometheus.enable))),
+        cmdArgs.runtime.prometheus.host.map(createF(GenLens[ApplicationConfig](_.prometheus.host))),
+        cmdArgs.runtime.prometheus.port.map(createF(GenLens[ApplicationConfig](_.prometheus.port))),
+        cmdArgs.runtime.prometheus.prefix.map(createF(GenLens[ApplicationConfig](_.prometheus.prefix)))
       ).flatten
         .foldLeft(
           if (cmdArgs.runtime.genusArgs.disableGenus.value)

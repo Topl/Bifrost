@@ -41,6 +41,8 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration._
 import java.time.Instant
+import co.topl.prometheus._
+import io.chrisdavenport.epimetheus.PrometheusRegistry
 
 object NodeApp extends AbstractNodeApp
 
@@ -77,6 +79,12 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
       _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
+
+      // Enable Prometheus if configured.
+      _ <- Logger[F].info("Enabling Prometheus...").toResource
+
+      registry <- Metrics.make[F](appConfig)
+      _        <- PrometheusExportServer.make[F](appConfig, registry)
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)

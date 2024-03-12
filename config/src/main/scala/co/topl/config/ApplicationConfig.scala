@@ -13,9 +13,10 @@ import scala.concurrent.duration.{FiniteDuration, SECONDS}
 // $COVERAGE-OFF$
 @Lenses
 case class ApplicationConfig(
-  bifrost: ApplicationConfig.Bifrost,
-  genus:   ApplicationConfig.Genus,
-  kamon:   ApplicationConfig.Kamon
+  bifrost:    ApplicationConfig.Bifrost,
+  genus:      ApplicationConfig.Genus,
+  kamon:      ApplicationConfig.Kamon,
+  prometheus: ApplicationConfig.Prometheus
 )
 
 object ApplicationConfig {
@@ -203,5 +204,8 @@ object ApplicationConfig {
 
   @Lenses
   case class Kamon(enable: Boolean)
+
+  @Lenses
+  case class Prometheus(enable: Boolean, port: Int, host: String, prefix: String)
 }
 // $COVERAGE-ON$
