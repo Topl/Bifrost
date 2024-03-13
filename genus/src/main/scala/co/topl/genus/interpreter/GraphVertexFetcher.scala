@@ -8,13 +8,14 @@ import co.topl.consensus.models.BlockId
 import co.topl.genus.algebras.VertexFetcherAlgebra
 import co.topl.genus.model.{GE, GEs}
 import co.topl.genus.orientDb.OrientThread
-import co.topl.genus.orientDb.instances._
 import co.topl.genus.orientDb.instances.SchemaIoTransaction.Field
-import co.topl.genus.services._
 import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genus.orientDb.instances._
+import co.topl.genus.services._
+import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
-import com.tinkerpop.blueprints.impls.orient.{OrientGraphNoTx, OrientVertex}
+import com.tinkerpop.blueprints.impls.orient.{OrientDynaElementIterable, OrientGraphNoTx, OrientVertex}
 
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -29,16 +30,35 @@ object GraphVertexFetcher {
 
         def fetchCanonicalHead(): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
-            Try(orientGraph.getVerticesOfClass(s"${canonicalHeadSchema.name}").asScala).toEither
-              .map(_.headOption)
-              .map(_.map(_.getProperty[OrientVertex](SchemaBlockHeader.Field.BlockId)))
+            Try(
+              orientGraph
+                .command(
+                  new OCommandSQL(
+                    s"SELECT FROM ${blockHeaderSchema.name} ORDER BY ${SchemaBlockHeader.Field.Height} DESC LIMIT 1"
+                  )
+                )
+                .execute[OrientDynaElementIterable]()
+                .iterator()
+                .asScala
+                .collectFirst { case v: Vertex @unchecked => v }
+            ).toEither
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchCanonicalHead", tx))
           )
 
         def fetchHeader(blockId: BlockId): F[Either[GE, Option[Vertex]]] =
           OrientThread[F].delay(
-            Try(orientGraph.getVertices(SchemaBlockHeader.Field.BlockId, blockId.value.toByteArray).asScala).toEither
-              .map(_.headOption)
+            Try(
+              orientGraph
+                .command(
+                  new OCommandSQL(
+                    s"SELECT FROM ${blockHeaderSchema.name} WHERE ${SchemaBlockHeader.Field.BlockId} = ? LIMIT 1"
+                  )
+                )
+                .execute[OrientDynaElementIterable](blockId.value.toByteArray)
+                .iterator()
+                .asScala
+                .collectFirst { case v: Vertex @unchecked => v }
+            ).toEither
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", tx))
           )
 
@@ -88,10 +108,16 @@ object GraphVertexFetcher {
           OrientThread[F].delay(
             Try(
               orientGraph
-                .getVertices(blockBodySchema.name, Array(SchemaBlockHeader.Field.BlockId), Array(headerVertex.getId))
+                .command(
+                  new OCommandSQL(
+                    s"SELECT FROM ${blockBodySchema.name} WHERE ${SchemaBlockBody.Field.Header} = ? LIMIT 1"
+                  )
+                )
+                .execute[OrientDynaElementIterable](headerVertex)
+                .iterator()
                 .asScala
+                .collectFirst { case v: Vertex @unchecked => v }
             ).toEither
-              .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchBody", tx))
           )
 

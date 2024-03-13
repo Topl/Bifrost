@@ -1,7 +1,6 @@
 package co.topl.genus
 
 import cats.effect._
-import cats.effect.implicits._
 import co.topl.algebras._
 import co.topl.genus.algebras._
 import co.topl.genus.interpreter._
@@ -27,10 +26,12 @@ case class Genus[F[_], S[_]](
 object Genus {
 
   def make[F[_]: Async: Files](
-    nodeRpcHost: String,
-    nodeRpcPort: Int,
-    dataDir:     String,
-    dbPassword:  String
+    nodeRpcHost:      String,
+    nodeRpcPort:      Int,
+    nodeRpcTls:       Boolean,
+    dataDir:          String,
+    dbPassword:       String,
+    fetchConcurrency: Int = 64
   ): Resource[F, Genus[F, fs2.Stream[F, *]]] =
     for {
       implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Genus"))
@@ -45,9 +46,7 @@ object Genus {
         .eval(Async[F].delay(orientdb.getNoTx))
         .evalTap(db => orientThread.delay(db.makeActive()))
 
-      rpcInterpreter <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = false)
-      // Use parallelism of at least 4, but if there are more cores available, use all of them
-      fetchConcurrency <- Sync[F].delay(Runtime.getRuntime.availableProcessors().max(4)).toResource
+      rpcInterpreter   <- NodeGrpc.Client.make[F](nodeRpcHost, nodeRpcPort, tls = nodeRpcTls)
       nodeBlockFetcher <- NodeBlockFetcher.make(rpcInterpreter, fetchConcurrency)
 
       vertexFetcher      <- GraphVertexFetcher.make[F](dbNoTx)

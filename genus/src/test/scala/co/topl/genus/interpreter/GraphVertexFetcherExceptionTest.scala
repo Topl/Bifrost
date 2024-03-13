@@ -6,10 +6,10 @@ import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.generators.ModelGenerators._
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
-import co.topl.genus.interpreter.GraphVertexFetcher
 import co.topl.genus.model.{GE, GEs}
 import co.topl.genus.orientDb.OrientThread
 import co.topl.models.generators.consensus.ModelGenerators._
+import com.orientechnologies.orient.core.command.OCommandRequest
 import com.tinkerpop.blueprints.Vertex
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -27,7 +27,7 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
 
     val expectedTh = new IllegalStateException("boom!")
     val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def getVertices(iKey: String, iValue: Object) = throw expectedTh
+      override def command(sql: OCommandRequest) = throw expectedTh
     }
 
     PropF.forAllF { (header: BlockHeader) =>
@@ -78,7 +78,7 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
     val expectedTh = new IllegalStateException("boom!")
 
     val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def getVertices(label: String, iKey: Array[String], iValue: Array[AnyRef]) = throw expectedTh
+      override def command(sql: OCommandRequest) = throw expectedTh
     }
 
     withMock {
@@ -86,8 +86,7 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
         implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
         orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
         vertex                                   <- mock[Vertex].pure[F].toResource
-        _ = (() => vertex.getId).expects().once().returning(new Object())
-        graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+        graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
           graphVertexFetcher.fetchBody(vertex),
           (GEs.InternalMessageCause("GraphVertexFetcher:fetchBody", expectedTh): GE)

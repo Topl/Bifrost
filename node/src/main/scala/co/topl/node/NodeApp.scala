@@ -411,6 +411,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             .make[F](
               appConfig.bifrost.rpc.bindHost,
               appConfig.bifrost.rpc.bindPort,
+              nodeRpcTls = false,
               Some(appConfig.genus.orientDbDirectory)
                 .filterNot(_.isEmpty)
                 .getOrElse(dataStores.baseDirectory./("orient-db").toString),

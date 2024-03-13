@@ -1,10 +1,8 @@
 package co.topl.genus.orientDb
 
-import cats.effect.Async
 import cats.effect.implicits.effectResourceOps
-import cats.effect.{Resource, Sync}
+import cats.effect.{Async, Resource}
 import cats.implicits._
-import co.topl.genus.model.GEs
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.impls.orient.OrientGraphFactory
 import fs2.io.file.{Files, Path}
@@ -26,66 +24,55 @@ object OrientDBFactory {
     password:      String
   ): Resource[F, OrientGraphFactory] =
     for {
-      directory   <- Resource.pure(Path(directoryPath))
-      isDirectory <- Resource.eval(Files[F].isDirectory(directory))
+      directory <- Resource.pure(Path(directoryPath))
 
       /**
        * If it is the first time we start orient-db server, we will create the directory, and access it with default credentials admin, admin
        * If orient-db server was restarted (we already change the password), we will not create the new directory, and access it with credentials admin, password-config-provided
        */
-      (createDirRes, previousDb) <-
-        if (isDirectory) Resource.pure[F, (Boolean, Boolean)]((true, true))
-        else Resource.eval(Files[F].createDirectory(directory)).attempt.map(r => (r.isRight, false))
-
-      _ <- Logger[F]
-        .info(s"Genus directoryPath=$directoryPath previousDatabaseExists=$previousDb")
+      exists <- Files[F]
+        .exists(directory)
+        .ifM(
+          Files[F]
+            .isDirectory(directory)
+            .ifM(
+              true.pure[F],
+              Async[F].raiseError(new IllegalStateException("dataDir not a directory"))
+            ),
+          Files[F].createDirectories(directory).as(false)
+        )
         .toResource
-
-      _ <- Either
-        .cond(
-          createDirRes,
-          Resource.unit[F],
-          s"${directory.toNioPath} exists but is not a directory, or it can not be created."
-        )
-        .leftMap(cause =>
-          Resource
-            .eval(Logger[F].error(GEs.InternalMessage(cause).getMessage))
-            .flatMap(_ => Resource.canceled)
-        )
-        .merge
+      _ <- Logger[F]
+        .info(s"Genus directoryPath=$directoryPath previousDatabaseExists=$exists")
+        .toResource
 
       // Start Orient Db embedded server
       orientGraphFactory <- Resource.make[F, OrientGraphFactory](
-        previousDb
-          .pure[F]
-          .ifM(
-            OrientThread[F].delay(
-              new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", password)
-            ),
-            OrientThread[F].delay(
-              new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", "admin")
-            )
+        if (exists)
+          OrientThread[F].delay(
+            new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", password)
+          )
+        else
+          OrientThread[F].delay(
+            new OrientGraphFactory(s"plocal:${directory.toNioPath}", "admin", "admin")
           )
       )(factory => OrientThread[F].delay(factory.close()))
 
       _ <- OrientDBMetadataFactory.make[F](orientGraphFactory)
 
       // Change the default admin password
-      _ <-
-        previousDb
-          .pure[F]
-          .ifM(
-            Sync[F].unit,
-            OrientThread[F].delay {
-              orientGraphFactory.getTx
-                .command(
-                  new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='admin'")
-                )
-                .execute[Int]()
-              orientGraphFactory.getTx.commit()
-            }.void
-          )
-          .toResource
+      _ <- Async[F]
+        .unlessA(exists)(
+          OrientThread[F].delay {
+            orientGraphFactory.getTx
+              .command(
+                new OCommandSQL(s"UPDATE OUser SET password='$password' WHERE name='admin'")
+              )
+              .execute[Int]()
+            orientGraphFactory.getTx.commit()
+          }.void
+        )
+        .toResource
 
       // Once the password changed, return the new session
       orientGraphFactoryNewSession <- Resource.make[F, OrientGraphFactory](

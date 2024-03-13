@@ -3,10 +3,9 @@ package co.topl.genus.orientDb.instances
 import co.topl.brambl.models.transaction.UnspentTransactionOutput
 import co.topl.brambl.models.{TransactionInputAddress, TransactionOutputAddress}
 import co.topl.brambl.syntax._
-import co.topl.genus.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genus.orientDb.schema.{GraphDataEncoder, OIndexable, VertexSchema}
 import co.topl.genus.services.{Txo, TxoState}
 import VertexSchemaInstances.instances._
-import co.topl.genus.orientDb.schema.OIndexable.Instances.txo
 import co.topl.genus.orientDb.schema.OTyped.Instances._
 import com.orientechnologies.orient.core.metadata.schema.OType
 import com.tinkerpop.blueprints.Vertex
@@ -61,7 +60,7 @@ object SchemaTxo {
           readOnly = true,
           notNull = true
         )
-        .withIndex[Txo](Field.TxoIndex, Field.TxoId)
+        .withIndex[Txo](Field.TxoIndex, Field.TxoId)(OIndexable.Instances.txo)
         .withLink(Field.SpendingTransaction, OType.LINK, SchemaIoTransaction.Field.SchemaName)
         .withProperty(
           Field.SpendingInputIndex,

@@ -7,7 +7,7 @@ import co.topl.genus.interpreter.GraphBlockUpdater
 import co.topl.genus.orientDb.{OrientDBMetadataFactory, OrientThread}
 import co.topl.genus.services.BlockData
 import co.topl.genus.DbFixtureUtil
-import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances._
+import co.topl.genus.orientDb.instances.VertexSchemaInstances.implicits._
 import co.topl.genus.orientDb.schema.EdgeSchemaInstances._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators._
@@ -49,7 +49,6 @@ class GraphBlockUpdaterFixtureTest
             blockHeaderSchema,
             blockBodySchema,
             ioTransactionSchema,
-            canonicalHeadSchema,
             lockAddressSchema,
             txoSchema,
             groupPolicySchema,

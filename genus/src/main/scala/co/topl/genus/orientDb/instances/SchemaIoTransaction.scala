@@ -2,11 +2,10 @@ package co.topl.genus.orientDb.instances
 
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.genus.orientDb.schema.OIndexable.Instances._
 import co.topl.genus.orientDb.schema.OTyped.Instances._
 import com.orientechnologies.orient.core.metadata.schema.OType
 import co.topl.brambl.common.ContainsImmutable.instances.ioTransactionImmutable
-import co.topl.genus.orientDb.schema.{GraphDataEncoder, VertexSchema}
+import co.topl.genus.orientDb.schema.{GraphDataEncoder, OIndexable, VertexSchema}
 
 object SchemaIoTransaction {
 
@@ -54,8 +53,8 @@ object SchemaIoTransaction {
           readOnly = false,
           notNull = true
         )
-        .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)
-        .withLink(Field.ParentBlock, OType.LINK, SchemaBlockHeader.Field.SchemaName),
+        .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)(OIndexable.Instances.ioTransaction)
+        .withLink(Field.ParentBlock, OType.LINK, SchemaBlockHeader.SchemaName),
       v => IoTransaction.parseFrom(v(Field.Transaction): Array[Byte])
     )
 

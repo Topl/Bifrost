@@ -2,6 +2,7 @@ package co.topl.genus
 
 import cats.effect.Async
 import cats.effect.kernel.Resource
+import cats.implicits._
 import co.topl.grpc.makeChannel
 import co.topl.node.services._
 import io.grpc.Metadata
@@ -50,5 +51,13 @@ object NodeRpcProxy {
   def make[F[_]: Async](nodeRpcHost: String, nodeRpcPort: Int, tls: Boolean): Resource[F, NodeRpcProxy[F, Metadata]] =
     makeChannel[F](nodeRpcHost, nodeRpcPort, tls)
       .flatMap(NodeRpcFs2Grpc.stubResource[F])
+      .evalTap(client =>
+        client
+          .fetchBlockIdAtDepth(FetchBlockIdAtDepthReq(), new Metadata())
+          .ensure(new IllegalStateException("Node RPC Proxy Error"))(_.blockId.nonEmpty) *>
+        client
+          .fetchBlockIdAtHeight(FetchBlockIdAtHeightReq(1), new Metadata())
+          .ensure(new IllegalStateException("Node RPC Proxy Error"))(_.blockId.nonEmpty)
+      )
       .map(new NodeRpcProxy[F, Metadata](_))
 }
