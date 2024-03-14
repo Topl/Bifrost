@@ -5,6 +5,8 @@ import NativePackagerHelper.*
 
 val scala213 = "2.13.13"
 
+// fork := true
+
 inThisBuild(
   List(
     organization := "co.topl",
@@ -47,6 +49,7 @@ lazy val commonSettings = Seq(
   ),
   addCompilerPlugin("org.typelevel" % "kind-projector"     % "0.13.3" cross CrossVersion.full),
   addCompilerPlugin("com.olegpy"   %% "better-monadic-for" % "0.3.1"),
+  addCompilerPlugin("org.scalameta" % "semanticdb-scalac" % "4.9.1" cross CrossVersion.full),
   testFrameworks += TestFrameworks.MUnit,
   dependencyOverrides ++= Dependencies.protobufSpecs ++ Seq(Dependencies.quivr4s)
 )
@@ -154,13 +157,21 @@ lazy val commonScalacOptions = Seq(
   "-Ywarn-macros:after"
 )
 
-javaOptions ++= Seq(
-  // Force the JVM to exit the first time it encounters an OOM error.  By default, it might not exit.
-  "-XX:+ExitOnOutOfMemoryError",
-  // Disables the shared memory space for JVM stats, thus preventing external processes from viewing memory/CPU stats.
-  // Disabled to prevent a potential security threat
-  "-XX:+PerfDisableSharedMem"
-)
+// javaOptions ++= Seq(
+//   // Force the JVM to exit the first time it encounters an OOM error.  By default, it might not exit.
+//   "-XX:+ExitOnOutOfMemoryError",
+//   // Disables the shared memory space for JVM stats, thus preventing external processes from viewing memory/CPU stats.
+//   // Disabled to prevent a potential security threat
+//   "-Xms1G",
+//   "-Xmx8G",
+//   "-Xss2M",
+//   "-XX:MaxMetaspaceSize=4G",
+//   "-XX:ReservedCodeCacheSize=500M",
+//   "-XX:+TieredCompilation",
+//   "-Dotel.java.global-autoconfigure.enabled=true",
+//   "-Dotel.metrics.exporter=prometheus",
+//   "-Dotel.exporter.prometheus.port=9090"
+// )
 
 connectInput / run := true
 outputStrategy := Some(StdoutOutput)
@@ -182,7 +193,7 @@ lazy val bifrost = project
     moduleName := "bifrost",
     commonSettings,
     publish / skip := true,
-    crossScalaVersions := Nil
+    crossScalaVersions := Nil,
   )
   .aggregate(
     node,
@@ -245,7 +256,7 @@ lazy val node = project
     commonApplication,
     genus
   )
-  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
+  .enablePlugins(BuildInfoPlugin, JavaAgent, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
 
 lazy val config = project

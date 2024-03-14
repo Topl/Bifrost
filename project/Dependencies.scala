@@ -16,6 +16,12 @@ object Dependencies {
   val bramblScVersion = "2.0.0-beta3" // scala-steward:off
   // val prometheusJavaVersion = "1.1.0"
   val epimetheusVersion = "0.6.0-M2"
+  val opentelemetryVersion = "1.36.0"
+  val opentelemetryVersionAlpha = s"$opentelemetryVersion-alpha"
+  val otel4sVersion = "0.4.0"
+  val scalaMetalMunitVersion = "1.0.0-M11"
+  val munitCatsEffectVersion = "1.0.7"
+  val scalacheckEffectMunitVersion = "2.0.0-M2"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
@@ -32,10 +38,10 @@ object Dependencies {
   val scalamock = scalamockBase        % Test
 
   private val mUnitTestBase: Seq[ModuleID] = Seq(
-    "org.scalameta" %% "munit"                   % "0.7.29",
-    "org.scalameta" %% "munit-scalacheck"        % "0.7.29",
-    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7",
-    "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4",
+    "org.scalameta" %% "munit"                   % scalaMetalMunitVersion,
+    "org.scalameta" %% "munit-scalacheck"        % scalaMetalMunitVersion,
+    "org.typelevel" %% "munit-cats-effect-3"     % munitCatsEffectVersion,
+    "org.typelevel" %% "scalacheck-effect-munit" % scalacheckEffectMunitVersion,
     scalamockBase
   )
 
@@ -138,6 +144,14 @@ object Dependencies {
     // "io.prometheus"      % "prometheus-metrics-exporter-httpserver" % prometheusJavaVersion
   )
 
+  val otel = Seq(
+    "org.typelevel"             %% "otel4s-java"                               % otel4sVersion,
+    "io.opentelemetry"           % "opentelemetry-sdk-extension-autoconfigure" % opentelemetryVersion,
+    "io.opentelemetry"           % "opentelemetry-exporter-prometheus"         % opentelemetryVersionAlpha,
+    "io.opentelemetry"           % "opentelemetry-exporter-otlp"               % opentelemetryVersion,
+    "io.opentelemetry.javaagent" % "opentelemetry-javaagent"                   % "1.24.0" % "runtime"
+  )
+
   val node: Seq[ModuleID] =
     Seq(
       catsSlf4j,
@@ -154,7 +168,8 @@ object Dependencies {
     Seq(grpcServices) ++
     http4s ++
     http4sServer ++
-    prometheus
+    prometheus ++
+    otel
 
   val nodeIt =
     http4sServer.map(_ % Test)

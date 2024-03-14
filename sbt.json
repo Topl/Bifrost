@@ -1,0 +1,21 @@
+{
+  "name": "sbt",
+  "version": "1.9.9",
+  "bspVersion": "2.1.0-M1",
+  "languages": ["scala"],
+  "argv": [
+    "/home/rick/.sdkman/candidates/java/17-open/bin/java",
+    "-Xms1024M",
+    "-Xmx8192M",
+    "-Xss2M",
+    "-XX:MaxMetaspaceSize=4096M",
+    "-XX:ReservedCodeCacheSize=500M",
+    "-XX:+TieredCompilation",
+    "-XX:-UseGCOverheadLimit",
+    "-classpath",
+    "/home/rick/.sdkman/candidates/sbt/1.9.9/bin/sbt-launch.jar",
+    "-Dsbt.script=/home/rick/.sdkman/candidates/sbt/current/bin/sbt",
+    "xsbt.boot.Boot",
+    "-bsp"
+  ]
+}

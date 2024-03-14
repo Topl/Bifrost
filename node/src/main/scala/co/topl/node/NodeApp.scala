@@ -43,6 +43,8 @@ import scala.concurrent.duration._
 import java.time.Instant
 import co.topl.prometheus._
 import io.chrisdavenport.epimetheus.PrometheusRegistry
+import org.typelevel.otel4s.metrics.Meter
+import org.typelevel.otel4s.Attribute
 
 object NodeApp extends AbstractNodeApp
 
@@ -83,8 +85,22 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       // Enable Prometheus if configured.
       _ <- Logger[F].info("Enabling Prometheus...").toResource
 
-      registry <- Metrics.make[F](appConfig)
-      _        <- PrometheusExportServer.make[F](appConfig, registry)
+      otel            <- Otel.otelResource[F]
+      metricsProvider <- otel.meterProvider.get("bifrost").toResource
+
+      startupCounter <- metricsProvider
+        .counter("bifrost.node.startup")
+        .withUnit("1")
+        .withDescription("Node startup counter")
+        .create
+        .toResource
+
+      _ <- startupCounter.inc(Attribute("test", "test")).toResource
+      _ <- startupCounter.inc(Attribute("test", "test")).toResource
+      _ <- startupCounter.inc(Attribute("test", "test")).toResource
+
+      // registry <- Metrics.make[F](appConfig)
+      // _        <- PrometheusExportServer.make[F](appConfig, registry)
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)

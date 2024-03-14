@@ -17,7 +17,11 @@ Seq(
   "com.github.sbt"          % "sbt-native-packager"       % "1.9.16",
   "com.eed3si9n"            % "sbt-buildinfo"             % "0.11.0",
   "com.github.sbt"          % "sbt-ci-release"            % "1.5.12",
-  "net.bzzt"                % "sbt-reproducible-builds"   % "0.32"
+  "net.bzzt"                % "sbt-reproducible-builds"   % "0.32",
+  "org.scalameta"           % "sbt-metals"                % "1.2.2",
+  "ch.epfl.scala"           % "sbt-debug-adapter"         % "3.1.6",
+  "ch.epfl.scala"           % "sbt-bloop"                 % "1.5.15",
+  "com.github.sbt"          % "sbt-javaagent"             % "0.1.8"
 ).map(addSbtPlugin)
 
 // See: https://github.com/sbt/sbt/issues/6997

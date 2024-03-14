@@ -21,42 +21,46 @@ import com.comcast.ip4s._
 import fs2.io.net.Network
 import org.http4s.HttpApp
 
-object Metrics {
+// object Metrics {
 
-  // Create a new Prometheus registry and launch the metrics server.
-  def make[F[_]: Async](appConfig: ApplicationConfig): Resource[F, PrometheusRegistry[F]] =
-    for {
-      pr <- PrometheusRegistry.buildWithDefaults[F].toResource
-    } yield (pr)
-}
+//   // Create a new Prometheus registry and launch the metrics server.
+//   def make[F[_]: Async](appConfig: ApplicationConfig): Resource[F, PrometheusRegistry[F]] =
+//     for {
+//       pr <- PrometheusRegistry.buildWithDefaults[F].toResource
+//     } yield (pr)
+// }
 
-object ExporterRoutes {
+// object ExporterRoutes {
 
-  def response[F[_]: Functor](cr: PrometheusRegistry[F]): F[Response[F]] =
-    cr.write004.map(Response[F](Status.Ok).withEntity(_))
+//   def buildRoutes[F[_]: Sync](cr: PrometheusRegistry[F]): HttpRoutes[F] = {
+//     val dsl = new Http4sDsl[F] {};
+//     import dsl._
+//     HttpRoutes.of[F] { case GET -> Root / "metrics" =>
+//       for {
+//         response <- cr.write004.map(Response[F](Status.Ok).withEntity(_))
+//       } yield (response)
+//     }
+//   }
+// }
 
-  def buildRoutes[F[_]: Sync](cr: PrometheusRegistry[F]): HttpRoutes[F] = {
-    val dsl = new Http4sDsl[F] {}; import dsl._
-    HttpRoutes.of[F] { case GET -> Root / "metrics" =>
-      response(cr)
-    }
-  }
-}
+// object PrometheusExportServer {
 
-object PrometheusExportServer {
+//   def make[F[_]: Async](appConfig: ApplicationConfig, prometheusRegistry: PrometheusRegistry[F]): F[Nothing] =
+//     for {
+//       httpServer <- {
+//         for {
+//           httpApp <- ExporterRoutes
+//             .buildRoutes[F](prometheusRegistry)
+//             .orNotFound
+//             .map(Logger.httpApp(logHeaders = true, logBody = true)(_))
+//           // finalHttpApp = Logger.httpApp(logHeaders = true, logBody = true)(httpApp)
 
-  def make[F[_]: Async](appConfig: ApplicationConfig, prometheusRegistry: PrometheusRegistry[F]): Resource[F, Unit] =
-    for {
-      httpServer <- {
-        for {
-          routes <- ExporterRoutes.buildRoutes[F](prometheusRegistry)
-          httpApp = HttpApp[F](routes)
-        } yield EmberServerBuilder
-          .default[F]
-          .withHost(ipv4"0.0.0.0")
-          .withPort(port"8080")
-          .withHttpApp(httpApp)
-          .build
-      }.toResource
-    } yield (httpServer)
-}
+//         } yield EmberServerBuilder
+//           .default[F]
+//           .withHost(ipv4"0.0.0.0")
+//           .withPort(port"8080")
+//           .withHttpApp(httpApp)
+//           .build
+//       }.toResource
+//     } yield (httpServer)
+// }

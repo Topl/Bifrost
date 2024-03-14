@@ -1,8 +1,10 @@
 -Xms1G
 -Xmx8G
 -Xss2M
+-XX:+ExitOnOutOfMemoryError
 -XX:MaxMetaspaceSize=4G
 -XX:ReservedCodeCacheSize=500M
+-XX:+TieredCompilation
 -Dotel.java.global-autoconfigure.enabled=true
 -Dotel.metrics.exporter=prometheus
 -Dotel.exporter.prometheus.port=9090
