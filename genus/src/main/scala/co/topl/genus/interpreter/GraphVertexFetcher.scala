@@ -188,8 +188,15 @@ object GraphVertexFetcher {
                   transactionOutputAddress.id.value.toByteArray :+ transactionOutputAddress.index.byteValue
                 )
                 .asScala
+                .headOption
+                .map {
+                  case o: OrientVertex =>
+                    o.reload()
+                    o
+                  case o =>
+                    o
+                }
             ).toEither
-              .map(_.headOption)
               .leftMap[GE](tx => GEs.InternalMessageCause("GraphVertexFetcher:fetchTxo", tx))
           )
 

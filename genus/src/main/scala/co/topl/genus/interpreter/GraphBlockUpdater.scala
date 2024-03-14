@@ -22,8 +22,8 @@ import com.tinkerpop.blueprints.impls.orient.{OrientDynaElementIterable, OrientG
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 
-import scala.util.Try
 import scala.jdk.CollectionConverters._
+import scala.util.Try
 
 object GraphBlockUpdater {
 
@@ -34,6 +34,8 @@ object GraphBlockUpdater {
   ): Resource[F, BlockUpdaterAlgebra[F]] =
     Resource.pure(
       new BlockUpdaterAlgebra[F] {
+
+        private val syncLogger = org.slf4j.LoggerFactory.getLogger("GraphBlockUpdater")
 
         def insert(block: BlockData): F[Either[GE, Unit]] =
           if (block.header.height == 1) {
@@ -93,13 +95,15 @@ object GraphBlockUpdater {
                         // Lookup previous unspent TXOs, and update the state
                         ioTx.inputs.zipWithIndex.foreach { case (spentTransactionOutput, inputIndex) =>
                           graph
-                            .getTxo(spentTransactionOutput.address)
-                            .foreach { vertex =>
-                              vertex.setProperty(SchemaTxo.Field.State, TxoState.SPENT.value)
+                            .getTxo(spentTransactionOutput.address) match {
+                            case Some(vertex) =>
+                              vertex.setProperty(SchemaTxo.Field.State, java.lang.Integer.valueOf(TxoState.SPENT.value))
                               vertex.setProperty(SchemaTxo.Field.SpendingTransaction, ioTxVertex)
                               vertex
                                 .setProperty(SchemaTxo.Field.SpendingInputIndex, java.lang.Integer.valueOf(inputIndex))
-                            }
+                            case _ =>
+                              syncLogger.warn(show"Missing expected TxO address=${spentTransactionOutput.address}")
+                          }
                         }
                       }
 
@@ -208,9 +212,9 @@ object GraphBlockUpdater {
                     graph
                       .getTxo(spentTransactionOutput.address)
                       .foreach { vertex =>
-                        vertex.setProperty(SchemaTxo.Field.State, TxoState.UNSPENT.value)
-                        vertex.removeProperty(SchemaTxo.Field.SpendingTransaction)
-                        vertex.removeProperty(SchemaTxo.Field.SpendingInputIndex)
+                        vertex.setProperty(SchemaTxo.Field.State, java.lang.Integer.valueOf(TxoState.UNSPENT.value))
+                        vertex.removeProperty[Object](SchemaTxo.Field.SpendingTransaction)
+                        vertex.removeProperty[Object](SchemaTxo.Field.SpendingInputIndex)
                       }
                   }
                 )
