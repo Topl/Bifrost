@@ -143,7 +143,7 @@ object Dependencies {
     "io.opentelemetry"           % "opentelemetry-sdk-extension-autoconfigure" % opentelemetryVersion,
     "io.opentelemetry"           % "opentelemetry-exporter-prometheus"         % opentelemetryVersionAlpha,
     "io.opentelemetry"           % "opentelemetry-exporter-otlp"               % opentelemetryVersion,
-    "io.opentelemetry.javaagent" % "opentelemetry-javaagent"                   % "1.24.0"
+    "io.opentelemetry.javaagent" % "opentelemetry-javaagent"                   % "1.24.0" % "runtime"
   )
 
   val node: Seq[ModuleID] =
