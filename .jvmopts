@@ -1,8 +1,2 @@
 -Xms1G
--Xmx8G
--Xss2M
--XX:MaxMetaspaceSize=4G
--XX:ReservedCodeCacheSize=500M
--Dotel.java.global-autoconfigure.enabled=true
--Dotel.metrics.exporter=prometheus
--Dotel.exporter.prometheus.port=9090
+-Xmx4G

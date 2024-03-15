@@ -257,7 +257,10 @@ lazy val node = project
     genus
   )
   .enablePlugins(BuildInfoPlugin, JavaAgent, JavaAppPackaging, DockerPlugin)
-  .settings(scalamacrosParadiseSettings)
+  .settings(
+    scalamacrosParadiseSettings,
+    javaAgents += "io.opentelemetry.javaagent" % "opentelemetry-javaagent" % "1.24.0",
+  )
 
 lazy val config = project
   .in(file("config"))

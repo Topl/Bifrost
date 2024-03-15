@@ -14,7 +14,6 @@ object Dependencies {
   val http4sVersion = "0.23.26"
   val protobufSpecsVersion = "2.0.0-beta2" // scala-steward:off
   val bramblScVersion = "2.0.0-beta3" // scala-steward:off
-  // val prometheusJavaVersion = "1.1.0"
   val epimetheusVersion = "0.6.0-M2"
   val opentelemetryVersion = "1.36.0"
   val opentelemetryVersionAlpha = s"$opentelemetryVersion-alpha"
@@ -139,11 +138,6 @@ object Dependencies {
 
   val grpcServices = "io.grpc" % "grpc-services" % ioGrpcVersion
 
-  val prometheus = Seq(
-    "io.chrisdavenport" %% "epimetheus" % epimetheusVersion
-    // "io.prometheus"      % "prometheus-metrics-exporter-httpserver" % prometheusJavaVersion
-  )
-
   val otel = Seq(
     "org.typelevel"             %% "otel4s-java"                               % otel4sVersion,
     "io.opentelemetry"           % "opentelemetry-sdk-extension-autoconfigure" % opentelemetryVersion,
@@ -168,7 +162,6 @@ object Dependencies {
     Seq(grpcServices) ++
     http4s ++
     http4sServer ++
-    prometheus ++
     otel
 
   val nodeIt =
@@ -245,7 +238,7 @@ object Dependencies {
     Seq(Dependencies.bramblScSdk, Dependencies.bramblScSdk.classifier("tests") % Test)
 
   lazy val blockchain: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ Seq(fs2Core)
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ logging ++ otel ++ Seq(fs2Core)
 
   lazy val commonInterpreters: Seq[sbt.ModuleID] =
     mUnitTest ++
@@ -296,7 +289,7 @@ object Dependencies {
     orientDb ++
     mUnitTest ++
     simulacrum ++
-    prometheus
+    otel
 
   lazy val munitScalamock: Seq[sbt.ModuleID] =
     mUnitTest
