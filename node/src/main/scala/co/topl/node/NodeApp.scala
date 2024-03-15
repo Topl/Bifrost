@@ -94,9 +94,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .create
         .toResource
 
-      _ <- startupCounter.inc(Attribute("test", "test")).toResource
-      _ <- startupCounter.inc(Attribute("test1", "test1")).toResource
-      _ <- startupCounter.inc(Attribute("test2", "test2")).toResource
+      _ <- (startupCounter.inc(Attribute("test", "test")) >> IO.sleep(1.seconds)).toResource.foreverM
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)

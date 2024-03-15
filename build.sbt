@@ -5,7 +5,7 @@ import NativePackagerHelper.*
 
 val scala213 = "2.13.13"
 
-// fork := true
+fork := true
 
 inThisBuild(
   List(
