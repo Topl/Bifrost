@@ -42,7 +42,6 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.concurrent.duration._
 import java.time.Instant
 import co.topl.prometheus._
-import io.chrisdavenport.epimetheus.PrometheusRegistry
 import org.typelevel.otel4s.metrics.Meter
 import org.typelevel.otel4s.Attribute
 
@@ -96,11 +95,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .toResource
 
       _ <- startupCounter.inc(Attribute("test", "test")).toResource
-      _ <- startupCounter.inc(Attribute("test", "test")).toResource
-      _ <- startupCounter.inc(Attribute("test", "test")).toResource
-
-      // registry <- Metrics.make[F](appConfig)
-      // _        <- PrometheusExportServer.make[F](appConfig, registry)
+      _ <- startupCounter.inc(Attribute("test1", "test1")).toResource
+      _ <- startupCounter.inc(Attribute("test2", "test2")).toResource
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)
