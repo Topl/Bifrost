@@ -195,7 +195,7 @@ object Dependencies {
     Seq(catsSlf4j % Test)
 
   val commonApplication: Seq[ModuleID] =
-    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++
+    cats ++ catsEffect ++ mainargs ++ logging ++ monocle ++ otel ++
     simulacrum ++ http4s ++ Seq(
       catsSlf4j,
       pureConfig,
@@ -228,7 +228,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ otel
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)

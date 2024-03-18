@@ -548,7 +548,7 @@ object PeersManager {
     state.peersHandler.getWarmPeersWithActor.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetNetworkQuality)) >>
     (state, state).pure[F]
 
-  private def printP2PState[F[_]: Async: Logger](
+  private def printP2PState[F[_]: Async: Logger, Meter](
     thisActor: PeersManagerActor[F],
     state:     State[F]
   ): F[(State[F], Response[F])] = {

@@ -1,6 +1,7 @@
 package co.topl.prometheus
 
 import cats.implicits._
+import cats.effect.implicits._
 import cats.effect.{Async, Concurrent, LiftIO, Resource, Sync}
 import io.opentelemetry.api.GlobalOpenTelemetry
 import org.typelevel.otel4s.Otel4s
@@ -15,7 +16,8 @@ import java.lang.management.ManagementFactory
 import javax.management.MBeanServer
 import javax.management.ObjectName
 import cats.effect.IO
-import io.opentelemetry.sdk.OpenTelemetrySdk
+import org.typelevel.otel4s.trace.Tracer
+import org.typelevel.otel4s.metrics.Meter
 
 object Otel {
 
@@ -61,4 +63,12 @@ object Otel {
     Resource
       .eval(Sync[F].delay(GlobalOpenTelemetry.get))
       .evalMap(OtelJava.forAsync[F])
+
+  def generateProviders[F[_]: Sync: Async: LiftIO](providerName: String): Resource[F, (Meter[F], Tracer[F])] =
+    otelResource.evalMap(otel =>
+      for {
+        meter  <- otel.meterProvider.get(providerName)
+        tracer <- otel.tracerProvider.get(providerName)
+      } yield (meter, tracer)
+    )
 }

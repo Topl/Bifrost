@@ -76,6 +76,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     for {
       implicit0(syncF: Async[F])   <- Resource.pure(implicitly[Async[F]])
       implicit0(logger: Logger[F]) <- Resource.pure(Slf4jLogger.getLoggerFromName[F]("Bifrost.Node"))
+      // implicit0(metric: Metric[F]) <- Resource.pure(implicitly[Metric[F]])
 
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
@@ -84,10 +85,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       // Enable Prometheus if configured.
       _ <- Logger[F].info("Enabling Prometheus...").toResource
 
-      otel            <- Otel.otelResource[F]
-      metricsProvider <- otel.meterProvider.get("bifrost").toResource
+      (metrics, tracer) <- Otel.generateProviders[F]("bifrost")
 
-      startupCounter <- metricsProvider
+      startupCounter <- metrics
         .counter("bifrost.node.startup")
         .withUnit("1")
         .withDescription("Node startup counter")
