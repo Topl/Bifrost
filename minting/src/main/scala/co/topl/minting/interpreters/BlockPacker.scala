@@ -1,30 +1,28 @@
 package co.topl.minting.interpreters
 
 import cats.Show
+import cats.data.EitherT
 import cats.effect._
+import cats.effect.implicits._
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.brambl.validation.algebras.TransactionCostCalculator
+import co.topl.brambl.validation.TransactionAuthorizationError
+import co.topl.brambl.validation.algebras.{TransactionAuthorizationVerifier, TransactionCostCalculator}
 import co.topl.catsutils._
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
+import co.topl.ledger.interpreters.{QuivrContext, RegistrationAccumulator}
 import co.topl.ledger.models.MempoolGraph
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.node.models.FullBlockBody
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 
 import scala.collection.immutable.ListSet
-import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
-import co.topl.ledger.interpreters.{QuivrContext, RegistrationAccumulator}
-import cats.data.EitherT
-import co.topl.brambl.validation.TransactionAuthorizationError
-import org.typelevel.log4cats.Logger
-
 import scala.concurrent.duration._
 
 /**
@@ -77,32 +75,32 @@ object BlockPacker {
         iterative = new Iterative[F, FullBlockBody] {
 
           def improve(current: FullBlockBody): F[FullBlockBody] =
-            nextIterationFunction.get.flatMap(_.getOrElse((_: FullBlockBody) => initFromMempool)(current))
+            nextIterationFunction.get
+              .flatMap {
+                case Some(f) => f(current)
+                case _       => initFromMempool
+              }
 
           /**
            * Initializes the state with the current mempool and cedes
            */
           private def initFromMempool: F[FullBlockBody] =
-            Logger[F].debug("Initializing block packing from mempool") *>
-            mempool
-              .read(parentBlockId)
-              .flatMap(g =>
-                if (g.transactions.nonEmpty) {
-                  Logger[F].debug(s"Mempool contains ${g.transactions.size} entries") *>
-                  nextIterationFunction
-                    .set(((_: FullBlockBody) => filterValidTransactions(g)).some)
-                    .as(FullBlockBody.defaultInstance)
-                } else {
-                  // If the mempool was empty, wait and try again
-                  Logger[F].debug(s"Mempool is empty.  Retrying in $emptyMempoolPollPeriod") *>
-                  Async[F].delayBy(
-                    nextIterationFunction
-                      .set(((_: FullBlockBody) => initFromMempool).some)
-                      .as(FullBlockBody.defaultInstance),
-                    emptyMempoolPollPeriod
-                  )
-                }
-              )
+            Async[F].defer(
+              Logger[F].debug("Initializing block packing from mempool") *>
+              mempool
+                .read(parentBlockId)
+                .flatMap(g =>
+                  if (g.transactions.nonEmpty) {
+                    Logger[F].debug(s"Mempool contains ${g.transactions.size} entries") *>
+                    filterValidTransactions(g)
+                  } else {
+                    // If the mempool was empty, wait and try again
+                    Logger[F].debug(s"Mempool is empty.  Retrying in $emptyMempoolPollPeriod") *>
+                    Async[F].cede *>
+                    Async[F].delayBy(initFromMempool, emptyMempoolPollPeriod)
+                  }
+                )
+            )
 
           /**
            * Step through each transaction in the mempool, and remove any transaction sub-trees that are not (currently) authorized
@@ -110,28 +108,23 @@ object BlockPacker {
           private def filterValidTransactions(graph: MempoolGraph): F[FullBlockBody] =
             Logger[F].debug("Validating available transactions") >>
             graph.transactions.values.toList
-              .foldLeftM(graph) { case (graph, transaction) =>
-                if (graph.transactions.contains(transaction.id))
-                  transactionIsValid(transaction)
-                    .ifM(
-                      graph.pure[F],
-                      Async[F].cede >>
-                      Sync[F]
-                        .delay(graph.removeSubtree(transaction))
-                        .flatMap { case (graph, evicted) =>
-                          Logger[F]
-                            .debug(
-                              show"Evicting invalid transaction subgraph from mempool.  ids=${evicted.toList.map(_.id)}"
-                            ) >>
-                          evicted.toList.map(_.id).traverse(mempool.remove) >>
-                          graph.pure[F]
-                        }
-                    )
-                else
+              .parTraverse(tx => transactionIsValid(tx).tupleLeft(tx))
+              .flatMap(_.foldLeftM(graph) {
+                case (graph, (_, true)) =>
                   graph.pure[F]
-              }
-              .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => pruneUnresolvedTransactions(g)).some))
-              .as(FullBlockBody.defaultInstance)
+                case (graph, (transaction, false)) =>
+                  Sync[F]
+                    .delay(graph.removeSubtree(transaction))
+                    .flatMap { case (graph, evicted) =>
+                      Logger[F]
+                        .debug(
+                          show"Evicting invalid transaction subgraph from mempool.  ids=${evicted.toList.map(_.id)}"
+                        ) >>
+                      evicted.toList.map(_.id).traverse(mempool.remove) >>
+                      graph.pure[F]
+                    }
+              })
+              .flatMap(pruneUnresolvedTransactions)
 
           /**
            * There may be some transactions in the mempool that have missing dependencies (meaning, the local node
@@ -154,8 +147,8 @@ object BlockPacker {
                 case items => Logger[F].debug(show"Ignoring unresolved transactions ${items.map(_.id)}")
               }
               .map(_.foldLeft(graph)(_.removeSubtree(_)._1))
-              .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => stripDoubleSpendUnresolved(g)).some))
-              .as(FullBlockBody.defaultInstance)
+              .flatMap(stripDoubleSpendUnresolved)
+              .guarantee(Async[F].cede)
 
           /**
            * Some of the "unresolved" transactions of the mempool may be double-spends, so prune away the lower-value sub-graphs.
@@ -180,11 +173,9 @@ object BlockPacker {
                   .map(_.map(_._2).toSet)
                   .toList
               )
-              .flatMap(
-                _.foldLeftM(graph)(pruneDoubleSpenders(_)(_))
-                  .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => stripGraph(g)).some))
-                  .as(FullBlockBody.defaultInstance)
-              )
+              .guarantee(Async[F].cede)
+              .flatMap(_.foldLeftM(graph)(pruneDoubleSpenders(_)(_)))
+              .flatMap(stripGraph)
 
           /**
            * Finds the first instance of a double-spend in the given graph, and removes the double-spend with the
@@ -193,18 +184,18 @@ object BlockPacker {
            * If no double-spends are found, moves on to the final stage of forming a block
            */
           private def stripGraph(graph: MempoolGraph): F[FullBlockBody] =
-            graph.spenders.find(_._2.exists(_._2.size > 1)) match {
+            Async[F].cede *>
+            (graph.spenders.find(_._2.exists(_._2.size > 1)) match {
               // Find the first instance of a double-spender in the graph and prune its subtree
               case Some((_, spenders)) =>
                 spenders.values.toList
                   .map(_.map(_._1))
                   .foldLeftM(graph)(pruneDoubleSpenders(_)(_))
-                  .flatTap(g => nextIterationFunction.set(((_: FullBlockBody) => stripGraph(g)).some))
-                  .as(FullBlockBody.defaultInstance)
+                  .flatMap(stripGraph)
               // If there are no remaining double-spenders in the graph, form a block
               case _ =>
                 formBlockBody(graph)
-            }
+            })
 
           /**
            * The final step is to take the given graph containing zero double-spends and flatten it into a linear sequence of transactions
@@ -213,26 +204,26 @@ object BlockPacker {
            * @return a FullBlockBody
            */
           private def formBlockBody(graph: MempoolGraph): F[FullBlockBody] = {
-            def withDependencies(transaction: IoTransaction): ListSet[IoTransaction] =
-              ListSet
-                .empty[IoTransaction]
-                .concat(
-                  transaction.inputs
-                    .map(_.address.id)
-                    .flatMap(graph.transactions.get)
-                    .flatMap(withDependencies)
-                )
-                .incl(transaction)
+            def withDependencies(transaction: IoTransaction): F[ListSet[TransactionId]] =
+              transaction.inputs
+                .map(_.address.id)
+                .distinct
+                .flatMap(graph.transactions.get)
+                .parTraverse(withDependencies)
+                .map(_.foldLeft(ListSet.empty[TransactionId])(_.concat(_)))
+                .map(_.incl(transaction.id))
 
             def go(
-              accepted:                            ListSet[IoTransaction],
-              queue:                               ListSet[IoTransaction],
+              accepted:                            FullBlockBody,
+              queue:                               ListSet[TransactionId],
               registrationAccumulatorAugmentation: RegistrationAccumulator.Augmentation
-            ): F[ListSet[IoTransaction]] =
+            ): F[FullBlockBody] = Async[F].cede *> (
               queue.headOption match {
-                case Some(transaction) if accepted.contains(transaction) =>
+                case Some(transaction) if accepted.transactions.exists(_.id == transaction.id) =>
                   go(accepted, queue.tail, registrationAccumulatorAugmentation)
-                case Some(transaction) =>
+
+                case Some(transactionId) =>
+                  val transaction = graph.transactions(transactionId)
                   RegistrationAccumulator.Augmented
                     .make[F](registrationAccumulator)(registrationAccumulatorAugmentation)
                     .use(registrationAccumulator =>
@@ -241,40 +232,40 @@ object BlockPacker {
                         .forallM(registrationAccumulator.contains(parentBlockId)(_).map(!_))
                     )
                     .ifM(
-                      Sync[F]
-                        .delay(accepted ++ withDependencies(transaction))
-                        .flatMap(newAccepted =>
-                          graph.spenders
-                            .get(transaction.id)
-                            .fold(newAccepted.pure[F])(spenders =>
-                              go(
-                                newAccepted,
-                                queue.tail.concat(
-                                  spenders.values
+                      Async[F]
+                        .defer(withDependencies(transaction))
+                        .map(ListSet.from(accepted.transactionIds) ++ _)
+                        .map(_.toList.map(graph.transactions))
+                        .map(FullBlockBody(_)) <*
+                      nextIterationFunction.set(
+                        (
+                          (b: FullBlockBody) =>
+                            go(
+                              b,
+                              graph.spenders
+                                .get(transaction.id)
+                                .map(
+                                  _.values
                                     .flatMap(_.map(_._1))
                                     .toSet
-                                    .flatMap(graph.transactions.get)
-                                ),
-                                registrationAccumulatorAugmentation.augment(transaction)
-                              )
+                                )
+                                .foldLeft(queue.tail)(_.concat(_)),
+                              registrationAccumulatorAugmentation.augment(transaction)
                             )
-                        ),
-                      go(accepted, queue.tail, registrationAccumulatorAugmentation)
+                        ).some
+                      ),
+                      Async[F].defer(go(accepted, queue.tail, registrationAccumulatorAugmentation))
                     )
                 case _ =>
-                  accepted.pure[F]
+                  nextIterationFunction.set(((_: FullBlockBody) => Async[F].never[FullBlockBody]).some).as(accepted)
               }
+            )
 
-            nextIterationFunction.set(((_: FullBlockBody) => Async[F].never[FullBlockBody]).some) *>
-            Sync[F]
-              .defer(
-                go(
-                  ListSet.empty,
-                  ListSet.from(graph.unresolved.keys.map(graph.transactions)),
-                  RegistrationAccumulator.Augmentation.empty
-                )
-              )
-              .map(transactionSet => FullBlockBody(transactionSet.toList))
+            go(
+              FullBlockBody.defaultInstance,
+              ListSet.from(graph.unresolved.keys),
+              RegistrationAccumulator.Augmentation.empty
+            )
           }
 
           /**
@@ -284,29 +275,30 @@ object BlockPacker {
             (
               transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
               transactionCostCalculator.costOf(transaction)
-            ).mapN(_ - _)
+            ).parMapN(_ - _)
 
           /**
            * Accumulate the score of the given transaction, as well as all dependent transactions
            */
           private def subgraphScore(graph: MempoolGraph)(transaction: IoTransaction): F[BigInt] =
+            Async[F].cede *>
             (
               transactionScore(transaction),
               graph
                 .spenders(transaction.id)
                 .toList
                 .map(_._2)
-                .foldMapM {
+                .parFoldMapA {
                   case spenders if spenders.isEmpty =>
                     BigInt(0).pure[F]
                   case spenders =>
                     spenders.toList
                       .map(_._1)
                       .map(graph.transactions)
-                      .traverse(subgraphScore(graph))
+                      .parTraverse(subgraphScore(graph))
                       .map(_.max)
                 }
-            ).mapN(_ + _)
+            ).parMapN(_ + _)
 
           /**
            * Steps through the given collection of spenders (of a specific transaction), and if multiple
@@ -317,7 +309,7 @@ object BlockPacker {
             Logger[F].debug("Searching for double-spend transactions") >>
             spenders.toList
               .map(graph.transactions)
-              .traverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
+              .parTraverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
               .map(_.sortBy(-_._2).map(_._1))
               .flatMap {
                 case Nil => graph.pure[F]

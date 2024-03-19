@@ -288,7 +288,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
     val rpcPortA: Int = 1971
     val rpcPortB: Int = 1973
 
-    val useMempoolForSemanticIfLess = 10
+    val useMempoolForSemanticIfLess = 100
 
     val resource =
       for {
@@ -357,7 +357,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
 
               transactionGenerator <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 1000L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .make[F](wallet, _ => 10L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
                   .toResource
               transactionGraph <- Stream
                 .force(transactionGenerator.generateTransactions)
@@ -367,8 +367,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
                 .toResource
 
               _ <- Logger[F].info(show"Generated txs: ${transactionGraph.map(_.id).zipWithIndex}").toResource
-              _ <- IO(transactionGraph.sizeIs == useMempoolForSemanticIfLess * 2).assert.toResource
-              _ <- rpcClients.parTraverse(fetchUntilHeight(_, height)).toResource
+              _ <- IO(transactionGraph.length).assertEquals(useMempoolForSemanticIfLess * 2).toResource
               // Broadcast _all_ of the good transactions to the nodes
               _ <- Stream
                 .emits(transactionGraph)
@@ -379,7 +378,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
                 .toResource
 
               _ <- Async[F]
-                .timeout(fetchUntilTx(rpcClientB, transactionGraph(useMempoolForSemanticIfLess - 1).id), 60.seconds)
+                .timeout(fetchUntilTx(rpcClientB, transactionGraph(useMempoolForSemanticIfLess - 1).id), 70.seconds)
                 .toResource
               _ <- rpcClients
                 .parTraverse(verifyNotConfirmed(_)(Set(transactionGraph.last.id)))

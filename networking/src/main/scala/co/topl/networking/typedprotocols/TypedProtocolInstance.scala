@@ -68,7 +68,7 @@ case class TypedProtocolInstance[F[_]] private (
       }
       .value
 
-  final private val MessageQueueSize = 16
+  final private val MessageQueueSize = 512
 
   /**
    * Produces an "Applier" which enqueues each message.  A background fiber processes these queues in the background

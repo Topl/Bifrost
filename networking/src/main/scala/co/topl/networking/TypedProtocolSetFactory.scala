@@ -197,7 +197,7 @@ object TypedProtocolSetFactory {
             initialState = TypedProtocol.CommonStates.None,
             outboundMessages = Stream.eval(clientSignalPromise.get) >>
               notifications
-                .dropOldest(64)
+                .dropOldest(512)
                 .evalTap(data => Logger[F].debug(show"Notifying peer of data=$data"))
                 .map(TypedProtocol.CommonMessages.Push(_))
                 .map(OutboundMessage(_)),
@@ -212,7 +212,7 @@ object TypedProtocolSetFactory {
     ): F[(Byte => TypedSubHandler[F, CommonStates.None.type], Stream[F, T])] =
       for {
         startSignal <- Deferred[F, OutboundMessage]
-        queue       <- Queue.circularBuffer[F, T](64)
+        queue       <- Queue.circularBuffer[F, T](512)
         stream =
           // A Notification Client must send a `Start` message to the server before it will start
           // pushing notifications. We can signal this message to the server once the returned Source here requests
