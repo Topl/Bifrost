@@ -9,8 +9,9 @@ import co.topl.genus.orientDb.schema.VertexSchema
 import co.topl.genus.services.Txo
 import co.topl.genus.orientDb.schema.EdgeSchemaInstances._
 import co.topl.node.models.BlockBody
+import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.tinkerpop.blueprints.{Direction, Vertex}
-import com.tinkerpop.blueprints.impls.orient.{OrientGraph, OrientVertex}
+import com.tinkerpop.blueprints.impls.orient.{OrientDynaElementIterable, OrientGraph, OrientVertex}
 
 import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
@@ -63,9 +64,15 @@ class OrientGraphOps(val graph: OrientGraph) extends AnyVal {
 
   def getBlockHeader(blockHeader: BlockHeader): Option[Vertex] =
     graph
-      .getVertices(SchemaBlockHeader.Field.BlockId, blockHeader.id.value.toByteArray)
+      .command(
+        new OCommandSQL(
+          s"SELECT FROM ${blockHeaderSchema.name} WHERE ${SchemaBlockHeader.Field.BlockId} = ? LIMIT 1"
+        )
+      )
+      .execute[OrientDynaElementIterable](blockHeader.id.value.toByteArray)
+      .iterator()
       .asScala
-      .headOption
+      .collectFirst { case v: Vertex @unchecked => v }
 
   def getBody(blockHeaderVertex: Vertex): Option[Vertex] =
     blockHeaderVertex.getVertices(Direction.OUT, blockHeaderBodyEdge.label).asScala.headOption

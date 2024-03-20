@@ -97,7 +97,7 @@ object PeerMempoolTransactionSync {
   ): Stream[F, Unit] =
     transactionIdsStream
       .evalFilterNotAsync(maxConcurrent)(state.transactionStore.contains)
-      .parEvalMapUnordered(maxConcurrent)(processTransactionId(state))
+      .evalMap(processTransactionId(state))
 
   private def processTransactionId[F[_]: Async: Logger](state: State[F])(id: TransactionId): F[Unit] = {
     val fetchingTransaction =

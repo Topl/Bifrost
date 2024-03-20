@@ -55,7 +55,7 @@ object Fs2TransactionGenerator {
     costCalculator: TransactionCostCalculator[F],
     metadataF:      F[SmallData]
   ): OptionT[F, (IoTransaction, Wallet)] =
-    (if (wallet.spendableBoxes.size < 5) generateExpandingTransaction(wallet, costCalculator, metadataF)
+    (if (wallet.spendableBoxes.size < 25) generateExpandingTransaction(wallet, costCalculator, metadataF)
      else generateConsolidatingTransaction(wallet, costCalculator, metadataF))
       .map(transaction => transaction -> applyTransaction(wallet)(transaction))
 
@@ -87,7 +87,7 @@ object Fs2TransactionGenerator {
   ): OptionT[F, IoTransaction] =
     OptionT
       .pure[F](
-        wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.sortBy(_._2.value.getLvl.quantity: BigInt).take(15)
+        wallet.spendableBoxes.filter(_._2.value.value.isLvl).toList.sortBy(_._2.value.getLvl.quantity: BigInt).take(20)
       )
       .filter(_.nonEmpty)
       .map(_.map { case (inputBoxId, inputBox) =>
@@ -167,10 +167,10 @@ object Fs2TransactionGenerator {
       else if (spendableQuantity == BigInt(1)) List(BigInt(1)).pure[F]
       else if (spendableQuantity == BigInt(2)) List.fill(2)(BigInt(1)).pure[F]
       else {
-        Random[F]
-          .nextLongBounded(spendableQuantity.toLong / 2)
-          .map(spendableQuantity - _)
-          .map(quantityOutput0 => List(quantityOutput0, spendableQuantity - quantityOutput0))
+        // Split the spendable input into equal sized chunks
+        val count = spendableQuantity.toInt.min(5)
+        val quantityPerOutput = spendableQuantity / count
+        ((spendableQuantity - (count - 1) * quantityPerOutput) :: List.fill(count - 1)(quantityPerOutput)).pure[F]
       }
     result = outputQuantities
       .filter(_ > 0)
@@ -190,12 +190,12 @@ object Fs2TransactionGenerator {
             case ((remainingCost, outputs), output) if remainingCost > 0 =>
               output.value.value.lvl.fold((remainingCost, outputs)) { lvl =>
                 if (lvl.quantity > remainingCost)
-                  (0L -> (outputs :+ output
-                    .copy(value = Value.defaultInstance.withLvl(lvl.copy(quantity = lvl.quantity - cost)))))
+                  0L -> (outputs :+ output
+                    .copy(value = Value.defaultInstance.withLvl(lvl.copy(quantity = lvl.quantity - remainingCost))))
                 else
-                  ((remainingCost - (lvl.quantity: BigInt).toLong): Long, outputs)
+                  (remainingCost - (lvl.quantity: BigInt).toLong: Long, outputs)
               }
-            case ((_, outputs), output) => (0L, (outputs :+ output))
+            case ((_, outputs), output) => (0L, outputs :+ output)
           }
           ._2
       )
