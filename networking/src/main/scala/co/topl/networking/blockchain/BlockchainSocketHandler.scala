@@ -161,7 +161,7 @@ object BlockchainSocketHandler {
         (peerServerHandlers, peerServerCallback)                   <- remotePeerServerF.ap(connectionLeader.pure[F])
         (appLevelNotifyHandlers, appNotifyCallback)                <- notifyRemoteAppLevelF.ap(connectionLeader.pure[F])
         blockchainProtocolClient = new BlockchainPeerClient[F] {
-          val remotePeer: F[ConnectedPeer] = connectedPeer.pure[F]
+          val remotePeer: ConnectedPeer = connectedPeer
           val remotePeerAsServer: F[Option[KnownHost]] = peerServerCallback(())
           val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
 

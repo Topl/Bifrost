@@ -93,15 +93,19 @@ class PeersManagerTest
     mocked
   }
 
-  def buildOpenedPeerConnectionMessage[F[_]: Applicative](
+  def buildOpenedPeerConnectionMessage[F[_]](
     client:        BlockchainPeerClient[F],
-    connectedPeer: ConnectedPeer
+    connectedPeer: ConnectedPeer,
+    remoteServer:  Boolean = true
   ): PeersManager.Message.OpenedPeerConnection[F] = {
-    (() => client.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer.pure[F])
+    (() => client.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer)
 
-    val asServer = KnownHost(connectedPeer.p2pVK, connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port)
-    (() => client.remotePeerAsServer).stubs().returns(asServer.some.pure[F])
-    PeersManager.Message.OpenedPeerConnection(client)
+    val asServer =
+      if (remoteServer)
+        KnownHost(connectedPeer.p2pVK, connectedPeer.remoteAddress.host, connectedPeer.remoteAddress.port).some
+      else None
+
+    PeersManager.Message.OpenedPeerConnection(client, asServer)
   }
 
   def buildSimplePeerEntry(
@@ -1119,6 +1123,7 @@ class PeersManagerTest
       val client2 = mock[BlockchainPeerClient[F]]
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("first", 1)
+      val host2Ra = RemoteAddress("second", 2)
       val peer1 = mockPeerActor[F]()
       val peer2 = mockPeerActor[F]()
 
@@ -1136,10 +1141,6 @@ class PeersManagerTest
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
-      (() => client1.remotePeerAsServer)
-        .expects()
-        .once()
-        .returns(KnownHost(host1Id.id, host1Ra.host, host1Ra.port).some.pure[F])
       (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returns(Applicative[F].unit)
 
       (networkAlgebra.makePeer _)
@@ -1152,11 +1153,6 @@ class PeersManagerTest
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
-      val secondRemoteServerPort = 2
-      (() => client2.remotePeerAsServer)
-        .expects()
-        .once()
-        .returns(KnownHost(host1Id.id, host1Ra.host, secondRemoteServerPort).some.pure[F])
 
       val mockData = buildDefaultMockData(networkAlgebra = networkAlgebra)
       buildActorFromMockData(mockData)
@@ -1177,11 +1173,12 @@ class PeersManagerTest
             _ = assert(withUpdate2.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate2.peersHandler(host1Id).actorOpt.isEmpty)
             withUpdate3 <- actor.send(
-              buildOpenedPeerConnectionMessage(client2, ConnectedPeer(host1Ra, host1Id.id))
+              buildOpenedPeerConnectionMessage(client2, ConnectedPeer(host2Ra, host1Id.id))
             )
             _ = assert(withUpdate3.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate3.peersHandler(host1Id).actorOpt.get == peer2)
-            _ = assert(withUpdate3.peersHandler(host1Id).asServer.get.address.port == secondRemoteServerPort)
+            _ = assert(withUpdate3.peersHandler(host1Id).asServer.get.address.host == host2Ra.host)
+            _ = assert(withUpdate3.peersHandler(host1Id).asServer.get.address.port == host2Ra.port)
 
           } yield ()
         }
@@ -1206,10 +1203,6 @@ class PeersManagerTest
             .pure(peer1)
             .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
         ) // simulate real actor finalizer
-      (() => client1.remotePeerAsServer)
-        .expects()
-        .once()
-        .returns(KnownHost(host1Id.id, host1Ra.host, host1Ra.port).some.pure[F])
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
@@ -1239,7 +1232,7 @@ class PeersManagerTest
     }
   }
 
-  test("Create new peer actor, if error during receiving remote peer server address then use previous value") {
+  test("Create new peer actor, if no as server then use previous value") {
     withMock {
       val networkAlgebra: NetworkAlgebra[F] = mock[NetworkAlgebra[F]]
       val requestProxy = mock[RequestsProxyActor[F]]
@@ -1258,9 +1251,7 @@ class PeersManagerTest
             .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
         ) // simulate real actor finalizer
       val connectedPeer = ConnectedPeer(host1Ra, host1Id.id)
-      (() => client1.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer.pure[F])
-
-      (() => client1.remotePeerAsServer).stubs().returns(Async[F].delay(throw new RuntimeException()))
+      (() => client1.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer)
 
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
@@ -1279,7 +1270,7 @@ class PeersManagerTest
           for {
             initialState <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ = assert(initialState.peersHandler(host1Id).state == PeerState.Cold)
-            withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(client1))
+            withUpdate <- actor.send(PeersManager.Message.OpenedPeerConnection(client1, None))
             _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host1Id).asServer.get.address.some == host1Ra.some)
             _ = assert(withUpdate.peersHandler(host1Id).actorOpt.get == peer1)
@@ -1426,10 +1417,7 @@ class PeersManagerTest
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
       val client1 = mock[BlockchainPeerClient[F]]
-      (() => client1.remotePeerAsServer)
-        .expects()
-        .once()
-        .returns(KnownHost(host1Id.id, host1Ra.host, host1Ra.port).some.pure[F])
+
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
@@ -1445,10 +1433,6 @@ class PeersManagerTest
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(Applicative[F].unit)
       val client2 = mock[BlockchainPeerClient[F]]
-      (() => client2.remotePeerAsServer)
-        .expects()
-        .once()
-        .returns(KnownHost(host2Id.id, host2Ra.host, host2Ra.port).some.pure[F])
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
@@ -1464,10 +1448,6 @@ class PeersManagerTest
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = false))
         .returns(Applicative[F].unit)
       val client3 = mock[BlockchainPeerClient[F]]
-      (() => client3.remotePeerAsServer)
-        .expects()
-        .once()
-        .returns(KnownHost(host3Id.id, host3Ra.host, host3Ra.port).some.pure[F])
       (peer3.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
@@ -1489,7 +1469,6 @@ class PeersManagerTest
         .returns(Applicative[F].unit)
       val client5 = mock[BlockchainPeerClient[F]]
       val client5RemotePort = None
-      (() => client5.remotePeerAsServer).expects().once().returns(client5RemotePort.pure[F])
       (peer5.sendNoWait _)
         .expects(PeerActor.Message.GetNetworkQuality)
         .returns(Applicative[F].unit)
@@ -1588,7 +1567,9 @@ class PeersManagerTest
             _ = assert(stateHost4.peersHandler(host4Id).state == PeerState.Banned)
             _ = assert(stateHost4.peersHandler(host4Id).closedTimestamps == Seq(4))
             _ = assert(stateHost4.peersHandler(host4Id).asServer.isEmpty)
-            stateHost5 <- actor.send(buildOpenedPeerConnectionMessage(client5, ConnectedPeer(host5Ra, host5Id.id)))
+            stateHost5 <- actor.send(
+              buildOpenedPeerConnectionMessage(client5, ConnectedPeer(host5Ra, host5Id.id), false)
+            )
             _ = assert(stateHost5.peersHandler(host5Id).state == PeerState.Hot)
             _ = assert(stateHost5.peersHandler(host5Id).closedTimestamps == Seq(5))
             _ = assert(stateHost5.peersHandler(host5Id).asServer == client5RemotePort)

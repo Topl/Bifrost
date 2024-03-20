@@ -175,7 +175,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       (() => client.remotePeer)
         .expects()
         .anyNumberOfTimes()
-        .returns(remoteConnectedPeer.pure[F])
+        .returns(remoteConnectedPeer)
 
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]
