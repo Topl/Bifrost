@@ -46,9 +46,11 @@ object PeersManager {
     /**
      * Setup appropriate actor for connection to peer specified by hostId, client is created outside before
      * @param client client with already opened connection to host
+     * @param remotePeerAsServer remote peer presentation as server
      * @tparam F effect
      */
-    case class OpenedPeerConnection[F[_]](client: BlockchainPeerClient[F]) extends Message
+    case class OpenedPeerConnection[F[_]](client: BlockchainPeerClient[F], remotePeerAsServer: Option[KnownHost])
+        extends Message
 
     /**
      * Set block checker actor, can't be done in constructor due cyclic references
@@ -696,7 +698,7 @@ object PeersManager {
     setupPeer: OpenedPeerConnection[F]
   ): F[(State[F], Response[F])] = {
     for {
-      connectedPeer <- OptionT.liftF(setupPeer.client.remotePeer)
+      connectedPeer <- OptionT.liftF(setupPeer.client.remotePeer.pure[F])
       client        <- OptionT.some[F](setupPeer.client)
       hostId        <- OptionT.some[F](HostId(connectedPeer.p2pVK))
       _ <- OptionT
@@ -717,18 +719,20 @@ object PeersManager {
           Logger[F].error(show"Try to open connection to already opened peer $hostId. Connection will be closed") >>
           client.closeConnection()
         )
-      newState <- OptionT.liftF(updateStateByNewConnection(hostId, state, client, connectedPeer, thisActor))
+      newState <- OptionT.liftF(updateStateByNewConnection(hostId, state, setupPeer, thisActor))
     } yield (newState, newState)
   }.getOrElse((state, state))
 
   private def updateStateByNewConnection[F[_]: Async: Logger](
-    hostId:        HostId,
-    state:         State[F],
-    client:        BlockchainPeerClient[F],
-    connectedPeer: ConnectedPeer,
-    thisActor:     PeersManagerActor[F]
+    hostId:    HostId,
+    state:     State[F],
+    setupPeer: OpenedPeerConnection[F],
+    thisActor: PeersManagerActor[F]
   ): F[State[F]] = {
     require(state.requestsProxy.isDefined)
+    val client: BlockchainPeerClient[F] = setupPeer.client
+    val remotePeer: Option[KnownHost] = setupPeer.remotePeerAsServer
+    val connectedPeer: ConnectedPeer = setupPeer.client.remotePeer
 
     def setupPeerActor: F[PeerActor[F]] =
       thisActor
@@ -756,12 +760,7 @@ object PeersManager {
       _ <- Logger[F].info(show"Going to create actor for handling connection to remote peer $hostId")
 
       peerActor <- setupPeerActor
-      remotePeerAsServer <- client.remotePeerAsServer
-        .handleErrorWith { e =>
-          Logger[F].error(show"Failed to get remote peer as server from $connectedPeer due ${e.toString}") >>
-          Option.empty[KnownHost].pure[F]
-        }
-        .map(_.map(kh => RemotePeer(HostId(kh.id), RemoteAddress(kh.host, kh.port))))
+      remotePeerAsServer = remotePeer.map(kh => RemotePeer(HostId(kh.id), RemoteAddress(kh.host, kh.port)))
       _ <- Logger[F].info(show"Received remote peer as server $remotePeerAsServer from $hostId")
 
       timeNow = System.currentTimeMillis()

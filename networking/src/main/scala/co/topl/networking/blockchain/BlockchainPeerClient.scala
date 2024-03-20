@@ -21,9 +21,9 @@ import org.typelevel.log4cats.Logger
 trait BlockchainPeerClient[F[_]] {
 
   /**
-   * The ConnectedPeer for this current connection
+   * The ConnectedPeer for this current connection, no actual request shall be done to remote peer
    */
-  def remotePeer: F[ConnectedPeer]
+  def remotePeer: ConnectedPeer
 
   /**
    * Representation of remote peer which is ready for incoming connections
