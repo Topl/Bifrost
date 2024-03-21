@@ -879,12 +879,17 @@ object PeersManager {
     thisActor: PeersManagerActor[F],
     state:     State[F]
   ): F[(State[F], Response[F])] = {
-    val toHot =
-      state.warmToHotSelector.select(
-        state.peersHandler.getWarmPeersWithActor,
+    val availableWarm = state.peersHandler.getWarmPeersWithActor.filter { case (id, _) =>
+      state.peersHandler
+        .peers(id)
+        .closedTimestamps
+        .sizeIs < state.p2pNetworkConfig.networkProperties.aggressiveP2PMaxCloseEvent
+    }
+    val toHot = state.warmToHotSelector
+      .select(
+        availableWarm,
         state.p2pNetworkConfig.networkProperties.aggressiveP2PCount
       )
-
     warmPeersToHot(thisActor, state, toHot).map(s => (s, s))
   }
 

@@ -75,7 +75,9 @@ object ApplicationConfig {
       closeTimeoutFirstDelayInMs: Long = 1000,
       closeTimeoutWindowInMs:     Long = 1000 * 60 * 60 * 24, // 1 day
       aggressiveP2P:              Boolean = true, // always try to found new good remote peers
-      aggressiveP2PCount:         Int = 1 // how many new connection will be opened
+      aggressiveP2PCount:         Int = 1, // how many new connection will be opened
+      // do not try to open aggressively connection to remote peer if we have closed N connection(s) to them recently
+      aggressiveP2PMaxCloseEvent: Int = 3
     )
 
     case class KnownPeer(host: String, port: Int)

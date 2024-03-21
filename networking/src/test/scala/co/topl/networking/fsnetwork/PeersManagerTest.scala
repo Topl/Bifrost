@@ -710,6 +710,55 @@ class PeersManagerTest
     }
   }
 
+  test("Aggressive P2P: move some warm peers to hot if number of closed connections is ok") {
+    withMock {
+      val p2pConfig: P2PNetworkConfig =
+        defaultP2PConfig.copy(networkProperties =
+          NetworkProperties(aggressiveP2PCount = 1, aggressiveP2PMaxCloseEvent = 1)
+        )
+
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("1", 1)
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2Ra = RemoteAddress("2", 2)
+      val host3Id = arbitraryHost.arbitrary.first
+      val host3Ra = RemoteAddress("3", 3)
+
+      val peer1 = mockPeerActor[F]()
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
+        .returns(().pure[F])
+
+      val peer2 = mockPeerActor[F]()
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(
+          buildSimplePeerEntry(PeerState.Warm, peer1.some, host1Id, host1Ra, blockRep = 0.1),
+          buildSimplePeerEntry(
+            PeerState.Warm,
+            peer2.some,
+            host2Id,
+            host2Ra,
+            blockRep = 1.0,
+            closedTimestamps = Seq(0, 1, 2)
+          ),
+          buildSimplePeerEntry(PeerState.Warm, None, host3Id, host3Ra, blockRep = 0.1)
+        )
+
+      val mockData = buildDefaultMockData(p2pConfig = p2pConfig, initialPeers = initialPeersMap)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            withUpdate <- actor.send(PeersManager.Message.AggressiveP2PUpdate)
+            _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Hot)
+            _ = assert(withUpdate.peersHandler(host2Id).state == PeerState.Warm)
+            _ = assert(withUpdate.peersHandler(host3Id).state == PeerState.Warm)
+            _ = assert(withUpdate.peersHandler.get(host1Id).get.newRep == p2pConfig.remotePeerNoveltyInSlots)
+          } yield ()
+        }
+    }
+  }
+
   test("Reputation update: Update reputation for eligible peers only") {
     withMock {
       val p2pConfig: P2PNetworkConfig =
