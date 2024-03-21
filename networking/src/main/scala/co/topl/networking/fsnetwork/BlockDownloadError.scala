@@ -7,7 +7,7 @@ import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.consensus.models.BlockId
 import co.topl.models.TxRoot
 import co.topl.typeclasses.implicits._
-import co.topl.networking.fsnetwork.P2PShowInstances._
+import co.topl.ledger.implicits._
 
 sealed abstract class BlockDownloadError extends Exception {
   def notCritical: Boolean
