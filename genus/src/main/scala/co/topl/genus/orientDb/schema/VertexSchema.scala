@@ -1,6 +1,7 @@
 package co.topl.genus.orientDb.schema
 
 import com.tinkerpop.blueprints.Vertex
+import com.tinkerpop.blueprints.impls.orient.OrientVertex
 
 /**
  * Describe how data from a scala class will be stored in an OrientDB vertex.
@@ -56,7 +57,13 @@ object VertexSchema {
 
       def encode(t: T): Map[String, AnyRef] = encoder.encode(t)
 
-      def decode(vertex: Vertex): T = decoder(new DecodeHelper(vertex))
+      def decode(vertex: Vertex): T = {
+        vertex match {
+          case o: OrientVertex => o.reload()
+          case _               =>
+        }
+        decoder(new DecodeHelper(vertex))
+      }
 
       val properties: Set[Property] = encoder.properties
 

@@ -12,6 +12,7 @@ import co.topl.consensus.models.BlockHeader
 import co.topl.genus.algebras.VertexFetcherAlgebra
 import co.topl.genus.interpreter.GraphTransactionFetcher
 import co.topl.genus.model.{GE, GEs}
+import co.topl.genus.orientDb.OrientThread
 import co.topl.genus.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaTxo}
 import co.topl.genus.services._
 import co.topl.models.generators.consensus.ModelGenerators._
@@ -30,7 +31,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           expectedTh = new IllegalStateException("boom!")
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -61,7 +63,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
             .once()
@@ -85,8 +88,9 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
-          vertex        <- mock[Vertex].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          vertex                                   <- mock[Vertex].pure[F].toResource
 
           _ = (vertex.getProperty[Array[Byte]] _)
             .expects(SchemaIoTransaction.Field.Transaction)
@@ -117,7 +121,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           expectedTh = new IllegalStateException("boom!")
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -148,7 +153,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
             .once()
@@ -175,7 +181,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
         val iotxVertex = mock[Vertex]
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
 
           _ = (vertexFetcher.fetchTransaction _)
             .expects(transactionId)
@@ -298,7 +305,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           expectedTh = new IllegalStateException("boom!")
           _ = (vertexFetcher.fetchLockAddress _)
             .expects(lockAddress)
@@ -313,7 +321,7 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
           _ <- assertIO(
             graphTransactionFetcher.fetchTransactionByLockAddress(lockAddress, TxoState.SPENT),
             (GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactionsByAddress", expectedTh): GE)
-              .asLeft[Seq[Txo]]
+              .asLeft[List[Txo]]
           ).toResource
         } yield ()
 
@@ -329,7 +337,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
       withMock {
 
         val res = for {
-          vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+          implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+          vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
           vertex = mock[Vertex]
 
           _ = (vertexFetcher.fetchLockAddress _)
@@ -346,7 +355,7 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
           graphTransactionFetcher <- GraphTransactionFetcher.make[F](vertexFetcher)
           _ <- assertIO(
             graphTransactionFetcher.fetchTransactionByLockAddress(lockAddress, TxoState.SPENT),
-            Seq.empty[Txo].asRight[GE]
+            List.empty[Txo].asRight[GE]
           ).toResource
         } yield ()
 
@@ -367,7 +376,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
         withMock {
 
           val res = for {
-            vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+            implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+            vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
             lockAddressVertex = mock[Vertex]
             txoVertex = mock[Vertex]
 
@@ -407,7 +417,7 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             graphTransactionFetcher <- GraphTransactionFetcher.make[F](vertexFetcher)
             _ <- assertIO(
               graphTransactionFetcher.fetchTransactionByLockAddress(lockAddress, TxoState.SPENT),
-              Seq.empty[Txo].asRight[GE]
+              List.empty[Txo].asRight[GE]
             ).toResource
           } yield ()
 
@@ -429,7 +439,8 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
         withMock {
 
           val res = for {
-            vertexFetcher <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
+            implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
+            vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
             lockAddressVertex = mock[Vertex]
             spendingTransactionVertex = mock[Vertex]
             txoVertex = mock[Vertex]

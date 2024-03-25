@@ -117,7 +117,7 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
         _ <- assertIO(
           graphVertexFetcher.fetchTransactions(vertex),
           (GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", expectedTh): GE)
-            .asLeft[Iterable[Vertex]]
+            .asLeft[List[Vertex]]
         ).toResource
       } yield ()
 

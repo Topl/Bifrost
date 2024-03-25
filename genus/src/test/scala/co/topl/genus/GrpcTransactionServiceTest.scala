@@ -99,7 +99,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
         (transactionFetcher.fetchTransactionByLockAddress _)
           .expects(lockAddress, TxoState.SPENT)
           .once()
-          .returning((GEs.Internal(new IllegalStateException("Boom!")): GE).asLeft[Seq[Txo]].pure[F])
+          .returning((GEs.Internal(new IllegalStateException("Boom!")): GE).asLeft[List[Txo]].pure[F])
 
         for {
           _ <- interceptMessageIO[StatusException]("INTERNAL: Boom!")(
@@ -119,7 +119,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
         (transactionFetcher.fetchTransactionByLockAddress _)
           .expects(lockAddress, TxoState.SPENT)
           .once()
-          .returning(Seq.empty[Txo].asRight[GE].pure[F])
+          .returning(List.empty[Txo].asRight[GE].pure[F])
 
         for {
           res <- underTest.getTxosByLockAddress(QueryByLockAddressRequest(lockAddress), new Metadata())
@@ -149,7 +149,7 @@ class GrpcTransactionServiceTest extends CatsEffectSuite with ScalaCheckEffectSu
           (transactionFetcher.fetchTransactionByLockAddress _)
             .expects(lockAddress, TxoState.SPENT)
             .once()
-            .returning(Seq(txo).asRight[GE].pure[F])
+            .returning(List(txo).asRight[GE].pure[F])
 
           for {
             res <- underTest.getTxosByLockAddress(QueryByLockAddressRequest(lockAddress), new Metadata())
