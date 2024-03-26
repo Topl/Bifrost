@@ -16,7 +16,7 @@ import co.topl.genus.services._
 import com.orientechnologies.orient.core.sql.OCommandSQL
 import com.orientechnologies.orient.core.sql.query.OSQLSynchQuery
 import com.tinkerpop.blueprints.Vertex
-import com.tinkerpop.blueprints.impls.orient.{OrientDynaElementIterable, OrientGraphNoTx, OrientVertex}
+import com.tinkerpop.blueprints.impls.orient.{OrientBaseGraph, OrientDynaElementIterable, OrientVertex}
 
 import scala.jdk.CollectionConverters._
 import scala.util.Try
@@ -24,7 +24,7 @@ import scala.util.Try
 object GraphVertexFetcher {
 
   def make[F[_]: OrientThread](
-    orientGraph: OrientGraphNoTx
+    orientGraph: OrientBaseGraph
   ): Resource[F, VertexFetcherAlgebra[F]] =
     Resource.pure {
       new VertexFetcherAlgebra[F] {

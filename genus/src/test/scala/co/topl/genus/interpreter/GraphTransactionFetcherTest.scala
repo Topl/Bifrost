@@ -16,7 +16,7 @@ import co.topl.genus.orientDb.OrientThread
 import co.topl.genus.orientDb.instances.{SchemaBlockHeader, SchemaIoTransaction, SchemaTxo}
 import co.topl.genus.services._
 import co.topl.models.generators.consensus.ModelGenerators._
-import com.tinkerpop.blueprints.{Direction, Vertex}
+import com.tinkerpop.blueprints.Vertex
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
@@ -346,11 +346,11 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             .once()
             .returning(Option(vertex).asRight[GE].pure[F])
 
-          _ = (vertex
-            .getVertices(_: Direction, _: String))
-            .expects(*, *)
+          _ = (vertexFetcher
+            .fetchTxosByLockAddress(_: Vertex, _: TxoState))
+            .expects(vertex, TxoState.SPENT)
             .once()
-            .returning(new java.util.LinkedList[Vertex]())
+            .returning(List.empty[Vertex].asRight[GE].pure[F])
 
           graphTransactionFetcher <- GraphTransactionFetcher.make[F](vertexFetcher)
           _ <- assertIO(
@@ -369,9 +369,7 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
 
     PropF.forAllF {
       (
-        lockAddress:              LockAddress,
-        transactionOutputAddress: TransactionOutputAddress,
-        transactionOutput:        UnspentTransactionOutput
+        lockAddress: LockAddress
       ) =>
         withMock {
 
@@ -379,40 +377,17 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
             implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
             vertexFetcher                            <- mock[VertexFetcherAlgebra[F]].pure[F].toResource
             lockAddressVertex = mock[Vertex]
-            txoVertex = mock[Vertex]
 
             _ = (vertexFetcher.fetchLockAddress _)
               .expects(lockAddress)
               .once()
               .returning(Option(lockAddressVertex).asRight[GE].pure[F])
 
-            _ = (txoVertex.getProperty[Array[Byte]] _)
-              .expects(SchemaTxo.Field.TransactionOutput)
+            _ = (vertexFetcher
+              .fetchTxosByLockAddress(_: Vertex, _: TxoState))
+              .expects(lockAddressVertex, TxoState.SPENT)
               .once()
-              .returning(transactionOutput.toByteArray)
-
-            _ = (txoVertex.getProperty[java.lang.Integer] _)
-              .expects(SchemaTxo.Field.State)
-              .once()
-              .returning(TxoState.UNSPENT.value)
-
-            _ = (txoVertex.getProperty[java.lang.Integer] _)
-              .expects(SchemaTxo.Field.SpendingInputIndex)
-              .once()
-              .returning(null)
-
-            _ = (txoVertex.getProperty[Array[Byte]] _)
-              .expects(SchemaTxo.Field.OutputAddress)
-              .once()
-              .returning(transactionOutputAddress.toByteArray)
-
-            getVerticesRes = new java.util.LinkedList[Vertex]
-            _ = getVerticesRes.add(txoVertex)
-            _ = (lockAddressVertex
-              .getVertices(_: Direction, _: String))
-              .expects(*, *)
-              .once()
-              .returning(getVerticesRes)
+              .returning(List.empty[Vertex].asRight[GE].pure[F])
 
             graphTransactionFetcher <- GraphTransactionFetcher.make[F](vertexFetcher)
             _ <- assertIO(
@@ -481,13 +456,11 @@ class GraphTransactionFetcherTest extends CatsEffectSuite with ScalaCheckEffectS
               .once()
               .returning(transactionOutputAddress.toByteArray)
 
-            getVerticesRes = new java.util.LinkedList[Vertex]
-            _ = getVerticesRes.add(txoVertex)
-            _ = (lockAddressVertex
-              .getVertices(_: Direction, _: String))
-              .expects(*, *)
+            _ = (vertexFetcher
+              .fetchTxosByLockAddress(_: Vertex, _: TxoState))
+              .expects(lockAddressVertex, TxoState.SPENT)
               .once()
-              .returning(getVerticesRes)
+              .returning(List(txoVertex).asRight[GE].pure[F])
 
             graphTransactionFetcher <- GraphTransactionFetcher.make[F](vertexFetcher)
             txos <- EitherT(graphTransactionFetcher.fetchTransactionByLockAddress(lockAddress, TxoState.SPENT))

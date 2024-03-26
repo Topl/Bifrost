@@ -59,7 +59,7 @@ object VertexSchema {
 
       def decode(vertex: Vertex): T = {
         vertex match {
-          case o: OrientVertex => o.reload()
+          case o: OrientVertex => scala.util.Try(o.reload())
           case _               =>
         }
         decoder(new DecodeHelper(vertex))

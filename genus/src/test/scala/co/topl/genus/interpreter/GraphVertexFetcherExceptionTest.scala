@@ -2,8 +2,8 @@ package co.topl.genus.interpreter
 
 import cats.effect.{IO, Resource, Sync}
 import cats.implicits._
-import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.brambl.generators.ModelGenerators._
+import co.topl.brambl.models.{LockAddress, TransactionOutputAddress}
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockHeader
 import co.topl.genus.model.{GE, GEs}
@@ -26,16 +26,13 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
   test("On fetchHeader with throwable response, a MessageWithCause should be returned") {
 
     val expectedTh = new IllegalStateException("boom!")
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def command(sql: OCommandRequest) = throw expectedTh
-    }
 
     PropF.forAllF { (header: BlockHeader) =>
       withMock {
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-          orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          orientGraphNoTx                          <- throwableOrientGraphResource(expectedTh)
+          graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeader(header.id),
             (GEs.InternalMessageCause("GraphVertexFetcher:fetchHeader", expectedTh): GE)
@@ -50,17 +47,14 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
 
   test("On fetchHeaderByHeight with throwable response, a MessageWithCause should be returned") {
 
-    val expectedTh = new IllegalStateException("boom!")
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def getVertices(label: String, iKey: Array[String], iValue: Array[AnyRef]) = throw expectedTh
-    }
-
     PropF.forAllF { (height: Long) =>
       withMock {
+        val expectedTh = new IllegalStateException("boom!")
+
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-          orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          orientGraphNoTx                          <- throwableOrientGraphResource(expectedTh)
+          graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchHeaderByHeight(height),
             (GEs.InternalMessageCause("GraphVertexFetcher:fetchHeaderByHeight", expectedTh): GE)
@@ -77,14 +71,10 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
 
     val expectedTh = new IllegalStateException("boom!")
 
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def command(sql: OCommandRequest) = throw expectedTh
-    }
-
     withMock {
       val res = for {
         implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-        orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+        orientGraphNoTx                          <- throwableOrientGraphResource(expectedTh)
         vertex                                   <- mock[Vertex].pure[F].toResource
         graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
@@ -103,17 +93,12 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
 
     val expectedTh = new IllegalStateException("boom!")
 
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def getVertices(label: String, iKey: Array[String], iValue: Array[AnyRef]) = throw expectedTh
-    }
-
     withMock {
       val res = for {
         implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-        orientGraphNoTx                          <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
+        orientGraphNoTx                          <- throwableOrientGraphResource(expectedTh)
         vertex                                   <- mock[Vertex].pure[F].toResource
-        _ = (() => vertex.getId).expects().once().returning(new Object())
-        graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+        graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
         _ <- assertIO(
           graphVertexFetcher.fetchTransactions(vertex),
           (GEs.InternalMessageCause("GraphVertexFetcher:fetchTransactions", expectedTh): GE)
@@ -129,16 +114,13 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
   test("On fetchLockAddress with throwable response, a MessageWithCause should be returned") {
 
     val expectedTh = new IllegalStateException("boom!")
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def getVertices(iKey: String, iValue: Object) = throw expectedTh
-    }
 
     PropF.forAllF { (lockAddress: LockAddress) =>
       withMock {
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-          orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          orientGraphNoTx                          <- throwableOrientGraphResource(expectedTh)
+          graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchLockAddress(lockAddress),
             (GEs.InternalMessageCause("GraphVertexFetcher:fetchLockAddress", expectedTh): GE)
@@ -154,16 +136,13 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
   test("On fetchTxo with throwable response, a MessageWithCause should be returned") {
 
     val expectedTh = new IllegalStateException("boom!")
-    val g: OrientGraphNoTx = new OrientGraphNoTx("memory:test") {
-      override def getVertices(iKey: String, iValue: Object) = throw expectedTh
-    }
 
     PropF.forAllF { (transactionOutputAddress: TransactionOutputAddress) =>
       withMock {
         val res = for {
           implicit0(orientThread: OrientThread[F]) <- OrientThread.create[F]
-          orientGraphNoTx    <- Resource.make(Sync[F].blocking(g))(g => Sync[F].delay(g.shutdown()))
-          graphVertexFetcher <- GraphVertexFetcher.make[F](orientGraphNoTx)
+          orientGraphNoTx                          <- throwableOrientGraphResource(expectedTh)
+          graphVertexFetcher                       <- GraphVertexFetcher.make[F](orientGraphNoTx)
           _ <- assertIO(
             graphVertexFetcher.fetchTxo(transactionOutputAddress),
             (GEs.InternalMessageCause("GraphVertexFetcher:fetchTxo", expectedTh): GE)
@@ -175,5 +154,10 @@ class GraphVertexFetcherExceptionTest extends CatsEffectSuite with ScalaCheckEff
       }
     }
   }
+
+  private def throwableOrientGraphResource(throwable: => Throwable): Resource[IO, OrientGraphNoTx] =
+    Resource.make(Sync[F].blocking(new OrientGraphNoTx("memory:test") {
+      override def command(sql: OCommandRequest): OCommandRequest = throw throwable
+    }))(g => Sync[F].delay(g.shutdown()))
 
 }
