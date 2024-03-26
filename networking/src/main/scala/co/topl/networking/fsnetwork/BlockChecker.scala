@@ -10,6 +10,7 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.ledger.algebras._
+import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.{BodyValidationError, StaticBodyValidationContext}
 import co.topl.networking.fsnetwork.BlockChecker.Message._

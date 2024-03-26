@@ -1,20 +1,20 @@
 package co.topl.minting.interpreters
 
-import cats.Show
 import cats.data.EitherT
 import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
+import co.topl.algebras.ContextlessValidationAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.brambl.validation.TransactionAuthorizationError
 import co.topl.brambl.validation.algebras.{TransactionAuthorizationVerifier, TransactionCostCalculator}
 import co.topl.catsutils._
 import co.topl.consensus.models.BlockId
 import co.topl.ledger.algebras._
+import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.{QuivrContext, RegistrationAccumulator}
-import co.topl.ledger.models.MempoolGraph
+import co.topl.ledger.models.{MempoolGraph, TransactionSemanticError}
 import co.topl.minting.algebras.BlockPackerAlgebra
 import co.topl.models._
 import co.topl.node.models.FullBlockBody
@@ -31,13 +31,13 @@ import scala.concurrent.duration._
 object BlockPacker {
 
   def make[F[_]: Async](
-    mempool:                            MempoolAlgebra[F],
-    boxState:                           BoxStateAlgebra[F],
-    transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
-    transactionCostCalculator:          TransactionCostCalculator[F],
-    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
-    emptyMempoolPollPeriod:             FiniteDuration = 1.second
+    mempool:                     MempoolAlgebra[F],
+    boxState:                    BoxStateAlgebra[F],
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    transactionCostCalculator:   TransactionCostCalculator[F],
+    blockPackerValidation:       BlockPackerValidation[F],
+    registrationAccumulator:     RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:      FiniteDuration = 1.second
   ): Resource[F, BlockPackerAlgebra[F]] =
     Resource.pure(
       new Impl(
@@ -45,20 +45,20 @@ object BlockPacker {
         boxState,
         transactionRewardCalculator,
         transactionCostCalculator,
-        transactionAuthorizationValidation,
+        blockPackerValidation,
         registrationAccumulator,
         emptyMempoolPollPeriod
       )
     )
 
   private class Impl[F[_]: Async](
-    mempool:                            MempoolAlgebra[F],
-    boxState:                           BoxStateAlgebra[F],
-    transactionRewardCalculator:        TransactionRewardCalculatorAlgebra[F],
-    transactionCostCalculator:          TransactionCostCalculator[F],
-    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F],
-    registrationAccumulator:            RegistrationAccumulatorAlgebra[F],
-    emptyMempoolPollPeriod:             FiniteDuration
+    mempool:                     MempoolAlgebra[F],
+    boxState:                    BoxStateAlgebra[F],
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    transactionCostCalculator:   TransactionCostCalculator[F],
+    blockPackerValidation:       BlockPackerValidation[F],
+    registrationAccumulator:     RegistrationAccumulatorAlgebra[F],
+    emptyMempoolPollPeriod:      FiniteDuration
   ) extends BlockPackerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -108,7 +108,7 @@ object BlockPacker {
           private def filterValidTransactions(graph: MempoolGraph): F[FullBlockBody] =
             Logger[F].debug("Validating available transactions") >>
             graph.transactions.values.toList
-              .parTraverse(tx => transactionIsValid(tx).tupleLeft(tx))
+              .parTraverse(tx => blockPackerValidation.transactionIsValid(tx, height, slot).tupleLeft(tx))
               .flatMap(_.foldLeftM(graph) {
                 case (graph, (_, true)) =>
                   graph.pure[F]
@@ -318,27 +318,40 @@ object BlockPacker {
                   Sync[F].delay(doubleSpenders.foldLeft(graph)(_.removeSubtree(_)._1))
               }
 
-          /**
-           * Determines if the given transaction has proper authorization validation in the current context.
-           */
-          private def transactionIsValid(transaction: IoTransaction) =
-            EitherT(
-              transactionAuthorizationValidation.validate(QuivrContext.forProposedBlock(height, slot, transaction))(
-                transaction
-              )
-            )
-              .leftSemiflatTap(error =>
-                Logger[F].warn(show"Transaction id=${transaction.id} failed authorization validation. reason=$error")
-              )
-              .isRight
         }
       } yield iterative
   }
 
-  implicit val showAuthorizationError: Show[TransactionAuthorizationError] = {
-    case TransactionAuthorizationError.AuthorizationFailed(errors) => errors.mkString("[", ", ", "]")
-    case TransactionAuthorizationError.Contextual(error)           => s"Contextual($error)"
-    case TransactionAuthorizationError.Permanent(error)            => s"Permanent($error)"
-  }
+}
 
+trait BlockPackerValidation[F[_]] {
+
+  def transactionIsValid(transaction: IoTransaction, height: Long, slot: Slot): F[Boolean]
+
+}
+
+object BlockPackerValidation {
+
+  def make[F[_]: Async](
+    transactionDataValidation:          ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction],
+    transactionAuthorizationValidation: TransactionAuthorizationVerifier[F]
+  ): Resource[F, BlockPackerValidation[F]] = {
+
+    implicit val logger: SelfAwareStructuredLogger[F] =
+      Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockPackerValidation")
+    Resource.pure((transaction: IoTransaction, height: Long, slot: Slot) =>
+      (
+        EitherT(transactionDataValidation.validate(transaction).map(_.toEither)).leftMap(_.show) >>
+        EitherT(
+          transactionAuthorizationValidation.validate(QuivrContext.forProposedBlock(height, slot, transaction))(
+            transaction
+          )
+        ).leftMap(_.show)
+      )
+        .leftSemiflatTap(error =>
+          Logger[F].warn(show"Transaction id=${transaction.id} failed validation. reason=$error")
+        )
+        .isRight
+    )
+  }
 }

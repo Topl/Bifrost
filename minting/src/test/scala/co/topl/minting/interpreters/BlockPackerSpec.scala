@@ -1,31 +1,30 @@
 package co.topl.minting.interpreters
 
-import munit.CatsEffectSuite
-import munit.ScalaCheckEffectSuite
+import cats.effect.{IO, Resource}
 import cats.implicits._
-import org.scalamock.munit.AsyncMockFactory
-import cats.effect.IO
-import co.topl.ledger.algebras._
-import co.topl.consensus.models.BlockId
-import co.topl.ledger.models.{MempoolGraph, RewardQuantities}
-import co.topl.brambl.validation.algebras._
-import co.topl.brambl.syntax._
-import co.topl.models.generators.consensus.ModelGenerators
-import co.topl.models.ModelGenerators._
-import co.topl.node.models.FullBlockBody
-
-import scala.concurrent.duration._
-import java.util.concurrent.TimeoutException
-import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.algebras.ContextlessValidationAlgebra
+import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models._
-import co.topl.brambl.models.transaction.UnspentTransactionOutput
-import co.topl.brambl.models.box.Value
-import com.google.protobuf.ByteString
-import quivr.models.Int128
-import co.topl.brambl.models.transaction.SpentTransactionOutput
-import co.topl.quivr.runtime.DynamicContext
-import co.topl.brambl.models.box.Attestation
+import co.topl.brambl.models.box.{Attestation, Value}
+import co.topl.brambl.models.transaction.{IoTransaction, SpentTransactionOutput, UnspentTransactionOutput}
+import co.topl.brambl.syntax._
 import co.topl.brambl.validation.TransactionAuthorizationError
+import co.topl.brambl.validation.algebras._
+import co.topl.consensus.models.BlockId
+import co.topl.ledger.algebras._
+import co.topl.ledger.models.{MempoolGraph, RewardQuantities, TransactionSemanticError, TransactionSemanticErrors}
+import co.topl.models.ModelGenerators._
+import co.topl.models.Slot
+import co.topl.models.generators.consensus.ModelGenerators
+import co.topl.node.models.FullBlockBody
+import co.topl.quivr.runtime.DynamicContext
+import com.google.protobuf.ByteString
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalamock.munit.AsyncMockFactory
+import quivr.models.Int128
+
+import java.util.concurrent.TimeoutException
+import scala.concurrent.duration._
 
 class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -46,7 +45,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             mock[BoxStateAlgebra[F]],
             mock[TransactionRewardCalculatorAlgebra[F]],
             mock[TransactionCostCalculator[F]],
-            mock[TransactionAuthorizationVerifier[F]],
+            mock[BlockPackerValidation[F]],
             mock[RegistrationAccumulatorAlgebra[F]]
           )
           iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
@@ -135,14 +134,12 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .returning(RewardQuantities(BigInt(100)).pure[F])
       val costCalculator = mock[TransactionCostCalculator[F]]
       (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
-      val authorizationVerifier = mock[TransactionAuthorizationVerifier[F]]
-      (authorizationVerifier
-        .validate(_: DynamicContext[F, String, Datum])(_: IoTransaction))
-        .expects(*, *)
+      val validation = mock[BlockPackerValidation[F]]
+      (validation
+        .transactionIsValid(_: IoTransaction, _: Long, _: Slot))
+        .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (_: DynamicContext[F, String, Datum] @unchecked, tx: IoTransaction) =>
-          tx.asRight.pure[F]
-        }
+        .returns(true.pure[F])
       val registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
       val testResource =
         for {
@@ -151,7 +148,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             boxState,
             rewardCalculator,
             costCalculator,
-            authorizationVerifier,
+            validation,
             registrationAccumulator
           )
           iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
@@ -240,14 +237,14 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .returning(RewardQuantities(BigInt(100)).pure[F])
       val costCalculator = mock[TransactionCostCalculator[F]]
       (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
-      val authorizationVerifier = mock[TransactionAuthorizationVerifier[F]]
-      (authorizationVerifier
-        .validate(_: DynamicContext[F, String, Datum])(_: IoTransaction))
-        .expects(*, *)
+      val validation = mock[BlockPackerValidation[F]]
+      (validation
+        .transactionIsValid(_: IoTransaction, _: Long, _: Slot))
+        .expects(*, *, *)
         .anyNumberOfTimes()
-        .onCall { case (_: DynamicContext[F, String, Datum] @unchecked, tx: IoTransaction) =>
-          if (tx.id == tx3.id) Left(TransactionAuthorizationError.AuthorizationFailed()).pure[F]
-          else tx.asRight.pure[F]
+        .onCall { case (tx: IoTransaction, _: Long, _: Slot) =>
+          if (tx.id == tx3.id) false.pure[F]
+          else true.pure[F]
         }
       val registrationAccumulator = mock[RegistrationAccumulatorAlgebra[F]]
       val testResource =
@@ -257,7 +254,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             boxState,
             rewardCalculator,
             costCalculator,
-            authorizationVerifier,
+            validation,
             registrationAccumulator
           )
           iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
@@ -271,6 +268,85 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         } yield ()
 
       testResource.use_
+    }
+  }
+
+  test("validation") {
+    withMock {
+      val tx = IoTransaction(datum = Datum.IoTransaction.defaultInstance)
+
+      // Test: Invalid Data
+      val test1Resource =
+        for {
+          dataValidation <- Resource.pure[F, ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction]] {
+            val m = mock[ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction]]
+            val e: TransactionSemanticError =
+              TransactionSemanticErrors.InputDataMismatch(arbitrarySpentTransactionOutput.arbitrary.first)
+            (m.validate(_))
+              .expects(*)
+              .once()
+              .returning(e.invalidNec[IoTransaction].pure[F])
+            m
+          }
+          authValidation <- Resource.pure[F, TransactionAuthorizationVerifier[F]] {
+            val m = mock[TransactionAuthorizationVerifier[F]]
+            (m.validate(_: DynamicContext[F, String, Datum])(_: IoTransaction))
+              .expects(*, *)
+              .never()
+            m
+          }
+          underTest <- BlockPackerValidation.make[F](dataValidation, authValidation)
+          _         <- underTest.transactionIsValid(tx, 0, 0).map(!_).assert.toResource
+        } yield ()
+
+      // Test: Valid Data + Invalid Auth
+      val test2Resource =
+        for {
+          dataValidation <- Resource.pure[F, ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction]] {
+            val m = mock[ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction]]
+            (m.validate(_))
+              .expects(tx)
+              .once()
+              .returning(tx.validNec[TransactionSemanticError].pure[F])
+            m
+          }
+          authValidation <- Resource.pure[F, TransactionAuthorizationVerifier[F]] {
+            val m = mock[TransactionAuthorizationVerifier[F]]
+            val e: TransactionAuthorizationError =
+              TransactionAuthorizationError.AuthorizationFailed()
+            (m.validate(_: DynamicContext[F, String, Datum])(_: IoTransaction))
+              .expects(*, tx)
+              .once()
+              .returning(e.asLeft[IoTransaction].pure[F])
+            m
+          }
+          underTest <- BlockPackerValidation.make[F](dataValidation, authValidation)
+          _         <- underTest.transactionIsValid(tx, 0, 0).map(!_).assert.toResource
+        } yield ()
+
+      // Test: Valid Data + Valid Auth
+      val test3Resource =
+        for {
+          dataValidation <- Resource.pure[F, ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction]] {
+            val m = mock[ContextlessValidationAlgebra[F, TransactionSemanticError, IoTransaction]]
+            (m.validate(_))
+              .expects(tx)
+              .once()
+              .returning(tx.validNec[TransactionSemanticError].pure[F])
+            m
+          }
+          authValidation <- Resource.pure[F, TransactionAuthorizationVerifier[F]] {
+            val m = mock[TransactionAuthorizationVerifier[F]]
+            (m.validate(_: DynamicContext[F, String, Datum])(_: IoTransaction))
+              .expects(*, tx)
+              .once()
+              .returning(tx.asRight[TransactionAuthorizationError].pure[F])
+            m
+          }
+          underTest <- BlockPackerValidation.make[F](dataValidation, authValidation)
+          _         <- underTest.transactionIsValid(tx, 0, 0).assert.toResource
+        } yield ()
+      List(test1Resource, test2Resource, test3Resource).sequence.use_
     }
   }
 

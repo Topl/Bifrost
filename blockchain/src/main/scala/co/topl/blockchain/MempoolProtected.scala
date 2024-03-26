@@ -7,6 +7,7 @@ import co.topl.brambl.models.TransactionId
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.ledger.algebras.{MempoolAlgebra, TransactionSemanticValidationAlgebra}
 import co.topl.ledger.models._
+import co.topl.ledger.implicits._
 import cats.implicits._
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
@@ -15,9 +16,7 @@ import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 import co.topl.ledger.interpreters.QuivrContext
-import cats.Show
 import cats.effect.std.Semaphore
-import co.topl.brambl.validation.TransactionAuthorizationError
 import co.topl.config.ApplicationConfig.Bifrost.MempoolProtection
 
 object MempoolProtected {
@@ -108,8 +107,6 @@ object MempoolProtected {
           }
       }
 
-    implicit val semanticError: Show[TransactionSemanticError] = (e: TransactionSemanticError) => e.toString
-
     private def doSemanticCheck(currentHeader: BlockHeader, graph: MempoolGraph, meta: MempoolMetadata)(
       txToValidate: IoTransaction
     ): EitherT[F, String, IoTransaction] = {
@@ -130,13 +127,11 @@ object MempoolProtected {
       )
     }
 
-    implicit val authError: Show[TransactionAuthorizationError] = (e: TransactionAuthorizationError) => e.toString
-
     private def doAuthCheck(
       currentHeader: BlockHeader
     )(txToValidate: IoTransaction): EitherT[F, String, IoTransaction] = {
       val authContext = QuivrContext.forProposedBlock(currentHeader.height, currentHeader.slot, txToValidate)
-      EitherT(transactionAuthorizationVerifier.validate(authContext)(txToValidate).map(_.leftMap(e => show"$e")))
+      EitherT(transactionAuthorizationVerifier.validate(authContext)(txToValidate).map(_.leftMap(_.show)))
     }
   }
 

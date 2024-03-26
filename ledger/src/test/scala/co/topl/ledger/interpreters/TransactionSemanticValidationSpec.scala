@@ -9,11 +9,10 @@ import co.topl.brambl.models.box.Value
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
 import co.topl.consensus.models.BlockId
-import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
-import munit.CatsEffectSuite
-import munit.ScalaCheckEffectSuite
+import co.topl.models.generators.consensus.ModelGenerators._
+import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 
@@ -31,13 +30,15 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
             .update(_.datum.event.schedule.min.set(0))
             .update(_.datum.event.schedule.max.set(4))
           for {
-            fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
-            boxState         <- mock[BoxStateAlgebra[F]].pure[F]
-            underTest        <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            _ <- underTest
-              .validate(StaticTransactionValidationContext(blockId, Nil, 1, 5))(transactionB)
-              .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnsatisfiedSchedule]))
-              .assert
+            boxState <- mock[BoxStateAlgebra[F]].pure[F]
+            underTest = TransactionSemanticValidation.makeContextualValidation[F](boxState)
+            _ <- underTest.use(
+              _.validate(StaticTransactionValidationContext(blockId, Nil, 1, 5))(transactionB)
+                .map(
+                  _.toEither.swap.toOption.get.exists(_.isInstanceOf[TransactionSemanticErrors.UnsatisfiedSchedule])
+                )
+                .assert
+            )
           } yield ()
         }
     }
@@ -59,13 +60,14 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .expects(*, *)
               .anyNumberOfTimes()
               .returning(true.pure[F])
-            underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            _ <- underTest
-              .validate(StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min))(
+            underTest = TransactionSemanticValidation.make[F](fetchTransaction, boxState)
+            _ <- underTest.use(
+              _.validate(StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min))(
                 transactionB
               )
-              .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox]))
-              .assert
+                .map(_.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox]))
+                .assert
+            )
           } yield ()
         }
     }
@@ -110,10 +112,12 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .expects(*, *)
               .anyNumberOfTimes()
               .returning(true.pure[F])
-            underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
+            underTest = TransactionSemanticValidation.make[F](fetchTransaction, boxState)
             result <- underTest
-              .validate(StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min))(
-                transactionB
+              .use(
+                _.validate(StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min))(
+                  transactionB
+                )
               )
             _ <- IO(
               if (transactionA.outputs.headOption.get.value != transactionB.inputs.headOption.get.value)
@@ -154,10 +158,12 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .expects(*, *)
               .anyNumberOfTimes()
               .returning(true.pure[F])
-            underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result <- underTest.validate(
-              StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min)
-            )(transactionB)
+            underTest = TransactionSemanticValidation.make[F](fetchTransaction, boxState)
+            result <- underTest.use(
+              _.validate(
+                StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min)
+              )(transactionB)
+            )
             _ <- IO(
               result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.InputDataMismatch])
             ).assert
@@ -204,10 +210,12 @@ class TransactionSemanticValidationSpec extends CatsEffectSuite with ScalaCheckE
               .expects(blockId, transactionA.id.outputAddress(0, 0, 0))
               .once()
               .returning(false.pure[F])
-            underTest <- TransactionSemanticValidation.make[F](fetchTransaction, boxState)
-            result <- underTest.validate(
-              StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min)
-            )(transactionB)
+            underTest = TransactionSemanticValidation.make[F](fetchTransaction, boxState)
+            result <- underTest.use(
+              _.validate(
+                StaticTransactionValidationContext(blockId, Nil, 1, transactionB.datum.event.schedule.min)
+              )(transactionB)
+            )
             _ <- IO(
               result.toEither.swap.getOrElse(???).exists(_.isInstanceOf[TransactionSemanticErrors.UnspendableBox])
             ).assert

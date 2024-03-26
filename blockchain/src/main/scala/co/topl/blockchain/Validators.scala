@@ -71,7 +71,6 @@ object Validators {
       transactionSyntaxValidation = TransactionSyntaxInterpreter.make[F]()
       transactionSemanticValidation <- TransactionSemanticValidation
         .make[F](dataStores.transactions.getOrRaise, boxState)
-        .toResource
       transactionAuthorizationValidation = TransactionAuthorizationInterpreter.make[F]()
       rewardCalculator <- TransactionRewardCalculator.make[F]
       bodySyntaxValidation <- BodySyntaxValidation
