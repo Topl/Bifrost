@@ -34,6 +34,6 @@ trait TransactionFetcherAlgebra[F[_]] {
    * @param state TxoState filterb y field
    * @return Txos, an empty sequence if lockAddress and state filter matches empty results
    */
-  def fetchTransactionByLockAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]]
+  def fetchTransactionByLockAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, List[Txo]]]
 
 }

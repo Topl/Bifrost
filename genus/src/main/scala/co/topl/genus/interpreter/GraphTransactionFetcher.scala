@@ -8,19 +8,20 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.models.{LockAddress, TransactionId}
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.algebras.{TransactionFetcherAlgebra, VertexFetcherAlgebra}
-import co.topl.genus.model.{GE, GEs}
-import co.topl.genus.orientDb.instances.SchemaBlockHeader
-import co.topl.genus.services._
+import co.topl.genus.model.GE
+import co.topl.genus.orientDb.OrientThread
+import co.topl.genus.orientDb.instances.{SchemaBlockHeader, VertexSchemaInstances}
 import co.topl.genus.orientDb.instances.VertexSchemaInstances.instances._
-import co.topl.genus.orientDb.schema.EdgeSchemaInstances.addressTxoEdge
-import com.tinkerpop.blueprints.{Direction, Vertex}
+import co.topl.genus.services._
+import com.tinkerpop.blueprints.Vertex
 
-import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 object GraphTransactionFetcher {
 
-  def make[F[_]: Async](vertexFetcher: VertexFetcherAlgebra[F]): Resource[F, TransactionFetcherAlgebra[F]] =
+  def make[F[_]: Async: OrientThread](
+    vertexFetcher: VertexFetcherAlgebra[F]
+  ): Resource[F, TransactionFetcherAlgebra[F]] =
     Resource.pure {
       new TransactionFetcherAlgebra[F] {
 
@@ -60,19 +61,21 @@ object GraphTransactionFetcher {
 
         }
 
-        override def fetchTransactionByLockAddress(lockAddress: LockAddress, state: TxoState): F[Either[GE, Seq[Txo]]] =
+        override def fetchTransactionByLockAddress(
+          lockAddress: LockAddress,
+          state:       TxoState
+        ): F[Either[GE, List[Txo]]] =
           (for {
             lockAddressVertex <- EitherT(vertexFetcher.fetchLockAddress(lockAddress))
             txos <-
-              EitherT.fromEither[F](
-                Try(
-                  lockAddressVertex.toSeq
-                    .flatMap(_.getVertices(Direction.OUT, addressTxoEdge.label).asScala)
-                    .map(txoSchema.decode)
-                    .filter(_.state.value == state.value)
-                ).toEither
-                  .leftMap[GE](tx =>
-                    GEs.InternalMessageCause("GraphTransactionFetcher:fetchTransactionByLockAddress", tx)
+              lockAddressVertex.fold[EitherT[F, GE, List[Txo]]](
+                EitherT.pure(Nil: List[Txo])
+              )(lockAddressVertex =>
+                EitherT(
+                  vertexFetcher.fetchTxosByLockAddress(lockAddressVertex, state)
+                )
+                  .semiflatMap(vertices =>
+                    OrientThread[F].delay(vertices.map(VertexSchemaInstances.instances.txoSchema.decode))
                   )
               )
           } yield txos).value

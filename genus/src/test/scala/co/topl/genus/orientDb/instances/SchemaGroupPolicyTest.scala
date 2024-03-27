@@ -74,9 +74,12 @@ class SchemaGroupPolicyTest
       seriesPolicy = SeriesPolicy(label = "Crypto Frogs series", tokenSupply = None, registrationUtxo)
       groupPolicy = GroupPolicy(label = "Crypto Frogs", registrationUtxo, Some(seriesPolicy.computeId))
 
-      vertex_test_1 <- oThread
-        .delay(dbTx.addVertex(s"class:${groupPolicySchema.name}", groupPolicySchema.encode(groupPolicy).asJava))
-        .toResource
+      vertex_test_1 <- oThread.delay {
+        val v = dbTx.addVertex(s"class:${groupPolicySchema.name}", groupPolicySchema.encode(groupPolicy).asJava)
+        v.save()
+        dbTx.commit()
+        v
+      }.toResource
 
       _ = assert(
         vertex_test_1

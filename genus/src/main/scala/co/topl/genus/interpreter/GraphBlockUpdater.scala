@@ -75,22 +75,12 @@ object GraphBlockUpdater {
 
                     def insertTx(ioTx: IoTransaction, isReward: Boolean): Unit = {
                       val ioTxVertex = graph.addIoTx(ioTx)
-                      ioTxVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex)
+                      ioTxVertex.setProperty(SchemaIoTransaction.Field.ParentBlock, headerVertex)
                       ioTxVertex.setProperty(SchemaIoTransaction.Field.IsReward, isReward)
                       if (isReward) {
-                        graph.addEdge(
-                          s"class:${blockHeaderRewardEdge.name}",
-                          headerVertex,
-                          ioTxVertex,
-                          blockHeaderRewardEdge.label
-                        )
+                        headerVertex.addEdge(blockHeaderRewardEdge.label, ioTxVertex)
                       } else {
-                        graph.addEdge(
-                          s"class:${blockHeaderTxIOEdge.name}",
-                          headerVertex,
-                          ioTxVertex,
-                          blockHeaderTxIOEdge.label
-                        )
+                        headerVertex.addEdge(blockHeaderTxIOEdge.label, ioTxVertex)
 
                         // Lookup previous unspent TXOs, and update the state
                         ioTx.inputs.zipWithIndex.foreach { case (spentTransactionOutput, inputIndex) =>
@@ -120,13 +110,7 @@ object GraphBlockUpdater {
                           else graph.addLockAddress(utxo.address)
 
                         }
-                        graph
-                          .addEdge(
-                            s"class:${addressTxIOEdge.name}",
-                            lockAddressVertex,
-                            ioTxVertex,
-                            addressTxIOEdge.label
-                          )
+                        lockAddressVertex.addEdge(addressTxIOEdge.label, ioTxVertex)
 
                         val txoVertex = graph.addTxo(
                           Txo(
@@ -135,10 +119,7 @@ object GraphBlockUpdater {
                             TransactionOutputAddress(utxo.address.network, utxo.address.ledger, index, ioTx.id)
                           )
                         )
-                        ioTxVertex.setProperty(ioTransactionSchema.links.head.propertyName, headerVertex)
-                        graph
-                          .addEdge(s"class:${addressTxoEdge.name}", lockAddressVertex, txoVertex, addressTxoEdge.label)
-
+                        lockAddressVertex.addEdge(addressTxoEdge.label, txoVertex)
                       }
 
                       ioTx.groupPolicies.map(_.event).map { policy =>

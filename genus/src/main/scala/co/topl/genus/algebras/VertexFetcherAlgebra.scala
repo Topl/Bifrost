@@ -3,7 +3,7 @@ package co.topl.genus.algebras
 import co.topl.brambl.models.{GroupId, LockAddress, SeriesId, TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.BlockId
 import co.topl.genus.model.GE
-import co.topl.genus.services.{BlockStats, BlockchainSizeStats, TxoStats}
+import co.topl.genus.services.{BlockStats, BlockchainSizeStats, TxoState, TxoStats}
 import com.tinkerpop.blueprints.Vertex
 
 /**
@@ -58,7 +58,7 @@ trait VertexFetcherAlgebra[F[_]] {
    * @param headerVertex filter by field
    * @return transactions vertices
    */
-  def fetchTransactions(headerVertex: Vertex): F[Either[GE, Iterable[Vertex]]]
+  def fetchTransactions(headerVertex: Vertex): F[Either[GE, List[Vertex]]]
 
   /**
    * Fetch the optional "Reward" Transaction Vertex associated with the given BlockHeader
@@ -90,6 +90,13 @@ trait VertexFetcherAlgebra[F[_]] {
    * @return Optional Txo vertex, None if it was not found
    */
   def fetchTxo(transactionOutputAddress: TransactionOutputAddress): F[Either[GE, Option[Vertex]]]
+
+  /**
+   * Fetch Txo Vertices associated with the given LockAddress
+   * @param lockAddressVertex the LockAddress vertex which contains edges to TxO vertices
+   * @return Txo vertices
+   */
+  def fetchTxosByLockAddress(lockAddressVertex: Vertex, state: TxoState): F[Either[GE, List[Vertex]]]
 
   /**
    * Fetch Txo Stats
