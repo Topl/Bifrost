@@ -28,7 +28,7 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
     PropF.forAllF(Gen.posNum[Long]) { headHeight =>
       PropF.forAllF(Gen.chooseNum[Long](1, headHeight)) { ancestorHeight =>
         val client = new BlockchainPeerClient[F] {
-          def remotePeer: F[ConnectedPeer] = ???
+          def remotePeer: ConnectedPeer = ???
 
           def remotePeerAsServer: F[Option[KnownHost]] = ???
 

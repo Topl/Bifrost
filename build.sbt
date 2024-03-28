@@ -62,15 +62,7 @@ lazy val dockerSettings = Seq(
       alias.withRegistryHost(Some("docker.io/toplprotocol")),
       alias.withRegistryHost(Some("ghcr.io/topl"))
     )
-  },
-  dockerAliases ++= (
-    if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
-      Seq(
-        DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
-        DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
-      )
-    else Seq()
-  )
+  }
 )
 
 lazy val nodeDockerSettings =
@@ -83,7 +75,30 @@ lazy val nodeDockerSettings =
       "BIFROST_APPLICATION_DATA_DIR"    -> "/bifrost/data/{genesisBlockId}",
       "BIFROST_APPLICATION_STAKING_DIR" -> "/bifrost-staking/{genesisBlockId}",
       "BIFROST_CONFIG_FILE"             -> "/bifrost/config/user.yaml"
-    )
+    ),
+    dockerAliases ++= (
+      if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
+        Seq(
+          DockerAlias(Some("docker.io"), Some("toplprotocol"), "bifrost-node", Some("dev")),
+          DockerAlias(Some("ghcr.io"), Some("topl"), "bifrost-node", Some("dev"))
+        )
+      else Seq()
+      )
+  )
+
+lazy val genusDockerSettings =
+  dockerSettings ++ Seq(
+    dockerExposedPorts := Seq(9084),
+    Docker / packageName := "genus",
+    dockerExposedVolumes += "/genus",
+    dockerAliases ++= (
+      if (sys.env.get("DOCKER_PUBLISH_DEV_TAG").fold(false)(_.toBoolean))
+        Seq(
+          DockerAlias(Some("docker.io"), Some("toplprotocol"), "genus", Some("dev")),
+          DockerAlias(Some("ghcr.io"), Some("topl"), "genus", Some("dev"))
+        )
+      else Seq()
+      )
   )
 
 lazy val networkDelayerDockerSettings =
@@ -192,7 +207,7 @@ lazy val bifrost = project
     levelDbStore,
     commonApplication,
     networkDelayer,
-    genusLibrary,
+    genus,
     transactionGenerator,
     testnetSimulationOrchestrator
   )
@@ -228,7 +243,7 @@ lazy val node = project
     blockchain,
     levelDbStore,
     commonApplication,
-    genusLibrary
+    genus
   )
   .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
   .settings(scalamacrosParadiseSettings)
@@ -645,26 +660,30 @@ lazy val catsUtils = project
   )
   .settings(scalamacrosParadiseSettings)
 
-lazy val genusLibrary = project
-  .in(file("genus-library"))
-  .enablePlugins(BuildInfoPlugin)
+lazy val genus = project
+  .in(file("genus"))
   .settings(
-    name := "genus-library",
+    name := "genus",
     commonSettings,
     scalamacrosParadiseSettings,
+    publish / skip := true,
     crossScalaVersions := Seq(scala213),
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "co.topl.buildinfo.genusLibrary",
-    libraryDependencies ++= Dependencies.genusLibrary
+    buildInfoPackage := "co.topl.buildinfo.genus",
+    libraryDependencies ++= Dependencies.genus
   )
+  .settings(genusDockerSettings)
   .dependsOn(
     typeclasses,
     models % "compile->compile;test->test",
     tetraByteCodecs,
     toplGrpc,
+    commonInterpreters,
+    commonApplication,
     munitScalamock % "test->test",
     numerics       % "test->compile"
   )
+  .enablePlugins(BuildInfoPlugin, JavaAppPackaging, DockerPlugin)
 
 lazy val munitScalamock = project
   .in(file("munit-scalamock"))

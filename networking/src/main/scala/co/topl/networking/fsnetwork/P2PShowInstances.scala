@@ -2,17 +2,14 @@ package co.topl.networking.fsnetwork
 
 import cats.Show
 import cats.implicits.showInterpolator
-import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
-import co.topl.consensus.models.{BlockHeaderToBodyValidationFailure, BlockHeaderValidationFailure}
-import co.topl.ledger.models.{BodyAuthorizationError, BodySemanticError, BodySyntaxError, BodyValidationError}
+import co.topl.consensus.models._
 import co.topl.models.utility.byteStringToByteVector
 import co.topl.networking.fsnetwork.NetworkQualityError._
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
 import co.topl.networking.p2p.ConnectedPeer
-import co.topl.networking.p2p.RemoteAddress.showRemoteAddress
-import co.topl.node.models.{CurrentKnownHostsReq, PingMessage}
+import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import java.time._
 
@@ -23,25 +20,10 @@ trait P2PShowInstances {
 
   implicit val showConnectedPeer: Show[ConnectedPeer] = cp => cp.toString
 
-  implicit val showTransactionSyntaxError: Show[TransactionSyntaxError] =
-    Show.fromToString
-
   implicit val showBlockHeaderValidationFailure: Show[BlockHeaderValidationFailure] =
     Show.fromToString
 
-  implicit val showBodySyntaxError: Show[BodySyntaxError] =
-    Show.fromToString
-
-  implicit val showBodySemanticError: Show[BodySemanticError] =
-    Show.fromToString
-
-  implicit val showBodyAuthorizationError: Show[BodyAuthorizationError] =
-    Show.fromToString
-
   implicit val showHeaderToBodyError: Show[BlockHeaderToBodyValidationFailure] =
-    Show.fromToString
-
-  implicit val showBodyValidationError: Show[BodyValidationError] =
     Show.fromToString
 
   implicit val showKnownHostReq: Show[CurrentKnownHostsReq] = req => s"CurrentKnownHostsReq(maxCount=${req.maxCount})"
@@ -102,6 +84,10 @@ trait P2PShowInstances {
 
   implicit val remotePeerShow: Show[KnownRemotePeer] = { remotePeer: KnownRemotePeer =>
     s"Remote peer: ${remotePeer.address}"
+  }
+
+  implicit val KnownHostShow: Show[KnownHost] = { knownHost: KnownHost =>
+    show"Known host(id=${knownHost.id}, host=${knownHost.host}, port=${knownHost.port})"
   }
 
   // TODO work with multi level classes

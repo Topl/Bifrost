@@ -66,7 +66,7 @@ object Args {
     )
     rpcBindHost: Option[String] = None,
     @arg(
-      doc = "The port to bind to for the RPC layer (i.e. 9085)"
+      doc = "The port to bind to for the RPC layer (i.e. 9084)"
     )
     rpcBindPort: Option[Int] = None,
     @arg(
@@ -74,7 +74,7 @@ object Args {
     )
     p2pBindHost: Option[String] = None,
     @arg(
-      doc = "The port to bind to for the P2P layer (i.e. 9084)"
+      doc = "The port to bind to for the P2P layer (i.e. 9085)"
     )
     p2pBindPort: Option[Int] = None,
     @arg(

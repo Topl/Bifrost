@@ -123,7 +123,7 @@ object ActorPeerHandlerBridgeAlgebraTest {
   class MempoolExt[F[_]: Async](transactions: Ref[F, Set[TransactionId]]) extends MempoolAlgebra[F] {
     override def read(blockId: BlockId): F[MempoolGraph] = ???
 
-    override def add(transactionId: TransactionId): F[Unit] = transactions.update(_ + transactionId)
+    override def add(transactionId: TransactionId): F[Boolean] = transactions.update(_ + transactionId) >> true.pure[F]
 
     override def remove(transactionId: TransactionId): F[Unit] = transactions.update(_ - transactionId)
 
@@ -175,7 +175,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       (() => client.remotePeer)
         .expects()
         .anyNumberOfTimes()
-        .returns(remoteConnectedPeer.pure[F])
+        .returns(remoteConnectedPeer)
 
       (() => client.remotePeerAdoptions).expects().once().onCall { () =>
         Stream.fromOption[F](Option.empty[BlockId]).pure[F]

@@ -1,5 +1,6 @@
 package co.topl.networking.fsnetwork
 
+import cats.implicits._
 import cats.effect.implicits._
 import cats.effect.{Async, Resource}
 import co.topl.algebras.{ClockAlgebra, Store}
@@ -18,6 +19,9 @@ import co.topl.node.models.BlockBody
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.typeclasses.implicits._
+import co.topl.node.models.KnownHost
+import co.topl.networking.fsnetwork.P2PShowInstances._
 
 object ActorPeerHandlerBridgeAlgebra {
 
@@ -77,13 +81,28 @@ object ActorPeerHandlerBridgeAlgebra {
         hotPeersUpdate
       )
 
-    networkManager.map(makeAlgebra)
+    networkManager.map(pm => makeAlgebra(pm))
   }
 
-  private def makeAlgebra[F[_]](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
+  private def makeAlgebra[F[_]: Async: Logger](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
     client: BlockchainPeerClient[F] =>
       for {
-        _ <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(client)).toResource
+        remoteId <- client.remotePeer.p2pVK.pure[F].toResource
+        remotePeerOpt <- client.remotePeerAsServer.handleErrorWith { e =>
+          Logger[F].error(show"Failed to get remote peer as server from $remoteId due ${e.toString}") >>
+          Option.empty[KnownHost].pure[F]
+        }.toResource
+
+        peerAsServer = remotePeerOpt match {
+          case Some(kh) if kh.id == remoteId => kh.some
+          case _                             => None
+        }
+
+        _ <-
+          if (remotePeerOpt.isDefined && peerAsServer.isEmpty)
+            Logger[F].warn(show"Remote peer $remoteId provide bad server info $remotePeerOpt").toResource
+          else Resource.pure[F, Unit](())
+        _ <- peersManager.sendNoWait(PeersManager.Message.OpenedPeerConnection(client, peerAsServer)).toResource
       } yield ()
   }
 }

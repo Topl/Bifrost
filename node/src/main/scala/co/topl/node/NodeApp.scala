@@ -299,16 +299,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           chainSelectionAlgebra,
           currentEventIdGetterSetters.canonicalHead.set
         )
-      (mempool, mempoolState) <- Mempool.make[F](
-        currentEventIdGetterSetters.mempool.get(),
-        dataStores.bodies.getOrRaise,
-        dataStores.transactions.getOrRaise,
-        blockIdTree,
-        currentEventIdGetterSetters.mempool.set,
-        clock,
-        id => Logger[F].info(show"Expiring transaction id=$id"),
-        appConfig.bifrost.mempool.defaultExpirationSlots
-      )
       staking =
         OptionT
           .liftF(StakingInit.stakingIsInitialized[F](stakingDir).toResource)
@@ -421,6 +411,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             .make[F](
               appConfig.bifrost.rpc.bindHost,
               appConfig.bifrost.rpc.bindPort,
+              nodeRpcTls = false,
               Some(appConfig.genus.orientDbDirectory)
                 .filterNot(_.isEmpty)
                 .getOrElse(dataStores.baseDirectory./("orient-db").toString),
@@ -467,6 +458,26 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         )
         .value
 
+      (mempool, mempoolState) <- Mempool.make[F](
+        currentEventIdGetterSetters.mempool.get(),
+        dataStores.bodies.getOrRaise,
+        dataStores.transactions.getOrRaise,
+        blockIdTree,
+        currentEventIdGetterSetters.mempool.set,
+        clock,
+        id => Logger[F].info(show"Expiring transaction id=$id"),
+        appConfig.bifrost.mempool.defaultExpirationSlots
+      )
+
+      protectedMempool <- MempoolProtected.make(
+        mempool,
+        validatorsP2P.transactionSemantics,
+        validatorsP2P.transactionAuthorization,
+        currentEventIdGetterSetters.canonicalHead.get().flatMap(dataStores.headers.getOrRaise),
+        dataStores.transactions.getOrRaise,
+        appConfig.bifrost.mempool.protection
+      )
+
       eventSourcedStates = EventSourcedStates[F](
         epochDataEventSourcedState,
         blockHeightTreeLocal,
@@ -502,7 +513,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           eventSourcedStates,
           validatorsLocal,
           validatorsP2P,
-          mempool,
+          protectedMempool,
           cryptoResources,
           localPeer,
           p2pConfig.knownPeers,

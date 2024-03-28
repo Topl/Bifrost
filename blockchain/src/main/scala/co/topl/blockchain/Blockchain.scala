@@ -2,9 +2,9 @@ package co.topl.blockchain
 
 import cats.data._
 import cats.effect._
+import cats.effect.implicits._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
-import cats.effect.implicits._
 import co.topl.algebras._
 import co.topl.blockchain.algebras.EpochDataAlgebra
 import co.topl.blockchain.interpreters.BlockchainPeerServer
@@ -20,12 +20,14 @@ import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.grpc._
 import co.topl.ledger.algebras._
-import co.topl.ledger.interpreters.QuivrContext
+import co.topl.ledger.implicits._
+import co.topl.ledger.interpreters.{QuivrContext, TransactionSemanticValidation}
 import co.topl.ledger.models.StaticBodyValidationContext
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters._
 import co.topl.networking.blockchain._
 import co.topl.networking.fsnetwork.DnsResolverInstances.DefaultDnsResolver
+import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.networking.fsnetwork.ReverseDnsResolverInstances.{DefaultReverseDnsResolver, NoOpReverseResolver}
 import co.topl.networking.fsnetwork._
 import co.topl.networking.p2p._
@@ -35,9 +37,8 @@ import com.comcast.ip4s.Dns
 import fs2.concurrent.Topic
 import fs2.{io => _, _}
 import io.grpc.ServerServiceDefinition
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
-import co.topl.networking.fsnetwork.P2PShowInstances._
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.jdk.CollectionConverters._
 
@@ -264,6 +265,13 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           stakerOpt <- Stream.resource(stakerResource)
           staker    <- Stream.fromOption[F](stakerOpt)
           costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
+          blockPackerValidation <- Stream.resource(
+            TransactionSemanticValidation
+              .makeDataValidation(dataStores.transactions.getOrRaise)
+              .flatMap(
+                BlockPackerValidation.make[F](_, validatorsLocal.transactionAuthorization)
+              )
+          )
           blockPacker <- Stream.resource(
             BlockPacker
               .make[F](
@@ -271,7 +279,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
                 validatorsLocal.boxState,
                 validatorsLocal.rewardCalculator,
                 costCalculator,
-                validatorsLocal.transactionAuthorization,
+                blockPackerValidation,
                 validatorsLocal.registrationAccumulator
               )
           )

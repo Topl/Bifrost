@@ -1,3 +1,4 @@
 -Xmx4G
 -Xms1G
 -Xss32M
+-Dstorage.diskCache.bufferSize=1024

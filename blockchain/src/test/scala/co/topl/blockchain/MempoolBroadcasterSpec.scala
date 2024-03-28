@@ -23,7 +23,7 @@ class MempoolBroadcasterSpec extends CatsEffectSuite with ScalaCheckEffectSuite 
       withMock {
         for {
           delegate <- mock[MempoolAlgebra[F]].pure[F]
-          _ = (delegate.add _).expects(transactionId).once().returning(IO.unit)
+          _ = (delegate.add _).expects(transactionId).once().returning(true.pure[F])
           id <- MempoolBroadcaster
             .make(delegate)
             .flatMap { case (underTest, adoptionsTopic) =>
