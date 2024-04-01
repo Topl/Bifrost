@@ -74,7 +74,7 @@ object EpochDataEventSourcedState {
     fetchBlockHeader:            BlockId => F[BlockHeader],
     fetchBlockBody:              BlockId => F[BlockBody],
     fetchTransaction:            TransactionId => F[IoTransaction],
-    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
     epochBoundaryEventSourcedState: EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
       F
     ], BlockId],
@@ -109,7 +109,7 @@ object EpochDataEventSourcedState {
     fetchBlockHeader:            BlockId => F[BlockHeader],
     fetchBlockBody:              BlockId => F[BlockBody],
     fetchTransaction:            TransactionId => F[IoTransaction],
-    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
     epochBoundaryEventSourcedState: EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
       F
     ], BlockId],
@@ -212,7 +212,7 @@ object EpochDataEventSourcedState {
                 .flatMap(transaction =>
                   (
                     // TODO: Read reward transaction from body
-                    transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
+                    transactionRewardCalculator.rewardsOf(transaction).pure[F].map(_.lvl),
                     Sync[F].delay(
                       ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
                     )
@@ -235,7 +235,7 @@ object EpochDataEventSourcedState {
     fetchBlockHeader:            BlockId => F[BlockHeader],
     fetchBlockBody:              BlockId => F[BlockBody],
     fetchTransaction:            TransactionId => F[IoTransaction],
-    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F]
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra
   ) extends ((State[F], BlockId) => F[State[F]]) {
 
     def apply(state: State[F], blockId: BlockId): F[State[F]] =
@@ -296,7 +296,7 @@ object EpochDataEventSourcedState {
                 .flatMap(transaction =>
                   (
                     // TODO: Read reward transaction from body
-                    transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
+                    transactionRewardCalculator.rewardsOf(transaction).pure[F].map(_.lvl),
                     Sync[F].delay(
                       ContainsImmutable.instances.ioTransactionImmutable.immutableBytes(transaction).value.size()
                     )

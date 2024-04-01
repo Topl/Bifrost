@@ -95,12 +95,12 @@ class EpochDataInterpreterSpec extends CatsEffectSuite with ScalaCheckEffectSuit
               block.fullBody.allTransactions.traverse(tx => transactionStore.put(tx.id, tx))
             )
             .toResource
-          rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+          rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
           _ = (rewardCalculator
             .rewardsOf(_: IoTransaction))
             .expects(*)
             .anyNumberOfTimes()
-            .returning(RewardQuantities(BigInt(50)).pure[F])
+            .returning(RewardQuantities(BigInt(50)))
           epochBoundaryEss = mock[EventSourcedState[F, EpochBoundariesEventSourcedState.EpochBoundaries[
             F
           ], BlockId]]

@@ -89,13 +89,25 @@ object ApplicationConfig {
     case class Mempool(defaultExpirationSlots: Long, protection: MempoolProtection = MempoolProtection())
 
     case class MempoolProtection(
-      enabled: Boolean = false,
-      // do not perform checks if number of transactions in mempool less than that value
-      noCheckIfLess: Long = 10,
+      enabled:        Boolean = false,
+      maxMempoolSize: Long = 1024 * 1024 * 20, // 20 Mb
+
+      // do not perform mempool checks
+      // if (protectionEnabledThresholdPercent / 100 * maxMempoolSize) is less than curren mempool size
+      protectionEnabledThresholdPercent: Double = 10,
+
       // during semantic check we will include all transactions from memory pool in context
-      // if total tx count in memory pool is less that that value
-      useMempoolForSemanticIfLess: Long = 100
-    )
+      // if (useMempoolForSemanticThresholdPercent / 100 * maxMempoolSize) is less than curren mempool size
+      useMempoolForSemanticThresholdPercent: Double = 40,
+
+      // during semantic check we will include all transactions from memory pool in context
+      // if (feeFilterThresholdPercent / 100 * maxMempoolSize) is less than curren mempool size
+      feeFilterThresholdPercent: Double = 50
+    ) {
+      val protectionEnabledThreshold = toMultiplier(protectionEnabledThresholdPercent) * maxMempoolSize
+      val useMempoolForSemanticThreshold = toMultiplier(useMempoolForSemanticThresholdPercent) * maxMempoolSize
+      val feeFilterThreshold = toMultiplier(feeFilterThresholdPercent) * maxMempoolSize
+    }
 
     sealed abstract class BigBang
 

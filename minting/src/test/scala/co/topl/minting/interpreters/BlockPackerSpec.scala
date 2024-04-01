@@ -34,16 +34,18 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
       .withMaxSize(3)
       .withMinSuccessfulTests(5)
 
+  private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
+
   test("return empty for empty mempool") {
     withMock {
       val mempool = mock[MempoolAlgebra[F]]
-      (mempool.read(_: BlockId)).expects(*).anyNumberOfTimes().returning(MempoolGraph.empty.pure[F])
+      (mempool.read(_: BlockId)).expects(*).anyNumberOfTimes().returning(MempoolGraph.empty(dummyRewardCalc).pure[F])
       val testResource =
         for {
           underTest <- BlockPacker.make[F](
             mempool,
             mock[BoxStateAlgebra[F]],
-            mock[TransactionRewardCalculatorAlgebra[F]],
+            mock[TransactionRewardCalculatorAlgebra],
             mock[TransactionCostCalculator[F]],
             mock[BlockPackerValidation[F]],
             mock[RegistrationAccumulatorAlgebra[F]]
@@ -113,7 +115,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
           .embedId
 
       val mempool = mock[MempoolAlgebra[F]]
-      val mempoolGraph = MempoolGraph.empty.add(tx2).add(tx3).add(tx4)
+      val mempoolGraph = MempoolGraph.empty(dummyRewardCalc).add(tx2).add(tx3).add(tx4)
       (mempool.read(_: BlockId)).expects(*).once().returning(mempoolGraph.pure[F])
       val boxState = mock[BoxStateAlgebra[F]]
       (boxState
@@ -126,12 +128,12 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .expects(*, tx3.inputs(0).address)
         .once()
         .returning(true.pure[F])
-      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
       (rewardCalculator
         .rewardsOf(_: IoTransaction))
         .expects(*)
         .anyNumberOfTimes()
-        .returning(RewardQuantities(BigInt(100)).pure[F])
+        .returning(RewardQuantities(BigInt(100)))
       val costCalculator = mock[TransactionCostCalculator[F]]
       (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
       val validation = mock[BlockPackerValidation[F]]
@@ -219,7 +221,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
           .embedId
 
       val mempool = mock[MempoolAlgebra[F]]
-      val mempoolGraph = MempoolGraph.empty.add(tx2).add(tx3).add(tx4)
+      val mempoolGraph = MempoolGraph.empty(dummyRewardCalc).add(tx2).add(tx3).add(tx4)
       (mempool.read(_: BlockId)).expects(*).once().returning(mempoolGraph.pure[F])
       (mempool.remove(_: TransactionId)).expects(tx3.id).once().returning(().pure[F])
       (mempool.remove(_: TransactionId)).expects(tx4.id).once().returning(().pure[F])
@@ -229,12 +231,12 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .expects(*, tx2.inputs(0).address)
         .once()
         .returning(true.pure[F])
-      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
       (rewardCalculator
         .rewardsOf(_: IoTransaction))
         .expects(*)
         .anyNumberOfTimes()
-        .returning(RewardQuantities(BigInt(100)).pure[F])
+        .returning(RewardQuantities(BigInt(100)))
       val costCalculator = mock[TransactionCostCalculator[F]]
       (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
       val validation = mock[BlockPackerValidation[F]]

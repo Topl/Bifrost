@@ -33,7 +33,7 @@ case class Validators[F[_]](
   bodyAuthorization:        BodyAuthorizationValidationAlgebra[F],
   boxState:                 BoxStateAlgebra[F],
   registrationAccumulator:  RegistrationAccumulatorAlgebra[F],
-  rewardCalculator:         TransactionRewardCalculatorAlgebra[F]
+  rewardCalculator:         TransactionRewardCalculatorAlgebra
 )
 
 object Validators {

@@ -466,7 +466,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         currentEventIdGetterSetters.mempool.set,
         clock,
         id => Logger[F].info(show"Expiring transaction id=$id"),
-        appConfig.bifrost.mempool.defaultExpirationSlots
+        appConfig.bifrost.mempool.defaultExpirationSlots,
+        transactionRewardCalculator
       )
 
       protectedMempool <- MempoolProtected.make(
@@ -475,6 +476,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         validatorsP2P.transactionAuthorization,
         currentEventIdGetterSetters.canonicalHead.get().flatMap(dataStores.headers.getOrRaise),
         dataStores.transactions.getOrRaise,
+        transactionRewardCalculator,
         appConfig.bifrost.mempool.protection
       )
 
