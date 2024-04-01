@@ -17,6 +17,7 @@ import org.scalacheck.effect.PropF
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.ledger.models.{MempoolGraph, RewardQuantities}
 import co.topl.networking.NetworkGen._
 import co.topl.networking.fsnetwork.RemotePeer
@@ -32,6 +33,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   type F[A] = IO[A]
 
   private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
+  private val dummyCostCalc: TransactionCostCalculator = (tx: IoTransaction) => tx.inputs.size
 
   override val munitTimeout: FiniteDuration = 5.seconds
 
@@ -221,7 +223,8 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             ),
             Map.empty,
             Map.empty,
-            dummyRewardCalc
+            dummyRewardCalc,
+            dummyCostCalc
           )
           val mempool = mock[MempoolAlgebra[F]]
           (mempool.read _).expects(head.slotId.blockId).once().returning(currentMempool.pure[F])

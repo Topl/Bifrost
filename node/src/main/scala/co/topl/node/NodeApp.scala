@@ -8,6 +8,7 @@ import cats.effect.{Async, IO, Resource, Sync}
 import cats.implicits._
 import co.topl.blockchain._
 import co.topl.blockchain.interpreters.{EpochDataEventSourcedState, EpochDataInterpreter, NodeMetadata}
+import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
 import co.topl.buildinfo.node.BuildInfo
 import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
@@ -458,6 +459,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         )
         .value
 
+      costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
       (mempool, mempoolState) <- Mempool.make[F](
         currentEventIdGetterSetters.mempool.get(),
         dataStores.bodies.getOrRaise,
@@ -467,7 +469,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         clock,
         id => Logger[F].info(show"Expiring transaction id=$id"),
         appConfig.bifrost.mempool.defaultExpirationSlots,
-        transactionRewardCalculator
+        transactionRewardCalculator,
+        costCalculator
       )
 
       protectedMempool <- MempoolProtected.make(
@@ -477,6 +480,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         currentEventIdGetterSetters.canonicalHead.get().flatMap(dataStores.headers.getOrRaise),
         dataStores.transactions.getOrRaise,
         transactionRewardCalculator,
+        costCalculator,
         appConfig.bifrost.mempool.protection
       )
 
@@ -525,7 +529,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           genusServices ::: healthServices,
           epochData,
           (p2pConfig.publicHost, p2pConfig.publicPort).mapN(KnownPeer),
-          p2pConfig.networkProperties
+          p2pConfig.networkProperties,
+          costCalculator
         )
         .parProduct(genusOpt.traverse(Replicator.background[F]).void)
         .parProduct(

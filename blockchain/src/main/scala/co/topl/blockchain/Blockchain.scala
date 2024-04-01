@@ -11,7 +11,7 @@ import co.topl.blockchain.interpreters.BlockchainPeerServer
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
-import co.topl.brambl.validation._
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
@@ -67,7 +67,8 @@ object Blockchain {
     additionalGrpcServices:    List[ServerServiceDefinition],
     _epochData:                EpochDataAlgebra[F],
     peerAsServer:              Option[KnownPeer],
-    networkProperties:         NetworkProperties
+    networkProperties:         NetworkProperties,
+    txCostCalculator:          TransactionCostCalculator
   ): Resource[F, Unit] = new BlockchainImpl[F](
     clock,
     stakerResource,
@@ -88,7 +89,8 @@ object Blockchain {
     additionalGrpcServices,
     _epochData,
     peerAsServer,
-    networkProperties
+    networkProperties,
+    txCostCalculator
   ).resource
 
 }
@@ -113,7 +115,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   additionalGrpcServices:    List[ServerServiceDefinition],
   _epochData:                EpochDataAlgebra[F],
   peerAsServer:              Option[KnownPeer],
-  networkProperties:         NetworkProperties
+  networkProperties:         NetworkProperties,
+  txCostCalculator:          TransactionCostCalculator
 ) {
   implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
 
@@ -264,7 +267,6 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         for {
           stakerOpt <- Stream.resource(stakerResource)
           staker    <- Stream.fromOption[F](stakerOpt)
-          costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
           blockPackerValidation <- Stream.resource(
             TransactionSemanticValidation
               .makeDataValidation(dataStores.transactions.getOrRaise)
@@ -278,7 +280,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
                 mempool,
                 validatorsLocal.boxState,
                 validatorsLocal.rewardCalculator,
-                costCalculator,
+                txCostCalculator,
                 blockPackerValidation,
                 validatorsLocal.registrationAccumulator
               )

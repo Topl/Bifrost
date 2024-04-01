@@ -89,8 +89,9 @@ object ApplicationConfig {
     case class Mempool(defaultExpirationSlots: Long, protection: MempoolProtection = MempoolProtection())
 
     case class MempoolProtection(
-      enabled:        Boolean = false,
-      maxMempoolSize: Long = 1024 * 1024 * 20, // 20 Mb
+      enabled: Boolean = false,
+      // Use size in some abstract units which are used in co.topl.brambl.validation.algebras.TransactionCostCalculator
+      maxMempoolSize: Long = 1024 * 1024 * 20,
 
       // do not perform mempool checks
       // if (protectionEnabledThresholdPercent / 100 * maxMempoolSize) is less than curren mempool size

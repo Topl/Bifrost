@@ -7,6 +7,7 @@ import co.topl.algebras.ClockAlgebra
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
@@ -28,10 +29,13 @@ object Mempool {
     clock:                       ClockAlgebra[F],
     onExpiration:                TransactionId => F[Unit],
     defaultExpirationLimit:      Long,
-    transactionRewardCalculator: TransactionRewardCalculatorAlgebra
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
+    txCostCalculator:            TransactionCostCalculator
   ): Resource[F, (MempoolAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
-      graphState <- Ref.of(MempoolGraph(Map.empty, Map.empty, Map.empty, transactionRewardCalculator)).toResource
+      graphState <- Ref
+        .of(MempoolGraph(Map.empty, Map.empty, Map.empty, transactionRewardCalculator, txCostCalculator))
+        .toResource
       expirationsState <- Resource.make(Ref.of(Map.empty[TransactionId, Fiber[F, Throwable, Unit]]))(
         _.get.flatMap(_.values.toList.traverse(_.cancel).void)
       )

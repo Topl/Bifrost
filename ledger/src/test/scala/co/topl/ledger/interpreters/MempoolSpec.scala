@@ -9,6 +9,7 @@ import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction._
 import co.topl.brambl.syntax._
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
@@ -34,6 +35,7 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
       .withMinSuccessfulTests(10)
 
   private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
+  private val dummyCostCalc: TransactionCostCalculator = (tx: IoTransaction) => tx.inputs.size
 
   test("expose a Set of Transaction IDs at a specific block") {
     PropF.forAllF(
@@ -71,7 +73,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               clock,
               _ => Applicative[F].unit,
               Long.MaxValue,
-              dummyRewardCalc
+              dummyRewardCalc,
+              dummyCostCalc
             )
             .map(_._1)
             .use(underTest =>
@@ -126,7 +129,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
               clock,
               _ => Applicative[F].unit,
               Long.MaxValue,
-              dummyRewardCalc
+              dummyRewardCalc,
+              dummyCostCalc
             )
             .map(_._1)
             .use(_.add(transaction.id).assert)
@@ -171,7 +175,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                   clock,
                   _ => expirationDeferred.complete(()).void,
                   Long.MaxValue,
-                  dummyRewardCalc
+                  dummyRewardCalc,
+                  dummyCostCalc
                 )
             _ <- underTest.add(transaction.id).toResource
             _ <- underTest.read(currentBlockId).map(_.transactions.keySet).assertEquals(Set(transaction.id)).toResource
@@ -225,7 +230,8 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
                   clock,
                   _ => expirationDeferred.complete(()).void,
                   100L,
-                  dummyRewardCalc
+                  dummyRewardCalc,
+                  dummyCostCalc
                 )
             _ <- underTest.add(transaction.id).toResource
             _ <- underTest.read(currentBlockId).map(_.transactions.keySet).assertEquals(Set(transaction.id)).toResource

@@ -95,7 +95,7 @@ object TransactionGeneratorApp
     transactionStream: Stream[F, IoTransaction],
     client:            NodeRpc[F, Stream[F, *]],
     targetTps:         Double,
-    costCalculator:    TransactionCostCalculator[F]
+    costCalculator:    TransactionCostCalculator
   ) =
     transactionStream
       // Send 1 transaction per _this_ duration
@@ -106,6 +106,7 @@ object TransactionGeneratorApp
         client.broadcastTransaction(transaction) >>
         costCalculator
           .costOf(transaction)
+          .pure[F]
           .flatTap(cost => Logger[F].info(show"Broadcasted transaction id=${transaction.id} cost=$cost"))
       )
       .onError { case e =>

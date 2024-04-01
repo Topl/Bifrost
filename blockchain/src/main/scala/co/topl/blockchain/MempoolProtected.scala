@@ -14,7 +14,7 @@ import co.topl.codecs.bytes.tetra.instances._
 import cats.effect.implicits._
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
-import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
+import co.topl.brambl.validation.algebras.{TransactionAuthorizationVerifier, TransactionCostCalculator}
 import co.topl.ledger.interpreters.QuivrContext
 import cats.effect.std.Semaphore
 import co.topl.config.ApplicationConfig.Bifrost.MempoolProtection
@@ -29,6 +29,7 @@ object MempoolProtected {
     currentBlockHeader:               F[BlockHeader],
     fetchTransaction:                 TransactionId => F[IoTransaction],
     transactionRewardCalculator:      TransactionRewardCalculatorAlgebra,
+    txCostCalculator:                 TransactionCostCalculator,
     config:                           MempoolProtection
   ): Resource[F, MempoolAlgebra[F]] =
     for {
@@ -43,6 +44,7 @@ object MempoolProtected {
             currentBlockHeader,
             fetchTransaction,
             transactionRewardCalculator,
+            txCostCalculator,
             config,
             semaphore
           )
@@ -57,6 +59,7 @@ object MempoolProtected {
     currentBlockHeader:       F[BlockHeader],
     fetchTransaction:         TransactionId => F[IoTransaction],
     txRewardCalculator:       TransactionRewardCalculatorAlgebra,
+    txCostCalculator:         TransactionCostCalculator,
     config:                   MempoolProtection,
     semaphore:                Semaphore[F]
   ) extends MempoolAlgebra[F] {
@@ -64,10 +67,11 @@ object MempoolProtected {
 
     override def add(transactionId: TransactionId): F[Boolean] = semaphore.permit.use { _ =>
       for {
-        header      <- currentBlockHeader
-        graph       <- read(header.id)
-        transaction <- fetchTransaction(transactionId).map(tx => IoTransactionEx(tx, txRewardCalculator.rewardsOf(tx)))
-        res         <- checkTransaction(header, graph, transaction)
+        header <- currentBlockHeader
+        graph  <- read(header.id)
+        ioTx   <- fetchTransaction(transactionId)
+        ioExTx <- IoTransactionEx(ioTx, txRewardCalculator.rewardsOf(ioTx), txCostCalculator.costOf(ioTx)).pure[F]
+        res    <- checkTransaction(header, graph, ioExTx)
         _ <-
           if (res) {
             underlying

@@ -34,7 +34,7 @@ object BlockPacker {
     mempool:                     MempoolAlgebra[F],
     boxState:                    BoxStateAlgebra[F],
     transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
-    transactionCostCalculator:   TransactionCostCalculator[F],
+    transactionCostCalculator:   TransactionCostCalculator,
     blockPackerValidation:       BlockPackerValidation[F],
     registrationAccumulator:     RegistrationAccumulatorAlgebra[F],
     emptyMempoolPollPeriod:      FiniteDuration = 1.second
@@ -55,7 +55,7 @@ object BlockPacker {
     mempool:                     MempoolAlgebra[F],
     boxState:                    BoxStateAlgebra[F],
     transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
-    transactionCostCalculator:   TransactionCostCalculator[F],
+    transactionCostCalculator:   TransactionCostCalculator,
     blockPackerValidation:       BlockPackerValidation[F],
     registrationAccumulator:     RegistrationAccumulatorAlgebra[F],
     emptyMempoolPollPeriod:      FiniteDuration
@@ -272,10 +272,8 @@ object BlockPacker {
            * Calculate the score (reward - cost) of the given transaction
            */
           private def transactionScore(transaction: IoTransaction): F[BigInt] =
-            (
-              transactionRewardCalculator.rewardsOf(transaction).pure[F].map(_.lvl),
-              transactionCostCalculator.costOf(transaction)
-            ).parMapN(_ - _)
+            (transactionRewardCalculator.rewardsOf(transaction).lvl - transactionCostCalculator.costOf(transaction))
+              .pure[F]
 
           /**
            * Accumulate the score of the given transaction, as well as all dependent transactions
