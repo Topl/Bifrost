@@ -5,6 +5,10 @@ import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
+import co.topl.codecs.bytes.typeclasses.Transmittable
+import co.topl.codecs.bytes.tetra.instances._
+import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
+import co.topl.models.Bytes
 
 /**
  * @param transactions a collection of all transactions in the mempool
@@ -14,10 +18,16 @@ import co.topl.brambl.syntax._
  *                   value is the set of input indices on that transaction that are unresolved
  */
 case class MempoolGraph(
-  transactions: Map[TransactionId, IoTransaction],
-  spenders:     Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
-  unresolved:   Map[TransactionId, NonEmptySet[Int]]
+  transactions:     Map[TransactionId, IoTransactionEx],
+  spenders:         Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
+  unresolved:       Map[TransactionId, NonEmptySet[Int]],
+  rewardCalculator: TransactionRewardCalculatorAlgebra
 ) {
+
+  lazy val ioTransactions: Map[TransactionId, IoTransaction] = transactions.view.mapValues(_.tx).toMap
+  lazy val meanToplFeePerKByte = transactions.values.map(_.toplFeePerKByte).sum / txSize
+  val txSize: Int = transactions.size
+  val memSize: Long = transactions.values.map(_.size).sum
 
   /**
    * Remove the given transaction from this graph.  This operation will mark any dependent transactions as unresolved.
@@ -43,10 +53,18 @@ case class MempoolGraph(
           spenders.getOrElse(transaction.id, Map.empty).values.flatten.foldLeft(unresolved.removed(transaction.id)) {
             case (unresolved, (id, index)) =>
               unresolved.updatedWith(id)(_.foldLeft(NonEmptySet.one(index))(_.combine(_)).some)
-          }
+          },
+        rewardCalculator = rewardCalculator
       )
     else
       this
+
+  /**
+   * Remove the given transaction from this graph and all recursive transactions that depend on it.
+   * @param transaction The transaction to remove
+   * @return a tuple containing (new MempoolGraph, removed transactions)
+   */
+  def removeSubtree(transaction: IoTransactionEx): (MempoolGraph, Set[IoTransaction]) = removeSubtree(transaction.tx)
 
   /**
    * Remove the given transaction from this graph and all recursive transactions that depend on it.
@@ -75,14 +93,23 @@ case class MempoolGraph(
    * @param transaction the transaction to add
    * @return an updated MempoolGraph
    */
-  def add(transaction: IoTransaction): MempoolGraph =
-    if (transactions.contains(transaction.id))
+  def add(transaction: IoTransaction): MempoolGraph = add(
+    IoTransactionEx(transaction, rewardCalculator.rewardsOf(transaction))
+  )
+
+  /**
+   * Add the given transaction to this graph.  Updates any relevant "spender" and "unresolved" entries.
+   * @param transaction the transaction to add
+   * @return an updated MempoolGraph
+   */
+  def add(transaction: IoTransactionEx): MempoolGraph =
+    if (transactions.contains(transaction.tx.id))
       this
     else {
       val spenderEntry = transactions.values
         .flatMap(tx =>
-          tx.inputs.zipWithIndex.collect {
-            case (input, index) if input.address.id == transaction.id => (input.address.index, tx.id, index)
+          tx.tx.inputs.zipWithIndex.collect {
+            case (input, index) if input.address.id == transaction.tx.id => (input.address.index, tx.tx.id, index)
           }
         )
         .toSeq
@@ -90,29 +117,52 @@ case class MempoolGraph(
         .view
         .mapValues(_.map(t => (t._2, t._3)).toSet)
         .toMap
-      val newSpenders = transaction.inputs.zipWithIndex.foldLeft(spenders) { case (spenders, (input, index)) =>
+      val newSpenders = transaction.tx.inputs.zipWithIndex.foldLeft(spenders) { case (spenders, (input, index)) =>
         spenders.updatedWith(input.address.id)(
           _.map(
             _.updatedWith(input.address.index)(
-              _.foldLeft(Set((transaction.id, index)))(_ ++ _).some
+              _.foldLeft(Set((transaction.tx.id, index)))(_ ++ _).some
             )
           )
         )
       }
-      val newUnresolved = transaction.inputs.zipWithIndex.foldLeft(unresolved) { case (unresolved, (input, index)) =>
+      val newUnresolved = transaction.tx.inputs.zipWithIndex.foldLeft(unresolved) { case (unresolved, (input, index)) =>
         if (transactions.contains(input.address.id)) unresolved
-        else unresolved.updatedWith(transaction.id)(_.foldLeft(NonEmptySet.one(index))(_ ++ _).some)
+        else unresolved.updatedWith(transaction.tx.id)(_.foldLeft(NonEmptySet.one(index))(_ ++ _).some)
       }
       MempoolGraph(
-        transactions = transactions + (transaction.id -> transaction),
-        spenders = newSpenders + (transaction.id      -> spenderEntry),
+        transactions = transactions + (transaction.tx.id -> transaction),
+        spenders = newSpenders + (transaction.tx.id      -> spenderEntry),
         unresolved = spenderEntry.values.flatten.foldLeft(newUnresolved) { case (unresolved, (id, index)) =>
           unresolved.updatedWith(id)(_.map(_ - index).flatMap(NonEmptySet.fromSet))
-        }
+        },
+        rewardCalculator = rewardCalculator
       )
     }
 }
 
 object MempoolGraph {
-  val empty: MempoolGraph = MempoolGraph(Map.empty, Map.empty, Map.empty)
+
+  def fromTxs(
+    transactions:            Map[TransactionId, IoTransaction],
+    spenders:                Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
+    unresolved:              Map[TransactionId, NonEmptySet[Int]],
+    rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra
+  ): MempoolGraph =
+    MempoolGraph(
+      transactions.view.mapValues(tx => IoTransactionEx(tx, rewardCalculatorAlgebra.rewardsOf(tx))).toMap,
+      spenders,
+      unresolved,
+      rewardCalculatorAlgebra
+    )
+
+  def empty(rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra): MempoolGraph =
+    MempoolGraph(Map.empty[TransactionId, IoTransactionEx], Map.empty, Map.empty, rewardCalculatorAlgebra)
+}
+
+case class IoTransactionEx(tx: IoTransaction, rewardQuantities: RewardQuantities) {
+  val asTransmittable: Bytes = Transmittable[IoTransaction].transmittableBytes(tx)
+  val size: Long = asTransmittable.size()
+  val toplFee: BigInt = rewardQuantities.topl
+  val toplFeePerKByte: Double = 1024 * (toplFee.toDouble / size)
 }

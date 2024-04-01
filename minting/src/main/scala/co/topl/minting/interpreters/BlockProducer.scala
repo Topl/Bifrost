@@ -46,7 +46,7 @@ object BlockProducer {
     staker:           StakingAlgebra[F],
     clock:            ClockAlgebra[F],
     blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F]
+    rewardCalculator: TransactionRewardCalculatorAlgebra
   ): F[BlockProducerAlgebra[F]] =
     (staker.address, Ref.of(0L)).mapN((address, lastUsedSlotRef) =>
       new Impl[F](address, parentHeaders, staker, clock, blockPacker, rewardCalculator, lastUsedSlotRef)
@@ -58,7 +58,7 @@ object BlockProducer {
     staker:           StakingAlgebra[F],
     clock:            ClockAlgebra[F],
     blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    rewardCalculator: TransactionRewardCalculatorAlgebra,
     lastUsedSlotRef:  Ref[F, Slot]
   ) extends BlockProducerAlgebra[F] {
 
@@ -205,7 +205,7 @@ object BlockProducer {
      */
     private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
       base.transactions
-        .foldMapM(rewardCalculator.rewardsOf)
+        .foldMapM(t => rewardCalculator.rewardsOf(t).pure[F])
         .flatMap(rewardQuantities =>
           if (!rewardQuantities.isEmpty) {
             staker.rewardAddress

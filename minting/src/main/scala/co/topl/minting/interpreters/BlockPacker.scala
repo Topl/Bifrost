@@ -33,7 +33,7 @@ object BlockPacker {
   def make[F[_]: Async](
     mempool:                     MempoolAlgebra[F],
     boxState:                    BoxStateAlgebra[F],
-    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
     transactionCostCalculator:   TransactionCostCalculator[F],
     blockPackerValidation:       BlockPackerValidation[F],
     registrationAccumulator:     RegistrationAccumulatorAlgebra[F],
@@ -54,7 +54,7 @@ object BlockPacker {
   private class Impl[F[_]: Async](
     mempool:                     MempoolAlgebra[F],
     boxState:                    BoxStateAlgebra[F],
-    transactionRewardCalculator: TransactionRewardCalculatorAlgebra[F],
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra,
     transactionCostCalculator:   TransactionCostCalculator[F],
     blockPackerValidation:       BlockPackerValidation[F],
     registrationAccumulator:     RegistrationAccumulatorAlgebra[F],
@@ -107,7 +107,7 @@ object BlockPacker {
            */
           private def filterValidTransactions(graph: MempoolGraph): F[FullBlockBody] =
             Logger[F].debug("Validating available transactions") >>
-            graph.transactions.values.toList
+            graph.ioTransactions.values.toList
               .parTraverse(tx => blockPackerValidation.transactionIsValid(tx, height, slot).tupleLeft(tx))
               .flatMap(_.foldLeftM(graph) {
                 case (graph, (_, true)) =>
@@ -135,7 +135,7 @@ object BlockPacker {
             Logger[F].debug("Discarding transactions which spend unknown/unspendable UTxOs") >>
             graph.unresolved.toList
               .traverseFilter { case (id, indices) =>
-                val transaction = graph.transactions(id)
+                val transaction = graph.ioTransactions(id)
                 indices.toList
                   .map(transaction.inputs(_).address)
                   .forallM(boxState.boxExistsAt(parentBlockId))
@@ -159,7 +159,7 @@ object BlockPacker {
               .delay(
                 graph.unresolved.toList
                   .flatMap { case (id, indices) =>
-                    val transaction = graph.transactions(id)
+                    val transaction = graph.ioTransactions(id)
                     indices.toList
                       .map { index =>
                         val input = transaction.inputs(index)
@@ -208,7 +208,7 @@ object BlockPacker {
               transaction.inputs
                 .map(_.address.id)
                 .distinct
-                .flatMap(graph.transactions.get)
+                .flatMap(graph.ioTransactions.get)
                 .parTraverse(withDependencies)
                 .map(_.foldLeft(ListSet.empty[TransactionId])(_.concat(_)))
                 .map(_.incl(transaction.id))
@@ -223,7 +223,7 @@ object BlockPacker {
                   go(accepted, queue.tail, registrationAccumulatorAugmentation)
 
                 case Some(transactionId) =>
-                  val transaction = graph.transactions(transactionId)
+                  val transaction = graph.ioTransactions(transactionId)
                   RegistrationAccumulator.Augmented
                     .make[F](registrationAccumulator)(registrationAccumulatorAugmentation)
                     .use(registrationAccumulator =>
@@ -235,7 +235,7 @@ object BlockPacker {
                       Async[F]
                         .defer(withDependencies(transaction))
                         .map(ListSet.from(accepted.transactionIds) ++ _)
-                        .map(_.toList.map(graph.transactions))
+                        .map(_.toList.map(graph.ioTransactions))
                         .map(FullBlockBody(_)) <*
                       nextIterationFunction.set(
                         (
@@ -273,7 +273,7 @@ object BlockPacker {
            */
           private def transactionScore(transaction: IoTransaction): F[BigInt] =
             (
-              transactionRewardCalculator.rewardsOf(transaction).map(_.lvl),
+              transactionRewardCalculator.rewardsOf(transaction).pure[F].map(_.lvl),
               transactionCostCalculator.costOf(transaction)
             ).parMapN(_ - _)
 
@@ -294,7 +294,7 @@ object BlockPacker {
                   case spenders =>
                     spenders.toList
                       .map(_._1)
-                      .map(graph.transactions)
+                      .map(graph.ioTransactions)
                       .parTraverse(subgraphScore(graph))
                       .map(_.max)
                 }
@@ -308,7 +308,7 @@ object BlockPacker {
           private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]): F[MempoolGraph] =
             Logger[F].debug("Searching for double-spend transactions") >>
             spenders.toList
-              .map(graph.transactions)
+              .map(graph.ioTransactions)
               .parTraverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
               .map(_.sortBy(-_._2).map(_._1))
               .flatMap {

@@ -91,8 +91,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           )
           val rewardQuantities = RewardQuantities(BigInt(10L), BigInt(5L), Map(assetId1 -> BigInt(30L)))
 
-          val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-          (rewardCalculator.rewardsOf(_)).expects(*).anyNumberOfTimes().returning(rewardQuantities.pure[F])
+          val rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
+          (rewardCalculator.rewardsOf(_)).expects(*).anyNumberOfTimes().returning(rewardQuantities)
 
           for {
             clockDeferment   <- IO.deferred[Unit]

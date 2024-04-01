@@ -10,7 +10,7 @@ import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.consensus.models.BlockId
 import co.topl.eventtree.EventSourcedState
 import co.topl.eventtree.ParentChildTree
-import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.algebras.{MempoolAlgebra, TransactionRewardCalculatorAlgebra}
 import co.topl.ledger.models.MempoolGraph
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
@@ -20,17 +20,18 @@ object Mempool {
   type State[F[_]] = Ref[F, MempoolGraph]
 
   def make[F[_]: Async](
-    currentBlockId:         F[BlockId],
-    fetchBody:              BlockId => F[BlockBody],
-    fetchTransaction:       TransactionId => F[IoTransaction],
-    parentChildTree:        ParentChildTree[F, BlockId],
-    currentEventChanged:    BlockId => F[Unit],
-    clock:                  ClockAlgebra[F],
-    onExpiration:           TransactionId => F[Unit],
-    defaultExpirationLimit: Long
+    currentBlockId:              F[BlockId],
+    fetchBody:                   BlockId => F[BlockBody],
+    fetchTransaction:            TransactionId => F[IoTransaction],
+    parentChildTree:             ParentChildTree[F, BlockId],
+    currentEventChanged:         BlockId => F[Unit],
+    clock:                       ClockAlgebra[F],
+    onExpiration:                TransactionId => F[Unit],
+    defaultExpirationLimit:      Long,
+    transactionRewardCalculator: TransactionRewardCalculatorAlgebra
   ): Resource[F, (MempoolAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
-      graphState <- Ref.of(MempoolGraph(Map.empty, Map.empty, Map.empty)).toResource
+      graphState <- Ref.of(MempoolGraph(Map.empty, Map.empty, Map.empty, transactionRewardCalculator)).toResource
       expirationsState <- Resource.make(Ref.of(Map.empty[TransactionId, Fiber[F, Throwable, Unit]]))(
         _.get.flatMap(_.values.toList.traverse(_.cancel).void)
       )

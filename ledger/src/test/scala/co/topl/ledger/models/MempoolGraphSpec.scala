@@ -6,6 +6,7 @@ import co.topl.brambl.models.box.{Attestation, Value}
 import co.topl.brambl.models.transaction.{IoTransaction, SpentTransactionOutput, UnspentTransactionOutput}
 import co.topl.brambl.models.{Datum, LockAddress, LockId, TransactionOutputAddress}
 import co.topl.brambl.syntax._
+import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
@@ -31,6 +32,8 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
       )
       .embedId
 
+  private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
+
   test("add and remove a transaction") {
     val tx1 =
       IoTransaction(datum = Datum.IoTransaction.defaultInstance)
@@ -45,8 +48,8 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .embedId
 
     for {
-      graph1 <- MempoolGraph.empty.add(tx1).pure[F]
-      _      <- IO(graph1.transactions(tx1.id)).assertEquals(tx1)
+      graph1 <- MempoolGraph.empty(dummyRewardCalc).add(tx1).pure[F]
+      _      <- IO(graph1.transactions(tx1.id)).assertEquals(IoTransactionEx(tx1, RewardQuantities()))
       _      <- IO(graph1.unresolved(tx1.id).toList).assertEquals(List(0))
       _      <- IO(graph1.spenders(tx1.id).isEmpty).assert
       (graph2, removed) = graph1.removeSubtree(tx1)
@@ -54,7 +57,7 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
       _ <- IO(graph2.transactions.isEmpty).assert
       _ <- IO(graph2.spenders.isEmpty).assert
       _ <- IO(graph2.unresolved.isEmpty).assert
-      _ <- IO(graph2).assertEquals(MempoolGraph.empty)
+      _ <- IO(graph2).assertEquals(MempoolGraph.empty(dummyRewardCalc))
       graph3 = graph1.removeSingle(tx1)
       _ <- IO(graph3).assertEquals(graph2)
     } yield ()
@@ -96,7 +99,7 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .embedId
 
     for {
-      graph1 <- MempoolGraph.empty.add(tx1).add(tx2).add(tx3).pure[F]
+      graph1 <- MempoolGraph.empty(dummyRewardCalc).add(tx1).add(tx2).add(tx3).pure[F]
       _      <- IO(graph1.unresolved(tx1.id).toList).assertEquals(List(0))
       _      <- IO(graph1.unresolved(tx2.id).toList).assertEquals(List(1))
       _      <- IO(!graph1.unresolved.contains(tx3.id)).assert
@@ -112,7 +115,7 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
       _ <- IO(graph3.spenders(tx1.id)(0).isEmpty).assert
       (graph4, removed3) = graph1.removeSubtree(tx1)
       _ <- IO(removed3).assertEquals(Set(tx1, tx2, tx3))
-      _ <- IO(graph4).assertEquals(MempoolGraph.empty)
+      _ <- IO(graph4).assertEquals(MempoolGraph.empty(dummyRewardCalc))
     } yield ()
 
   }
@@ -168,7 +171,7 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
         .embedId
 
     for {
-      graph1 <- MempoolGraph.empty.add(tx1).add(tx2).add(tx2a).add(tx3).pure[F]
+      graph1 <- MempoolGraph.empty(dummyRewardCalc).add(tx1).add(tx2).add(tx2a).add(tx3).pure[F]
       _      <- IO(graph1.unresolved(tx1.id).toList).assertEquals(List(0))
       _      <- IO(graph1.unresolved(tx2.id).toList).assertEquals(List(1))
       _      <- IO(graph1.unresolved(tx2a.id).toList).assertEquals(List(0))
@@ -189,7 +192,7 @@ class MempoolGraphSpec extends CatsEffectSuite with ScalaCheckEffectSuite with A
       _ <- IO(graph4.spenders(tx1.id)).assertEquals(Map(0 -> Set((tx2.id, 0))))
       (graph5, removed4) = graph1.removeSubtree(tx1)
       _ <- IO(removed4).assertEquals(Set(tx1, tx2, tx2a, tx3))
-      _ <- IO(graph5).assertEquals(MempoolGraph.empty)
+      _ <- IO(graph5).assertEquals(MempoolGraph.empty(dummyRewardCalc))
     } yield ()
 
   }

@@ -30,7 +30,7 @@ object BodySyntaxValidation {
   def make[F[_]: Sync: Parallel](
     fetchTransaction:               TransactionId => F[IoTransaction],
     transactionSyntacticValidation: TransactionSyntaxVerifier[F],
-    rewardCalculator:               TransactionRewardCalculatorAlgebra[F]
+    rewardCalculator:               TransactionRewardCalculatorAlgebra
   ): F[BodySyntaxValidationAlgebra[F]] =
     Sync[F].delay {
       new BodySyntaxValidationAlgebra[F] {
@@ -108,7 +108,7 @@ object BodySyntaxValidation {
                   // Prohibit registrations in Topl rewards
                   _ <- cond(rewardTransaction.outputs.forall(_.value.value.topl.forall(_.registration.isEmpty)))
                   // Verify quantities
-                  maximumReward <- EitherT.liftF(transactions.parFoldMapA(rewardCalculator.rewardsOf))
+                  maximumReward <- EitherT.liftF(transactions.parFoldMapA(t => rewardCalculator.rewardsOf(t).pure[F]))
                   _             <- cond(!maximumReward.isEmpty)
                   claimedLvls = TransactionRewardCalculator.sumLvls(rewardTransaction.outputs)(_.value)
                   _ <- cond(maximumReward.lvl >= claimedLvls)

@@ -3,7 +3,7 @@ package co.topl.blockchain.interpreters
 import cats.effect.{IO, Resource}
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.eventtree.EventSourcedState
-import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.ledger.algebras.{MempoolAlgebra, TransactionRewardCalculatorAlgebra}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import co.topl.models.ModelGenerators._
@@ -17,7 +17,7 @@ import org.scalacheck.effect.PropF
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.ledger.models.MempoolGraph
+import co.topl.ledger.models.{MempoolGraph, RewardQuantities}
 import co.topl.networking.NetworkGen._
 import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.networking.fsnetwork.TestHelper.arbitraryRemotePeer
@@ -30,6 +30,8 @@ import scala.concurrent.duration._
 class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
   type F[A] = IO[A]
+
+  private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
 
   override val munitTimeout: FiniteDuration = 5.seconds
 
@@ -211,14 +213,15 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         adoptionC:  TransactionId
       ) =>
         withMock {
-          val currentMempool = MempoolGraph(
+          val currentMempool = MempoolGraph.fromTxs(
             Map(
               mempoolTxA -> IoTransaction.defaultInstance,
               mempoolTxB -> IoTransaction.defaultInstance,
               mempoolTxC -> IoTransaction.defaultInstance
             ),
             Map.empty,
-            Map.empty
+            Map.empty,
+            dummyRewardCalc
           )
           val mempool = mock[MempoolAlgebra[F]]
           (mempool.read _).expects(head.slotId.blockId).once().returning(currentMempool.pure[F])
