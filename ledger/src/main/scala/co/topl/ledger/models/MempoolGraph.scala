@@ -5,10 +5,8 @@ import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.typeclasses.Transmittable
-import co.topl.codecs.bytes.tetra.instances._
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
-import co.topl.models.Bytes
 
 /**
  * @param transactions a collection of all transactions in the mempool
@@ -21,7 +19,8 @@ case class MempoolGraph(
   transactions:     Map[TransactionId, IoTransactionEx],
   spenders:         Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
   unresolved:       Map[TransactionId, NonEmptySet[Int]],
-  rewardCalculator: TransactionRewardCalculatorAlgebra
+  rewardCalculator: TransactionRewardCalculatorAlgebra,
+  txCostCalculator: TransactionCostCalculator
 ) {
 
   lazy val ioTransactions: Map[TransactionId, IoTransaction] = transactions.view.mapValues(_.tx).toMap
@@ -54,7 +53,8 @@ case class MempoolGraph(
             case (unresolved, (id, index)) =>
               unresolved.updatedWith(id)(_.foldLeft(NonEmptySet.one(index))(_.combine(_)).some)
           },
-        rewardCalculator = rewardCalculator
+        rewardCalculator = rewardCalculator,
+        txCostCalculator = txCostCalculator
       )
     else
       this
@@ -94,7 +94,7 @@ case class MempoolGraph(
    * @return an updated MempoolGraph
    */
   def add(transaction: IoTransaction): MempoolGraph = add(
-    IoTransactionEx(transaction, rewardCalculator.rewardsOf(transaction))
+    IoTransactionEx(transaction, rewardCalculator.rewardsOf(transaction), txCostCalculator.costOf(transaction))
   )
 
   /**
@@ -136,7 +136,8 @@ case class MempoolGraph(
         unresolved = spenderEntry.values.flatten.foldLeft(newUnresolved) { case (unresolved, (id, index)) =>
           unresolved.updatedWith(id)(_.map(_ - index).flatMap(NonEmptySet.fromSet))
         },
-        rewardCalculator = rewardCalculator
+        rewardCalculator = rewardCalculator,
+        txCostCalculator = txCostCalculator
       )
     }
 }
@@ -147,22 +148,33 @@ object MempoolGraph {
     transactions:            Map[TransactionId, IoTransaction],
     spenders:                Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
     unresolved:              Map[TransactionId, NonEmptySet[Int]],
-    rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra
+    rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra,
+    txCostCalculator:        TransactionCostCalculator
   ): MempoolGraph =
     MempoolGraph(
-      transactions.view.mapValues(tx => IoTransactionEx(tx, rewardCalculatorAlgebra.rewardsOf(tx))).toMap,
+      transactions.view
+        .mapValues(tx => IoTransactionEx(tx, rewardCalculatorAlgebra.rewardsOf(tx), txCostCalculator.costOf(tx)))
+        .toMap,
       spenders,
       unresolved,
-      rewardCalculatorAlgebra
+      rewardCalculatorAlgebra,
+      txCostCalculator
     )
 
-  def empty(rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra): MempoolGraph =
-    MempoolGraph(Map.empty[TransactionId, IoTransactionEx], Map.empty, Map.empty, rewardCalculatorAlgebra)
+  def empty(
+    rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra,
+    txCostCalculator:        TransactionCostCalculator
+  ): MempoolGraph =
+    MempoolGraph(
+      Map.empty[TransactionId, IoTransactionEx],
+      Map.empty,
+      Map.empty,
+      rewardCalculatorAlgebra,
+      txCostCalculator
+    )
 }
 
-case class IoTransactionEx(tx: IoTransaction, rewardQuantities: RewardQuantities) {
-  val asTransmittable: Bytes = Transmittable[IoTransaction].transmittableBytes(tx)
-  val size: Long = asTransmittable.size()
+case class IoTransactionEx(tx: IoTransaction, rewardQuantities: RewardQuantities, size: Long) {
   val toplFee: BigInt = rewardQuantities.topl
   val toplFeePerKByte: Double = 1024 * (toplFee.toDouble / size)
 }
