@@ -39,7 +39,8 @@ case class DataStores[F[_]](
   registrationAccumulatorLocal: Store[F, StakingAddress, Unit],
   registrationAccumulatorP2P:   Store[F, StakingAddress, Unit],
   knownHosts:                   Store[F, Unit, Seq[KnownRemotePeer]],
-  metadata:                     Store[F, Array[Byte], Array[Byte]]
+  metadata:                     Store[F, Array[Byte], Array[Byte]],
+  txIdToBlockId:                Store[F, TransactionId, BlockId]
 )
 
 /**
@@ -53,7 +54,8 @@ case class PrunedDataStores[F[_]](
   bodies:               Store[F, BlockId, BlockBody],
   transactions:         Store[F, TransactionId, IoTransaction],
   blockHeightTreeLocal: Store[F, Long, BlockId],
-  blockHeightTreeP2P:   Store[F, Long, BlockId]
+  blockHeightTreeP2P:   Store[F, Long, BlockId],
+  txIdToBlockId:        Store[F, TransactionId, BlockId]
 )
 
 class CurrentEventIdGetterSetters[F[_]: MonadThrow](store: Store[F, Byte, BlockId]) {

@@ -134,7 +134,8 @@ class PrunedDataStoresApp(appConfig: ApplicationConfig, prunedDataStorePath: Str
       saveData(dataStores.headers, prunedDataStores.headers)(blockId),
       saveData(dataStores.bodies, prunedDataStores.bodies)(blockId),
       saveHeight(prunedDataStores.blockHeightTreeLocal)(slotData),
-      saveHeight(prunedDataStores.blockHeightTreeP2P)(slotData)
+      saveHeight(prunedDataStores.blockHeightTreeP2P)(slotData),
+      saveTxIdToBlockId(prunedDataStores.txIdToBlockId, dataStores.bodies)(blockId)
     ).parTupled.void >>
     saveTransactions(dataStores.transactions, prunedDataStores.transactions, dataStores.bodies)(blockId)
   }
@@ -158,6 +159,16 @@ class PrunedDataStoresApp(appConfig: ApplicationConfig, prunedDataStorePath: Str
       txIds <- body.allTransactionIds.pure[F]
       txs   <- txIds.traverse(id => source.getOrRaise(id).map(tx => (id, tx)))
       _     <- txs.traverse { case (id, tx) => target.put(id, tx) }
+    } yield ()
+
+  private def saveTxIdToBlockId(
+    target:      Store[F, TransactionId, BlockId],
+    bodiesStore: Store[F, BlockId, BlockBody]
+  )(blockId: BlockId): F[Unit] =
+    for {
+      body  <- bodiesStore.getOrRaise(blockId)
+      txIds <- body.allTransactionIds.pure[F]
+      _     <- txIds.traverse(id => target.put(id, blockId))
     } yield ()
 
   private def saveHeight(target: Store[F, Long, BlockId])(slotData: SlotData): F[Unit] =

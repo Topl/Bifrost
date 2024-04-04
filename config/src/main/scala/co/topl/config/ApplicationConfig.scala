@@ -190,6 +190,7 @@ object ApplicationConfig {
       eligibilities:           Cache.CacheConfig,
       epochData:               Cache.CacheConfig,
       registrationAccumulator: Cache.CacheConfig,
+      txIdToBlockId:           Cache.CacheConfig,
       containsCacheSize:       Long = 16384
     )
 

@@ -58,8 +58,10 @@ object DataStoresInit {
     val registrationAccumulatorStoreP2PDbName = "registration-accumulator-p2p"
     val knownRemotePeersStoreDbName = "known-remote-peers"
     val metadataStoreDbName = "metadata"
+    val txIdToBlockIdDbName = "txId-to-BlockId"
   }
 
+  // scalastyle:off method.length
   /**
    * Creates an instance of DataStores which may-or-may-not be initialized.  It is the responsibility of the caller to
    * call `initialize`.
@@ -204,6 +206,11 @@ object DataStoresInit {
         knownRemotePeersStoreDbName
       )
       metadataStore <- makeDb[F, Array[Byte], Array[Byte]](dataDir, levelDbFactory)(metadataStoreDbName)
+      txIdToBlockId <- makeCachedDb[F, TransactionId, ByteString, BlockId](dataDir, levelDbFactory)(
+        txIdToBlockIdDbName,
+        appConfig.bifrost.cache.txIdToBlockId,
+        _.value
+      )
 
       dataStores = DataStores(
         dataDir,
@@ -231,9 +238,11 @@ object DataStoresInit {
         registrationAccumulatorStoreLocal,
         registrationAccumulatorStoreP2P,
         knownRemotePeersStore,
-        metadataStore
+        metadataStore,
+        txIdToBlockId
       )
     } yield dataStores
+  // scalastyle:on method.length
 
   def createPrunedDataStores[F[_]: Async: Logger](
     appConfig:           ApplicationConfig,
@@ -261,6 +270,7 @@ object DataStoresInit {
       transactionStore <- makeDb[F, TransactionId, IoTransaction](dataDir, levelDbFactory)(transactionStoreDbName)
       blockHeightTreeStoreLocal <- makeDb[F, Long, BlockId](dataDir, levelDbFactory)(blockHeightTreeStoreLocalDbName)
       blockHeightTreeStoreP2P   <- makeDb[F, Long, BlockId](dataDir, levelDbFactory)(blockHeightTreeStoreP2PDbName)
+      txIdToBlockId             <- makeDb[F, TransactionId, BlockId](dataDir, levelDbFactory)(txIdToBlockIdDbName)
     } yield PrunedDataStores(
       dataDir,
       parentChildTree,
@@ -269,7 +279,8 @@ object DataStoresInit {
       blockBodyStore,
       transactionStore,
       blockHeightTreeStoreLocal,
-      blockHeightTreeStoreP2P
+      blockHeightTreeStoreP2P,
+      txIdToBlockId
     )
 
   /**

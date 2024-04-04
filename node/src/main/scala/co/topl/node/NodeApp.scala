@@ -70,6 +70,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
   def run: IO[Unit] = applicationResource.use_
 
+  // scalastyle:off method.length
   private def applicationResource: Resource[F, Unit] =
     for {
       implicit0(syncF: Async[F])   <- Resource.pure(implicitly[Async[F]])
@@ -146,6 +147,14 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .toResource
 
       // Start the supporting interpreters
+      txIdToBlockIdTree <- TxIdToBlockIdTree
+        .make(
+          canonicalHeadId.pure[F],
+          dataStores.bodies.get,
+          dataStores.txIdToBlockId,
+          blockIdTree
+        )
+        .toResource
       blockHeightTreeLocal <- BlockHeightTree
         .make[F](
           dataStores.blockHeightTreeLocal,
@@ -496,7 +505,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         boxStateStateP2P,
         mempoolState,
         registrationAccumulatorStateLocal,
-        registrationAccumulatorStateP2P
+        registrationAccumulatorStateP2P,
+        txIdToBlockIdTree
       )
 
       _ <- Logger[F].info(show"Updating EventSourcedStates to id=$canonicalHeadId").toResource
@@ -537,6 +547,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           softwareVersion.traverse(VersionReplicator.background[F](_, appConfig.bifrost.versionInfo.period)).void
         )
     } yield ()
+  // scalastyle:on method.length
 
   private def makeLeaderElectionThreshold(blake2b512Resource: Resource[F, Blake2b512], vrfConfig: VrfConfig) =
     for {
