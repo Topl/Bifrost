@@ -3,7 +3,7 @@ package co.topl.blockchain
 import cats.data.EitherT
 import cats.effect.Resource
 import cats.effect.kernel.Async
-import co.topl.brambl.models.TransactionId
+import co.topl.brambl.models.{TransactionId, TransactionOutputAddress}
 import co.topl.consensus.models.{BlockHeader, BlockId}
 import co.topl.ledger.algebras._
 import co.topl.ledger.models._
@@ -30,6 +30,7 @@ object MempoolProtected {
     fetchTransaction:                 TransactionId => F[IoTransaction],
     transactionRewardCalculator:      TransactionRewardCalculatorAlgebra,
     txCostCalculator:                 TransactionCostCalculator,
+    boxIdToHeight:                    TransactionOutputAddress => F[Option[Long]],
     config:                           MempoolProtection
   ): Resource[F, MempoolAlgebra[F]] =
     for {
@@ -45,6 +46,7 @@ object MempoolProtected {
             fetchTransaction,
             transactionRewardCalculator,
             txCostCalculator,
+            boxIdToHeight,
             config,
             semaphore
           )
@@ -60,6 +62,7 @@ object MempoolProtected {
     fetchTransaction:         TransactionId => F[IoTransaction],
     txRewardCalculator:       TransactionRewardCalculatorAlgebra,
     txCostCalculator:         TransactionCostCalculator,
+    boxIdToHeight:            TransactionOutputAddress => F[Option[Long]],
     config:                   MempoolProtection,
     semaphore:                Semaphore[F]
   ) extends MempoolAlgebra[F] {
@@ -105,6 +108,7 @@ object MempoolProtected {
           .flatMap(doSemanticCheck(currentHeader, graph))
           .flatMap(doAuthCheck(currentHeader))
           .flatMap(doFeeCheck(graph))
+          .flatMap(doAgeCheck(currentHeader, graph))
           .value
           .recoverWith { case e =>
             Logger[F].debug(e)(show"Error during checking transaction in Mempool") >>
@@ -173,6 +177,37 @@ object MempoolProtected {
               show"but minimum acceptable fee is $minimumFeePerKByte per Kb"
           )
           .toEitherT[F]
+      }
+
+    private def doAgeCheck(currentHeader: BlockHeader, graph: MempoolGraph)(
+      txToValidate: IoTransactionEx
+    ): EitherT[F, String, IoTransactionEx] =
+      if ((graph.memSize + txToValidate.size) < config.ageFilterThreshold) {
+        EitherT.right[String](txToValidate.pure[F])
+      } else {
+        val meanAgeF =
+          for {
+            currentHeight <- currentHeader.height.pure[F]
+            inputBoxes    <- txToValidate.tx.inputs.map(_.address).pure[F]
+            inputHeights  <- inputBoxes.traverse(boxIdToHeight)
+            meanAge <-
+              if (inputHeights.isEmpty) 0L.pure[F]
+              else (inputHeights.map(_.fold(0L)(currentHeight - _)).sum / inputHeights.size).pure[F]
+          } yield meanAge
+
+        val freeMempoolSize = Math.max(0, config.maxMempoolSize - graph.memSize)
+        val freeAgeBasedMempoolSize = Math.max(0, config.maxMempoolSize - config.ageFilterThreshold)
+        val minimumAge =
+          config.maxOldBoxAge - ((freeMempoolSize.toDouble / freeAgeBasedMempoolSize) * config.maxOldBoxAge).toLong
+
+        EitherT(meanAgeF.map { meanAge =>
+          Either
+            .cond(
+              test = meanAge >= minimumAge,
+              right = txToValidate,
+              left = show"Transaction ${txToValidate.tx.id} have age $meanAge but minimum acceptable age is $minimumAge"
+            )
+        })
       }
   }
 }

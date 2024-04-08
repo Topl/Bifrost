@@ -490,6 +490,13 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         dataStores.transactions.getOrRaise,
         transactionRewardCalculator,
         costCalculator,
+        box =>
+          {
+            for {
+              blockId  <- OptionT(dataStores.txIdToBlockId.get(box.id))
+              slotData <- OptionT(dataStores.slotData.get(blockId))
+            } yield slotData.height
+          }.value,
         appConfig.bifrost.mempool.protection
       )
 
