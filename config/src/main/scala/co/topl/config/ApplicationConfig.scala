@@ -101,13 +101,21 @@ object ApplicationConfig {
       // if (useMempoolForSemanticThresholdPercent / 100 * maxMempoolSize) is less than curren mempool size
       useMempoolForSemanticThresholdPercent: Double = 40,
 
-      // during semantic check we will include all transactions from memory pool in context
-      // if (feeFilterThresholdPercent / 100 * maxMempoolSize) is less than curren mempool size
-      feeFilterThresholdPercent: Double = 50
+      // Memory pool will accept transactions with fee starting from that threshold value,
+      // required fee will increased if free memory pool size is decreased,
+      // if free memory pool size is 0 then transaction with infinite fee will be required
+      feeFilterThresholdPercent: Double = 50,
+
+      // old box is required to be used as inputs starting from that threshold
+      ageFilterThresholdPercent: Double = 75,
+
+      // box with age (in height) maxOldBoxAge will always considered as old
+      maxOldBoxAge: Long = 100000
     ) {
       val protectionEnabledThreshold = toMultiplier(protectionEnabledThresholdPercent) * maxMempoolSize
       val useMempoolForSemanticThreshold = toMultiplier(useMempoolForSemanticThresholdPercent) * maxMempoolSize
       val feeFilterThreshold = toMultiplier(feeFilterThresholdPercent) * maxMempoolSize
+      val ageFilterThreshold = toMultiplier(ageFilterThresholdPercent) * maxMempoolSize
     }
 
     sealed abstract class BigBang
