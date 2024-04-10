@@ -46,8 +46,8 @@ object BlockchainNetwork {
         (peer, socket) =>
           for {
             portQueues <- BlockchainMultiplexedBuffers.make[F]
-            readerWriter = MultiplexedReaderWriter.forSocket(socket)
-            peerCache <- PeerCache.make[F]
+            readerWriter = MultiplexedReaderWriter(socket)
+            peerCache <- PeerStreamBuffer.make[F]
             server    <- serverF(peer)
             handler = new BlockchainSocketHandler[F](server, portQueues, readerWriter, peerCache, peer, 3.seconds)
             _ <- handler.client

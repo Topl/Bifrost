@@ -24,7 +24,7 @@ class BlockchainSocketHandler[F[_]: Async: Logger](
   server:         BlockchainPeerServerAlgebra[F],
   portQueues:     BlockchainMultiplexedBuffers[F],
   readerWriter:   MultiplexedReaderWriter[F],
-  cache:          PeerCache[F],
+  cache:          PeerStreamBuffer[F],
   connectedPeer:  ConnectedPeer,
   requestTimeout: FiniteDuration
 ) {
@@ -283,24 +283,29 @@ class BlockchainSocketHandler[F[_]: Async: Logger](
 
 }
 
-object BlockchainSocketHandler {}
-
-class PeerCache[F[_]](
+/**
+ * A buffer for inbound and outbound stream-based data, specific to a peer
+ * @param localBlockAdoptions a buffer containing BlockIds to be sent to the peer
+ * @param localTransactionAdoptions a buffer containing TransactionIds to be sent to the peer
+ * @param remoteBlockAdoptions a buffer containing BlockIds sent by the peer
+ * @param remoteTransactionAdoptions a buffer containing TransactionIds sent by the peer
+ */
+class PeerStreamBuffer[F[_]](
   val localBlockAdoptions:        Queue[F, BlockId],
   val localTransactionAdoptions:  Queue[F, TransactionId],
   val remoteBlockAdoptions:       Queue[F, BlockId],
   val remoteTransactionAdoptions: Queue[F, TransactionId]
 )
 
-object PeerCache {
+object PeerStreamBuffer {
 
-  def make[F[_]: Async]: Resource[F, PeerCache[F]] =
+  def make[F[_]: Async]: Resource[F, PeerStreamBuffer[F]] =
     (
       Queue.dropping[F, BlockId](256),
       Queue.dropping[F, TransactionId](256),
       Queue.dropping[F, BlockId](256),
       Queue.dropping[F, TransactionId](256)
     )
-      .mapN(new PeerCache[F](_, _, _, _))
+      .mapN(new PeerStreamBuffer[F](_, _, _, _))
       .toResource
 }

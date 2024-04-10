@@ -5,6 +5,7 @@ import cats.implicits._
 sealed abstract class BlockchainMultiplexerId(val id: Int)
 
 object BlockchainMultiplexerId {
+
   def parse(id: Int): Option[BlockchainMultiplexerId] =
     id match {
       case 10 => BlockIdAtHeightRequest.some
