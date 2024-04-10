@@ -170,7 +170,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         Option(PongMessage(req.ping.reverse)).pure[F]
       }
       (client.getRemoteBlockIdAtHeight _)
-        .expects(1, *)
+        .expects(1)
         .returns(localChainMock.genesis.map(sd => Option(sd.slotId.blockId)))
       (() => client.remotePeer)
         .expects()

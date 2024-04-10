@@ -148,8 +148,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
   private def createDummyClient(): BlockchainPeerClient[F] = {
     val client = mock[BlockchainPeerClient[F]]
     (client
-      .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-      .expects(1L, genesis.slotId.blockId.some)
+      .getRemoteBlockIdAtHeight(_: Long))
+      .expects(1L)
       .once()
       .returning(genesis.slotId.blockId.some.pure[F])
     (client.getPongMessage _).stubs(*).onCall { ping: PingMessage =>
@@ -275,8 +275,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         Async[F].delayBy(Option(PongMessage(ping.ping.reverse)).pure[F], pingDelay)
       }
       (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
+        .getRemoteBlockIdAtHeight(_: Long))
+        .expects(1L)
         .once()
         .returning(genesis.slotId.blockId.some.pure[F])
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
@@ -321,8 +321,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         Option(PongMessage(ping.ping)).pure[F]
       }
       (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
+        .getRemoteBlockIdAtHeight(_: Long))
+        .expects(1L)
         .once()
         .returning(genesis.slotId.blockId.some.pure[F])
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
@@ -370,8 +370,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val client = mock[BlockchainPeerClient[F]]
       (client.notifyAboutThisNetworkLevel _).expects(true).returns(Applicative[F].unit)
       (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
+        .getRemoteBlockIdAtHeight(_: Long))
+        .expects(1L)
         .once()
         .returning(genesis.slotId.blockId.some.pure[F])
       (client.getPongMessage _).expects(*).twice().onCall { _: PingMessage => throw new RuntimeException() }
@@ -544,8 +544,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
       val client = mock[BlockchainPeerClient[F]]
       (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
+        .getRemoteBlockIdAtHeight(_: Long))
+        .expects(1L)
         .once()
         .returning(genesis.slotId.blockId.some.pure[F])
       (client.getPongMessage _).stubs(*).onCall { ping: PingMessage =>
@@ -596,8 +596,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val client = mock[BlockchainPeerClient[F]]
       (client.notifyAboutThisNetworkLevel _).stubs(*).returns(Applicative[F].unit)
       (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, localGenesis.slotId.blockId.some)
+        .getRemoteBlockIdAtHeight(_: Long))
+        .expects(1L)
         .once()
         .returning(remoteGenesisId.some.pure[F])
       (client.closeConnection _).stubs().returns(Applicative[F].unit)
@@ -661,8 +661,8 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val (networkAlgebra, _, _, _) = createDummyNetworkAlgebra()
       (client.notifyAboutThisNetworkLevel _).expects(true).returns(Applicative[F].unit)
       (client
-        .getRemoteBlockIdAtHeight(_: Long, _: Option[BlockId]))
-        .expects(1L, genesis.slotId.blockId.some)
+        .getRemoteBlockIdAtHeight(_: Long))
+        .expects(1L)
         .once()
         .returning(genesis.slotId.blockId.some.pure[F])
       (client.getPongMessage _).stubs(*).onCall { ping: PingMessage =>

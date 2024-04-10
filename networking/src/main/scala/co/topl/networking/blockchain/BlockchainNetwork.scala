@@ -1,11 +1,10 @@
 package co.topl.networking.blockchain
 
-import cats.Applicative
-import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
 import cats.effect.std.Random
 import co.topl.crypto.signing.Ed25519
+import co.topl.networking.multiplexer.MultiplexedReaderWriter
 import co.topl.networking.p2p._
 import fs2._
 import fs2.concurrent.Topic
@@ -45,20 +44,18 @@ object BlockchainNetwork {
         localPeer,
         remotePeers,
         (peer, socket) =>
-          ConnectionLeader
-            .fromSocket(socket.readN, socket.write)
-            .timeout(5.seconds)
-            .toResource
-            .flatMap(connectionLeader =>
-              BlockchainSocketHandler
-                .make[F](serverF, clientHandler.usePeer)(
-                  peer,
-                  connectionLeader,
-                  socket.reads,
-                  socket.writes,
-                  socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
-                )
-            ),
+          for {
+            portQueues <- BlockchainMultiplexedBuffers.make[F]
+            readerWriter = MultiplexedReaderWriter.forSocket(socket)
+            peerCache <- PeerCache.make[F]
+            server    <- serverF(peer)
+            handler = new BlockchainSocketHandler[F](server, portQueues, readerWriter, peerCache, peer, 3.seconds)
+            _ <- handler.client
+              .flatMap(client => Stream.resource(clientHandler.usePeer(client)))
+              .compile
+              .drain
+              .toResource
+          } yield (),
         peersStatusChangesTopic,
         ed25519Resource
       )

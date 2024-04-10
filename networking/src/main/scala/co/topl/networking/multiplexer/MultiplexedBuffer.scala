@@ -8,7 +8,7 @@ import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
 import fs2.Stream
 
-case class PortQueues[F[_], Request, Response](
+case class MultiplexedBuffer[F[_], Request, Response](
   requests:  Queue[F, Request],
   responses: Queue[F, Deferred[F, Response]]
 ) {
@@ -33,14 +33,14 @@ case class PortQueues[F[_], Request, Response](
     Deferred[F, Response].flatTap(responses.offer).flatMap(_.get)
 }
 
-object PortQueues {
+object MultiplexedBuffer {
 
-  def make[F[_]: Async, Request, Response]: Resource[F, PortQueues[F, Request, Response]] =
+  def make[F[_]: Async, Request, Response]: Resource[F, MultiplexedBuffer[F, Request, Response]] =
     (
       Queue.unbounded[F, Request].toResource,
       Queue
         .unbounded[F, Deferred[F, Response]]
         .toResource
     )
-      .mapN(PortQueues.apply)
+      .mapN(MultiplexedBuffer.apply)
 }

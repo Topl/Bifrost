@@ -358,7 +358,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -457,7 +457,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -568,7 +568,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -675,7 +675,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -965,7 +965,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -1059,7 +1059,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         Stream.eval[F, BlockId](bestSlotId.pure[F]).pure[F]
       }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -1407,7 +1407,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -1512,7 +1512,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 
@@ -1612,7 +1612,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           OptionT(remoteIdToSlotData.get(id).pure[F]).getOrRaise(e.apply())
         }
       val remoteHeightToBlockId = remoteIdToSlotData.map { case (id, sd) => sd.height -> id }
-      (client.getRemoteBlockIdAtHeight _).expects(*, *).onCall { case (height: Long, _: Option[BlockId] @unchecked) =>
+      (client.getRemoteBlockIdAtHeight _).expects(*).onCall { height: Long =>
         remoteHeightToBlockId.get(height).pure[F]
       }
 

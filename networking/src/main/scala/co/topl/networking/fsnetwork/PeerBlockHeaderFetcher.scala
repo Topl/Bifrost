@@ -251,7 +251,7 @@ object PeerBlockHeaderFetcher {
         show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostIdString} :" ++
           show" commonSlotHeight=$commonSlotHeight, requestedHeight=$requestedHeight"
       _          <- Logger[F].info(message)
-      blockIdTo  <- state.client.getRemoteBlockIdAtHeight(requestedHeight, None).map(_.get)
+      blockIdTo  <- state.client.getRemoteBlockIdAtHeight(requestedHeight).map(_.get)
       slotDataTo <- state.client.getSlotDataOrError(blockIdTo, new NoSuchElementException(blockIdTo.toString))
     } yield (commonSlotData, slotDataTo)
 

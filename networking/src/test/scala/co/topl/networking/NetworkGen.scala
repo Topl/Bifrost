@@ -18,10 +18,6 @@ trait NetworkGen {
       } yield ConnectedPeer(address, ByteString.copyFrom(peerVK))
     )
 
-  implicit val arbitraryConnectionLeader: Arbitrary[ConnectionLeader] =
-    Arbitrary(
-      Gen.oneOf(ConnectionLeader.Local, ConnectionLeader.Remote)
-    )
 }
 
 object NetworkGen extends NetworkGen
