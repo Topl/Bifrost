@@ -70,20 +70,20 @@ object MempoolProtected {
 
     override def add(transactionId: TransactionId): F[Boolean] = semaphore.permit.use { _ =>
       for {
-        header <- currentBlockHeader
-        graph  <- read(header.id)
-        ioTx   <- fetchTransaction(transactionId)
-        ioExTx <- IoTransactionEx(ioTx, txRewardCalculator.rewardsOf(ioTx), txCostCalculator.costOf(ioTx)).pure[F]
-        res    <- checkTransaction(header, graph, ioExTx)
-        _ <-
-          if (res) {
+        header   <- currentBlockHeader
+        graph    <- read(header.id)
+        ioTx     <- fetchTransaction(transactionId)
+        ioExTx   <- IoTransactionEx(ioTx, txRewardCalculator.rewardsOf(ioTx), txCostCalculator.costOf(ioTx)).pure[F]
+        checkRes <- checkTransaction(header, graph, ioExTx)
+        addRes <-
+          if (checkRes) {
             underlying
               .add(transactionId)
-              .flatMap(r => Logger[F].info(show"Added tx $transactionId to mempool with res $r"))
+              .flatTap(r => Logger[F].info(show"Added tx $transactionId to mempool with res $r"))
           } else {
-            ().pure[F]
+            false.pure[F]
           }
-      } yield res
+      } yield addRes
     }
 
     override def remove(transactionId: TransactionId): F[Unit] =
@@ -163,7 +163,7 @@ object MempoolProtected {
         EitherT.right[String](txToValidate.pure[F])
       } else {
         val meanFeePerKByte = Math.max(1, graph.meanToplFeePerKByte)
-        val freeMempoolSize = Math.max(0, config.maxMempoolSize - graph.memSize)
+        val freeMempoolSize = Math.max(0, config.maxMempoolSize - graph.memSize).toDouble
         val freeMempoolSizePercent = freeMempoolSize / config.maxMempoolSize
         val minimumFeePerKByte =
           if (freeMempoolSizePercent == 0) Double.MaxValue
