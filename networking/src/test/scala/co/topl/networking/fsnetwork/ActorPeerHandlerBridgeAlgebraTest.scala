@@ -20,7 +20,7 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.models._
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators.arbitrarySlotData
-import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.blockchain.{BlockchainPeerClient, NetworkProtocolVersions}
 import co.topl.networking.fsnetwork.ActorPeerHandlerBridgeAlgebraTest._
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, BlockBodyOrTransactionErrorByName}
@@ -152,7 +152,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       val remotePeerAddress = RemoteAddress("2.2.2.2", remotePeerPort)
       val remotePeerVK = arbitraryHost.arbitrary.first.id
       val remotePeerId = HostId(remotePeerVK)
-      val remoteConnectedPeer = ConnectedPeer(remotePeerAddress, remotePeerVK)
+      val remoteConnectedPeer = ConnectedPeer(remotePeerAddress, remotePeerVK, NetworkProtocolVersions.V1)
       val remotePeer = DisconnectedPeer(remotePeerAddress, Some(remotePeerVK))
       val remotePeers: List[DisconnectedPeer] = List(remotePeer)
       val hotPeersUpdatedFlag: AtomicBoolean = new AtomicBoolean(false)

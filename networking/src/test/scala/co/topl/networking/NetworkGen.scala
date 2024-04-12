@@ -1,5 +1,6 @@
 package co.topl.networking
 
+import co.topl.networking.blockchain.NetworkProtocolVersions
 import co.topl.networking.p2p._
 import com.google.protobuf.ByteString
 import org.scalacheck.Arbitrary
@@ -15,7 +16,7 @@ trait NetworkGen {
       for {
         address <- arbitraryRemoteAddress.arbitrary
         peerVK  <- Gen.containerOfN[Array, Byte](32, Arbitrary.arbByte.arbitrary)
-      } yield ConnectedPeer(address, ByteString.copyFrom(peerVK))
+      } yield ConnectedPeer(address, ByteString.copyFrom(peerVK), NetworkProtocolVersions.V1)
     )
 
 }

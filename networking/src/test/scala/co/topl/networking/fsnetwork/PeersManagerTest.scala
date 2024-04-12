@@ -1,10 +1,10 @@
 package co.topl.networking.fsnetwork
 
-import cats.{Applicative, Parallel}
 import cats.data.NonEmptyChain
 import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, Resource}
 import cats.implicits._
+import cats.{Applicative, Parallel}
 import co.topl.algebras.Store
 import co.topl.brambl.generators.TransactionGenerator
 import co.topl.brambl.models.TransactionId
@@ -19,7 +19,7 @@ import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
-import co.topl.networking.blockchain.BlockchainPeerClient
+import co.topl.networking.blockchain.{BlockchainPeerClient, NetworkProtocolVersions}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
@@ -1210,7 +1210,7 @@ class PeersManagerTest
             timeNow <- Sync[F].realTime.map(_.toMillis)
             _       <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             withUpdate <- actor.send(
-              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id))
+              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id, NetworkProtocolVersions.V1))
             )
             _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host1Id).actorOpt.get == peer1)
@@ -1222,7 +1222,7 @@ class PeersManagerTest
             _ = assert(withUpdate2.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate2.peersHandler(host1Id).actorOpt.isEmpty)
             withUpdate3 <- actor.send(
-              buildOpenedPeerConnectionMessage(client2, ConnectedPeer(host2Ra, host1Id.id))
+              buildOpenedPeerConnectionMessage(client2, ConnectedPeer(host2Ra, host1Id.id, NetworkProtocolVersions.V1))
             )
             _ = assert(withUpdate3.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate3.peersHandler(host1Id).actorOpt.get == peer2)
@@ -1270,7 +1270,7 @@ class PeersManagerTest
             initialState <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             _ = assert(initialState.peersHandler(host1Id).state == PeerState.Cold)
             withUpdate <- actor.send(
-              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id))
+              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id, NetworkProtocolVersions.V1))
             )
             _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host1Id).asServer.get.address == host1Ra)
@@ -1299,7 +1299,7 @@ class PeersManagerTest
             .pure(peer1)
             .onFinalize(Sync[F].delay(peer1.sendNoWait(PeerActor.Message.CloseConnectionForActor)))
         ) // simulate real actor finalizer
-      val connectedPeer = ConnectedPeer(host1Ra, host1Id.id)
+      val connectedPeer = ConnectedPeer(host1Ra, host1Id.id, NetworkProtocolVersions.V1)
       (() => client1.remotePeer).expects().anyNumberOfTimes().returns(connectedPeer)
 
       (peer1.sendNoWait _)
@@ -1347,7 +1347,10 @@ class PeersManagerTest
           for {
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
             withUpdate <- actor.send(
-              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(RemoteAddress("second", 1), thisHostId.id))
+              buildOpenedPeerConnectionMessage(
+                client1,
+                ConnectedPeer(RemoteAddress("second", 1), thisHostId.id, NetworkProtocolVersions.V1)
+              )
             )
             _ = assert(withUpdate.peersHandler(thisHostId).state == PeerState.Banned)
           } yield ()
@@ -1595,38 +1598,54 @@ class PeersManagerTest
       buildActorFromMockData(mockData)
         .use { actor =>
           for {
-            _          <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
-            _          <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
-            stateHost1 <- actor.send(buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id)))
+            _ <- actor.send(PeersManager.Message.SetupBlockChecker(blockChecker))
+            _ <- actor.send(PeersManager.Message.SetupRequestsProxy(requestProxy))
+            stateHost1 <- actor.send(
+              buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id, NetworkProtocolVersions.V1))
+            )
             _ = assert(stateHost1.peersHandler(host1Id).state == PeerState.Cold)
             _ = assert(stateHost1.peersHandler(host1Id).closedTimestamps == Seq(1))
             _ = assert(stateHost1.peersHandler(host1Id).asServer.get.address == host1Ra)
             _ = assert(stateHost1.peersHandler(host1Id).asServer.get.peerId == host1Id)
-            stateHost2 <- actor.send(buildOpenedPeerConnectionMessage(client2, ConnectedPeer(host2Ra, host2Id.id)))
+            stateHost2 <- actor.send(
+              buildOpenedPeerConnectionMessage(client2, ConnectedPeer(host2Ra, host2Id.id, NetworkProtocolVersions.V1))
+            )
             _ = assert(stateHost2.peersHandler(host2Id).state == PeerState.Cold)
             _ = assert(stateHost2.peersHandler(host2Id).closedTimestamps == Seq.empty)
             _ = assert(stateHost2.peersHandler(host2Id).asServer.get.address == host2Ra)
             _ = assert(stateHost2.peersHandler(host2Id).asServer.get.peerId == host2Id)
-            stateHost3 <- actor.send(buildOpenedPeerConnectionMessage(client3, ConnectedPeer(host3Ra, host3Id.id)))
+            stateHost3 <- actor.send(
+              buildOpenedPeerConnectionMessage(client3, ConnectedPeer(host3Ra, host3Id.id, NetworkProtocolVersions.V1))
+            )
             _ = assert(stateHost3.peersHandler(host3Id).state == PeerState.Warm)
             _ = assert(stateHost3.peersHandler(host3Id).closedTimestamps == Seq(3))
             _ = assert(stateHost3.peersHandler(host3Id).asServer.get.address == host3Ra)
             _ = assert(stateHost3.peersHandler(host3Id).asServer.get.peerId == host3Id)
-            stateHost4 <- actor.send(buildOpenedPeerConnectionMessage(client4, ConnectedPeer(host4Ra, host4Id.id)))
+            stateHost4 <- actor.send(
+              buildOpenedPeerConnectionMessage(client4, ConnectedPeer(host4Ra, host4Id.id, NetworkProtocolVersions.V1))
+            )
             _ = assert(stateHost4.peersHandler(host4Id).state == PeerState.Banned)
             _ = assert(stateHost4.peersHandler(host4Id).closedTimestamps == Seq(4))
             _ = assert(stateHost4.peersHandler(host4Id).asServer.isEmpty)
             stateHost5 <- actor.send(
-              buildOpenedPeerConnectionMessage(client5, ConnectedPeer(host5Ra, host5Id.id), false)
+              buildOpenedPeerConnectionMessage(
+                client5,
+                ConnectedPeer(host5Ra, host5Id.id, NetworkProtocolVersions.V1),
+                false
+              )
             )
             _ = assert(stateHost5.peersHandler(host5Id).state == PeerState.Hot)
             _ = assert(stateHost5.peersHandler(host5Id).closedTimestamps == Seq(5))
             _ = assert(stateHost5.peersHandler(host5Id).asServer == client5RemotePort)
-            stateHost6 <- actor.send(buildOpenedPeerConnectionMessage(client6, ConnectedPeer(host6Ra, host6Id.id)))
+            stateHost6 <- actor.send(
+              buildOpenedPeerConnectionMessage(client6, ConnectedPeer(host6Ra, host6Id.id, NetworkProtocolVersions.V1))
+            )
             _ = assert(stateHost6.peersHandler(host6Id).state == PeerState.Cold)
             _ = assert(stateHost6.peersHandler(host6Id).closedTimestamps == Seq(6))
             _ = assert(stateHost6.peersHandler(host6Id).asServer.isEmpty)
-            stateHost7 <- actor.send(buildOpenedPeerConnectionMessage(client7, ConnectedPeer(host7Ra, host7Id.id)))
+            stateHost7 <- actor.send(
+              buildOpenedPeerConnectionMessage(client7, ConnectedPeer(host7Ra, host7Id.id, NetworkProtocolVersions.V1))
+            )
             _ = assert(stateHost7.peersHandler(host7Id).state == PeerState.Warm)
             _ = assert(stateHost7.peersHandler(host7Id).closedTimestamps == Seq(7))
             _ = assert(stateHost7.peersHandler(host7Id).asServer.isEmpty)
@@ -3305,7 +3324,12 @@ class PeersManagerTest
           for {
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(mock[RequestsProxyActor[F]]))
             newState1 <-
-              actor.send(buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id)))
+              actor.send(
+                buildOpenedPeerConnectionMessage(
+                  client1,
+                  ConnectedPeer(host1Ra, host1Id.id, NetworkProtocolVersions.V1)
+                )
+              )
             _ = assert(newState1.peersHandler.peers(host1Id).state == PeerState.Cold)
 
             newState2 <- actor.send(PeersManager.Message.RemotePeerIdChanged(host2Id, host1Id))
@@ -3352,7 +3376,12 @@ class PeersManagerTest
           for {
             _ <- actor.send(PeersManager.Message.SetupRequestsProxy(mock[RequestsProxyActor[F]]))
             newState1 <-
-              actor.send(buildOpenedPeerConnectionMessage(client1, ConnectedPeer(host1Ra, host1Id.id)))
+              actor.send(
+                buildOpenedPeerConnectionMessage(
+                  client1,
+                  ConnectedPeer(host1Ra, host1Id.id, NetworkProtocolVersions.V1)
+                )
+              )
             _ = assert(newState1.peersHandler.peers(host1Id).state == PeerState.Cold)
             newState2 <- actor.send(PeersManager.Message.RemotePeerIdChanged(host1Id, host2Id))
             _ = assert(!newState2.peersHandler.peers.contains(host1Id))

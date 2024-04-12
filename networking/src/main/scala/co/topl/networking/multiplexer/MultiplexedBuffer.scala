@@ -37,9 +37,7 @@ case class MultiplexedBuffer[F[_], Request, Response](
    * A background-handler for incoming requests from the peer
    * @param subProcessor a function which fulfills the peer's request
    */
-  def backgroundRequestProcessor(
-    subProcessor: Request => F[Unit]
-  )(implicit async: Async[F]): Stream[F, Unit] =
+  def backgroundRequestProcessor(subProcessor: Request => F[Unit])(implicit async: Async[F]): Stream[F, Unit] =
     Stream
       .fromQueueUnterminated(requests)
       .evalMap(subProcessor)
@@ -48,7 +46,7 @@ case class MultiplexedBuffer[F[_], Request, Response](
    * Create and enqueue a placeholder Deferred, which is completed when the remote peer fulfills the request
    * @return the resulting response, once fulfilled by the remote peer
    */
-  def createResponse(implicit async: Async[F]): F[Response] =
+  def awaitResponse(implicit async: Async[F]): F[Response] =
     Deferred[F, Response].flatTap(responses.offer).flatMap(_.get)
 }
 
@@ -57,9 +55,7 @@ object MultiplexedBuffer {
   def make[F[_]: Async, Request, Response]: Resource[F, MultiplexedBuffer[F, Request, Response]] =
     (
       Queue.unbounded[F, Request].toResource,
-      Queue
-        .unbounded[F, Deferred[F, Response]]
-        .toResource
+      Queue.unbounded[F, Deferred[F, Response]].toResource
     )
       .mapN(MultiplexedBuffer.apply)
 }

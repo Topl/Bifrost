@@ -15,12 +15,11 @@ import co.topl.networking.multiplexer.{MultiplexedBuffer, MultiplexedReaderWrite
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.node.models._
 import fs2._
-import org.typelevel.log4cats.Logger
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
 
-class BlockchainSocketHandler[F[_]: Async: Logger](
+class BlockchainSocketHandler[F[_]: Async](
   server:         BlockchainPeerServerAlgebra[F],
   portQueues:     BlockchainMultiplexedBuffers[F],
   readerWriter:   MultiplexedReaderWriter[F],
@@ -75,12 +74,12 @@ class BlockchainSocketHandler[F[_]: Async: Logger](
 
           override def closeConnection(): F[Unit] = deferred.complete(()).void
         })
-          .mergeHaltR(Stream.eval(deferred.get).drain)
+          .mergeHaltBoth(Stream.eval(deferred.get).drain)
+          .mergeHaltBoth((background ++ Stream.eval(deferred.complete(()))).drain)
       )
-      .concurrently(background.drain)
 
   private def background: Stream[F, Unit] =
-    readerStream.merge(portQueueStreams).merge(cacheStreams)
+    readerStream.concurrently(portQueueStreams.merge(cacheStreams))
 
   private def readerStream =
     readerWriter.read
@@ -208,7 +207,7 @@ class BlockchainSocketHandler[F[_]: Async: Logger](
     buffer:  MultiplexedBuffer[F, Message, Response]
   ): F[Response] =
     readerWriter.write(port.id, ZeroBS.concat(Transmittable[Message].transmittableBytes(message))) *>
-    buffer.createResponse
+    buffer.awaitResponse
 
   private def writeResponse[Message: Transmittable](
     port:    BlockchainMultiplexerId,
@@ -285,6 +284,7 @@ class BlockchainSocketHandler[F[_]: Async: Logger](
 
 /**
  * A buffer for inbound and outbound stream-based data, specific to a peer
+ *
  * @param localBlockAdoptions a buffer containing BlockIds to be sent to the peer
  * @param localTransactionAdoptions a buffer containing TransactionIds to be sent to the peer
  * @param remoteBlockAdoptions a buffer containing BlockIds sent by the peer

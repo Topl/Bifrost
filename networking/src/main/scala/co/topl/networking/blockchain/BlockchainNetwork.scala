@@ -1,15 +1,19 @@
 package co.topl.networking.blockchain
 
+import cats.Applicative
 import cats.effect._
 import cats.effect.implicits._
 import cats.effect.std.Random
+import cats.implicits._
 import co.topl.crypto.signing.Ed25519
+import co.topl.networking.legacy.{ConnectionLeader, LegacyBlockchainSocketHandler}
 import co.topl.networking.multiplexer.MultiplexedReaderWriter
 import co.topl.networking.p2p._
 import fs2._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
 
@@ -49,12 +53,32 @@ object BlockchainNetwork {
             readerWriter = MultiplexedReaderWriter(socket)
             peerCache <- PeerStreamBuffer.make[F]
             server    <- serverF(peer)
-            handler = new BlockchainSocketHandler[F](server, portQueues, readerWriter, peerCache, peer, 3.seconds)
-            _ <- handler.client
-              .flatMap(client => Stream.resource(clientHandler.usePeer(client)))
-              .compile
-              .drain
-              .toResource
+            _ <-
+              if (peer.networkVersion == NetworkProtocolVersions.V0)
+                (
+                  Logger[F].info(show"Using legacy network protocol for peer=${peer.p2pVK}").toResource >>
+                  ConnectionLeader
+                    .fromSocket(socket.readN, socket.write)
+                    .timeout(5.seconds)
+                    .toResource
+                    .flatMap(connectionLeader =>
+                      LegacyBlockchainSocketHandler
+                        .make[F](serverF, clientHandler.usePeer)(
+                          peer,
+                          connectionLeader,
+                          socket.reads,
+                          socket.writes,
+                          socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
+                        )
+                    )
+                )
+              else
+                new BlockchainSocketHandler[F](server, portQueues, readerWriter, peerCache, peer, 3.seconds).client
+                  .evalMap(clientHandler.usePeer(_).use_)
+                  .compile
+                  .drain
+                  .toResource
+            _ <- Logger[F].info(show"Done with peer=${peer.p2pVK}").toResource
           } yield (),
         peersStatusChangesTopic,
         ed25519Resource
