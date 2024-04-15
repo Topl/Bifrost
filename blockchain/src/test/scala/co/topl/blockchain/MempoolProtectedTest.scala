@@ -14,7 +14,7 @@ import cats.implicits._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import co.topl.models.generators.consensus._
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
 import co.topl.models.ModelGenerators._
 import co.topl.networking.fsnetwork.TestHelper.arbitraryIoTransaction
 import co.topl.codecs.bytes.tetra.instances._
@@ -23,7 +23,7 @@ import co.topl.brambl.validation.TransactionAuthorizationError
 import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
 import co.topl.ledger.models._
 import co.topl.quivr.runtime.DynamicContext
-import org.scalacheck.effect.PropF
+import scala.annotation.tailrec
 
 class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -33,10 +33,15 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
   private val dummyCostCalc: TransactionCostCalculator = (tx: IoTransaction) => tx.inputs.size
 
-  def arbitraryTx: IoTransaction = Arbitrary(arbitraryIoTransaction.arbitrary.map(_.embedId)).arbitrary.first
+  @tailrec
+  private def arbitraryTxWithInput: IoTransaction = {
+    val tx = Arbitrary(arbitraryIoTransaction.arbitrary.map(_.embedId)).arbitrary.first
+    if (tx.inputs.nonEmpty) tx
+    else arbitraryTxWithInput
+  }
 
   def makeTransaction: (IoTransaction, TransactionId => F[IoTransaction]) = {
-    val tx = arbitraryTx
+    val tx = arbitraryTxWithInput
     val fetcher = (_: TransactionId) => tx.pure[F]
     (tx, fetcher)
   }
@@ -88,11 +93,11 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val readMempoolGraph = MempoolGraph(Map.empty, Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
       (underlying.read _).expects(readBlockId).once().returns(readMempoolGraph.pure[F])
 
-      val removeTx = arbitraryTx
+      val removeTx = arbitraryTxWithInput
       (underlying.remove _).expects(removeTx.id).returns(().pure[F])
 
       val containsBlockId = arbitraryBlockId.arbitrary.first
-      val containsTx = arbitraryTx
+      val containsTx = arbitraryTxWithInput
       (underlying.contains _).expects(containsBlockId, containsTx.id).returns(true.pure[F])
 
       val (addedTx, fetchTransaction) = makeTransaction
@@ -143,7 +148,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val (addedTx, fetchTransaction) = makeTransaction
       val costMock = mock[TransactionCostCalculator]
 
-      val txInMempool = arbitraryTx
+      val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
         MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
@@ -215,7 +220,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val (addedTx, fetchTransaction) = makeTransaction
       val costMock = mock[TransactionCostCalculator]
 
-      val txInMempool = arbitraryTx
+      val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
         MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
@@ -296,7 +301,6 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val transactionAuthorizationVerifier = mock[TransactionAuthorizationVerifier[F]]
 
       val transactionRewardCalculator = dummyRewardCalc
-      dummyCostCalc
 
       val boxIdToHeight = mock[TransactionOutputAddress => F[Option[Long]]]
       val maxMempoolSize = 10000
@@ -313,7 +317,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val (addedTx, fetchTransaction) = makeTransaction
       val costMock = mock[TransactionCostCalculator]
 
-      val txInMempool = arbitraryTx
+      val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
         MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
@@ -365,7 +369,6 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
   test("Skip fee and age checks if threshold is not hit") {
     withMock {
       val transactionRewardCalculator = dummyRewardCalc
-      dummyCostCalc
       val boxIdToHeight = mock[TransactionOutputAddress => F[Option[Long]]]
       val maxMempoolSize = 10000
       val config =
@@ -383,7 +386,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val (semanticValidationAlgebra, transactionAuthorizationVerifier) = semanticAndAuthCheckOk(addedTx)
       val costMock = mock[TransactionCostCalculator]
 
-      val txInMempool = arbitraryTx
+      val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
         MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
@@ -413,70 +416,153 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
     }
   }
 
+  def checkFee(feeThreshold: Double): F[Unit] = {
+    val boxIdToHeight = (_: TransactionOutputAddress) => 0L.some.pure[F]
+    val maxMempoolSize = 10240
+    val config =
+      MempoolProtection(
+        enabled = true,
+        protectionEnabledThresholdPercent = 10,
+        maxMempoolSize = maxMempoolSize,
+        feeFilterThresholdPercent = feeThreshold,
+        ageFilterThresholdPercent = 100,
+        maxOldBoxAge = 0
+      )
+    val currentBlockHeader = Arbitrary(ModelGenerators.headerGen()).arbitrary.first
+    val currentBlockHeaderF = currentBlockHeader.pure[F]
+    val underlying = mock[MempoolAlgebra[F]]
+    val (addedTx, fetchTransaction) = makeTransaction
+    val (semanticValidationAlgebra, transactionAuthorizationVerifier) = semanticAndAuthCheckOk(addedTx)
+    val costMock = mock[TransactionCostCalculator]
+    val rewardMock = mock[TransactionRewardCalculatorAlgebra]
+
+    val txInMempool = arbitraryTxWithInput
+    val sizeInMempool = Math.round(maxMempoolSize * feeThreshold / 100)
+    val feePerKbInMempool = 100.0
+    val feeInMempool = feePerKbInMempool * sizeInMempool / 1024
+    val freeMempoolSizePercent = (maxMempoolSize - sizeInMempool).toDouble / maxMempoolSize.toDouble
+    val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(topl = feeInMempool.toLong), sizeInMempool)
+    val mempoolGraph =
+      MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+
+    (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
+    val feeBelowTxSize = 1024
+    val feeBelow = (feePerKbInMempool / freeMempoolSizePercent - feePerKbInMempool - 1) * feeBelowTxSize / 1024
+    (costMock.costOf _).expects(addedTx).returns(feeBelowTxSize)
+    (rewardMock.rewardsOf _).expects(addedTx).returns(RewardQuantities(topl = Math.floor(feeBelow).toLong))
+
+    (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
+    val feeUpperTxSize = 1024
+    val feeUpper = (feePerKbInMempool / freeMempoolSizePercent - feePerKbInMempool + 1) * feeBelowTxSize / 1024
+    (costMock.costOf _).expects(addedTx).returns(feeUpperTxSize)
+    (rewardMock.rewardsOf _).expects(addedTx).returns(RewardQuantities(topl = Math.ceil(feeUpper).toLong))
+    (underlying.add _).expects(addedTx.id).once().returns(true.pure[F])
+
+    val res =
+      for {
+        mempool <- MempoolProtected.make[F](
+          underlying,
+          semanticValidationAlgebra,
+          transactionAuthorizationVerifier,
+          currentBlockHeaderF,
+          fetchTransaction,
+          rewardMock,
+          costMock,
+          boxIdToHeight,
+          config
+        )
+
+        _ <- mempool.add(addedTx.id).assertEquals(false).toResource
+        _ <- mempool.add(addedTx.id).assertEquals(true).toResource
+      } yield ()
+
+    res.use_
+  }
+
   test("Check fee filter") {
-    PropF.forAllF(Gen.choose(0.1, 95.0)) { feeThreshold =>
-      withMock {
-        val boxIdToHeight = (_: TransactionOutputAddress) => 0L.some.pure[F]
-        val maxMempoolSize = 10240
-        val config =
-          MempoolProtection(
-            enabled = true,
-            protectionEnabledThresholdPercent = 10,
-            maxMempoolSize = maxMempoolSize,
-            feeFilterThresholdPercent = feeThreshold,
-            ageFilterThresholdPercent = 100,
-            maxOldBoxAge = 0
-          )
-        val currentBlockHeader = Arbitrary(ModelGenerators.headerGen()).arbitrary.first
-        val currentBlockHeaderF = currentBlockHeader.pure[F]
-        val underlying = mock[MempoolAlgebra[F]]
-        val (addedTx, fetchTransaction) = makeTransaction
-        val (semanticValidationAlgebra, transactionAuthorizationVerifier) = semanticAndAuthCheckOk(addedTx)
-        val costMock = mock[TransactionCostCalculator]
-        val rewardMock = mock[TransactionRewardCalculatorAlgebra]
+    Seq(0.1, 10, 25, 50, 60, 75, 85, 90, 95, 99).traverse(feeThreshold => withMock(checkFee(feeThreshold)))
+  }
 
-        val txInMempool = arbitraryTx
-        val sizeInMempool = Math.round(maxMempoolSize * feeThreshold / 100)
-        val feePerKbInMempool = 100.0
-        val feeInMempool = feePerKbInMempool * sizeInMempool / 1024
-        val freeMempoolSizePercent = (maxMempoolSize - sizeInMempool).toDouble / maxMempoolSize.toDouble
-        val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(topl = feeInMempool.toLong), sizeInMempool)
-        val mempoolGraph =
-          MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+  def checkAge(ageThresholdPercent: Double, freeAgePoolPercent: Double): F[Unit] = {
+    val boxIdToHeight = mock[TransactionOutputAddress => F[Option[Long]]]
+    val maxMempoolSize = 10240
+    val maxOldBoxAge = 1000
+    val config =
+      MempoolProtection(
+        enabled = true,
+        protectionEnabledThresholdPercent = 1,
+        maxMempoolSize = maxMempoolSize,
+        feeFilterThresholdPercent = 100,
+        ageFilterThresholdPercent = ageThresholdPercent,
+        maxOldBoxAge = maxOldBoxAge
+      )
 
-        (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
-        val feeBelowTxSize = 1024
-        val feeBelow = (feePerKbInMempool / freeMempoolSizePercent - feePerKbInMempool - 1) * feeBelowTxSize / 1024
-        (costMock.costOf _).expects(addedTx).returns(feeBelowTxSize)
-        (rewardMock.rewardsOf _).expects(addedTx).returns(RewardQuantities(topl = Math.floor(feeBelow).toLong))
+    val currentHeight = 1000
+    val currentBlockHeader = Arbitrary(ModelGenerators.headerGen()).arbitrary.first.copy(height = currentHeight)
+    val currentBlockHeaderF = currentBlockHeader.pure[F]
+    val underlying = mock[MempoolAlgebra[F]]
+    val (addedTx, fetchTransaction) = makeTransaction
+    val addedTxInputsSize = addedTx.inputs.size
+    val (semanticValidationAlgebra, transactionAuthorizationVerifier) = semanticAndAuthCheckOk(addedTx)
+    val rewardMock = mock[TransactionRewardCalculatorAlgebra]
+    val costMock = mock[TransactionCostCalculator]
+    (costMock.costOf _).expects(addedTx).anyNumberOfTimes().returns(1)
+    (rewardMock.rewardsOf _)
+      .expects(addedTx)
+      .anyNumberOfTimes()
+      .returns(RewardQuantities(topl = BigInt(Math.round(Double.MaxValue))))
 
-        (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
-        val feeUpperTxSize = 1024
-        val feeUpper = (feePerKbInMempool / freeMempoolSizePercent - feePerKbInMempool + 1) * feeBelowTxSize / 1024
-        (costMock.costOf _).expects(addedTx).returns(feeUpperTxSize)
-        (rewardMock.rewardsOf _).expects(addedTx).returns(RewardQuantities(topl = Math.ceil(feeUpper).toLong))
-        (underlying.add _).expects(addedTx.id).once().returns(true.pure[F])
+    val txInMempool = arbitraryTxWithInput
+    val agePoolSizePercent = 100 - ageThresholdPercent
+    val occupiedAgePoolPercent = 100 - freeAgePoolPercent
+    val occupiedPercent = ageThresholdPercent + (agePoolSizePercent * occupiedAgePoolPercent / 100)
+    val feeInMempool = 1
+    val occupiedMempoolSize = Math.ceil(maxMempoolSize * occupiedPercent / 100.0).toLong
+    val txExInMempool =
+      IoTransactionEx(txInMempool, RewardQuantities(topl = feeInMempool.toLong), occupiedMempoolSize)
+    val mempoolGraph =
+      MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
-        val res =
-          for {
-            mempool <- MempoolProtected.make[F](
-              underlying,
-              semanticValidationAlgebra,
-              transactionAuthorizationVerifier,
-              currentBlockHeaderF,
-              fetchTransaction,
-              rewardMock,
-              costMock,
-              boxIdToHeight,
-              config
-            )
+    (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
+    val heightBellow =
+      (currentHeight - (maxOldBoxAge - Math.ceil((maxOldBoxAge * freeAgePoolPercent) / 100)) + 1).toLong
+    (boxIdToHeight.apply _).expects(*).repeat(addedTxInputsSize).returns(heightBellow.some.pure[F])
 
-            _ <- mempool.add(addedTx.id).assertEquals(false).toResource
-            _ <- mempool.add(addedTx.id).assertEquals(true).toResource
-          } yield ()
+    (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
+    val heightUpper =
+      (currentHeight - (maxOldBoxAge - Math.floor((maxOldBoxAge * freeAgePoolPercent) / 100)) - 1).toLong
+    (boxIdToHeight.apply _).expects(*).repeat(addedTxInputsSize).returns(heightUpper.some.pure[F])
+    (underlying.add _).expects(addedTx.id).once().returns(true.pure[F])
 
-        res.use_
-      }
+    val res =
+      for {
+        mempool <- MempoolProtected.make[F](
+          underlying,
+          semanticValidationAlgebra,
+          transactionAuthorizationVerifier,
+          currentBlockHeaderF,
+          fetchTransaction,
+          rewardMock,
+          costMock,
+          boxIdToHeight,
+          config
+        )
+
+        _ <- mempool.add(addedTx.id).assertEquals(false).toResource
+        _ <- mempool.add(addedTx.id).assertEquals(true).toResource
+      } yield ()
+
+    res.use_
+  }
+
+  test("Check age filter") {
+    val inputs = for {
+      ageThresholdPercent <- Seq(0.1, 10, 25, 60, 85, 90)
+      freeAgePoolPercent  <- Seq(1, 10, 50, 75, 90, 95, 99)
+    } yield (ageThresholdPercent, freeAgePoolPercent)
+
+    inputs.traverse { case (ageThresholdPercent, freeAgePoolPercent) =>
+      withMock(checkAge(ageThresholdPercent, freeAgePoolPercent))
     }
   }
 }
