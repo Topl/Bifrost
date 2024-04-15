@@ -1,10 +1,10 @@
 package co.topl.networking.fsnetwork
 
-import cats.{Applicative, MonadThrow}
 import cats.data.{Validated, ValidatedNec}
 import cats.effect.kernel.Sync
 import cats.effect.{Async, IO, Ref, Resource}
 import cats.implicits._
+import cats.{Applicative, MonadThrow}
 import co.topl.algebras.testInterpreters.TestStore
 import co.topl.brambl.generators.ModelGenerators.arbitraryIoTransaction
 import co.topl.brambl.models.transaction.IoTransaction
@@ -187,16 +187,14 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
         Stream.emits(transactions.map(_.id)).covary[F].pure[F]
       }
       val transactionsMap = transactions.map(tx => tx.id -> tx).toMap
-      transactions.map { _ =>
-        (client
-          .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
-          .expects(*, *, *)
-          .once()
-          .onCall {
-            case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
-              transactionsMap(id).pure[F]
-          }
-      }
+      (client
+        .getRemoteTransactionOrError(_: TransactionId, _: BlockBodyOrTransactionError)(_: MonadThrow[F]))
+        .expects(*, *, *)
+        .repeat(transactions.length)
+        .onCall {
+          case (id: TransactionId, _: BlockBodyOrTransactionErrorByName @unchecked, _: MonadThrow[F] @unchecked) =>
+            transactionsMap(id).pure[F]
+        }
 
       (() => client.remotePeerAsServer)
         .expects()
@@ -217,7 +215,13 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       var hotPeers: Set[RemotePeer] = Set.empty
       val hotPeersUpdate: Set[RemotePeer] => F[Unit] = mock[Set[RemotePeer] => F[Unit]]
       (hotPeersUpdate.apply _).expects(*).anyNumberOfTimes().onCall { peers: Set[RemotePeer] =>
-        (if (peers.nonEmpty) Sync[F].delay(hotPeersUpdatedFlag.set(true)) else Applicative[F].unit) *>
+        (if (peers.nonEmpty) {
+           //
+           Sync[F].delay(hotPeersUpdatedFlag.set(true))
+         } else {
+           //
+           Applicative[F].unit
+         }) *>
         (hotPeers = peers).pure[F]
       }
 
@@ -272,14 +276,25 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
 
       val timeout = FiniteDuration(100, MILLISECONDS)
       for {
-        ((algebra, remotePeersStore, mempoolAlgebra), algebraFinalizer) <- execResource.allocated
-        _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(peerOpenRequested.get()))
-        (_, peerFinalizer) <- algebra.usePeer(client).allocated
-        _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(pingProcessedFlag.get()))
-        _                  <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(hotPeersUpdatedFlag.get()))
-        _ <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].defer(mempoolAlgebra.size).map(_ == transactions.size))
-        _ <- peerFinalizer
-        _ <- algebraFinalizer
+        (_, remotePeersStore, mempoolAlgebra) <- execResource
+          .evalTap { case (algebra, _, mempoolAlgebra) =>
+            Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(peerOpenRequested.get())) *>
+            Stream
+              .resource(algebra.usePeer(client))
+              .mergeHaltR(
+                Stream.exec(
+                  for {
+                    _ <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(pingProcessedFlag.get()))
+                    _ <- Sync[F].untilM_(Sync[F].sleep(timeout))(Sync[F].delay(hotPeersUpdatedFlag.get()))
+                    _ <- Sync[F]
+                      .untilM_(Sync[F].sleep(timeout))(Sync[F].defer(mempoolAlgebra.size).map(_ == transactions.size))
+                  } yield ()
+                )
+              )
+              .compile
+              .drain
+          }
+          .use(_.pure[F])
         _ = assert(hotPeers.contains(RemotePeer(remotePeerId, remotePeerAddress)))
         savedPeers <- remotePeersStore.get(()).map(_.get)
         _ = assert(savedPeers.map(_.address).contains(remotePeerAddress))

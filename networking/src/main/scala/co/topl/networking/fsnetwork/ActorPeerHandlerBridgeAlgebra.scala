@@ -1,9 +1,10 @@
 package co.topl.networking.fsnetwork
 
-import cats.{Monad, MonadThrow}
-import cats.implicits._
 import cats.effect.implicits._
+import cats.effect.kernel.Sync
 import cats.effect.{Async, Deferred, Resource}
+import cats.implicits._
+import cats.{Monad, MonadThrow}
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
@@ -16,12 +17,12 @@ import co.topl.ledger.algebras._
 import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandlerAlgebra}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange}
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
+import co.topl.node.models._
+import co.topl.typeclasses.implicits._
+import P2PShowInstances._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.typeclasses.implicits._
-import co.topl.networking.fsnetwork.P2PShowInstances._
 
 object ActorPeerHandlerBridgeAlgebra {
 
@@ -152,6 +153,12 @@ class BlockchainPeerClientCloseHook[F[_]: Monad](underlying: BlockchainPeerClien
   override def closeConnection(): F[Unit] = onClose >> underlying.closeConnection()
 
   override def getRemoteTransactionOrError[E <: Throwable](id: TransactionId, error: => E)(implicit
-                                                                                           MonadThrow: MonadThrow[F]
+    MonadThrow: MonadThrow[F]
   ): F[IoTransaction] = underlying.getRemoteTransactionOrError(id, error)
+
+  override def findCommonAncestor(
+    getLocalBlockIdAtHeight: Long => F[BlockId],
+    currentHeight:           () => F[Long]
+  )(implicit syncF: Sync[F], loggerF: Logger[F]): F[BlockId] =
+    underlying.findCommonAncestor(getLocalBlockIdAtHeight, currentHeight)
 }

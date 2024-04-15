@@ -20,6 +20,7 @@ object BlockchainMultiplexerId {
       case 19 => RemotePeerServerRequest.some
       case 20 => PingRequest.some
       case 21 => AppLevelRequest.some
+      case _  => none
     }
 
   case object BlockIdAtHeightRequest extends BlockchainMultiplexerId(10)
