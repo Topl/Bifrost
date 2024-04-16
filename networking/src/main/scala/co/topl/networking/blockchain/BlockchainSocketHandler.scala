@@ -252,6 +252,8 @@ class BlockchainSocketHandler[F[_]: Async](
         case BlockchainMultiplexerId.AppLevelRequest =>
           multiplexerBuffers.appLevel.processResponse(())
       }
+      .flatMap(Async[F].raiseUnless(_)(new IllegalStateException(s"Unexpected response in port=$port")))
+      .void
 
   private def writeRequest[Message: Transmittable, Response](
     port:    BlockchainMultiplexerId,

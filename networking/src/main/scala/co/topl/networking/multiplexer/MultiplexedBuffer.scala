@@ -25,13 +25,13 @@ case class MultiplexedBuffer[F[_], Request, Response](
     requests.offer(request)
 
   /**
-   * Handle a response from the peer
+   * Handle a response from the peer.
+   * @return true if the response was expected, false if the response was unexpected (i.e. response without a request)
    */
-  def processResponse(response: Response)(implicit monadThrow: MonadThrow[F]): F[Unit] =
+  def processResponse(response: Response)(implicit monadThrow: MonadThrow[F]): F[Boolean] =
     OptionT(responses.tryTake)
-      .getOrRaise(new IllegalStateException("Unexpected Response"))
-      .flatMap(_.complete(response))
-      .void
+      .semiflatMap(_.complete(response))
+      .isDefined
 
   /**
    * A background-handler for incoming requests from the peer
