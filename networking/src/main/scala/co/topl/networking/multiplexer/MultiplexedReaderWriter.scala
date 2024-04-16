@@ -4,6 +4,7 @@ import cats.Monad
 import cats.data.OptionT
 import cats.effect.Async
 import cats.effect.implicits._
+import cats.effect.std.Mutex
 import cats.implicits._
 import co.topl.models.Bytes
 import com.google.common.primitives.Ints
@@ -21,14 +22,26 @@ import scala.concurrent.duration._
 case class MultiplexedReaderWriter[F[_]](
   read:  Stream[F, (Int, Bytes)],
   write: (Int, Bytes) => F[Unit]
-)
+) {
+
+  /**
+   * Wraps the local `write` operation with a Mutex to prevent parallel writes to the underlying socket
+   */
+  def withWriteMutex(implicit AsyncF: Async[F]): F[MultiplexedReaderWriter[F]] =
+    Mutex[F].map(mutex =>
+      MultiplexedReaderWriter(
+        read,
+        (l, v) => mutex.lock.surround(write(l, v))
+      )
+    )
+}
 
 object MultiplexedReaderWriter {
 
   def apply[F[_]: Async](socket: Socket[F]): MultiplexedReaderWriter[F] = {
     val _writer = writer(socket)
     MultiplexedReaderWriter[F](
-      reader(socket).buffer(1).map { case (port, chunk) =>
+      reader(socket).map { case (port, chunk) =>
         (port, ByteString.copyFrom(chunk.toByteBuffer))
       },
       (port: Int, data: Bytes) => _writer(port, Chunk.byteBuffer(data.asReadOnlyByteBuffer()))

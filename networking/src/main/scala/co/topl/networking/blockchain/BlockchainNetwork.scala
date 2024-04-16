@@ -48,53 +48,49 @@ object BlockchainNetwork {
         localPeer,
         remotePeers,
         (peer, socket) =>
-          for {
-            portQueues <- BlockchainMultiplexedBuffers.make[F]
-            readerWriter = MultiplexedReaderWriter(socket)
-            peerCache <- PeerStreamBuffer.make[F]
-            server    <- serverF(peer)
-            _ <-
-              if (peer.networkVersion == NetworkProtocolVersions.V0) {
-                // Run the legacy P2P implementation
-                (
-                  Logger[F].info(show"Using legacy network protocol for peer=${peer.p2pVK}").toResource >>
-                  ConnectionLeader
-                    .fromSocket(socket.readN, socket.write)
-                    .timeout(5.seconds)
-                    .toResource
-                    .flatMap(connectionLeader =>
-                      LegacyBlockchainSocketHandler
-                        .make[F](serverF, clientHandler.usePeer)(
-                          peer,
-                          connectionLeader,
-                          socket.reads,
-                          socket.writes,
-                          socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
-                        )
+          if (peer.networkVersion == NetworkProtocolVersions.V0) {
+            // Run the legacy P2P implementation
+            (
+              Logger[F].info(show"Using legacy network protocol for peer=${peer.p2pVK}").toResource >>
+              ConnectionLeader
+                .fromSocket(socket.readN, socket.write)
+                .timeout(5.seconds)
+                .toResource
+                .flatMap(connectionLeader =>
+                  LegacyBlockchainSocketHandler
+                    .make[F](serverF, clientHandler.usePeer)(
+                      peer,
+                      connectionLeader,
+                      socket.reads,
+                      socket.writes,
+                      socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
                     )
                 )
-              } else {
-                // Run the "newer" P2P implementation
-                Stream
-                  .eval(Mutex[F])
-                  .flatMap(mutex =>
-                    new BlockchainSocketHandler[F](
-                      server,
-                      portQueues,
-                      readerWriter,
-                      peerCache,
-                      mutex,
-                      peer,
-                      3.seconds
-                    ).client
-                  )
-                  .evalMap(clientHandler.usePeer(_).use_)
-                  .compile
-                  .drain
-                  .toResource
-              }
-            _ <- Logger[F].info(show"Done with peer=${peer.p2pVK}").toResource
-          } yield (),
+            )
+          } else {
+            // Run the "newer" P2P implementation
+            for {
+              portQueues   <- BlockchainMultiplexedBuffers.make[F]
+              readerWriter <- MultiplexedReaderWriter(socket).withWriteMutex.toResource
+              peerCache    <- PeerStreamBuffer.make[F]
+              server       <- serverF(peer)
+              requestMutex <- Mutex[F].toResource
+              socketHandler = new BlockchainSocketHandler[F](
+                server,
+                portQueues,
+                readerWriter,
+                peerCache,
+                requestMutex,
+                peer,
+                3.seconds
+              )
+              _ <- socketHandler.client
+                .evalMap(clientHandler.usePeer(_).use_)
+                .compile
+                .drain
+                .toResource
+            } yield ()
+          },
         peersStatusChangesTopic,
         ed25519Resource
       )
