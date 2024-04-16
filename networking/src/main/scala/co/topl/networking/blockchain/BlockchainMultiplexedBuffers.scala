@@ -8,6 +8,9 @@ import co.topl.consensus.models._
 import co.topl.networking.multiplexer.MultiplexedBuffer
 import co.topl.node.models._
 
+/**
+ * Holds several instances of MultiplexedBuffers, specific to blockchain purposes
+ */
 case class BlockchainMultiplexedBuffers[F[_]](
   knownHosts:           MultiplexedBuffer[F, CurrentKnownHostsReq, Option[CurrentKnownHostsRes]],
   remotePeerServer:     MultiplexedBuffer[F, Unit, Option[KnownHost]],

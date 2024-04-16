@@ -2,6 +2,10 @@ package co.topl.networking.blockchain
 
 import cats.implicits._
 
+/**
+ * An ADT of blockchain-specific multiplexer ports
+ * @param id the underlying integer value for the multiplexer port
+ */
 sealed abstract class BlockchainMultiplexerId(val id: Int)
 
 object BlockchainMultiplexerId {

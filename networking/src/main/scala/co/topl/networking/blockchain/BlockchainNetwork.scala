@@ -54,7 +54,8 @@ object BlockchainNetwork {
             peerCache <- PeerStreamBuffer.make[F]
             server    <- serverF(peer)
             _ <-
-              if (peer.networkVersion == NetworkProtocolVersions.V0)
+              if (peer.networkVersion == NetworkProtocolVersions.V0) {
+                // Run the legacy P2P implementation
                 (
                   Logger[F].info(show"Using legacy network protocol for peer=${peer.p2pVK}").toResource >>
                   ConnectionLeader
@@ -72,12 +73,14 @@ object BlockchainNetwork {
                         )
                     )
                 )
-              else
+              } else {
+                // Run the "newer" P2P implementation
                 new BlockchainSocketHandler[F](server, portQueues, readerWriter, peerCache, peer, 3.seconds).client
                   .evalMap(clientHandler.usePeer(_).use_)
                   .compile
                   .drain
                   .toResource
+              }
             _ <- Logger[F].info(show"Done with peer=${peer.p2pVK}").toResource
           } yield (),
         peersStatusChangesTopic,
