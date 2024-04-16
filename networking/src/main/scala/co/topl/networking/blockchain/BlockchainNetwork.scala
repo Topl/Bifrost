@@ -3,7 +3,7 @@ package co.topl.networking.blockchain
 import cats.Applicative
 import cats.effect._
 import cats.effect.implicits._
-import cats.effect.std.Random
+import cats.effect.std.{Mutex, Random}
 import cats.implicits._
 import co.topl.crypto.signing.Ed25519
 import co.topl.networking.legacy.{ConnectionLeader, LegacyBlockchainSocketHandler}
@@ -75,7 +75,19 @@ object BlockchainNetwork {
                 )
               } else {
                 // Run the "newer" P2P implementation
-                new BlockchainSocketHandler[F](server, portQueues, readerWriter, peerCache, peer, 3.seconds).client
+                Stream
+                  .eval(Mutex[F])
+                  .flatMap(mutex =>
+                    new BlockchainSocketHandler[F](
+                      server,
+                      portQueues,
+                      readerWriter,
+                      peerCache,
+                      mutex,
+                      peer,
+                      3.seconds
+                    ).client
+                  )
                   .evalMap(clientHandler.usePeer(_).use_)
                   .compile
                   .drain

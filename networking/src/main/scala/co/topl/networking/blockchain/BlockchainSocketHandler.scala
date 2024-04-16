@@ -2,7 +2,7 @@ package co.topl.networking.blockchain
 
 import cats.data.OptionT
 import cats.effect.implicits._
-import cats.effect.std.Queue
+import cats.effect.std.{Mutex, Queue}
 import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
@@ -33,6 +33,7 @@ class BlockchainSocketHandler[F[_]: Async](
   multiplexerBuffers: BlockchainMultiplexedBuffers[F],
   readerWriter:       MultiplexedReaderWriter[F],
   cache:              PeerStreamBuffer[F],
+  requestMutex:       Mutex[F],
   connectedPeer:      ConnectedPeer,
   requestTimeout:     FiniteDuration
 ) {
@@ -267,8 +268,12 @@ class BlockchainSocketHandler[F[_]: Async](
     message: Message,
     buffer:  MultiplexedBuffer[F, Message, Response]
   ): F[Response] =
-    readerWriter.write(port.id, ZeroBS.concat(Transmittable[Message].transmittableBytes(message))) *>
-    buffer.awaitResponse
+    requestMutex.lock
+      .surround(
+        readerWriter.write(port.id, ZeroBS.concat(Transmittable[Message].transmittableBytes(message))) *>
+        buffer.expectResponse
+      )
+      .flatten
 
   private def writeResponse[Message: Transmittable](
     port:    BlockchainMultiplexerId,

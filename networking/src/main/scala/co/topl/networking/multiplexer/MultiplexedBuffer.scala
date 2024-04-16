@@ -43,11 +43,15 @@ case class MultiplexedBuffer[F[_], Request, Response](
       .evalMap(subProcessor)
 
   /**
-   * Create and enqueue a placeholder Deferred, which is completed when the remote peer fulfills the request
-   * @return the resulting response, once fulfilled by the remote peer
+   * Create and enqueue a placeholder Deferred, which is completed when the remote peer fulfills the request.
+   *
+   * The returned outer F[_] is the effect of enqueing a response.
+   * The nested inner F[_] is the effect of awaiting the response.
+   *
+   * @return a new effect that can be run to await the actual response
    */
-  def awaitResponse(implicit async: Async[F]): F[Response] =
-    Deferred[F, Response].flatTap(responses.offer).flatMap(_.get)
+  def expectResponse(implicit async: Async[F]): F[F[Response]] =
+    Deferred[F, Response].flatTap(responses.offer).map(_.get)
 }
 
 object MultiplexedBuffer {

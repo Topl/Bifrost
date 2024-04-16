@@ -2,7 +2,7 @@ package co.topl.networking.blockchain
 
 import cats.implicits._
 import cats.effect.IO
-import cats.effect.std.Queue
+import cats.effect.std.{Mutex, Queue}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.consensus.models.{BlockHeader, BlockId}
@@ -32,7 +32,8 @@ class BlockchainSocketHandlerSpec extends CatsEffectSuite with AsyncMockFactory 
           writer = mockFunction[(Int, Bytes), F[Unit]]
           writeF: Function1[(Int, Bytes), F[Unit]] = writer
           readerWriter = MultiplexedReaderWriter[F](read = readStream, write = (a: Int, b: Bytes) => writeF(a, b))
-          cache <- PeerStreamBuffer.make[F]
+          cache        <- PeerStreamBuffer.make[F]
+          requestMutex <- Mutex[F].toResource
           connectedPeer = arbitraryConnectedPeer.arbitrary.first
           requestTimeout = 3.seconds
 
@@ -41,6 +42,7 @@ class BlockchainSocketHandlerSpec extends CatsEffectSuite with AsyncMockFactory 
             buffers,
             readerWriter,
             cache,
+            requestMutex,
             connectedPeer,
             requestTimeout
           )
