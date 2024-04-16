@@ -215,13 +215,10 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
       var hotPeers: Set[RemotePeer] = Set.empty
       val hotPeersUpdate: Set[RemotePeer] => F[Unit] = mock[Set[RemotePeer] => F[Unit]]
       (hotPeersUpdate.apply _).expects(*).anyNumberOfTimes().onCall { peers: Set[RemotePeer] =>
-        (if (peers.nonEmpty) {
-           //
+        (if (peers.nonEmpty)
            Sync[F].delay(hotPeersUpdatedFlag.set(true))
-         } else {
-           //
-           Applicative[F].unit
-         }) *>
+         else
+           Applicative[F].unit) *>
         (hotPeers = peers).pure[F]
       }
 
