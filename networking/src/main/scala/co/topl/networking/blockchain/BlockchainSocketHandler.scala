@@ -270,8 +270,8 @@ class BlockchainSocketHandler[F[_]: Async](
   ): F[Response] =
     requestMutex.lock
       .surround(
-        readerWriter.write(port.id, ZeroBS.concat(Transmittable[Message].transmittableBytes(message))) *>
-        buffer.expectResponse
+        buffer.expectResponse <*
+        readerWriter.write(port.id, ZeroBS.concat(Transmittable[Message].transmittableBytes(message)))
       )
       .flatten
 
