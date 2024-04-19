@@ -2,7 +2,7 @@ package co.topl.networking.multiplexer
 
 import cats.Monad
 import cats.data.OptionT
-import cats.effect.Async
+import cats.effect.{Async, Resource}
 import cats.effect.implicits._
 import cats.effect.std.Mutex
 import cats.implicits._
@@ -22,29 +22,19 @@ import scala.concurrent.duration._
 case class MultiplexedReaderWriter[F[_]](
   read:  Stream[F, (Int, Bytes)],
   write: (Int, Bytes) => F[Unit]
-) {
-
-  /**
-   * Wraps the local `write` operation with a Mutex to prevent parallel writes to the underlying socket
-   */
-  def withWriteMutex(implicit AsyncF: Async[F]): F[MultiplexedReaderWriter[F]] =
-    Mutex[F].map(mutex =>
-      MultiplexedReaderWriter(
-        read,
-        (l, v) => mutex.lock.surround(write(l, v))
-      )
-    )
-}
+)
 
 object MultiplexedReaderWriter {
 
-  def apply[F[_]: Async](socket: Socket[F]): MultiplexedReaderWriter[F] = {
-    val _writer = writer(socket)
-    MultiplexedReaderWriter[F](
-      reader(socket).map { case (port, chunk) =>
-        (port, ByteString.copyFrom(chunk.toByteBuffer))
-      },
-      (port: Int, data: Bytes) => _writer(port, Chunk.byteBuffer(data.asReadOnlyByteBuffer()))
+  def make[F[_]: Async](socket: Socket[F], writeTimeout: FiniteDuration): Resource[F, MultiplexedReaderWriter[F]] = {
+    val _writer = writer(socket, writeTimeout)
+    Mutex[F].toResource.map(mutex =>
+      MultiplexedReaderWriter[F](
+        reader(socket).map { case (port, chunk) =>
+          (port, ByteString.copyFrom(chunk.toByteBuffer))
+        },
+        (port: Int, data: Bytes) => mutex.lock.surround(_writer(port, Chunk.byteBuffer(data.asReadOnlyByteBuffer())))
+      )
     )
   }
 
@@ -87,7 +77,7 @@ object MultiplexedReaderWriter {
    * @param socket a Socket to which data can be written
    * @return a function (port, data) => void
    */
-  def writer[F[_]: Async](socket: Socket[F]): (Int, Chunk[Byte]) => F[Unit] =
+  def writer[F[_]: Async](socket: Socket[F], writeTimeout: FiniteDuration): (Int, Chunk[Byte]) => F[Unit] =
     (port, data) =>
       socket
         .write(
@@ -95,5 +85,5 @@ object MultiplexedReaderWriter {
           Chunk.array(Ints.toByteArray(data.size)) ++
           data
         )
-        .timeout(3.seconds)
+        .timeout(writeTimeout)
 }

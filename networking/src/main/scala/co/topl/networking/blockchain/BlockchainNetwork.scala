@@ -28,6 +28,7 @@ object BlockchainNetwork {
    * @param clientHandler A handler for each peer client
    * @param serverF A server of data to each peer
    * @param peersStatusChangesTopic topic for notifying about changes in remote peers
+   * @param networkTimeout a default timeout duration for reads/writes
    * @return A P2PNetwork
    */
   def make[F[_]: Async: Random](
@@ -38,7 +39,8 @@ object BlockchainNetwork {
     clientHandler:           BlockchainPeerHandlerAlgebra[F],
     serverF:                 ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
     peersStatusChangesTopic: Topic[F, PeerConnectionChange],
-    ed25519Resource:         Resource[F, Ed25519]
+    ed25519Resource:         Resource[F, Ed25519],
+    networkTimeout:          FiniteDuration
   ): Resource[F, P2PServer[F]] =
     for {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P.Blockchain").toResource
@@ -54,7 +56,7 @@ object BlockchainNetwork {
               Logger[F].info(show"Using legacy network protocol for peer=${peer.p2pVK}").toResource >>
               ConnectionLeader
                 .fromSocket(socket.readN, socket.write)
-                .timeout(5.seconds)
+                .timeout(networkTimeout * 3)
                 .toResource
                 .flatMap(connectionLeader =>
                   LegacyBlockchainSocketHandler
@@ -71,7 +73,7 @@ object BlockchainNetwork {
             // Run the "newer" P2P implementation
             for {
               portQueues   <- BlockchainMultiplexedBuffers.make[F]
-              readerWriter <- MultiplexedReaderWriter(socket).withWriteMutex.toResource
+              readerWriter <- MultiplexedReaderWriter.make(socket, networkTimeout)
               peerCache    <- PeerStreamBuffer.make[F]
               server       <- serverF(peer)
               requestMutex <- Mutex[F].toResource
@@ -82,7 +84,7 @@ object BlockchainNetwork {
                 peerCache,
                 requestMutex,
                 peer,
-                3.seconds
+                networkTimeout
               )
               _ <- socketHandler.client
                 .evalMap(clientHandler.usePeer(_).use_)

@@ -24,7 +24,7 @@ import scala.language.implicitConversions
  * @param server an implementation from the local application that can _provide_ data to the remote peer when requested
  * @param multiplexerBuffers Stores inbound and outbound request/response information for each multiplexer port
  * @param readerWriter an abstraction over a Socket, allowing for reading and writing multiplexer frame data
- * @param cache a cache/buffer for stream-based information, like block notifications
+ * @param streamBuffer a cache/buffer for stream-based information, like block notifications
  * @param connectedPeer the remote peer
  * @param requestTimeout a timeout to apply to all requests
  */
@@ -32,7 +32,7 @@ class BlockchainSocketHandler[F[_]: Async](
   server:             BlockchainPeerServerAlgebra[F],
   multiplexerBuffers: BlockchainMultiplexedBuffers[F],
   readerWriter:       MultiplexedReaderWriter[F],
-  cache:              PeerStreamBuffer[F],
+  streamBuffer:       PeerStreamBuffer[F],
   requestMutex:       Mutex[F],
   connectedPeer:      ConnectedPeer,
   requestTimeout:     FiniteDuration
@@ -60,14 +60,14 @@ class BlockchainSocketHandler[F[_]: Async](
           override def remotePeerAdoptions: F[Stream[F, BlockId]] =
             Async[F].delay(
               Stream
-                .fromQueueUnterminated(cache.remoteBlockAdoptions)
+                .fromQueueUnterminated(streamBuffer.remoteBlockAdoptions)
                 .interruptWhen(deferred.imap(_.asRight[Throwable])(_ => ()))
             )
 
           override def remoteTransactionNotifications: F[Stream[F, TransactionId]] =
             Async[F].delay(
               Stream
-                .fromQueueUnterminated(cache.remoteTransactionAdoptions)
+                .fromQueueUnterminated(streamBuffer.remoteTransactionAdoptions)
                 .interruptWhen(deferred.imap(_.asRight[Throwable])(_ => ()))
             )
 
@@ -105,7 +105,7 @@ class BlockchainSocketHandler[F[_]: Async](
       )
 
   private def background: Stream[F, Unit] =
-    readerStream.concurrently(portQueueStreams.merge(cacheStreams))
+    readerStream.concurrently(portQueueStreams.merge(streamBufferPushers))
 
   /**
    * Parse the incoming multiplexer frames into either a request or response message.  Once parsed,
@@ -139,12 +139,12 @@ class BlockchainSocketHandler[F[_]: Async](
       multiplexerBuffers.appLevel.backgroundRequestProcessor(onPeerNotifiedAppLevel)
     ).parJoinUnbounded
 
-  private def cacheStreams =
+  private def streamBufferPushers =
     Stream(
       Stream
         .force(server.localBlockAdoptions)
         .evalMap(
-          cache.localBlockAdoptions
+          streamBuffer.localBlockAdoptions
             .tryOffer(_)
             .flatMap(
               Async[F].raiseUnless(_)(new IllegalStateException("Slow peer subscriber of local block adoptions"))
@@ -154,7 +154,7 @@ class BlockchainSocketHandler[F[_]: Async](
       Stream
         .force(server.localTransactionNotifications)
         .evalMap(
-          cache.localTransactionAdoptions
+          streamBuffer.localTransactionAdoptions
             .tryOffer(_)
             .flatMap(
               Async[F]
@@ -167,7 +167,7 @@ class BlockchainSocketHandler[F[_]: Async](
           writeRequestNoTimeout(BlockchainMultiplexerId.BlockAdoptionRequest, (), multiplexerBuffers.blockAdoptions)
         )
         .evalMap(
-          cache.remoteBlockAdoptions
+          streamBuffer.remoteBlockAdoptions
             .tryOffer(_)
             .flatMap(
               Async[F].raiseUnless(_)(new IllegalStateException("Slow local subscriber of peer block adoptions"))
@@ -183,7 +183,7 @@ class BlockchainSocketHandler[F[_]: Async](
           )
         )
         .evalMap(
-          cache.remoteTransactionAdoptions
+          streamBuffer.remoteTransactionAdoptions
             .tryOffer(_)
             .flatMap(
               Async[F]
@@ -271,7 +271,7 @@ class BlockchainSocketHandler[F[_]: Async](
     requestMutex.lock
       .surround(
         buffer.expectResponse <*
-        readerWriter.write(port.id, ZeroBS.concat(Transmittable[Message].transmittableBytes(message)))
+        readerWriter.write(port.id, RequestMarker.concat(Transmittable[Message].transmittableBytes(message)))
       )
       .flatten
 
@@ -279,7 +279,7 @@ class BlockchainSocketHandler[F[_]: Async](
     port:    BlockchainMultiplexerId,
     message: Message
   ): F[Unit] =
-    readerWriter.write(port.id, OneBS.concat(Transmittable[Message].transmittableBytes(message)))
+    readerWriter.write(port.id, ResponseMarker.concat(Transmittable[Message].transmittableBytes(message)))
 
   private def onPeerRequestedBlockIdAtHeight(height: Long) =
     server
@@ -329,11 +329,11 @@ class BlockchainSocketHandler[F[_]: Async](
       .flatMap(writeResponse(BlockchainMultiplexerId.PingRequest, _))
 
   private def onPeerRequestedBlockNotification() =
-    cache.localBlockAdoptions.take
+    streamBuffer.localBlockAdoptions.take
       .flatMap(writeResponse(BlockchainMultiplexerId.BlockAdoptionRequest, _))
 
   private def onPeerRequestedTransactionNotification() =
-    cache.localTransactionAdoptions.take
+    streamBuffer.localTransactionAdoptions.take
       .flatMap(writeResponse(BlockchainMultiplexerId.TransactionNotificationRequest, _))
 
   private def onPeerNotifiedAppLevel(networkLevel: Boolean) =
@@ -367,10 +367,10 @@ object PeerStreamBuffer {
 
   def make[F[_]: Async]: Resource[F, PeerStreamBuffer[F]] =
     (
-      Queue.bounded[F, BlockId](256),
-      Queue.bounded[F, TransactionId](256),
-      Queue.bounded[F, BlockId](256),
-      Queue.bounded[F, TransactionId](256)
+      Queue.bounded[F, BlockId](512),
+      Queue.bounded[F, TransactionId](512),
+      Queue.bounded[F, BlockId](512),
+      Queue.bounded[F, TransactionId](512)
     )
       .mapN(new PeerStreamBuffer[F](_, _, _, _))
       .toResource

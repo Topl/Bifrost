@@ -8,7 +8,7 @@ import co.topl.numerics.implicits._
 import co.topl.proto.node.NodeConfig
 import monocle.macros.Lenses
 
-import scala.concurrent.duration.{FiniteDuration, SECONDS}
+import scala.concurrent.duration._
 
 // $COVERAGE-OFF$
 @Lenses
@@ -54,7 +54,7 @@ object ApplicationConfig {
 
     case class NetworkProperties(
       useHostNames:                         Boolean = false,
-      pingPongInterval:                     FiniteDuration = FiniteDuration(90, SECONDS),
+      pingPongInterval:                     FiniteDuration = 90.seconds,
       expectedSlotsPerBlock:                Double = 15.0, // TODO shall be calculated?
       maxPerformanceDelayInSlots:           Double = 2.0,
       remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
@@ -69,7 +69,7 @@ object ApplicationConfig {
       minimumHotConnections:           Int = 7,
       maximumWarmConnections:          Int = 12,
       warmHostsUpdateEveryNBlock:      Double = 4.0,
-      p2pTrackInterval:                FiniteDuration = FiniteDuration(10, SECONDS),
+      p2pTrackInterval:                FiniteDuration = 10.seconds,
       // we could try to connect to remote peer again after
       // closeTimeoutFirstDelayInMs * {number of closed connections in last closeTimeoutWindowInMs} ^ 2
       closeTimeoutFirstDelayInMs: Long = 1000,
@@ -77,7 +77,8 @@ object ApplicationConfig {
       aggressiveP2P:              Boolean = true, // always try to found new good remote peers
       aggressiveP2PCount:         Int = 1, // how many new connection will be opened
       // do not try to open aggressively connection to remote peer if we have closed N connection(s) to them recently
-      aggressiveP2PMaxCloseEvent: Int = 3
+      aggressiveP2PMaxCloseEvent: Int = 3,
+      defaultTimeout:             FiniteDuration = 3.seconds
     )
 
     case class KnownPeer(host: String, port: Int)

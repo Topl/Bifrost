@@ -64,6 +64,9 @@ trait TetraTransmittableCodecs {
 
   val ZeroBS: ByteString = ByteString.copyFrom(Array[Byte](0))
   val OneBS: ByteString = ByteString.copyFrom(Array[Byte](1))
+
+  val RequestMarker: ByteString = ZeroBS
+  val ResponseMarker: ByteString = OneBS
 }
 
 object TetraTransmittableCodecs extends TetraTransmittableCodecs

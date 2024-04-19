@@ -172,7 +172,7 @@ object FS2P2PServer {
                     .void
                     .toResource
                 }
-              _ <- socket.endOfOutput.toResource
+              _ <- (socket.endOfOutput *> socket.endOfInput).toResource
               _ <- peerChangesTopic
                 .publish1(PeerConnectionChanges.ConnectionClosed(newDisconnected, none))
                 .toResource
