@@ -1,4 +1,4 @@
-package co.topl.networking
+package co.topl.networking.legacy
 
 /**
  * Indicates a type that is used for the purposes of networking.

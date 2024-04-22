@@ -1,10 +1,8 @@
-package co.topl.networking.multiplexer
+package co.topl.networking.legacy
 
 import cats.implicits._
 import co.topl.codecs.bytes.scodecs.valuetypes.emptyCodec
 import co.topl.codecs.bytes.typeclasses.Transmittable
-import co.topl.networking.NetworkTypeTag
-import co.topl.networking.typedprotocols.TypedProtocol
 import com.google.protobuf.ByteString
 
 /**

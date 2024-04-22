@@ -1,7 +1,6 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.legacy
 
 import cats.implicits._
-import co.topl.networking.{Parties, Party}
 
 /**
  * A “Typed Protocol” is a specialized state machine with a few extra restrictions.  A typed protocol is a 2-party

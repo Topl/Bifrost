@@ -1,4 +1,4 @@
-package co.topl.networking.multiplexer
+package co.topl.networking.legacy
 
 import cats.data.NonEmptyChain
 import cats.data.OptionT

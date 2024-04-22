@@ -1,4 +1,4 @@
-package co.topl.networking.multiplexer
+package co.topl.networking.legacy
 
 import fs2._
 

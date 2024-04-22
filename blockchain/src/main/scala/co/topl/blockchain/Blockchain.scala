@@ -229,7 +229,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           bridge,
           peerServerF,
           peersStatusChangesTopic,
-          cryptoResources.ed25519
+          cryptoResources.ed25519,
+          networkProperties.defaultTimeout
         )
     } yield ()
 

@@ -1,4 +1,4 @@
-package co.topl.networking
+package co.topl.networking.legacy
 
 import cats.data.{EitherT, NonEmptyChain, OptionT}
 import cats.effect.kernel.Sync
@@ -8,12 +8,10 @@ import cats.implicits._
 import cats.{Applicative, MonadThrow, Show}
 import co.topl.catsutils._
 import co.topl.codecs.bytes.typeclasses.Transmittable
-import co.topl.networking.blockchain.NetworkTypeTags._
-import co.topl.networking.multiplexer.MultiplexerCodecs._
-import co.topl.networking.multiplexer._
+import co.topl.networking.legacy.MultiplexerCodecs._
+import co.topl.networking.legacy.NetworkTypeTags._
+import co.topl.networking.legacy.TypedProtocol.CommonStates
 import co.topl.networking.p2p._
-import co.topl.networking.typedprotocols.TypedProtocol.CommonStates
-import co.topl.networking.typedprotocols._
 import fs2._
 import org.typelevel.log4cats.Logger
 

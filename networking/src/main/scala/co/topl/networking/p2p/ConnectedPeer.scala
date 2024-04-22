@@ -5,8 +5,8 @@ import cats.implicits._
 import co.topl.models.Bytes
 import co.topl.typeclasses.implicits._
 
-case class ConnectedPeer(remoteAddress: RemoteAddress, p2pVK: Bytes) {
-  override def toString: String = show"ConnectedPeer(address=$remoteAddress, id=$p2pVK)"
+case class ConnectedPeer(remoteAddress: RemoteAddress, p2pVK: Bytes, networkVersion: Bytes) {
+  override def toString: String = show"ConnectedPeer(address=$remoteAddress, id=$p2pVK, version=$networkVersion)"
 }
 
 case class DisconnectedPeer(remoteAddress: RemoteAddress, p2pVK: Option[Bytes]) {

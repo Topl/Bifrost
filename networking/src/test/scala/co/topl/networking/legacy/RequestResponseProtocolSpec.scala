@@ -1,10 +1,9 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.legacy
 
 import cats.Applicative
 import cats.effect.{Deferred, IO}
 import cats.implicits._
 import co.topl.algebras.testInterpreters.NoOpLogger
-import co.topl.networking.{NetworkTypeTag, Parties}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger

@@ -1,9 +1,8 @@
-package co.topl.networking.blockchain
+package co.topl.networking.legacy
 
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.networking.typedprotocols.{NotificationProtocol, RequestResponseProtocol}
 import co.topl.node.models._
 
 /**

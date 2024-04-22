@@ -1,4 +1,4 @@
-package co.topl.networking.multiplexer
+package co.topl.networking.legacy
 
 import co.topl.networking.encodeInt
 import fs2._

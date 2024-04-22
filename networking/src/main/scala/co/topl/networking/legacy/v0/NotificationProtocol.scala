@@ -1,4 +1,4 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.legacy
 
 import cats.Applicative
 import cats.implicits._

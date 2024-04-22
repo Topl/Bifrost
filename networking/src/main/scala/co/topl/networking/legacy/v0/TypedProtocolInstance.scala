@@ -1,11 +1,10 @@
-package co.topl.networking.typedprotocols
+package co.topl.networking.legacy
 
 import cats.data.{Chain, EitherT, OptionT}
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Queue
 import cats.implicits._
-import co.topl.networking._
 import org.typelevel.log4cats.Logger
 
 /**

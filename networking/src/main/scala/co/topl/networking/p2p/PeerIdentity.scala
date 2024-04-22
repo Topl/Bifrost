@@ -20,12 +20,12 @@ object PeerIdentity {
    * 5. Verify remote signature satisfies the locally-generated challenge with the peer's claimed VK
    *
    * @param localPeerSK A secret key which can generate an identity as well as prove ownership of the identity
-   * @return A function which uses a Socket to return Either a failure or the remote peer's ID
+   * @return A function which uses a Socket to return Either a failure or (the remote peer's ID, true if peer is on newer protocol versions)
    */
   def extractor[F[_]: Async: Random](
     localPeerSK:     Ed25519.SecretKey,
     ed25519Resource: Resource[F, Ed25519]
-  ): F[Socket[F] => F[Either[ExtractionException, ByteString]]] =
+  ): F[Socket[F] => F[Either[ExtractionException, (ByteString, Boolean)]]] =
     ed25519Resource
       .use(e => Async[F].delay(e.getVerificationKey(localPeerSK)))
       .map(_.bytes)
@@ -40,7 +40,7 @@ object PeerIdentity {
                 .leftWiden[ExtractionException]
                 .map(_.toArray)
               remoteVKBS = ByteString.copyFrom(remoteVK)
-              localChallenge <- EitherT.liftF(Random[F].nextBytes(32))
+              localChallenge <- EitherT.liftF(Random[F].nextBytes(16).map(PostLegacyChallengePrefix ++ _))
               _              <- EitherT.liftF(socket.write(Chunk.array(localChallenge)))
               remoteChallenge <- OptionT(socket.read(32))
                 .toRight(ExtractionException.ChallengeNotProvided)
@@ -64,7 +64,8 @@ object PeerIdentity {
               _ <- EitherT
                 .cond[F](remoteSignatureIsValid, (), ExtractionException.InvalidSignature)
                 .leftWiden[ExtractionException]
-            } yield remoteVKBS
+              isNewerPeer = java.util.Arrays.equals(remoteChallenge.slice(0, 16), PostLegacyChallengePrefix)
+            } yield (remoteVKBS, isNewerPeer)
           ).value
       )
 
@@ -77,5 +78,13 @@ object PeerIdentity {
     case object SignatureNotProvided extends ExtractionException
     case object InvalidSignature extends ExtractionException
   }
+
+  /**
+   * When sending the "challenge" to the remote peer, the challenge should use these 16 bytes as a prefix.
+   * This allows backwards-compatibility with legacy peers, but allows for somewhat of "version detection" for new
+   * clients.
+   */
+  val PostLegacyChallengePrefix: Array[Byte] =
+    Array.fill(16)(1: Byte)
 
 }

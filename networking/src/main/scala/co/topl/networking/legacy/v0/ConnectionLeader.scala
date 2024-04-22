@@ -1,4 +1,4 @@
-package co.topl.networking.p2p
+package co.topl.networking.legacy
 
 import cats.MonadThrow
 import cats.effect.Async

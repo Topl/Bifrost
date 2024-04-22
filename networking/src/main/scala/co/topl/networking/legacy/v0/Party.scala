@@ -1,4 +1,4 @@
-package co.topl.networking
+package co.topl.networking.legacy
 
 /**
  * A Party is a participant in a peer-to-peer connection.

@@ -5,8 +5,7 @@ import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.consensus.models.BlockId
 import co.topl.models.utility.Ratio
 import com.google.protobuf.ByteString
-import scalapb.GeneratedMessage
-import scalapb.GeneratedMessageCompanion
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import scala.util.Try
 
@@ -42,6 +41,32 @@ trait TetraTransmittableCodecs {
       (longCodec :: optionCodec[BlockId])
         .as[(Long, Option[BlockId])]
     )
+
+  implicit def optionalTransmittable[T: Transmittable]: Transmittable[Option[T]] =
+    new Transmittable[Option[T]] {
+
+      def transmittableBytes(value: Option[T]): ByteString =
+        value
+          .map(Transmittable[T].transmittableBytes)
+          .fold(ZeroBS)(OneBS.concat)
+
+      def fromTransmittableBytes(bytes: ByteString): Either[String, Option[T]] =
+        Either
+          .cond(bytes.size() > 0, bytes, "Empty Bytes")
+          .flatMap(bytes =>
+            bytes.byteAt(0) match {
+              case 0 => none[T].asRight[String]
+              case 1 => Transmittable[T].fromTransmittableBytes(bytes.substring(1)).map(_.some)
+              case _ => "Invalid Optional".asLeft[Option[T]]
+            }
+          )
+    }
+
+  val ZeroBS: ByteString = ByteString.copyFrom(Array[Byte](0))
+  val OneBS: ByteString = ByteString.copyFrom(Array[Byte](1))
+
+  val RequestMarker: ByteString = ZeroBS
+  val ResponseMarker: ByteString = OneBS
 }
 
 object TetraTransmittableCodecs extends TetraTransmittableCodecs

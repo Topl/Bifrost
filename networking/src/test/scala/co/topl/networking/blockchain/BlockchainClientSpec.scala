@@ -45,8 +45,7 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] = ???
 
           def getRemoteBlockIdAtHeight(
-            height:       Long,
-            localBlockId: Option[BlockId]
+            height: Long
           ): F[Option[BlockId]] =
             (height.toString + (if (height > ancestorHeight) "remote" else "")).typedId.some
               .pure[F]
