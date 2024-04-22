@@ -18,8 +18,6 @@ import co.topl.networking.blockchain.{BlockchainPeerClient, BlockchainPeerHandle
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, PeerConnectionChange}
 import co.topl.node.models._
-import co.topl.typeclasses.implicits._
-import P2PShowInstances._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
