@@ -37,7 +37,7 @@ object OperationalKeyMaker {
    * @param etaCalculation An EtaCalculation interpreter is needed to determine the eta to use when determining VRF ineligibilities.
    * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
    */
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,
@@ -74,7 +74,7 @@ object OperationalKeyMaker {
       )
     } yield impl
 
-  private class Impl[F[_]: Async: Logger](
+  private class Impl[F[_]: Async: Logger: Stats](
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,
@@ -129,6 +129,13 @@ object OperationalKeyMaker {
       MonadCancelThrow[F].uncancelable(_ =>
         (
           for {
+            // fileName: String <-
+            //   secureStore.list.map {
+            //     case Nil => Stats[F].incrementCounter("bifrost_secure_store_empty", "Counter to detect when kes key is missing.", Map.empty()) >> Sync[F].raiseError(new IllegalStateException("SecureStore is empty")) >> Sync[F].pure("")
+            //     case tooManyKeys if tooManyKeys.length > 1 => Stats[F].incrementCounter("bifrost_secure_store_multiple_keys", "Counter to detect when multiple kes keys are detected.", Map.empty()) >> Sync[F].raiseError(new IllegalStateException("SecureStore contains multiple keys")) >> Sync[F].pure("")
+            //     case headOption if headOption.length === 1 => OptionT.liftF(Sync[F].delay(headOption.headOption))
+            //     case _ => ""
+            //   }
             fileName <- OptionT(
               secureStore.list
                 .ensure(new IllegalStateException("SecureStore is empty"))(_.nonEmpty)

@@ -1,9 +1,7 @@
 package co.topl.consensus.interpreters
 
 import cats.Applicative
-import cats.data.Validated
 import cats.effect.IO
-import cats.effect.kernel.Async
 import cats.implicits._
 import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.consensus.models.{BlockId, SlotData, SlotId}
@@ -15,8 +13,11 @@ import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.algebras.Stats.Implicits._
 
 import scala.concurrent.duration._
+import cats.effect.kernel.Async
+import cats.data.Validated
 
 class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]

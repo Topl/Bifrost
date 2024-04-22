@@ -11,10 +11,12 @@ import co.topl.typeclasses.implicits._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
+import co.topl.algebras.Stats
+import io.circe.syntax._
 
 object LocalChain {
 
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     genesis:        SlotData,
     initialHead:    SlotData,
     chainSelection: ChainSelectionAlgebra[F, SlotData],
@@ -40,6 +42,14 @@ object LocalChain {
           Sync[F].uncancelable(_ =>
             onAdopted(slotData.slotId.blockId) >>
             headRef.set(slotData) >>
+            Async[F].defer(
+              Stats[F].recordGauge(
+                "bifrost_block_adoptions",
+                "Block adoptions",
+                Map("block_id" -> (show"${slotData.slotId.blockId}").asJson),
+                slotData.height.asJson
+              )
+            ) >>
             EitherT(adoptionsTopic.publish1(slotData.slotId.blockId))
               .leftMap(_ => new IllegalStateException("LocalChain topic unexpectedly closed"))
               .rethrowT >>

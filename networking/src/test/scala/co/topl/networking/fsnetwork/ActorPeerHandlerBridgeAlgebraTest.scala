@@ -38,6 +38,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
+import co.topl.algebras.Stats.Implicits._
 
 object ActorPeerHandlerBridgeAlgebraTest {
   type F[A] = IO[A]

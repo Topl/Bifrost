@@ -27,6 +27,7 @@ import co.topl.node.models.{BlockBody, KnownHost}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
+import co.topl.algebras.Stats
 
 /**
  * Actor for managing peers
@@ -239,7 +240,7 @@ object PeersManager {
   type PeersManagerActor[F[_]] = Actor[F, Message, Response[F]]
 
   // scalastyle:off cyclomatic.complexity
-  def getFsm[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver]
+  def getFsm[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver: Stats]
     : PeersManagerActor[F] => Fsm[F, State[F], Message, Response[F]] =
     (thisActor: PeersManagerActor[F]) =>
       Fsm {
@@ -273,7 +274,7 @@ object PeersManager {
   // scalastyle:on cyclomatic.complexity
 
   // scalastyle:off parameter.number
-  def makeActor[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](
+  def makeActor[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver: Stats](
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
@@ -405,21 +406,37 @@ object PeersManager {
     (newState, newState).pure[F]
   }
 
-  private def headerDownloadTime[F[_]: Async: Logger](
+  private def headerDownloadTime[F[_]: Async: Logger: Stats](
     state:  State[F],
     hostId: HostId,
     delay:  Long
   ): F[(State[F], Response[F])] =
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_header_download_time",
+        "Header download time from other peer in millisecconds",
+        Map("from_host" -> show"${hostId.id}"),
+        delay
+      )
+    ) >>
     Logger[F].info(show"Received header download from host $hostId with delay $delay ms") >>
     updatePerfRepWithDelay(state, hostId, delay)
 
-  private def blockDownloadTime[F[_]: Async: Logger](
+  private def blockDownloadTime[F[_]: Async: Logger: Stats](
     state:    State[F],
     hostId:   HostId,
     delay:    Long,
     tsDelays: Seq[Long]
   ): F[(State[F], Response[F])] = {
     val maxDelay = (tsDelays :+ delay).max
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_block_download_time",
+        "Block download time from other peer in millisecconds",
+        Map("from_host" -> show"${hostId.id}"),
+        delay
+      )
+    ) >>
     Logger[F].debug(show"Received block download from host $hostId with max delay $delay ms") >>
     updatePerfRepWithDelay(state, hostId, maxDelay)
   }
@@ -548,14 +565,15 @@ object PeersManager {
     state.peersHandler.getWarmPeersWithActor.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetNetworkQuality)) >>
     (state, state).pure[F]
 
-  private def printP2PState[F[_]: Async: Logger](
+  private def printP2PState[F[_]: Async: Logger: Stats](
     thisActor: PeersManagerActor[F],
     state:     State[F]
-  ): F[(State[F], Response[F])] = {
+  ): F[(State[F], State[F])] = {
     val hotPeers = state.peersHandler.getHotPeers
     val hotPeersIds = hotPeers.keySet.toList.map(showHostId.show).sorted.mkString(",")
     val warmPeers = state.peersHandler.getWarmPeers
     val coldPeers = state.peersHandler.getColdPeers
+    val hotPeerAttributes = Map("host_id" -> state.thisHostId.show) ++ hotPeers.map("peer_id" -> _._1.show)
 
     Logger[F].info(show"This peer id: ${state.thisHostId}") >>
     state.localChain.head.map(head => Logger[F].info(show"Current head: ${head.slotId}")) >>
@@ -566,6 +584,37 @@ object PeersManager {
     Logger[F].info(show"Current first five of (${coldPeers.size}) cold peer(s) state: ${coldPeers.take(5)}") >>
     Logger[F].info(show"With known cold peers: ${coldPeers.map(d => d._1 -> d._2.asServer)}") >>
     printQueueSizeInfo(thisActor, state) >>
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_hot_peers_count",
+        "Number of peers in hot state for given node.",
+        hotPeerAttributes,
+        hotPeers.size
+      )
+    ) >>
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_warm_peers_count",
+        "Number of peers in warm state for given node.",
+        Map("host_id" -> (show"${state.thisHostId}")),
+        warmPeers.size
+      )
+    ) >>
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_cold_peers_count",
+        "Number of peers in cold state for given node.",
+        Map("host_id" -> (show"${state.thisHostId}")),
+        coldPeers.size
+      )
+    ) >>
+    Async[F].defer(
+      Stats[F].incrementCounter(
+        "bifrost_peer_id",
+        "Counter with the sole purpose of adding the host attribute to track the peer id.",
+        Map("host_id" -> (show"${state.thisHostId}"))
+      )
+    ) >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
   }

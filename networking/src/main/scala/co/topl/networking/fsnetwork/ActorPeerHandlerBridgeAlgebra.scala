@@ -23,10 +23,14 @@ import P2PShowInstances._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.typeclasses.implicits._
+import co.topl.node.models.KnownHost
+import co.topl.networking.fsnetwork.P2PShowInstances._
+import co.topl.algebras.Stats
 
 object ActorPeerHandlerBridgeAlgebra {
 
-  def make[F[_]: Async: DnsResolver: ReverseDnsResolver](
+  def make[F[_]: Async: DnsResolver: ReverseDnsResolver: Stats](
     thisHostId:                  HostId,
     localChain:                  LocalChainAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],

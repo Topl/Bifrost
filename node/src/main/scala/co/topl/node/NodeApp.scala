@@ -42,6 +42,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration._
 import java.time.Instant
+import co.topl.algebras.Stats
 
 object NodeApp extends AbstractNodeApp
 
@@ -79,6 +80,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
       _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
+
+      implicit0(metrics: Stats[F]) <- KamonStatsRef.make[F]
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)

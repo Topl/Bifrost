@@ -47,7 +47,7 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def make[F[_]: Async: Random: Dns](
+  def make[F[_]: Async: Random: Dns: Stats](
     clock:                     ClockAlgebra[F],
     stakerResource:            Resource[F, Option[StakingAlgebra[F]]],
     dataStores:                DataStores[F],
@@ -95,7 +95,7 @@ object Blockchain {
 
 }
 
-class BlockchainImpl[F[_]: Async: Random: Dns](
+class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
   clock:                     ClockAlgebra[F],
   stakerResource:            Resource[F, Option[StakingAlgebra[F]]],
   dataStores:                DataStores[F],
