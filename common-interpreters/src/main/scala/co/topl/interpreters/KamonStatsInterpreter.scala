@@ -13,6 +13,21 @@ import co.topl.algebras.Stats
 import kamon.tag.TagSet
 import cats.Applicative
 
+/**
+ * A Kamon implementation of the Stats algebra.
+ *
+ * Requires a Kamon instance to be initialized. This is typically done in the main method of the application.
+ * Kamon.init()
+ *
+ * Use the interpreter by creating an implicit instance and passing the trait to whichever class or method requires it.
+ *
+ * Initialize:
+ * implicit0(metrics: Stats[F]) <- KamonStatsRef.make[F]
+ *
+ * Use:
+ * Stats[F].incrementCounter("bifrost_counter", "description", Map("attributeKey" -> "attributeValue"))
+ * Stats[F].recordGauge("bifrost_gauge", "description", Map("attributeKey" -> "attributeValue"))
+ */
 object KamonStatsRef {
 
   def make[F[_]: Sync]: Resource[F, Stats[F]] =

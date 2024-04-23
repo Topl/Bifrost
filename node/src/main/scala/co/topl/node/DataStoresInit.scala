@@ -261,7 +261,6 @@ object DataStoresInit {
         appConfig.bifrost.cache.slotData,
         _.value
       )
-      // meter <- Meter[F].
       blockHeaderStore <- makeDb[F, BlockId, BlockHeader](dataDir, levelDbFactory)(blockHeaderStoreDbName)
       blockBodyStore <- makeCachedDb[F, BlockId, ByteString, BlockBody](dataDir, levelDbFactory)(
         blockBodyStoreDbName,

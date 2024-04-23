@@ -22,7 +22,6 @@ object FileStatsInterpreter {
 
         def writeFile(statName: String, data: Json): F[Unit] = {
           val contents = data.asObject.fold(data.toString())(d => d.toList.map(_._2.toString).mkString(",")) + "\n"
-          // val contents = data.toString()
           Sync[F].blocking {
             if (!Files.exists(filePath)) {
               val header = data.asObject.fold("")(d => d.toList.map(_._1).mkString(",")) + "\n"

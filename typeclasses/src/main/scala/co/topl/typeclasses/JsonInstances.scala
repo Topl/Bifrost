@@ -12,5 +12,4 @@ trait JsonInstances {
   implicit val stringMapToJsonMap: Map[String, String] => Map[String, Json] = _.map { case (k, v) =>
     k -> Json.fromString(v)
   }
-  // implicit val mapToJsonMap: Map[AnyVal, AnyVal] => Map[AnyVal, Json] = _.map{ case(k,v) => k -> Json.v }
 }

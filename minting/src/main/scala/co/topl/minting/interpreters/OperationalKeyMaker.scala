@@ -129,13 +129,6 @@ object OperationalKeyMaker {
       MonadCancelThrow[F].uncancelable(_ =>
         (
           for {
-            // fileName: String <-
-            //   secureStore.list.map {
-            //     case Nil => Stats[F].incrementCounter("bifrost_secure_store_empty", "Counter to detect when kes key is missing.", Map.empty()) >> Sync[F].raiseError(new IllegalStateException("SecureStore is empty")) >> Sync[F].pure("")
-            //     case tooManyKeys if tooManyKeys.length > 1 => Stats[F].incrementCounter("bifrost_secure_store_multiple_keys", "Counter to detect when multiple kes keys are detected.", Map.empty()) >> Sync[F].raiseError(new IllegalStateException("SecureStore contains multiple keys")) >> Sync[F].pure("")
-            //     case headOption if headOption.length === 1 => OptionT.liftF(Sync[F].delay(headOption.headOption))
-            //     case _ => ""
-            //   }
             fileName <- OptionT(
               secureStore.list
                 .ensure(new IllegalStateException("SecureStore is empty"))(_.nonEmpty)
