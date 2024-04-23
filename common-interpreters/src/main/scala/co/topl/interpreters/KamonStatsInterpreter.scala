@@ -99,6 +99,6 @@ object KamonStatsRef {
           )
         } yield ()
 
-        def writeFile(statName: String, data: Json): F[Unit] = Applicative[F].unit
+      def writeFile(statName: String, data: Json): F[Unit] = Applicative[F].unit
     })
 }

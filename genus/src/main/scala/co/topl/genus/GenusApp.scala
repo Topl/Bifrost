@@ -28,7 +28,7 @@ object GenusApp
 
   override def run(cmdArgs: GenusArgs, config: Config, appConfig: GenusApplicationConfig): IO[Unit] = (
     for {
-      _                                  <- Logger[F].info(show"Genus args=$cmdArgs").toResource
+      _                            <- Logger[F].info(show"Genus args=$cmdArgs").toResource
       implicit0(metrics: Stats[F]) <- KamonStatsRef.make[F]
       nodeRpcProxy <- NodeRpcProxy
         .make[IO](appConfig.nodeRpcHost, appConfig.nodeRpcPort, appConfig.nodeRpcTls)
@@ -136,7 +136,7 @@ case class GenusApplicationConfig(
   dataDir:          String,
   orientDbPassword: String,
   enableReplicator: Boolean = false,
-  enableMetrics:      Boolean = false
+  enableMetrics:    Boolean = false
 )
 
 object GenusApplicationConfig {
@@ -152,7 +152,7 @@ object GenusApplicationConfig {
         args.runtime.dataDir.map("data-dir: " + _),
         args.runtime.orientDbPassword.map("orient-db-password: " + _),
         args.runtime.enableReplicator.map("enable-replicator: " + _),
-        args.runtime.enableMetrics.map("enable-metrics: " + _),
+        args.runtime.enableMetrics.map("enable-metrics: " + _)
       ).flatten
       YamlConfig.parse(entries.mkString("\n"))
     }

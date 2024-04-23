@@ -8,7 +8,7 @@ trait Stats[F[_]] {
   def decrementCounter(statName: String, description: String, attributes: Map[String, Json]): F[Unit]
   def recordGauge(statName:      String, description: String, attributes: Map[String, Json], value: Json): F[Unit]
   def recordHistogram(statName:  String, description: String, attributes: Map[String, Json], value: Json): F[Unit]
-  def writeFile(statName: String, data: Json): F[Unit]
+  def writeFile(statName:        String, data:        Json): F[Unit]
 }
 
 object Stats {
