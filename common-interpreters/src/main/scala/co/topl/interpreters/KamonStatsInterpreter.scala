@@ -60,7 +60,7 @@ object KamonStatsRef {
           _ <- Sync[F].delay(counter.asInstanceOf[Metric.Counter].withTags(metricTags).increment())
         } yield ()
 
-      def decrementCounter(statName: String, description: String, attributes: Map[String, Json]): F[Unit] = ???
+      def decrementCounter(statName: String, description: String, attributes: Map[String, Json]): F[Unit] = Sync[F].unit
 
       def recordGauge(statName: String, description: String, attributes: Map[String, Json], value: Json): F[Unit] =
         for {
