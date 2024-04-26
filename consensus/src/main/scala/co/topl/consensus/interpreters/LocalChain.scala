@@ -42,13 +42,11 @@ object LocalChain {
           Sync[F].uncancelable(_ =>
             onAdopted(slotData.slotId.blockId) >>
             headRef.set(slotData) >>
-            Async[F].defer(
-              Stats[F].recordGauge(
-                "bifrost_block_adoptions",
-                "Block adoptions",
-                Map("block_id" -> (show"${slotData.slotId.blockId}").asJson),
-                slotData.height.asJson
-              )
+            Stats[F].recordGauge(
+              "bifrost_block_adoptions",
+              "Block adoptions",
+              Map("block_id" -> (show"${slotData.slotId.blockId}").asJson),
+              slotData.height.asJson
             ) >>
             EitherT(adoptionsTopic.publish1(slotData.slotId.blockId))
               .leftMap(_ => new IllegalStateException("LocalChain topic unexpectedly closed"))
