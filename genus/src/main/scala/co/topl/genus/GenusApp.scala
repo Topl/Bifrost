@@ -12,19 +12,24 @@ import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import pureconfig.ConfigSource
 import pureconfig.generic.auto._
+import kamon.Kamon
+import co.topl.interpreters.KamonStatsRef
+import co.topl.algebras.Stats
 
 object GenusApp
     extends IOBaseApp[GenusArgs, GenusApplicationConfig](
       createArgs = a => IO.delay(GenusArgs.parserArgs.constructOrThrow(a)),
       createConfig = IOBaseApp.createTypesafeConfig(_),
-      parseConfig = (args, conf) => IO.delay(GenusApplicationConfig.unsafe(args, conf))
+      parseConfig = (args, conf) => IO.delay(GenusApplicationConfig.unsafe(args, conf)),
+      preInitFunction = config => IO.delay(if (config.enableMetrics) Kamon.init())
     ) {
 
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName("GenusApp")
 
   override def run(cmdArgs: GenusArgs, config: Config, appConfig: GenusApplicationConfig): IO[Unit] = (
     for {
-      _ <- Logger[F].info(show"Genus args=$cmdArgs").toResource
+      _                            <- Logger[F].info(show"Genus args=$cmdArgs").toResource
+      implicit0(metrics: Stats[F]) <- KamonStatsRef.make[F]
       nodeRpcProxy <- NodeRpcProxy
         .make[IO](appConfig.nodeRpcHost, appConfig.nodeRpcPort, appConfig.nodeRpcTls)
         .flatMap(NodeRpcFs2Grpc.bindServiceResource[IO])
@@ -88,7 +93,9 @@ object GenusArgs {
     @arg(doc = "The password to use when interacting with OrientDB")
     orientDbPassword: Option[String] = None,
     @arg(doc = "Flag indicating if data should be copied from the node to the local database")
-    enableReplicator: Option[Boolean] = None
+    enableReplicator: Option[Boolean] = None,
+    @arg(doc = "Flag indicating if Prometheus metrics should be generated.")
+    enableMetrics: Option[Boolean] = None
   )
 
   implicit val parserStartupArgs: ParserForClass[Startup] =
@@ -115,6 +122,7 @@ object GenusArgs {
       show" nodeRpcPort=${args.runtime.nodeRpcPort}" +
       show" dataDir=${args.runtime.dataDir}" +
       show" enableReplicator=${args.runtime.enableReplicator}" +
+      show" enableMetrics=${args.runtime.enableMetrics}" +
       // NOTE: Do not show orientDbPassword
       show")"
 }
@@ -127,7 +135,8 @@ case class GenusApplicationConfig(
   nodeRpcTls:       Boolean = false,
   dataDir:          String,
   orientDbPassword: String,
-  enableReplicator: Boolean = false
+  enableReplicator: Boolean = false,
+  enableMetrics:    Boolean = false
 )
 
 object GenusApplicationConfig {
@@ -142,7 +151,8 @@ object GenusApplicationConfig {
         args.runtime.nodeRpcTls.map("node-rpc-tls: " + _),
         args.runtime.dataDir.map("data-dir: " + _),
         args.runtime.orientDbPassword.map("orient-db-password: " + _),
-        args.runtime.enableReplicator.map("enable-replicator: " + _)
+        args.runtime.enableReplicator.map("enable-replicator: " + _),
+        args.runtime.enableMetrics.map("enable-metrics: " + _)
       ).flatten
       YamlConfig.parse(entries.mkString("\n"))
     }

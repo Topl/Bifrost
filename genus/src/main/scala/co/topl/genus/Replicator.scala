@@ -9,16 +9,19 @@ import co.topl.algebras.{SynchronizationTraversalStep, SynchronizationTraversalS
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.genus.services.BlockData
 import co.topl.interpreters.NodeRpcOps._
-import co.topl.typeclasses.implicits.showBlockId
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.algebras.Stats
+import co.topl.typeclasses.implicits._
 
 object Replicator {
 
-  def background[F[_]: Async](genus: Genus[F, fs2.Stream[F, *]]): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+  def background[F[_]: Async: Stats](
+    genus: Genus[F, fs2.Stream[F, *]]
+  ): Resource[F, F[Outcome[F, Throwable, Unit]]] =
     stream(genus).compile.drain.background
 
-  def stream[F[_]: Async](genus: Genus[F, fs2.Stream[F, *]]): fs2.Stream[F, Unit] =
+  def stream[F[_]: Async: Stats](genus: Genus[F, fs2.Stream[F, *]]): fs2.Stream[F, Unit] =
     for {
       implicit0(logger: Logger[F]) <- fs2.Stream.eval(Slf4jLogger.fromName("Genus.Replicator"))
       _                            <- fs2.Stream.eval(genus.nodeRpcClient.waitForRpcStartUp)
@@ -53,7 +56,15 @@ object Replicator {
           case SynchronizationTraversalSteps.Applied(blockId) =>
             EitherT(genus.nodeBlockFetcher.fetch(blockId))
               .semiflatTap(blockData =>
-                Logger[F].info(s"Inserting block ${blockData.header.id.show} height=${blockData.header.height}")
+                Logger[F].info(s"Inserting block ${blockData.header.id.show} height=${blockData.header.height}") >>
+                Async[F].defer(
+                  Stats[F].recordGauge(
+                    "bifrost_genus_replications",
+                    "Genus replications",
+                    Map("block_id" -> blockData.header.id.show),
+                    blockData.header.height
+                  )
+                )
               )
               .flatMapF(genus.blockUpdater.insert)
               .value

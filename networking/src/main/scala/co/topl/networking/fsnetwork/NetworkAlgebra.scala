@@ -22,6 +22,7 @@ import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.Caffeine
 import org.typelevel.log4cats.Logger
+import co.topl.algebras.Stats
 
 trait NetworkAlgebra[F[_]] {
 
@@ -117,8 +118,9 @@ trait NetworkAlgebra[F[_]] {
   ): Resource[F, PeerMempoolTransactionSyncActor[F]]
 }
 
-class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](clock: ClockAlgebra[F])
-    extends NetworkAlgebra[F] {
+class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver: Stats](
+  clock: ClockAlgebra[F]
+) extends NetworkAlgebra[F] {
 
   override def makePeerManger(
     thisHostId:                  HostId,

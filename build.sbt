@@ -130,6 +130,7 @@ def assemblySettings(main: String) = Seq(
       case "META-INF/io.netty.versions.properties"     => MergeStrategy.last
       case "META-INF/truffle/instrument"               => MergeStrategy.concat
       case "META-INF/truffle/language"                 => MergeStrategy.rename
+      case "META-INF/okio.kotlin_module"               => MergeStrategy.first
       case x if x.contains("google/protobuf")          => MergeStrategy.last
       case x                                           => old(x)
     }

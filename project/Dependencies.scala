@@ -52,8 +52,9 @@ object Dependencies {
   )
 
   val monitoring: Seq[ModuleID] = Seq(
-    "io.kamon" %% "kamon-core"      % kamonVersion,
-    "io.kamon" %% "kamon-cats-io-3" % kamonVersion
+    "io.kamon" %% "kamon-system-metrics" % kamonVersion,
+    "io.kamon" %% "kamon-cats-io-3"      % kamonVersion,
+    "io.kamon" %% "kamon-prometheus"     % kamonVersion
   )
 
   val cats: Seq[ModuleID] = Seq(
@@ -228,6 +229,7 @@ object Dependencies {
     cats ++
     catsEffect ++
     scalacache ++
+    monitoring ++
     Seq(
       commonsNet,
       catsSlf4j % Test

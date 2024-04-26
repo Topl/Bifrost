@@ -39,6 +39,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.jdk.CollectionConverters._
+import co.topl.algebras.Stats
 
 object PeersManagerTest {
   type F[A] = IO[A]
@@ -50,6 +51,7 @@ class PeersManagerTest
     with AsyncMockFactory
     with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val stats: Stats[F] = Stats.noop[F]
   val maxChainSize = 99
 
   val thisHostId: HostId = arbitraryHost.arbitrary.first
@@ -241,7 +243,7 @@ class PeersManagerTest
         mockData.warmToHotSelector,
         mockData.initialPeers,
         mockData.blockSource
-      )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dnsResolver, reverseDnsResolver)
+      )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dnsResolver, reverseDnsResolver, stats)
 
   test("Get current tips request shall be forwarded if application level is enabled") {
     withMock {
