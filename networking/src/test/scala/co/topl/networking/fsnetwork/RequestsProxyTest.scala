@@ -10,6 +10,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, SlotId}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError.BodyNotFoundInPeer
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError.HeaderNotFoundInPeer

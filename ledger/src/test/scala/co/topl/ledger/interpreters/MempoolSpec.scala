@@ -18,12 +18,15 @@ import co.topl.models.ModelGenerators._
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import fs2.Stream
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalacheck.Gen
 import org.scalacheck.Test
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+
+import scala.concurrent.duration._
 
 class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -118,23 +121,27 @@ class MempoolSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncM
           .expects(*)
           .once()
           .returning(MonadCancel[F].never[Unit])
-        for {
-          _ <- Mempool
-            .make[F](
-              currentBlockId.pure[F],
-              mockFunction[BlockId, F[BlockBody]],
-              fetchTransaction,
-              mock[ParentChildTree[F, BlockId]],
-              _ => Applicative[F].unit,
-              clock,
-              _ => Applicative[F].unit,
-              Long.MaxValue,
-              dummyRewardCalc,
-              dummyCostCalc
-            )
-            .map(_._1)
-            .use(_.add(transaction.id).assert)
-        } yield ()
+        Mempool
+          .make[F](
+            currentBlockId.pure[F],
+            mockFunction[BlockId, F[BlockBody]],
+            fetchTransaction,
+            mock[ParentChildTree[F, BlockId]],
+            _ => Applicative[F].unit,
+            clock,
+            _ => Applicative[F].unit,
+            Long.MaxValue,
+            dummyRewardCalc,
+            dummyCostCalc
+          )
+          .map(_._1)
+          .use(underTest =>
+            underTest.adoptions
+              .subscribeAwait(Int.MaxValue)
+              .map(_.concurrently(Stream.eval(underTest.add(transaction.id).assert)))
+              .use(_.head.interruptAfter(3.seconds).compile.lastOrError)
+              .assertEquals(transaction.id)
+          )
       }
     }
   }

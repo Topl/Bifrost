@@ -19,6 +19,7 @@ import co.topl.ledger.interpreters.QuivrContext
 import cats.effect.std.Semaphore
 import co.topl.config.ApplicationConfig.Bifrost.MempoolProtection
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
+import fs2.concurrent.Topic
 
 object MempoolProtected {
 
@@ -209,5 +210,8 @@ object MempoolProtected {
             )
         })
       }
+
+    def adoptions: Topic[F, TransactionId] =
+      underlying.adoptions
   }
 }

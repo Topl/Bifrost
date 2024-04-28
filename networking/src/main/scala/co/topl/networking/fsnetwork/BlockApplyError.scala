@@ -4,6 +4,7 @@ import cats.implicits._
 import cats.data.NonEmptyChain
 import co.topl.consensus.models.{BlockHeaderValidationFailure, BlockId}
 import co.topl.ledger.models.BodyValidationError
+import co.topl.models.p2p._
 
 sealed abstract class BlockApplyError extends Exception
 

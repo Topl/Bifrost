@@ -1,5 +1,7 @@
 package co.topl.networking.fsnetwork
 
+import co.topl.models.p2p._
+
 import scala.annotation.tailrec
 import scala.util.Random
 

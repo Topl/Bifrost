@@ -7,6 +7,7 @@ import cats.effect.std.Random
 import cats.implicits._
 import co.topl.crypto.signing.Ed25519
 import co.topl.models.Bytes
+import co.topl.models.p2p._
 import co.topl.networking.SocketAddressOps
 import co.topl.networking.blockchain.NetworkProtocolVersions
 import com.comcast.ip4s._

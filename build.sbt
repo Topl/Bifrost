@@ -204,6 +204,7 @@ lazy val bifrost = project
     tetraByteCodecs,
     consensus,
     ledger,
+    blockchainCore,
     blockchain,
     levelDbStore,
     commonApplication,
@@ -241,6 +242,7 @@ lazy val node = project
     networking,
     catsUtils,
     toplGrpc,
+    blockchainCore,
     blockchain,
     levelDbStore,
     commonApplication,
@@ -529,7 +531,8 @@ lazy val networking = project
     eventTree,
     ledger,
     actor,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    blockchainCore
   )
 
 lazy val transactionGenerator = project
@@ -580,6 +583,32 @@ lazy val ledger = project
     numerics
   )
 
+lazy val blockchainCore = project
+  .in(file("blockchain-core"))
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "blockchain-core",
+    commonSettings,
+    crossScalaVersions := Seq(scala213),
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "co.topl.buildinfo.blockchaincore"
+  )
+  .settings(libraryDependencies ++= Dependencies.blockchain)
+  .settings(scalamacrosParadiseSettings)
+  .dependsOn(
+    models   % "compile->compile;test->test",
+    algebras % "compile->compile;test->test",
+    config,
+    typeclasses,
+    eventTree,
+    ledger,
+    munitScalamock % "test->test",
+    consensus,
+    minting,
+    commonInterpreters,
+    catsUtils
+  )
+
 lazy val blockchain = project
   .in(file("blockchain"))
   .enablePlugins(BuildInfoPlugin)
@@ -605,7 +634,8 @@ lazy val blockchain = project
     commonInterpreters,
     networking % "compile->compile;test->test",
     catsUtils,
-    toplGrpc
+    toplGrpc,
+    blockchainCore
   )
 
 lazy val toplGrpc = project
@@ -622,7 +652,8 @@ lazy val toplGrpc = project
     algebras,
     catsUtils,
     typeclasses,
-    munitScalamock % "test->test"
+    munitScalamock % "test->test",
+    blockchainCore
   )
 
 lazy val levelDbStore = project

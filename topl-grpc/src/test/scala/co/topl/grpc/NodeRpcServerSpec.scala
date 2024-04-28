@@ -1,24 +1,26 @@
-package co.topl.blockchain
+package co.topl.grpc
 
 import cats.effect.IO
 import cats.implicits._
 import co.topl.algebras.{ClockAlgebra, ProtocolConfigurationAlgebra, Store}
 import co.topl.blockchain.algebras.EpochDataAlgebra
+import co.topl.blockchain.{BlockchainCore, DataStores, Validators}
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.consensus.Consensus
 import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.BlockId
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.eventtree.ParentChildTree
+import co.topl.ledger.Ledger
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.node.models.BlockBody
 import co.topl.proto.node.{EpochData, NodeConfig}
+import fs2.Stream
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import fs2.Stream
 
 class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -32,17 +34,12 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-          _ = (blockHeights
-            .useStateAt[Option[BlockId]](_: BlockId)(
-              _: (Long => F[Option[BlockId]]) => F[Option[BlockId]]
-            ))
-            .expects(canonicalHead.slotId.blockId, *)
+          _ = (localChain
+            .blockIdAtHeight(_: Long))
+            .expects(canonicalHead.height - 1)
             .once()
-            .onCall { case (_, _) =>
-              targetBlockId.some.pure[F]
-            }
-          underTest <- createServer(localChain = localChain, blockHeights = blockHeights)
+            .returning(targetBlockId.some.pure[F])
+          underTest <- createServer(localChain = localChain)
           _         <- underTest.blockIdAtHeight(canonicalHead.height - 1).assertEquals(targetBlockId.some)
         } yield ()
       } >>
@@ -51,24 +48,10 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-          underTest <- ToplRpcServer.make[F](
-            mock[Store[F, BlockId, BlockHeader]],
-            mock[Store[F, BlockId, BlockBody]],
-            mock[Store[F, TransactionId, IoTransaction]],
-            mock[MempoolAlgebra[F]],
-            mock[TransactionSyntaxVerifier[F]],
-            localChain,
-            blockHeights,
-            mock[ParentChildTree[F, BlockId]],
-            Stream.empty,
-            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-            mock[EpochDataAlgebra[F]],
-            mock[ClockAlgebra[F]]
-          )
+          underTest <- createServer(localChain = localChain)
           _ <- underTest
             .blockIdAtHeight(canonicalHead.height)
-            .assertEquals((canonicalHead.slotId.blockId).some)
+            .assertEquals(canonicalHead.slotId.blockId.some)
         } yield ()
       } >>
       // Test where requested height is greater than canonical head height
@@ -76,45 +59,17 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-          underTest <- ToplRpcServer.make[F](
-            mock[Store[F, BlockId, BlockHeader]],
-            mock[Store[F, BlockId, BlockBody]],
-            mock[Store[F, TransactionId, IoTransaction]],
-            mock[MempoolAlgebra[F]],
-            mock[TransactionSyntaxVerifier[F]],
-            localChain,
-            blockHeights,
-            mock[ParentChildTree[F, BlockId]],
-            Stream.empty,
-            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-            mock[EpochDataAlgebra[F]],
-            mock[ClockAlgebra[F]]
-          )
-          _ <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
+          underTest <- createServer(localChain = localChain)
+          _         <- underTest.blockIdAtHeight(canonicalHead.height + 1).assertEquals(None)
         } yield ()
       } >>
       // Test where requested height is invalid
       withMock {
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-          underTest <- ToplRpcServer.make[F](
-            mock[Store[F, BlockId, BlockHeader]],
-            mock[Store[F, BlockId, BlockBody]],
-            mock[Store[F, TransactionId, IoTransaction]],
-            mock[MempoolAlgebra[F]],
-            mock[TransactionSyntaxVerifier[F]],
-            localChain,
-            blockHeights,
-            mock[ParentChildTree[F, BlockId]],
-            Stream.empty,
-            mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
-            mock[EpochDataAlgebra[F]],
-            mock[ClockAlgebra[F]]
-          )
-          _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
-          _ <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
+          underTest  <- createServer(localChain = localChain)
+          _          <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(0))
+          _          <- interceptIO[IllegalArgumentException](underTest.blockIdAtHeight(-1))
         } yield ()
       }
     }
@@ -128,17 +83,8 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(canonicalHead.pure[F])
-          blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
-          _ = (blockHeights
-            .useStateAt[Option[BlockId]](_: BlockId)(
-              _: (Long => F[Option[BlockId]]) => F[Option[BlockId]]
-            ))
-            .expects(canonicalHead.slotId.blockId, *)
-            .once()
-            .onCall { case (_, _) =>
-              targetBlockId.some.pure[F]
-            }
-          underTest <- createServer(localChain = localChain, blockHeights = blockHeights)
+          _ = (localChain.blockIdAtHeight(_: Long)).expects(*).once().returning(targetBlockId.some.pure[F])
+          underTest <- createServer(localChain = localChain)
           _         <- underTest.blockIdAtDepth(1).assertEquals(targetBlockId.some)
         } yield ()
       } >>
@@ -179,6 +125,10 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
         for {
           localChain <- mock[LocalChainAlgebra[F]].pure[F]
           _ = (() => localChain.head).expects().once().returning(slotHead.pure[F])
+          _ = (() => localChain.adoptions)
+            .expects()
+            .once()
+            .returning(Stream.eval((slotA.slotId.blockId).pure[F]).pure[F])
           parentChildTree <- mock[ParentChildTree[F, BlockId]].pure[F]
           _ = (
             (
@@ -196,8 +146,7 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             )
           underTest <- createServer(
             localChain = localChain,
-            blockIdTree = parentChildTree,
-            localBlockAdoptionsStream = Stream.eval((slotA.slotId.blockId).pure[F])
+            blockIdTree = parentChildTree
           )
           stream <- underTest.synchronizationTraversal()
           // find common ancestor is inclusive, and synchronizationTraversal tail results
@@ -258,28 +207,36 @@ class NodeRpcServerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
     mempool:             MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
     syntacticValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
     localChain:          LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
-    blockHeights: EventSourcedState[F, Long => F[Option[BlockId]], BlockId] =
-      mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
-    blockIdTree:               ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
-    localBlockAdoptionsStream: Stream[F, BlockId] = Stream.empty,
+    blockIdTree:         ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
     protocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]] =
       mock[ProtocolConfigurationAlgebra[F, Stream[F, *]]],
     epochData: EpochDataAlgebra[F] = mock[EpochDataAlgebra[F]],
     clock:     ClockAlgebra[F] = mock[ClockAlgebra[F]]
-  ) =
-    ToplRpcServer
-      .make[F](
-        headerStore,
-        bodyStore,
-        transactionStore,
-        mempool,
-        syntacticValidation,
-        localChain,
-        blockHeights,
-        blockIdTree,
-        localBlockAdoptionsStream,
-        protocolConfiguration,
-        epochData,
-        clock
-      )
+  ) = {
+    val dataStores = mock[DataStores[F]]
+    (() => dataStores.headers).expects().anyNumberOfTimes().returning(headerStore)
+    (() => dataStores.bodies).expects().anyNumberOfTimes().returning(bodyStore)
+    (() => dataStores.transactions).expects().anyNumberOfTimes().returning(transactionStore)
+
+    val validators = mock[Validators[F]]
+    (() => validators.transactionSyntax).expects().anyNumberOfTimes().returning(syntacticValidation)
+
+    val consensus = mock[Consensus[F]]
+    (() => consensus.localChain).expects().anyNumberOfTimes().returning(localChain)
+
+    val ledger = mock[Ledger[F]]
+    (() => ledger.mempool).expects().anyNumberOfTimes().returning(mempool)
+
+    val blockchain = mock[BlockchainCore[F]]
+    (() => blockchain.blockIdTree).expects().anyNumberOfTimes().returning(blockIdTree)
+    (() => blockchain.protocolConfiguration).expects().anyNumberOfTimes().returning(protocolConfiguration)
+    (() => blockchain.epochData).expects().anyNumberOfTimes().returning(epochData)
+    (() => blockchain.clock).expects().anyNumberOfTimes().returning(clock)
+    (() => blockchain.dataStores).expects().anyNumberOfTimes().returning(dataStores)
+    (() => blockchain.validators).expects().anyNumberOfTimes().returning(validators)
+    (() => blockchain.consensus).expects().anyNumberOfTimes().returning(consensus)
+    (() => blockchain.ledger).expects().anyNumberOfTimes().returning(ledger)
+
+    ToplRpcServer.make[F](blockchain)
+  }
 }

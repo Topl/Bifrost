@@ -24,7 +24,6 @@ import com.google.protobuf.ByteString
 import munit.CatsEffectSuite
 import munit.ScalaCheckEffectSuite
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.algebras.Stats.Implicits._
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration._
