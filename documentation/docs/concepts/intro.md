@@ -2,4 +2,6 @@
 sidebar_position: 1
 ---
 
-# Concepts Intro (TBD)
+# Concepts
+- [Consensus](concepts/consensus)
+- [Ledger](concepts/ledger)
