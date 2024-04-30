@@ -19,6 +19,7 @@ import co.topl.ledger.models._
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.BlockCheckerTest.F
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor

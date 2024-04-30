@@ -3,10 +3,10 @@ package co.topl.networking.fsnetwork
 import cats.Monad
 import cats.data.OptionT
 import cats.effect.Sync
+import co.topl.models.p2p._
 import com.comcast.ip4s.{Dns, Hostname}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import cats.implicits._
-import co.topl.networking.p2p.RemoteAddress
 
 import java.time.Duration
 

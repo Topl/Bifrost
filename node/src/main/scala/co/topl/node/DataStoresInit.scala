@@ -6,7 +6,7 @@ import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
 import co.topl.algebras.Store
-import co.topl.blockchain.{BigBang, CurrentEventIdGetterSetters, DataStores, PrivateTestnet, PrunedDataStores}
+import co.topl.blockchain._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
@@ -19,7 +19,8 @@ import co.topl.db.leveldb.LevelDbStore
 import co.topl.interpreters.CacheStore
 import co.topl.interpreters.ContainsCacheStore._
 import co.topl.models.utility._
-import co.topl.networking.fsnetwork.KnownRemotePeer
+import co.topl.models.p2p._
+import co.topl.networking.fsnetwork._
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import com.google.protobuf.ByteString
@@ -212,7 +213,7 @@ object DataStoresInit {
         _.value
       )
 
-      dataStores = DataStores(
+      dataStores = DataStoresImpl(
         dataDir,
         parentChildTree,
         currentEventIds,

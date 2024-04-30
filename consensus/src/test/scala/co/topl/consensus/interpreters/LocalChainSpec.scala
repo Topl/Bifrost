@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.implicits._
 import co.topl.consensus.algebras.ChainSelectionAlgebra
 import co.topl.consensus.models.{BlockId, SlotData, SlotId}
+import co.topl.eventtree.EventSourcedState
 import co.topl.models.ModelGenerators._
 import co.topl.models.generators.common.ModelGenerators.genSizedStrictByteString
 import co.topl.models.generators.consensus.ModelGenerators.etaGen
@@ -33,55 +34,101 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
 
   test("store the head of the local canonical tine") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
-      val initialHead =
-        SlotData(
-          SlotId.of(1, blockId1),
-          SlotId.of(0, blockId0),
-          rho.data,
-          eta.data,
-          0
-        )
+      withMock {
+        val initialHead =
+          SlotData(
+            SlotId.of(1, blockId1),
+            SlotId.of(0, blockId0),
+            rho.data,
+            eta.data,
+            0
+          )
 
-      LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
-        .use(_.head.assertEquals(initialHead))
+        val blockHeights =
+          mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+
+        LocalChain
+          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+          .use(_.head.assertEquals(initialHead))
+      }
     }
   }
 
   test("indicate when a new tine is worse than the local chain") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
-      val initialHead =
-        SlotData(
-          SlotId.of(1, blockId1),
-          SlotId.of(0, blockId0),
-          rho.data,
-          eta.data,
-          0
-        )
+      withMock {
+        val initialHead =
+          SlotData(
+            SlotId.of(1, blockId1),
+            SlotId.of(0, blockId0),
+            rho.data,
+            eta.data,
+            0
+          )
 
-      val newHead =
-        SlotData(
-          SlotId.of(2, blockId2),
-          SlotId.of(1, blockId1),
-          rho.data,
-          eta.data,
-          1
-        )
+        val newHead =
+          SlotData(
+            SlotId.of(2, blockId2),
+            SlotId.of(1, blockId1),
+            rho.data,
+            eta.data,
+            1
+          )
 
-      LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
-        .use(_.isWorseThan(newHead).assert)
+        val blockHeights =
+          mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+
+        LocalChain
+          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+          .use(_.isWorseThan(newHead).assert)
+      }
     }
   }
 
   test("adopt a new tine when instructed") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
+      withMock {
+        val initialHead =
+          SlotData(
+            SlotId.of(1, blockId1),
+            SlotId.of(0, blockId0),
+            rho.data,
+            eta.data,
+            0
+          )
+
+        val newHead =
+          SlotData(
+            SlotId.of(2, blockId2),
+            SlotId.of(1, blockId0),
+            rho.data,
+            eta.data,
+            1
+          )
+
+        val blockHeights =
+          mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+
+        LocalChain
+          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+          .use(underTest =>
+            underTest.head.assertEquals(initialHead) >>
+            underTest.adopt(Validated.Valid(newHead)) >>
+            underTest.head.assertEquals(newHead)
+          )
+
+      }
+    }
+  }
+
+  test("Block IDs should be produced in a stream whenever they are adopted locally") {
+    withMock {
       val initialHead =
         SlotData(
           SlotId.of(1, blockId1),
           SlotId.of(0, blockId0),
-          rho.data,
-          eta.data,
+          genSizedStrictByteString[Lengths.`64`.type]().first.data,
+          etaGen.first.data,
           0
         )
 
@@ -89,54 +136,28 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         SlotData(
           SlotId.of(2, blockId2),
           SlotId.of(1, blockId0),
-          rho.data,
-          eta.data,
+          genSizedStrictByteString[Lengths.`64`.type]().first.data,
+          etaGen.first.data,
           1
         )
 
+      val blockHeights =
+        mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
+
       LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
+        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
         .use(underTest =>
-          underTest.head.assertEquals(initialHead) >>
-          underTest.adopt(Validated.Valid(newHead)) >>
-          underTest.head.assertEquals(newHead)
+          fs2.Stream
+            .force(underTest.adoptions)
+            .concurrently(
+              fs2.Stream.exec(Async[F].delayBy(Async[F].defer(underTest.adopt(Validated.Valid(newHead))), 1.seconds))
+            )
+            .head
+            .interruptAfter(3.seconds)
+            .compile
+            .lastOrError
+            .assertEquals(newHead.slotId.blockId)
         )
-
     }
-  }
-
-  test("Block IDs should be produced in a stream whenever they are adopted locally") {
-    val initialHead =
-      SlotData(
-        SlotId.of(1, blockId1),
-        SlotId.of(0, blockId0),
-        genSizedStrictByteString[Lengths.`64`.type]().first.data,
-        etaGen.first.data,
-        0
-      )
-
-    val newHead =
-      SlotData(
-        SlotId.of(2, blockId2),
-        SlotId.of(1, blockId0),
-        genSizedStrictByteString[Lengths.`64`.type]().first.data,
-        etaGen.first.data,
-        1
-      )
-
-    LocalChain
-      .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit)
-      .use(underTest =>
-        fs2.Stream
-          .force(underTest.adoptions)
-          .concurrently(
-            fs2.Stream.exec(Async[F].delayBy(Async[F].defer(underTest.adopt(Validated.Valid(newHead))), 1.seconds))
-          )
-          .head
-          .interruptAfter(3.seconds)
-          .compile
-          .lastOrError
-          .assertEquals(newHead.slotId.blockId)
-      )
   }
 }

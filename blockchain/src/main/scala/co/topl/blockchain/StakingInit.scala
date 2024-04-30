@@ -25,7 +25,6 @@ import fs2.Chunk
 import fs2.io.file.{Files, Path}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.algebras.Stats
 
 object StakingInit {
 
@@ -61,7 +60,7 @@ object StakingInit {
    * Initializes a Staking object from existing files on disk.  The files are expected to be in the format created
    * by the "Registration" CLI process.
    */
-  def makeStakingFromDisk[F[_]: Async: Stats](
+  def makeStakingFromDisk[F[_]: Async](
     stakingDir:               Path,
     rewardAddress:            LockAddress,
     configuredStakingAddress: Option[StakingAddress],
@@ -159,7 +158,7 @@ object StakingInit {
   /**
    * Initializes a Staking object from the given raw VRF and staking address information
    */
-  def makeStaking[F[_]: Async: Stats](
+  def makeStaking[F[_]: Async](
     stakingDir:               Path,
     vrfSK:                    ByteString,
     vrfVK:                    ByteString,

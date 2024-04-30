@@ -10,10 +10,12 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.models.p2p._
+import co.topl.networking._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.DnsResolverHTInstances._
@@ -22,7 +24,7 @@ import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.ReverseDnsResolverHTInstances._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.networking.p2p._
 import co.topl.node.models.{BlockBody, KnownHost}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
@@ -220,11 +222,11 @@ object PeersManager {
     requestsProxy:               Option[RequestsProxyActor[F]],
     peersHandler:                PeersHandler[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -278,11 +280,11 @@ object PeersManager {
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -307,11 +309,11 @@ object PeersManager {
         requestsProxy = None,
         PeersHandler(initialPeers + selfBannedPeer, p2pConfig),
         localChain,
+        chainSelection,
         slotDataStore,
         bodyStore,
         transactionStore,
         blockIdTree,
-        blockHeights,
         mempool,
         headerToBodyValidation,
         transactionSyntaxValidation,
@@ -793,11 +795,11 @@ object PeersManager {
             state.requestsProxy.get,
             thisActor,
             state.localChain,
+            state.chainSelection,
             state.slotDataStore,
             state.bodyStore,
             state.transactionStore,
             state.blockIdTree,
-            state.blockHeights,
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
             state.mempool,

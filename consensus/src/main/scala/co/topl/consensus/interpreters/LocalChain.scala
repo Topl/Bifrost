@@ -7,6 +7,7 @@ import cats.effect.implicits._
 import cats.implicits._
 import co.topl.consensus.algebras._
 import co.topl.consensus.models._
+import co.topl.eventtree.EventSourcedState
 import co.topl.typeclasses.implicits._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -17,10 +18,11 @@ import io.circe.syntax._
 object LocalChain {
 
   def make[F[_]: Async: Stats](
-    genesis:        SlotData,
-    initialHead:    SlotData,
-    chainSelection: ChainSelectionAlgebra[F, SlotData],
-    onAdopted:      BlockId => F[Unit]
+    genesis:         SlotData,
+    initialHead:     SlotData,
+    chainSelection:  ChainSelectionAlgebra[F, SlotData],
+    onAdopted:       BlockId => F[Unit],
+    blockHeightsESS: EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
   ): Resource[F, LocalChainAlgebra[F]] = {
     val _g = genesis
     (
@@ -31,8 +33,6 @@ object LocalChain {
 
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.LocalChain")
-
-        override val chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]] = chainSelection.pure[F]
 
         def isWorseThan(newHead: SlotData): F[Boolean] =
           head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
@@ -68,6 +68,21 @@ object LocalChain {
 
         val genesis: F[SlotData] =
           _g.pure[F]
+
+        def blockIdAtHeight(height: Long): F[Option[BlockId]] =
+          if (height == _g.height)
+            _g.slotId.blockId.some.pure[F]
+          else if (height > _g.height)
+            head.map(_.slotId.blockId).flatMap(blockHeightsESS.useStateAt(_)(_.apply(height)))
+          else if (height == 0L)
+            head.map(_.slotId.blockId.some)
+          else
+            head
+              .map(_.height + height)
+              .flatMap(targetHeight =>
+                if (targetHeight < _g.height) none[BlockId].pure[F]
+                else blockIdAtHeight(targetHeight)
+              )
       }
     )
   }

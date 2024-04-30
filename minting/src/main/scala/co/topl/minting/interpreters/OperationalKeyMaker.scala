@@ -34,10 +34,9 @@ object OperationalKeyMaker {
    *
    * @param activationOperationalPeriod The operational period number in which the staker becomes active
    * @param address                     The staker's address
-   * @param etaCalculation An EtaCalculation interpreter is needed to determine the eta to use when determining VRF ineligibilities.
    * @param consensusState Used for the lookup of relative stake for VRF ineligibilities
    */
-  def make[F[_]: Async: Stats](
+  def make[F[_]: Async](
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,
@@ -74,7 +73,7 @@ object OperationalKeyMaker {
       )
     } yield impl
 
-  private class Impl[F[_]: Async: Logger: Stats](
+  private class Impl[F[_]: Async: Logger](
     activationOperationalPeriod: Long,
     address:                     StakingAddress,
     vrfConfig:                   VrfConfig,

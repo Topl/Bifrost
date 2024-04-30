@@ -22,7 +22,21 @@ import co.topl.quivr.api.Verifier.instances.verifierInstance
 import co.topl.typeclasses.implicits._
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
 
-case class Validators[F[_]](
+trait Validators[F[_]] {
+  def header: BlockHeaderValidationAlgebra[F]
+  def headerToBody: BlockHeaderToBodyValidationAlgebra[F]
+  def transactionSyntax: TransactionSyntaxVerifier[F]
+  def transactionSemantics: TransactionSemanticValidationAlgebra[F]
+  def transactionAuthorization: TransactionAuthorizationVerifier[F]
+  def bodySyntax: BodySyntaxValidationAlgebra[F]
+  def bodySemantics: BodySemanticValidationAlgebra[F]
+  def bodyAuthorization: BodyAuthorizationValidationAlgebra[F]
+  def boxState: BoxStateAlgebra[F]
+  def registrationAccumulator: RegistrationAccumulatorAlgebra[F]
+  def rewardCalculator: TransactionRewardCalculatorAlgebra
+}
+
+case class ValidatorsImpl[F[_]](
   header:                   BlockHeaderValidationAlgebra[F],
   headerToBody:             BlockHeaderToBodyValidationAlgebra[F],
   transactionSyntax:        TransactionSyntaxVerifier[F],
@@ -34,7 +48,7 @@ case class Validators[F[_]](
   boxState:                 BoxStateAlgebra[F],
   registrationAccumulator:  RegistrationAccumulatorAlgebra[F],
   rewardCalculator:         TransactionRewardCalculatorAlgebra
-)
+) extends Validators[F]
 
 object Validators {
 
@@ -89,7 +103,7 @@ object Validators {
           transactionAuthorizationValidation
         )
         .toResource
-    } yield Validators(
+    } yield ValidatorsImpl(
       headerValidation,
       headerToBody,
       transactionSyntaxValidation,

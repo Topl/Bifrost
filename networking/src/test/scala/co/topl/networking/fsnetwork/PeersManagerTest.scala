@@ -12,13 +12,14 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.{BlockchainPeerClient, NetworkProtocolVersions}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
@@ -27,7 +28,7 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.PeersManagerTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, arbitraryRemoteAddress}
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer}
 import co.topl.node.models.{BlockBody, KnownHost}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -166,11 +167,11 @@ class PeersManagerTest
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -199,11 +200,11 @@ class PeersManagerTest
       thisHostId,
       networkAlgebra = networkAlgebra,
       localChain = mock[LocalChainAlgebra[F]],
+      chainSelection = mock[ChainSelectionAlgebra[F, SlotData]],
       slotDataStore = mock[Store[F, BlockId, SlotData]],
       bodyStore = defaultBodyStorage,
       transactionStore = mock[Store[F, TransactionId, IoTransaction]],
       blockIdTree = mock[ParentChildTree[F, BlockId]],
-      blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
       mempool = mock[MempoolAlgebra[F]],
       headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]],
       transactionSyntaxValidation = defaultTransactionSyntaxValidation,
@@ -227,11 +228,11 @@ class PeersManagerTest
         mockData.thisHostId,
         mockData.networkAlgebra,
         mockData.localChain,
+        mockData.chainSelection,
         mockData.slotDataStore,
         mockData.bodyStore,
         mockData.transactionStore,
         mockData.blockIdTree,
-        mockData.blockHeights,
         mockData.mempool,
         mockData.headerToBodyValidation,
         mockData.transactionSyntaxValidation,

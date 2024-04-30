@@ -13,6 +13,7 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.{BodyValidationError, StaticBodyValidationContext}
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.BlockApplyError.BodyApplyException.BodyValidationException
 import co.topl.networking.fsnetwork.BlockApplyError.{BodyApplyException, HeaderApplyException}

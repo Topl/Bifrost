@@ -12,6 +12,7 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
@@ -52,7 +53,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
   def buildLocalChainAlgebra(): LocalChainAlgebra[F] = {
     val localChainAlgebra = mock[LocalChainAlgebra[F]]
-    (() => localChainAlgebra.chainSelectionAlgebra).stubs().returning(defaultChainSelectionAlgebra.pure[F])
     localChainAlgebra
   }
 
@@ -94,9 +94,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       PeerBlockHeaderFetcher
         .makeActor(
@@ -105,11 +103,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -158,9 +156,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       PeerBlockHeaderFetcher
         .makeActor(
@@ -169,11 +165,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -230,9 +226,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       PeerBlockHeaderFetcher
         .makeActor(
@@ -241,11 +235,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -308,9 +302,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val clock = mock[ClockAlgebra[F]]
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       PeerBlockHeaderFetcher
         .makeActor(
@@ -319,11 +311,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -402,10 +394,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -417,11 +407,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -465,14 +455,13 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val requestsProxy = mock[RequestsProxyActor[F]]
 
       val enoughHeightDelta = 1
-      val chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
+      val chainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
         override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
 
         override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
           (proposedHeight - enoughHeightDelta).pure[F]
       }
       val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.chainSelectionAlgebra).stubs().returning(chainSelectionAlgebra.pure[F])
       (() => localChain.head).expects().anyNumberOfTimes().returns(bestSlotData.pure[F])
       val req = remoteSlotData.toList.dropRight(enoughHeightDelta)
 
@@ -514,10 +503,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -529,11 +516,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          chainSelection,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -576,14 +563,13 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val requestsProxy = mock[RequestsProxyActor[F]]
 
       val enoughHeightDelta = 1
-      val chainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
+      val chainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
         override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
 
         override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
           (proposedHeight - enoughHeightDelta).pure[F]
       }
       val localChain = mock[LocalChainAlgebra[F]]
-      (() => localChain.chainSelectionAlgebra).stubs().returning(chainSelectionAlgebra.pure[F])
       (() => localChain.head).expects().anyNumberOfTimes().returns(bestSlotData.pure[F])
       val req = remoteSlotData.toList.dropRight(enoughHeightDelta)
 
@@ -619,10 +605,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -634,11 +618,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          chainSelection,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -721,10 +705,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -736,11 +718,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -813,9 +795,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (localId == id).pure[F] }
@@ -827,11 +807,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -906,9 +886,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(remote1Id).once().returning(false.pure[F])
@@ -924,11 +902,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1001,10 +979,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(bestSlotId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(bestSlotId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -1016,11 +992,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1102,10 +1078,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(idAndSlotData.head._1.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(idAndSlotData.head._1.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val knownBodies = idAndSlotData.map(_._1).toList.toSet
@@ -1120,11 +1094,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1202,9 +1176,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val knownBodies = idAndSlotData.map(_._1).toList.toSet
@@ -1219,11 +1191,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1270,10 +1242,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
       val commonAncestorF =
-        mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+        mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
@@ -1287,11 +1257,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1347,9 +1317,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
@@ -1363,11 +1331,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1451,10 +1419,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -1466,11 +1432,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1551,10 +1517,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -1566,11 +1530,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1650,10 +1614,8 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
-      (commonAncestorF.apply _).expects(*, *, *).returning(knownId.pure[F])
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
+      (commonAncestorF.apply _).expects(*, *).returning(knownId.pure[F])
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (knownId == id).pure[F] }
@@ -1665,11 +1627,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>
@@ -1723,9 +1685,7 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .once()
         .returning((-1L).pure[F])
 
-      val blockHeights = mock[BlockHeights[F]]
-
-      val commonAncestorF = mock[(BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]]
+      val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
 
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
@@ -1739,11 +1699,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           requestsProxy,
           peersManager,
           localChain,
+          defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
           blockIdTree,
           clock,
-          blockHeights,
           commonAncestorF
         )
         .use { actor =>

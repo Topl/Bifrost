@@ -42,5 +42,5 @@ trait LocalChainAlgebra[F[_]] {
    */
   def genesis: F[SlotData]
 
-  def chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]]
+  def blockIdAtHeight(height: Long): F[Option[BlockId]]
 }

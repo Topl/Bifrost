@@ -6,19 +6,13 @@ import cats.effect.Async
 import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Outcome, Resource}
 import cats.implicits._
-import co.topl.algebras.{ClockAlgebra, Store}
-import co.topl.brambl.models.TransactionId
-import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.algebras.Store
+import co.topl.blockchain.BlockchainCore
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
-import co.topl.consensus.algebras._
-import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
-import co.topl.ledger.algebras._
+import co.topl.models.p2p.{HostId, KnownRemotePeer}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, PeerConnectionChanges}
 import co.topl.networking.fsnetwork.P2PShowInstances._
-import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -28,68 +22,56 @@ import scala.util.Random
 object NetworkManager {
 
   def startNetwork[F[_]: Async: Logger](
-    thisHostId:                  HostId,
-    localChain:                  LocalChainAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
-    headerValidation:            BlockHeaderValidationAlgebra[F],
-    headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
-    transactionSyntaxValidation: TransactionSyntaxVerifier[F],
-    bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
-    bodySemanticValidation:      BodySemanticValidationAlgebra[F],
-    bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    slotDataStore:               Store[F, BlockId, SlotData],
-    headerStore:                 Store[F, BlockId, BlockHeader],
-    bodyStore:                   Store[F, BlockId, BlockBody],
-    transactionStore:            Store[F, TransactionId, IoTransaction],
-    remotePeerStore:             Store[F, Unit, Seq[KnownRemotePeer]],
-    blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
-    mempool:                     MempoolAlgebra[F],
-    networkAlgebra:              NetworkAlgebra[F],
-    initialHosts:                Seq[DisconnectedPeer],
-    networkProperties:           NetworkProperties,
-    clock:                       ClockAlgebra[F],
-    addRemotePeerAlgebra:        PeerCreationRequestAlgebra[F],
-    peersStatusChangesTopic:     Topic[F, PeerConnectionChange],
-    hotPeersUpdate:              Set[RemotePeer] => F[Unit]
+    thisHostId:              HostId,
+    blockchain:              BlockchainCore[F],
+    networkAlgebra:          NetworkAlgebra[F],
+    initialHosts:            Seq[DisconnectedPeer],
+    networkProperties:       NetworkProperties,
+    addRemotePeerAlgebra:    PeerCreationRequestAlgebra[F],
+    peersStatusChangesTopic: Topic[F, PeerConnectionChange],
+    hotPeersUpdate:          Set[RemotePeer] => F[Unit]
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _ <- Resource.liftK(Logger[F].info(show"Start actors network with list of peers: ${initialHosts.mkString(";")}"))
-      slotDuration <- Resource.liftK(clock.slotLength)
+      slotDuration <- Resource.liftK(blockchain.clock.slotLength)
       p2pNetworkConfig = P2PNetworkConfig(networkProperties, slotDuration)
 
-      peersFromStorage <- Resource.liftK(remotePeerStore.get(()).map(_.getOrElse(Seq.empty)))
+      peersFromStorage <- Resource.liftK(blockchain.dataStores.knownHosts.get(()).map(_.getOrElse(Seq.empty)))
       _                <- Resource.liftK(Logger[F].info(show"Loaded from storage next known hosts: $peersFromStorage"))
       peerManager <- networkAlgebra.makePeerManger(
         thisHostId,
         networkAlgebra,
-        localChain,
-        slotDataStore,
-        bodyStore,
-        transactionStore,
-        blockIdTree,
-        blockHeights,
-        mempool,
-        headerToBodyValidation,
-        transactionSyntaxValidation,
+        blockchain.consensus.localChain,
+        blockchain.consensus.chainSelection,
+        blockchain.dataStores.slotData,
+        blockchain.dataStores.bodies,
+        blockchain.dataStores.transactions,
+        blockchain.blockIdTree,
+        blockchain.ledger.mempool,
+        blockchain.validators.headerToBody,
+        blockchain.validators.transactionSyntax,
         addRemotePeerAlgebra,
         p2pNetworkConfig,
         hotPeersUpdate,
-        buildSaveRemotePeersFunction(remotePeerStore)
+        buildSaveRemotePeersFunction(blockchain.dataStores.knownHosts)
       )
 
-      requestsProxy <- networkAlgebra.makeRequestsProxy(peerManager, headerStore, bodyStore)
+      requestsProxy <- networkAlgebra.makeRequestsProxy(
+        peerManager,
+        blockchain.dataStores.headers,
+        blockchain.dataStores.bodies
+      )
       blocksChecker <- networkAlgebra.makeBlockChecker(
         requestsProxy,
-        localChain,
-        slotDataStore,
-        headerStore,
-        bodyStore,
-        headerValidation,
-        bodySyntaxValidation,
-        bodySemanticValidation,
-        bodyAuthorizationValidation,
-        chainSelectionAlgebra
+        blockchain.consensus.localChain,
+        blockchain.dataStores.slotData,
+        blockchain.dataStores.headers,
+        blockchain.dataStores.bodies,
+        blockchain.validators.header,
+        blockchain.validators.bodySyntax,
+        blockchain.validators.bodySemantics,
+        blockchain.validators.bodyAuthorization,
+        blockchain.consensus.chainSelection
       )
 
       _ <- Resource.liftK(requestsProxy.sendNoWait(RequestsProxy.Message.SetupBlockChecker(blocksChecker)))

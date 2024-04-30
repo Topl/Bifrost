@@ -1,21 +1,17 @@
-package co.topl.blockchain.interpreters
+package co.topl.networking.blockchain
 
 import cats.effect.{Async, Resource}
 import cats.implicits._
+import co.topl.blockchain.BlockchainCore
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
-import co.topl.catsutils.DroppingTopic
-import co.topl.consensus.algebras.LocalChainAlgebra
-import co.topl.consensus.models.BlockId
-import co.topl.eventtree.EventSourcedState
-import co.topl.ledger.algebras.MempoolAlgebra
-import co.topl.consensus.models.{BlockHeader, SlotData}
-import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRes, KnownHost, PingMessage, PongMessage}
-import co.topl.typeclasses.implicits._
-import co.topl.networking.blockchain.BlockchainPeerServerAlgebra
+import co.topl.catsutils._
+import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.networking.p2p.PeerConnectionChanges.RemotePeerApplicationLevel
 import co.topl.networking.p2p.{ConnectedPeer, PeerConnectionChange}
+import co.topl.node.models._
+import co.topl.typeclasses.implicits._
 import fs2.Stream
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
@@ -24,24 +20,18 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 object BlockchainPeerServer {
 
   def make[F[_]: Async](
-    fetchSlotData:           BlockId => F[Option[SlotData]],
-    fetchHeader:             BlockId => F[Option[BlockHeader]],
-    fetchBody:               BlockId => F[Option[BlockBody]],
-    fetchTransaction:        TransactionId => F[Option[IoTransaction]],
-    blockHeights:            EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    blockchain:              BlockchainCore[F],
     peerServerPort:          () => Option[KnownHost],
     currentHotPeers:         () => F[Set[RemotePeer]],
-    localChain:              LocalChainAlgebra[F],
-    mempool:                 MempoolAlgebra[F],
-    newBlockIds:             Topic[F, BlockId],
-    newTransactionIds:       Topic[F, TransactionId],
     peerStatus:              Topic[F, PeerConnectionChange],
     blockIdBufferSize:       Int = 8,
     transactionIdBufferSize: Int = 512
   )(peer: ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
     (
-      DroppingTopic(newBlockIds, blockIdBufferSize).flatMap(_.subscribeAwaitUnbounded),
-      DroppingTopic(newTransactionIds, transactionIdBufferSize).flatMap(_.subscribeAwaitUnbounded)
+      Resource.pure[F, Stream[F, BlockId]](
+        Stream.force(blockchain.consensus.localChain.adoptions).dropOldest(blockIdBufferSize)
+      ),
+      DroppingTopic(blockchain.ledger.mempool.adoptions, transactionIdBufferSize).flatMap(_.subscribeAwaitUnbounded)
     )
       .mapN((newBlockIds, newTransactionIds) =>
         new BlockchainPeerServerAlgebra[F] {
@@ -59,7 +49,7 @@ object BlockchainPeerServer {
           override def localBlockAdoptions: F[Stream[F, BlockId]] =
             Async[F].delay(
               Stream
-                .eval(localChain.head.map(_.slotId.blockId))
+                .eval(blockchain.consensus.localChain.head.map(_.slotId.blockId))
                 .append(newBlockIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting block id=$id to peer"))
             )
@@ -71,32 +61,33 @@ object BlockchainPeerServer {
           override def localTransactionNotifications: F[Stream[F, TransactionId]] =
             Async[F].delay(
               Stream
-                .eval(localChain.head.map(_.slotId.blockId).flatMap(mempool.read))
+                .eval(
+                  blockchain.consensus.localChain.head.map(_.slotId.blockId).flatMap(blockchain.ledger.mempool.read)
+                )
                 .flatMap(g => Stream.iterable(g.transactions.keys))
                 .append(newTransactionIds)
                 .evalTap(id => Logger[F].debug(show"Broadcasting transaction id=$id to peer"))
             )
 
           override def getLocalSlotData(id: BlockId): F[Option[SlotData]] =
-            fetchSlotData(id)
+            blockchain.dataStores.slotData.get(id)
 
           override def getLocalHeader(id: BlockId): F[Option[BlockHeader]] =
-            fetchHeader(id)
+            blockchain.dataStores.headers.get(id)
 
           override def getLocalBody(id: BlockId): F[Option[BlockBody]] =
-            fetchBody(id)
+            blockchain.dataStores.bodies.get(id)
 
           override def getLocalTransaction(id: TransactionId): F[Option[IoTransaction]] =
-            fetchTransaction(id)
+            blockchain.dataStores.transactions.get(id)
 
           override def getLocalBlockAtHeight(height: Long): F[Option[BlockId]] =
-            for {
-              head       <- localChain.head
-              blockIdOpt <- blockHeights.useStateAt(head.slotId.blockId)(_.apply(height))
-            } yield blockIdOpt
+            blockchain.consensus.localChain.blockIdAtHeight(height)
 
           override def getLocalBlockAtDepth(depth: Long): F[Option[BlockId]] =
-            localChain.head.flatMap(s => getLocalBlockAtHeight(s.height - depth))
+            blockchain.consensus.localChain.head.flatMap(s =>
+              blockchain.consensus.localChain.blockIdAtHeight(s.height - depth)
+            )
 
           override def getKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
             for {
