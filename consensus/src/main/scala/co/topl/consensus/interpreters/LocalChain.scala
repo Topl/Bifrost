@@ -37,6 +37,7 @@ object LocalChain {
         def isWorseThan(newHead: SlotData): F[Boolean] =
           head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
 
+        // TODO add semaphore to avoid possible concurrency issue with adoption in the same time local / network
         def adopt(newHead: Validated.Valid[SlotData]): F[Unit] = {
           val slotData = newHead.a
           Sync[F].uncancelable(_ =>

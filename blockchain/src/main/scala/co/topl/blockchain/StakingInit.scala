@@ -158,7 +158,7 @@ object StakingInit {
   /**
    * Initializes a Staking object from the given raw VRF and staking address information
    */
-  def makeStaking[F[_]: Async](
+  private def makeStaking[F[_]: Async](
     stakingDir:               Path,
     vrfSK:                    ByteString,
     vrfVK:                    ByteString,

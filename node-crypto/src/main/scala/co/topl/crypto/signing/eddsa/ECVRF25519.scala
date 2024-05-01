@@ -331,7 +331,7 @@ class ECVRF25519 extends EC {
       java.lang.System.arraycopy(output, 0, hash, 0, POINT_BYTES)
       isPoint = decodePointVar(hash, 0, negate = false, H)
       if (isPoint) {
-        isPoint != isNeutralPoint(H)
+        isPoint != isNeutralPoint(H) // TODO check unused expression
       }
       ctr += 1
     }

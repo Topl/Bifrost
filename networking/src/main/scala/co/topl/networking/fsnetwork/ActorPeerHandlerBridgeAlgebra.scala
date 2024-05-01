@@ -25,6 +25,7 @@ import co.topl.algebras.Stats
 
 object ActorPeerHandlerBridgeAlgebra {
 
+  // scalastyle:off parameter.number
   def make[F[_]: Async: DnsResolver: ReverseDnsResolver: Stats](
     thisHostId:              HostId,
     blockchain:              BlockchainCore[F],
@@ -51,6 +52,7 @@ object ActorPeerHandlerBridgeAlgebra {
 
     networkManager.map(pm => makeAlgebra(pm))
   }
+  // scalastyle:on parameter.number
 
   private def makeAlgebra[F[_]: Async: Logger](peersManager: PeersManagerActor[F]): BlockchainPeerHandlerAlgebra[F] = {
     underlyingClient: BlockchainPeerClient[F] =>

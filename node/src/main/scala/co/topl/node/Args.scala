@@ -154,7 +154,7 @@ object Args {
   }
 
   implicit object ParserLockAddress extends TokensReader.Simple[LockAddress] {
-    def shortName = "LockAddress"
+    def shortName: String = "LockAddress"
 
     override def read(strs: Seq[String]): Either[String, LockAddress] =
       strs.headOption
@@ -163,7 +163,7 @@ object Args {
   }
 
   implicit object ParserStakingAddress extends TokensReader.Simple[StakingAddress] {
-    def shortName = "StakingAddress"
+    def shortName: String = "StakingAddress"
 
     override def read(strs: Seq[String]): Either[String, StakingAddress] =
       strs.headOption

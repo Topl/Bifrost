@@ -19,6 +19,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object BlockchainPeerServer {
 
+  // scalastyle:off method.length
   def make[F[_]: Async](
     blockchain:              BlockchainCore[F],
     peerServerPort:          () => Option[KnownHost],
@@ -102,4 +103,6 @@ object BlockchainPeerServer {
             peerStatus.publish1(RemotePeerApplicationLevel(peer, isEnabled)).map(_ => Option(()))
         }
       )
+
+  // scalastyle:on method.length
 }

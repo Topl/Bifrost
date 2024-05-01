@@ -27,6 +27,7 @@ object BodySyntaxValidation {
     )
   }
 
+  // scalastyle:off method.length
   def make[F[_]: Sync: Parallel](
     fetchTransaction:               TransactionId => F[IoTransaction],
     transactionSyntacticValidation: TransactionSyntaxVerifier[F],
@@ -64,7 +65,7 @@ object BodySyntaxValidation {
                   .foldMap(_.inputs.map(_.address))
                   .groupBy(identity)
                   .collect {
-                    case (boxId, boxIds) if boxIds.size > 1 => boxId
+                    case (boxId, boxIds) if boxIds.sizeIs > 1 => boxId
                   }
               )
             )
@@ -98,7 +99,7 @@ object BodySyntaxValidation {
                 def cond(f: => Boolean) =
                   EitherT.cond[F](f, (), BodySyntaxErrors.InvalidReward(rewardTransaction))
                 for {
-                  _ <- cond(rewardTransaction.inputs.length == 1)
+                  _ <- cond(rewardTransaction.inputs.sizeIs == 1)
                   // Prohibit policy/statement creation
                   _ <- cond(rewardTransaction.groupPolicies.isEmpty)
                   _ <- cond(rewardTransaction.seriesPolicies.isEmpty)
@@ -123,4 +124,5 @@ object BodySyntaxValidation {
           )
       }
     }
+  // scalastyle:on method.length
 }

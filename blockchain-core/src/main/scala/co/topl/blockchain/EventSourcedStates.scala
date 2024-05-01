@@ -47,7 +47,6 @@ case class EventSourcedStates[F[_]](
       // consensusDataP2P,
       epochBoundariesP2P,
       boxStateP2P,
-      registrationsP2P,
-      txIdToBlockIdTree
+      registrationsP2P
     ).parTraverse(_.stateAt(id).void).void
 }

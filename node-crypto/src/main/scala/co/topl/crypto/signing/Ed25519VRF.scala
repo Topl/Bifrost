@@ -22,7 +22,7 @@ class Ed25519VRF {
     entropyToSeed: EntropyToSeed = EntropyToSeed.instances.pbkdf2Sha512(32)
   ): (Array[Byte], Array[Byte]) = {
     val seed = entropyToSeed.toSeed(entropy, password)
-    deriveKeyPairFromSeed(seed.toArray)
+    deriveKeyPairFromSeed(seed)
   }
 
   /**
@@ -55,7 +55,7 @@ class Ed25519VRF {
    */
   def getVerificationKey(secretKey: Array[Byte]): Array[Byte] = {
     val pkByteVector = new Array[Byte](impl.PUBLIC_KEY_SIZE)
-    impl.generatePublicKey(secretKey.toArray, 0, pkByteVector, 0)
+    impl.generatePublicKey(secretKey, 0, pkByteVector, 0)
     pkByteVector
   }
 
@@ -64,7 +64,7 @@ class Ed25519VRF {
    * @return length = 64
    */
   def proofToHash(signature: Array[Byte]): Array[Byte] =
-    impl.vrfProofToHash(signature.toArray)
+    impl.vrfProofToHash(signature)
 
 }
 
