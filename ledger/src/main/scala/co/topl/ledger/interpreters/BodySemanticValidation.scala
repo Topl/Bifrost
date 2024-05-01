@@ -11,6 +11,7 @@ import co.topl.node.models.BlockBody
 
 object BodySemanticValidation {
 
+  // scalastyle:off method.length
   def make[F[_]: Async](
     fetchTransaction:              TransactionId => F[IoTransaction],
     transactionSemanticValidation: TransactionSemanticValidationAlgebra[F],
@@ -102,5 +103,5 @@ object BodySemanticValidation {
             )
       }
     }
-
+  // scalastyle:on method.length
 }

@@ -64,13 +64,15 @@ object BlockPacker {
     implicit private val logger: SelfAwareStructuredLogger[F] =
       Slf4jLogger.getLoggerFromName[F]("Bifrost.BlockPacker")
 
+    // scalastyle:off method.length
     def improvePackedBlock(
       parentBlockId: BlockId,
       height:        Epoch,
       slot:          Epoch
     ): F[Iterative[F, FullBlockBody]] =
       for {
-        // Store a `Ref` containing the "next" function to run.  Each iteration should override this Ref with a new function.
+        // Store a `Ref` containing the "next" function to run.
+        // Each iteration should override this Ref with a new function.
         nextIterationFunction <- Ref.of(none[FullBlockBody => F[FullBlockBody]])
         iterative = new Iterative[F, FullBlockBody] {
 
@@ -168,7 +170,7 @@ object BlockPacker {
                       .tupleRight(id)
                   }
                   .groupBy(_._1)
-                  .filter(_._2.length > 1)
+                  .filter(_._2.sizeIs > 1)
                   .values
                   .map(_.map(_._2).toSet)
                   .toList
@@ -319,7 +321,7 @@ object BlockPacker {
         }
       } yield iterative
   }
-
+  // scalastyle:on method.length
 }
 
 trait BlockPackerValidation[F[_]] {

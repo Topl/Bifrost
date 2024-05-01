@@ -126,7 +126,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
           currentPeers.set
         )
         .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
-      _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.map(_.toString).getOrElse("")}").toResource
+      _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.fold("")(_.toString)}").toResource
       peerServerF = BlockchainPeerServer.make(
         p2pBlockchain,
         () => peerAsServer.map(kp => KnownHost(localPeer.p2pVK, kp.host, kp.port)),
@@ -157,7 +157,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
       _ <- Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}").toResource
     } yield ()
 
-  def blockProduction: Resource[F, Unit] =
+  private def blockProduction: Resource[F, Unit] =
     for {
       _ <- Resource.make(Logger[F].info("Initializing local blocks (potential no-op)"))(_ =>
         Logger[F].info("Local blocks terminated")

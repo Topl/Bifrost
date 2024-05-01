@@ -23,6 +23,7 @@ import scala.util.Try
 
 object GraphVertexFetcher {
 
+  // scalastyle:off method.length
   def make[F[_]: OrientThread](
     orientGraph: OrientBaseGraph
   ): Resource[F, VertexFetcherAlgebra[F]] =
@@ -323,4 +324,6 @@ object GraphVertexFetcher {
 
       }
     }
+  // scalastyle:on method.length
+
 }

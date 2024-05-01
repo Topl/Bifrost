@@ -26,6 +26,7 @@ object NodeGrpc {
 
   object Client {
 
+    // scalastyle:off method.length
     /**
      * Creates a Topl RPC Client for interacting with a Bifrost node
      * @param host Bifrost node host/IP
@@ -125,6 +126,7 @@ object NodeGrpc {
           }
         )
   }
+  // scalastyle:on method.length
 
   object Server {
 

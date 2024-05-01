@@ -22,6 +22,7 @@ object Mempool {
 
   type State[F[_]] = Ref[F, MempoolGraph]
 
+  // scalastyle:off method.length
   def make[F[_]: Async](
     currentBlockId:              F[BlockId],
     fetchBody:                   BlockId => F[BlockBody],
@@ -119,5 +120,5 @@ object Mempool {
           adoptionsTopic
       }
     } yield (interpreter, eventSourcedState)
-
+  // scalastyle:on method.length
 }

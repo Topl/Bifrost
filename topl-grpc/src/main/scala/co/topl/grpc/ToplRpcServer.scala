@@ -38,6 +38,7 @@ object ToplRpcServer {
     case TransactionSyntaxError.InvalidUpdateProposal(_) => "InvalidUpdateProposal"
   }
 
+  // scalastyle:off method.length
   /**
    * Interpreter which serves Topl RPC data using local blockchain interpreters
    */
@@ -144,6 +145,7 @@ object ToplRpcServer {
             .rethrowT
       }
     }
+  // scalastyle:on method.length
 
   private def processValidTransaction[F[_]: Monad: Logger](
     transactionStore: Store[F, TransactionId, IoTransaction],

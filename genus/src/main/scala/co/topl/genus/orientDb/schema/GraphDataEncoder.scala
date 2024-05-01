@@ -23,7 +23,6 @@ case class GraphDataEncoder[T] private (
    *
    * @param name The name of the property
    * @param extract a function to extract the value of the property from an instance of T
-   * @param propertyAttributeSetter A function to set the attributes of the property
    * @tparam V The type of value that the property will have
    * @return an updated copy of the GraphDataEncoder
    */
@@ -55,7 +54,7 @@ case class GraphDataEncoder[T] private (
    *
    * @param propertyName Defines the property to link from.
    * @param linkType Defines the type for the link. In the event of an inverse relationship, (the most common), you can specify LINKSET or LINKLIST for 1-n relationships.
-   * @param linkedClass Defines the class to link to.
+   * @param destClassName Defines the class to link to.
    * @return the updated GraphDataEncoder
    */
   def withLink(propertyName: String, linkType: OType, destClassName: String): GraphDataEncoder[T] =

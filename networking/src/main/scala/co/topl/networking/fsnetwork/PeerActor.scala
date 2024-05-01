@@ -311,7 +311,7 @@ object PeerActor {
    */
   private def verifyGenesisAgreement[F[_]: Async: Logger](state: State[F]): F[Unit] =
     state.client
-      .getRemoteBlockIdAtHeight(1)
+      .getRemoteBlockIdAtHeight(1) // TODO replace 1 to BigBang.Height
       .flatMap(
         OptionT
           .fromOption[F](_)
