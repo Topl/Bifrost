@@ -3,5 +3,8 @@ sidebar_position: 1
 ---
 
 # Concepts
-- [Consensus](concepts/consensus)
-- [Ledger](concepts/ledger)
+- [Consensus](consensus)
+- [Ledger](ledger)
+- [Blockchain Core](blockchain-core)
+- [P2P](p2p)
+- [RPC](rpc)
