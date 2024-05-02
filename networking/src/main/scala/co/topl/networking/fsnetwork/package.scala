@@ -23,10 +23,6 @@ package object fsnetwork {
 
   val hostIdBytesLen: Int = 32
 
-  // how many block/headers could be requested from remote host in the same time,
-  // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
-  val chunkSize = 1
-
   val requestCacheSize = 256
   val slotIdResponseCacheSize = 256
 

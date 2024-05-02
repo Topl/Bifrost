@@ -55,7 +55,8 @@ trait NetworkAlgebra[F[_]] {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData]
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]]
 
   def makeRequestsProxy(
@@ -176,7 +177,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData]
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]] =
     BlockChecker.makeActor(
       requestsProxy,
@@ -188,7 +190,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       bodySyntaxValidation,
       bodySemanticValidation,
       bodyAuthorizationValidation,
-      chainSelectionAlgebra
+      chainSelectionAlgebra,
+      p2pNetworkConfig
     )
 
   override def makeRequestsProxy(

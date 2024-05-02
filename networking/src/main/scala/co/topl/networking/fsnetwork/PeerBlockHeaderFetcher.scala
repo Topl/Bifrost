@@ -310,7 +310,7 @@ object PeerBlockHeaderFetcher {
     state.slotDataStore.get(blockId).flatMap {
       case Some(sd) => sd.pure[F]
       case None =>
-        Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostIdString}") >>
+        Logger[F].info(show"Fetching SlotData id=$blockId from peer ${state.hostIdString}") >>
         Async[F].cede >>
         state.client
           .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
@@ -403,7 +403,7 @@ object PeerBlockHeaderFetcher {
   ): F[List[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]] =
     Stream
       .foldable[F, NonEmptyChain, BlockId](blockIds)
-      .parEvalMapUnbounded(downloadHeader(client, hostId, _))
+      .evalMap(downloadHeader(client, hostId, _))
       .compile
       .toList
 

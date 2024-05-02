@@ -78,7 +78,8 @@ object ApplicationConfig {
       aggressiveP2PCount:         Int = 1, // how many new connection will be opened
       // do not try to open aggressively connection to remote peer if we have closed N connection(s) to them recently
       aggressiveP2PMaxCloseEvent: Int = 3,
-      defaultTimeout:             FiniteDuration = 3.seconds
+      defaultTimeout:             FiniteDuration = 3.seconds,
+      chunkSize:                  Int = 1
     )
 
     case class KnownPeer(host: String, port: Int)
