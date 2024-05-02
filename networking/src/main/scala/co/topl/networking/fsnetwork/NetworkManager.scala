@@ -71,7 +71,8 @@ object NetworkManager {
         blockchain.validators.bodySyntax,
         blockchain.validators.bodySemantics,
         blockchain.validators.bodyAuthorization,
-        blockchain.consensus.chainSelection
+        blockchain.consensus.chainSelection,
+        p2pNetworkConfig
       )
 
       _ <- Resource.liftK(requestsProxy.sendNoWait(RequestsProxy.Message.SetupBlockChecker(blocksChecker)))

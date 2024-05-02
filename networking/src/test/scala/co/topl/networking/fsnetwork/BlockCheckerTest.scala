@@ -8,6 +8,7 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockHeaderValidationFailures.NonForwardSlot
 import co.topl.consensus.models._
@@ -33,6 +34,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import scala.concurrent.duration._
 
 import scala.collection.mutable
 
@@ -43,8 +45,10 @@ object BlockCheckerTest {
 class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
   implicit val ed255Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-  val hostId: HostId = arbitraryHost.arbitrary.first
-  val maxChainSize = 99
+  private val hostId: HostId = arbitraryHost.arbitrary.first
+  private val maxChainSize = 99
+  private val chunkSize = 1
+  private val defaultConfig = P2PNetworkConfig(NetworkProperties(chunkSize = chunkSize), 1.second)
 
   test("RemoteSlotData: Request no headers if new slot data is worse") {
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(1, maxChainSize)).arbitrary) {
@@ -79,7 +83,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -151,6 +156,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               Option(BestChain(NonEmptyChain.one(localSlotData)))
             )
             .use { actor =>
@@ -227,6 +233,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               Option(BestChain(NonEmptyChain.one(remoteSlotData.head)))
             )
             .use { actor =>
@@ -302,7 +309,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -385,6 +393,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               bestChain
             )
             .use { actor =>
@@ -460,6 +469,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               Option(BestChain(currentBestChain))
             )
             .use { actor =>
@@ -516,7 +526,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -558,7 +569,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -650,7 +662,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -727,6 +740,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               Option(BestChain(bestChain)),
               Option(hostId)
             )
@@ -850,6 +864,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               bestChain = Option(BestChain(NonEmptyChain.fromSeq(newIdAndHeaders.map(d => headerToSlotData(d._2))).get))
             )
             .use { actor =>
@@ -968,6 +983,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              defaultConfig,
               bestChain = Option(BestChain(NonEmptyChain.fromSeq(newIdAndHeaders.map(d => headerToSlotData(d._2))).get))
             )
             .use { actor =>
@@ -1017,7 +1033,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
-            chainSelectionAlgebra
+            chainSelectionAlgebra,
+            defaultConfig
           )
           .use { actor =>
             for {
@@ -1122,7 +1139,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
-            chainSelectionAlgebra
+            chainSelectionAlgebra,
+            defaultConfig
           )
           .use { actor =>
             for {
@@ -1237,6 +1255,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             bodySemanticValidation,
             bodyAuthorizationValidation,
             chainSelectionAlgebra,
+            defaultConfig,
             Option(BestChain(NonEmptyChain.one(lastBlockSlotData)))
           )
           .use { actor =>
@@ -1373,6 +1392,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(NonEmptyChain.one(allIdSlotDataHeaderBlock.last._2))),
           Option(hostId)
         )
@@ -1511,6 +1531,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(NonEmptyChain.one(allIdSlotDataHeaderBlock.last._2))),
           Option(hostId)
         )
@@ -1655,6 +1676,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(NonEmptyChain.fromSeq(allIdSlotDataHeaderBlock.map(_._2)).get)),
           Option(hostId)
         )
@@ -1796,6 +1818,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(NonEmptyChain.fromSeq(allIdSlotDataHeaderBlock.map(_._2)).get)),
           Option(hostId)
         )
@@ -1837,6 +1860,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(currentBestChain)),
           Option(hostId)
         )
@@ -1883,6 +1907,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(currentBestChain)),
           Option(hostId)
         )
@@ -1928,6 +1953,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          defaultConfig,
           Option(BestChain(currentBestChain)),
           Option(hostId)
         )
