@@ -2,6 +2,7 @@ package co.topl.networking.fsnetwork
 
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import cats.{Parallel, Show}
 import co.topl.actor.{Actor, Fsm}
@@ -30,6 +31,8 @@ import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import co.topl.algebras.Stats
+import scodec.bits.ByteVector
+import co.topl.models.utility._
 
 /**
  * Actor for managing peers
@@ -235,7 +238,8 @@ object PeersManager {
     coldToWarmSelector:          SelectorColdToWarm[F],
     warmToHotSelector:           SelectorWarmToHot[F],
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
-    blockSource:                 Cache[BlockId, Set[HostId]]
+    blockSource:                 Cache[BlockId, Set[HostId]],
+    peerFilter:                  PeerFilter
   )
 
   type Response[F[_]] = State[F]
@@ -296,43 +300,56 @@ object PeersManager {
     warmToHotSelector:           SelectorWarmToHot[F],
     initialPeers:                Map[HostId, Peer[F]],
     blockSource:                 Cache[BlockId, Set[HostId]]
-  ): Resource[F, PeersManagerActor[F]] = {
-    val selfBannedPeer =
-      thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0, None)
-
-    val initialState =
-      PeersManager.State[F](
-        thisHostId,
-        Set.empty,
-        networkAlgebra,
-        blocksChecker = None,
-        requestsProxy = None,
-        PeersHandler(initialPeers + selfBannedPeer, p2pConfig),
-        localChain,
-        chainSelection,
-        slotDataStore,
-        bodyStore,
-        transactionStore,
-        blockIdTree,
-        mempool,
-        headerToBodyValidation,
-        transactionSyntaxValidation,
-        newPeerCreationAlgebra,
-        p2pConfig,
-        coldToWarmSelector,
-        warmToHotSelector,
-        hotPeersUpdate,
-        blockSource
-      )
-
-    val actorName = "Peers manager actor"
-
+  ): Resource[F, PeersManagerActor[F]] =
     for {
-      _     <- Resource.liftK(Logger[F].info(show"Start PeerManager for host $thisHostId"))
+      _         <- Logger[F].info(show"Start PeerManager for host $thisHostId").toResource
+      actorName <- "Peers manager actor".pure[F].toResource
+
+      selfBannedPeer =
+        thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0, None)
+
+      filteredHosts <- parseHostIds(p2pConfig.networkProperties.doNotExposeIds).toResource
+      peerFilter    <- new PeerFilter(p2pConfig.networkProperties.doNotExposeIps, filteredHosts).pure[F].toResource
+
+      initialState =
+        PeersManager.State[F](
+          thisHostId,
+          Set.empty,
+          networkAlgebra,
+          blocksChecker = None,
+          requestsProxy = None,
+          PeersHandler(initialPeers + selfBannedPeer, p2pConfig),
+          localChain,
+          chainSelection,
+          slotDataStore,
+          bodyStore,
+          transactionStore,
+          blockIdTree,
+          mempool,
+          headerToBodyValidation,
+          transactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          p2pConfig,
+          coldToWarmSelector,
+          warmToHotSelector,
+          hotPeersUpdate,
+          blockSource,
+          peerFilter
+        )
+
       actor <- Actor.makeFull(actorName, initialState, getFsm[F], finalizeActor[F](savePeersFunction))
     } yield actor
-  }
   // scalastyle:on parameter.number
+
+  private def parseHostIds[F[_]: Async: Logger](hosts: Seq[String]): F[Seq[HostId]] =
+    for {
+      parseRes <- hosts.map(id => ByteVector.fromBase58Descriptive(id)).pure[F]
+      _ <- parseRes.traverse {
+        case Left(error) => Logger[F].error(s"Failed to extract filtering host from Base58: $error")
+        case _           => ().pure[F]
+      }
+      filtered <- parseRes.flatMap(_.toOption).map(id => HostId(id)).pure[F]
+    } yield filtered
 
   private def finalizeActor[F[_]: Async: Logger](
     savePeersFunction: Set[KnownRemotePeer] => F[Unit]
@@ -547,7 +564,7 @@ object PeersManager {
       peerToKnownSource
         .map { case (source, knownSourceCount) =>
           val newReputation = knownSourcesToReputation(state.p2pNetworkConfig, knownSourceCount)
-          val oldReputation = state.peersHandler.get(source).map(_.blockRep).getOrElse(0.0)
+          val oldReputation = state.peersHandler.get(source).fold(0.0)(_.blockRep)
           (source, Math.max(newReputation, oldReputation))
         }
 
@@ -655,8 +672,10 @@ object PeersManager {
       hotPeersServers <- state.peersHandler.getHotPeers.values.flatMap(_.asServer).pure[F]
       _               <- Logger[F].debug(show"Resolve ip(s) to hostnames for hot peers ${hotPeersServers.toList}")
       hotPeersAsHosts <- hotPeersServers.toSeq.parTraverse(_.reverseResolving())
-      _               <- Logger[F].debug(show"Update hot peers hostnames $hotPeersAsHosts")
-      _               <- state.hotPeersUpdate(hotPeersAsHosts.toSet)
+      _               <- Logger[F].debug(show"Got hot peers hostnames $hotPeersAsHosts")
+      filteredHosts   <- hotPeersAsHosts.filter(state.peerFilter.remotePeerIsAcceptable).pure[F]
+      _               <- Logger[F].debug(show"Filtered hot peers hostnames $filteredHosts")
+      _               <- state.hotPeersUpdate(filteredHosts.toSet)
     } yield ()
 
   private def remoteIdChanged[F[_]: Async: Logger](
@@ -845,7 +864,7 @@ object PeersManager {
     for {
       resolved        <- OptionT(resolveHosts(remotePeers.toList).map(NonEmptyChain.fromSeq))
       nonSpecialHosts <- OptionT.fromOption[F](NonEmptyChain.fromChain(resolved.filterNot(_.address.isSpecialHost)))
-      neighbourBlockRep = state.peersHandler.get(source).map(_.blockRep).getOrElse(0.0)
+      neighbourBlockRep = state.peersHandler.get(source).fold(0.0)(_.blockRep)
       peerToAdd = nonSpecialHosts.map(rp => KnownRemotePeer(rp.peerId, rp.address, neighbourBlockRep, 0.0, None))
     } yield addKnownResolvedPeers(state, peerToAdd)
   }.getOrElse((state, state).pure[F]).flatten
