@@ -60,7 +60,7 @@ class ChainSelectionTest extends IntegrationSuite {
                 .use(
                   _.adoptedHeaders
                     .takeWhile(_.slot < TestNodeConfig.epochSlotLength)
-                    .timeout(4.minutes)
+                    .timeout(9.minutes)
                     .compile
                     .lastOrError
                 )

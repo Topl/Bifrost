@@ -124,6 +124,8 @@ object Dependencies {
     "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
   )
 
+  val ipaddress = "com.github.seancfoley" % "ipaddress" % "5.5.0"
+
   // For NTP-UDP
   val commonsNet = "commons-net" % "commons-net" % "3.10.0"
 
@@ -212,7 +214,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(ipaddress)
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)

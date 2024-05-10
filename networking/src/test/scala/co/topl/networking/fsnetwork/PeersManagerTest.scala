@@ -41,6 +41,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.jdk.CollectionConverters._
 import co.topl.algebras.Stats
+import co.topl.brambl.utils.Encoding
 
 object PeersManagerTest {
   type F[A] = IO[A]
@@ -1030,7 +1031,7 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: close opened hot connections") {
+  test("Reputation update: close opened hot connections / filter host by ip or id") {
     withMock {
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("first", 1)
@@ -1041,7 +1042,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
 
       val host3Id = arbitraryHost.arbitrary.first
-      val host3Ra = RemoteAddress("third", 3)
+      val host3Ra = RemoteAddress("10.0.0.3", 3)
       val peer3 = mockPeerActor[F]()
 
       val host4Id = arbitraryHost.arbitrary.first
@@ -1134,11 +1135,17 @@ class PeersManagerTest
 
       val hotUpdater = mock[Set[RemotePeer] => F[Unit]]
       (hotUpdater.apply _)
-        .expects(Set(RemotePeer(host1Id, host1Ra), RemotePeer(host3Id, host3Ra)))
+        .expects(Set.empty[RemotePeer])
         .once()
         .returns(().pure[F])
 
-      val mockData = buildDefaultMockData(hotPeersUpdate = hotUpdater, initialPeers = initialPeersMap)
+      val networkProperties = defaultP2PConfig.networkProperties.copy(
+        doNotExposeIds = List(Encoding.encodeToBase58(host1Id.id.toByteArray)),
+        doNotExposeIps = List(host3Ra.host)
+      )
+      val p2pConfig = defaultP2PConfig.copy(networkProperties = networkProperties)
+      val mockData =
+        buildDefaultMockData(hotPeersUpdate = hotUpdater, initialPeers = initialPeersMap, p2pConfig = p2pConfig)
       buildActorFromMockData(mockData)
         .use { actor =>
           for {
@@ -1156,10 +1163,10 @@ class PeersManagerTest
             _ = assert(withUpdate.peersHandler(host4Id).closedTimestamps == Seq(4))
             _ = assert(withUpdate.peersHandler(host4Id).actorOpt.isDefined)
             _ = assert(withUpdate.peersHandler(host5Id).state == PeerState.Cold)
-            _ = assert(withUpdate.peersHandler(host5Id).closedTimestamps.size == 2)
+            _ = assert(withUpdate.peersHandler(host5Id).closedTimestamps.sizeIs == 2)
             _ = assert(withUpdate.peersHandler(host5Id).actorOpt.isEmpty)
             _ = assert(withUpdate.peersHandler(host6Id).state == PeerState.Cold)
-            _ = assert(withUpdate.peersHandler(host6Id).closedTimestamps.size == 2)
+            _ = assert(withUpdate.peersHandler(host6Id).closedTimestamps.sizeIs == 2)
             _ = assert(withUpdate.peersHandler(host6Id).actorOpt.isDefined)
           } yield ()
         }
