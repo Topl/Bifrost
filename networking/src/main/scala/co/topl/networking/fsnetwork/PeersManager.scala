@@ -672,7 +672,7 @@ object PeersManager {
       hotPeersServers <- state.peersHandler.getHotPeers.values.flatMap(_.asServer).pure[F]
       _               <- Logger[F].debug(show"Resolve ip(s) to hostnames for hot peers ${hotPeersServers.toList}")
       hotPeersAsHosts <- hotPeersServers.toSeq.parTraverse(_.reverseResolving())
-      _               <- Logger[F].debug(show"Got hot peers hostnames $hotPeersAsHosts")
+      _               <- Logger[F].debug(show"No filtered hot peers hostnames $hotPeersAsHosts")
       filteredHosts   <- hotPeersAsHosts.filter(state.peerFilter.remotePeerIsAcceptable).pure[F]
       _               <- Logger[F].debug(show"Filtered hot peers hostnames $filteredHosts")
       _               <- state.hotPeersUpdate(filteredHosts.toSet)
