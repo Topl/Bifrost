@@ -139,7 +139,7 @@ object BlockProducer {
             Stats[F].recordHistogram(
               "bifrost_blocks_minted",
               "Blocks minted",
-              Map("block_id" -> show"${block.header}}"),
+              Map(),
               block.header.height
             )
           )
