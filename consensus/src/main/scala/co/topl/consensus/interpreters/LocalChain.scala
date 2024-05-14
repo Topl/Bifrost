@@ -43,10 +43,16 @@ object LocalChain {
             onAdopted(slotData.slotId.blockId) >>
             headRef.set(slotData) >>
             Stats[F].recordGauge(
-              "bifrost_block_adoptions",
+              "bifrost_block_adoptions_height",
               "Block adoptions",
               Map(),
               slotData.height
+            ) >>
+            Stats[F].recordGauge(
+              "bifrost_block_adoptions_slot",
+              "Block adoptions",
+              Map(),
+              slotData.slotId.slot
             ) >>
             EitherT(adoptionsTopic.publish1(slotData.slotId.blockId))
               .leftMap(_ => new IllegalStateException("LocalChain topic unexpectedly closed"))
