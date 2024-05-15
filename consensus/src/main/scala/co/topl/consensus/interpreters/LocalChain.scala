@@ -13,7 +13,6 @@ import fs2.concurrent.Topic
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats._
 import co.topl.algebras.Stats
-import io.circe.syntax._
 
 object LocalChain {
 
@@ -44,10 +43,16 @@ object LocalChain {
             onAdopted(slotData.slotId.blockId) >>
             headRef.set(slotData) >>
             Stats[F].recordGauge(
-              "bifrost_block_adoptions",
+              "bifrost_block_adoptions_height",
               "Block adoptions",
-              Map("block_id" -> (show"${slotData.slotId.blockId}").asJson),
-              slotData.height.asJson
+              Map(),
+              slotData.height
+            ) >>
+            Stats[F].recordGauge(
+              "bifrost_block_adoptions_slot",
+              "Block adoptions",
+              Map(),
+              slotData.slotId.slot
             ) >>
             EitherT(adoptionsTopic.publish1(slotData.slotId.blockId))
               .leftMap(_ => new IllegalStateException("LocalChain topic unexpectedly closed"))
