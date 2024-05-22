@@ -26,6 +26,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import quivr.models.SmallData
 
 import scala.concurrent.duration._
+import co.topl.algebras.Stats
 
 object BlockProducer {
 
@@ -41,7 +42,7 @@ object BlockProducer {
    *                    should immediately start constructing a result once created, and it should emit its best attempt
    *                    when demanded.
    */
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     parentHeaders:    Stream[F, SlotData],
     staker:           StakingAlgebra[F],
     clock:            ClockAlgebra[F],
@@ -52,7 +53,7 @@ object BlockProducer {
       new Impl[F](address, parentHeaders, staker, clock, blockPacker, rewardCalculator, lastUsedSlotRef)
     )
 
-  private class Impl[F[_]: Async](
+  private class Impl[F[_]: Async: Stats](
     stakerAddress:    StakingAddress,
     parentHeaders:    Stream[F, SlotData],
     staker:           StakingAlgebra[F],
@@ -134,7 +135,13 @@ object BlockProducer {
           .semiflatTap(block =>
             Sync[F]
               .delay(BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id)))
-              .flatMap(body => Logger[F].info(show"Minted header=${block.header} body=$body"))
+              .flatMap(body => Logger[F].info(show"Minted header=${block.header} body=$body")) >>
+            Stats[F].recordHistogram(
+              "bifrost_blocks_minted",
+              "Blocks minted",
+              Map(),
+              block.header.height
+            )
           )
           // Despite being eligible, there may not be a corresponding linear KES key if the node restarted in the middle
           // of an operational period.  The node must wait until the next operational period

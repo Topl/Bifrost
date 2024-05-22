@@ -9,10 +9,11 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.models.p2p._
 import co.topl.networking.KnownHostOps
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.P2PShowInstances._
@@ -86,12 +87,12 @@ object PeerActor {
     mempoolSync:      PeerMempoolTransactionSyncActor[F],
     peersManager:     PeersManagerActor[F],
     localChain:       LocalChainAlgebra[F],
+    chainSelection:   ChainSelectionAlgebra[F, SlotData],
     slotDataStore:    Store[F, BlockId, SlotData],
-    blockHeights:     BlockHeights[F],
     networkLevel:     Boolean,
     applicationLevel: Boolean,
     genesisBlockId:   BlockId,
-    commonAncestorF:  (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF:  CommonAncestorF[F]
   )
 
   type Response[F[_]] = State[F]
@@ -115,15 +116,15 @@ object PeerActor {
     requestsProxy:               RequestsProxyActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF:             CommonAncestorF[F]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
     val initAppLevel = false
@@ -138,10 +139,10 @@ object PeerActor {
         requestsProxy,
         peersManager,
         localChain,
+        chainSelection,
         slotDataStore,
         bodyStore,
         blockIdTree,
-        blockHeights,
         commonAncestorF
       )
       body <- networkAlgebra.makePeerBodyFetcher(
@@ -171,8 +172,8 @@ object PeerActor {
         mempoolSync,
         peersManager,
         localChain,
+        chainSelection,
         slotDataStore,
-        blockHeights,
         initNetworkLevel,
         initAppLevel,
         genesisSlotData.slotId.blockId,
@@ -310,7 +311,7 @@ object PeerActor {
    */
   private def verifyGenesisAgreement[F[_]: Async: Logger](state: State[F]): F[Unit] =
     state.client
-      .getRemoteBlockIdAtHeight(1)
+      .getRemoteBlockIdAtHeight(1) // TODO replace 1 to BigBang.Height
       .flatMap(
         OptionT
           .fromOption[F](_)
@@ -328,7 +329,7 @@ object PeerActor {
 
   private def printCommonAncestor[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
     state
-      .commonAncestorF(state.client, state.blockHeights, state.localChain)
+      .commonAncestorF(state.client, state.localChain)
       .flatTap(ancestor =>
         state.slotDataStore
           .getOrRaise(ancestor)

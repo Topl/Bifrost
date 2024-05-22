@@ -1,5 +1,6 @@
 package co.topl.ledger.interpreters
 
+import cats.data.EitherT
 import cats.effect._
 import cats.effect.implicits._
 import cats.implicits._
@@ -15,11 +16,13 @@ import co.topl.ledger.algebras.{MempoolAlgebra, TransactionRewardCalculatorAlgeb
 import co.topl.ledger.models.MempoolGraph
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
+import fs2.concurrent.Topic
 
 object Mempool {
 
   type State[F[_]] = Ref[F, MempoolGraph]
 
+  // scalastyle:off method.length
   def make[F[_]: Async](
     currentBlockId:              F[BlockId],
     fetchBody:                   BlockId => F[BlockBody],
@@ -39,6 +42,7 @@ object Mempool {
       expirationsState <- Resource.make(Ref.of(Map.empty[TransactionId, Fiber[F, Throwable, Unit]]))(
         _.get.flatMap(_.values.toList.traverse(_.cancel).void)
       )
+      adoptionsTopic <- Resource.make(Topic[F, TransactionId])(_.close.void)
       expireTransaction = (transaction: IoTransaction) =>
         graphState
           .modify(_.removeSubtree(transaction))
@@ -95,7 +99,14 @@ object Mempool {
             .useStateAt(blockId)(_.get)
 
         def add(transactionId: TransactionId): F[Boolean] =
-          fetchTransaction(transactionId).flatMap(addWithExpiration) >> true.pure[F]
+          (fetchTransaction(transactionId).flatMap(addWithExpiration) >> true.pure[F])
+            .flatTap(
+              Async[F].whenA(_)(
+                EitherT(adoptionsTopic.publish1(transactionId))
+                  .leftMap(_ => new IllegalStateException("MempoolBroadcaster topic unexpectedly closed"))
+                  .rethrowT
+              )
+            )
 
         def remove(transactionId: TransactionId): F[Unit] =
           fetchTransaction(transactionId).flatMap(removeWithExpiration)
@@ -104,7 +115,10 @@ object Mempool {
           eventSourcedState
             .useStateAt(blockId)(_.get)
             .map(_.transactions.contains(transactionId))
+
+        def adoptions: Topic[F, TransactionId] =
+          adoptionsTopic
       }
     } yield (interpreter, eventSourcedState)
-
+  // scalastyle:on method.length
 }

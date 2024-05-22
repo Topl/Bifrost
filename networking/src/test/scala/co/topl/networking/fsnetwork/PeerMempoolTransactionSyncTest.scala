@@ -16,6 +16,7 @@ import co.topl.brambl.validation.TransactionSyntaxError.EmptyInputs
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
 import co.topl.networking.fsnetwork.PeerMempoolTransactionSyncTest.F

@@ -8,12 +8,11 @@ import co.topl.eventtree.{EventSourcedState, ParentChildTree}
 import co.topl.node.models.BlockBody
 import cats.implicits._
 import co.topl.typeclasses.implicits._
-import org.typelevel.log4cats.Logger
 
 object TxIdToBlockIdTree {
   type State[F[_]] = Store[F, TransactionId, BlockId]
 
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async](
     currentBlockId: F[BlockId],
     blockIdToBody:  BlockId => F[Option[BlockBody]],
     initialState:   State[F],

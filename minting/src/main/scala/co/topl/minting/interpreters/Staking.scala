@@ -23,6 +23,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object Staking {
 
+  // scalastyle:off method.length
   def make[F[_]: Async](
     a:                        StakingAddress,
     rewardAddress:            LockAddress,
@@ -144,4 +145,5 @@ object Staking {
             }.value
         }
       }
+  // scalastyle:on method.length
 }

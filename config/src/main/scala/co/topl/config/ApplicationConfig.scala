@@ -78,7 +78,19 @@ object ApplicationConfig {
       aggressiveP2PCount:         Int = 1, // how many new connection will be opened
       // do not try to open aggressively connection to remote peer if we have closed N connection(s) to them recently
       aggressiveP2PMaxCloseEvent: Int = 3,
-      defaultTimeout:             FiniteDuration = 3.seconds
+      defaultTimeout:             FiniteDuration = 3.seconds,
+      chunkSize:                  Int = 1,
+      // If remote peer have ip address in that list then that peer will not be exposed to other peers
+      // Examples of supported ip addresses description:
+      // 10.*.65-67.0/24 (first octet is "10", second octet is any, third octet in range 65-67, subnet mask is 24)
+      // If subnet mask is used then first address in subnet shall be set, otherwise subnet mask will not be applied
+      // In that case next addresses will be filtered: 10.45.67.0, 10.0.65.80, 10.255.66.200.
+      // Next address is not filtered: 10.45.64.255
+      // Could be used if current node serves as proxy, and we don't want to expose any node behind proxy
+      doNotExposeIps: List[String] = List.empty,
+      // If remote peer have id in that list then that peer will not be exposed to other peers
+      // Could be used if current node serves as proxy, and we don't want to expose any node behind proxy
+      doNotExposeIds: List[String] = List.empty
     )
 
     case class KnownPeer(host: String, port: Int)

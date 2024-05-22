@@ -16,6 +16,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.annotation.tailrec
 import scala.language.implicitConversions
+import co.topl.algebras.Stats
 
 /**
  * Provides functionality for deterministically choosing the "better" of two tines (segments of blocks)
@@ -46,7 +47,7 @@ object ChainSelection {
    * @param kLookback The number of blocks in the backward-moving window of blocks for longest-chain rule
    * @param sWindow The number of slots of the forward-moving window of blocks for chain-density rule
    */
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
@@ -57,7 +58,7 @@ object ChainSelection {
   /**
    * Implementation of OrderT which provides F[_]-context-based ordering to SlotData (block headers)
    */
-  private class ChainSelectionImpl[F[_]: Async](
+  private class ChainSelectionImpl[F[_]: Async: Stats](
     fetchSlotData:      BlockId => F[SlotData],
     blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
@@ -98,12 +99,20 @@ object ChainSelection {
             "Performing standard chain selection" +
             show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
             show" tineY=[${ySegment.tineLength}](${ySegment.head.slotId}..${ySegment.last.slotId})"
+          ) >> Stats[F].incrementCounter(
+            "bifrost_chain_selection_longest",
+            "Counter to track standard chain selection and the tines as attributes.",
+            Map("tine_x_length" -> xSegment.tineLength, "tine_y_length" -> ySegment.tineLength)
           )
         case DensityChainTraversal(xSegment, ySegment) =>
           Logger[F].info(
             "Performing density chain selection" +
             show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
             show" tineY=[${ySegment.tineLength}](${ySegment.head.slotId}..${ySegment.last.slotId})"
+          ) >> Stats[F].incrementCounter(
+            "bifrost_chain_selection_density",
+            "Counter to track density chain selection events and the tines as attributes.",
+            Map("tine_x_length" -> xSegment.tineLength, "tine_y_length" -> ySegment.tineLength)
           )
         case _ =>
           Applicative[F].unit

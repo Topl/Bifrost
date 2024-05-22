@@ -12,7 +12,7 @@ import co.topl.ledger.models.{AssetId, RewardQuantities}
  */
 object TransactionRewardCalculator {
 
-  def make[F[_]: Sync]: Resource[F, TransactionRewardCalculatorAlgebra] =
+  def make[F[_]]: Resource[F, TransactionRewardCalculatorAlgebra] =
     Resource.pure(tx =>
       RewardQuantities(
         (sumLvls(tx.inputs)(_.value) - sumLvls(tx.outputs)(_.value)).max(BigInt(0)),

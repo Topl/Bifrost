@@ -4,11 +4,11 @@ import cats.Applicative
 import cats.data.Chain
 import cats.effect.Async
 import cats.implicits._
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersHandler.allowedTransition
 import org.typelevel.log4cats.Logger
 import co.topl.networking.fsnetwork.P2PShowInstances._
-import co.topl.networking.p2p.RemoteAddress
 
 object PeersHandler {
 

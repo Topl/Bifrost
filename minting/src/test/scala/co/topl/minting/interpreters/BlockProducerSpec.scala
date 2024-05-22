@@ -26,6 +26,7 @@ import org.scalamock.munit.AsyncMockFactory
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration._
+import co.topl.algebras.Stats.Implicits._
 
 class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]

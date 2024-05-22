@@ -7,8 +7,6 @@ import cats.implicits._
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services._
 import co.topl.grpc.NodeGrpc
@@ -21,13 +19,11 @@ import fs2.{io => _, _}
 import munit._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.codecs.bytes.tetra.instances._
 import cats.data.Chain
 import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
 import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.ledger.models._
-import co.topl.models.Bytes
 
 import scala.concurrent.duration._
 

@@ -1,5 +1,6 @@
 package co.topl.networking
 
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.NetworkProtocolVersions
 import co.topl.networking.p2p._
 import com.google.protobuf.ByteString

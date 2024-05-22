@@ -17,6 +17,7 @@ import co.topl.config.ApplicationConfig
 import co.topl.config.ApplicationConfig.Bifrost.KnownPeer
 import co.topl.consensus.models.{BlockId, VrfConfig}
 import co.topl.consensus.interpreters._
+import co.topl.consensus._
 import co.topl.crypto.hash.Blake2b512
 import co.topl.crypto.signing.Ed25519
 import co.topl.eventtree.ParentChildTree
@@ -24,10 +25,12 @@ import co.topl.genus._
 import co.topl.grpc.HealthCheckGrpc
 import co.topl.healthcheck.HealthCheck
 import co.topl.interpreters._
+import co.topl.ledger.LedgerImpl
 import co.topl.ledger.interpreters._
 import co.topl.models.utility.HasLength.instances.byteStringLength
 import co.topl.models.utility._
-import co.topl.networking.p2p.{LocalPeer, RemoteAddress}
+import co.topl.models.p2p._
+import co.topl.networking.p2p.LocalPeer
 import co.topl.numerics.interpreters.{ExpInterpreter, Log1pInterpreter}
 import co.topl.typeclasses.implicits._
 import co.topl.node.ApplicationConfigOps._
@@ -42,6 +45,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration._
 import java.time.Instant
+import co.topl.algebras.Stats
 
 object NodeApp extends AbstractNodeApp
 
@@ -79,6 +83,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
       _ <- Sync[F].delay(LoggingUtils.initialize(args)).toResource
       _ <- Logger[F].info(show"Launching node with args=$args").toResource
       _ <- Logger[F].info(show"Node configuration=$appConfig").toResource
+
+      implicit0(metrics: Stats[F]) <- KamonStatsRef.make[F]
 
       cryptoResources            <- CryptoResources.make[F].toResource
       (bigBangBlock, dataStores) <- DataStoresInit.initializeData(appConfig)
@@ -239,7 +245,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             cryptoResources.blake2b512
           )
           .toResource
-      leaderElectionThreshold <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
+      leaderElection <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
 
       epochBoundariesStateLocal <- EpochBoundariesEventSourcedState
         .make[F](
@@ -295,7 +301,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .make[F](bigBangBlockId, epochBoundariesStateP2P, consensusDataStateP2P, clock)
         .toResource
 
-      chainSelectionAlgebra = ChainSelection
+      chainSelection = ChainSelection
         .make[F](
           dataStores.slotData.getOrRaise,
           cryptoResources.blake2b512,
@@ -306,8 +312,9 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         LocalChain.make(
           bigBangSlotData,
           canonicalHeadSlotData,
-          chainSelectionAlgebra,
-          currentEventIdGetterSetters.canonicalHead.set
+          chainSelection,
+          currentEventIdGetterSetters.canonicalHead.set,
+          blockHeightTreeLocal
         )
       staking =
         OptionT
@@ -315,7 +322,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           .filter(identity)
           .flatTapNone(Logger[F].warn("Staking directory is empty.  Continuing in relay-only mode.").toResource)
           .semiflatMap { _ =>
-            // Construct a separate threshold calcualtor instance with a separate cache to avoid
+            // Construct a separate threshold calculator instance with a separate cache to avoid
             // polluting the staker's cache with remote block eligibilities
             makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
               .flatMap(leaderElectionThreshold =>
@@ -398,7 +405,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         eligibilityCache,
         etaCalculation,
         consensusValidationStateLocal,
-        leaderElectionThreshold,
+        leaderElection,
         clock,
         boxStateLocal,
         registrationAccumulatorLocal
@@ -410,7 +417,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         eligibilityCache,
         etaCalculation,
         consensusValidationStateP2P,
-        leaderElectionThreshold,
+        leaderElection,
         clock,
         boxStateP2P,
         registrationAccumulatorP2P
@@ -524,30 +531,84 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
         .toResource
 
       p2pConfig = appConfig.bifrost.p2p
+
+      localBlockchain = BlockchainCoreImpl(
+        clock,
+        dataStores,
+        cryptoResources,
+        blockIdTree,
+        ConsensusImpl(
+          validatorsLocal.header,
+          validatorsLocal.headerToBody,
+          chainSelection,
+          consensusValidationStateLocal,
+          etaCalculation,
+          leaderElection,
+          localChain
+        ),
+        LedgerImpl(
+          validatorsLocal.transactionSyntax,
+          validatorsLocal.transactionSemantics,
+          validatorsLocal.transactionAuthorization,
+          validatorsLocal.bodySyntax,
+          validatorsLocal.bodySemantics,
+          validatorsLocal.bodyAuthorization,
+          protectedMempool,
+          validatorsLocal.boxState,
+          validatorsLocal.registrationAccumulator,
+          validatorsLocal.rewardCalculator,
+          costCalculator
+        ),
+        validatorsLocal,
+        epochData,
+        protocolConfig
+      )
+      p2pBlockchain = BlockchainCoreImpl(
+        clock,
+        dataStores,
+        cryptoResources,
+        blockIdTree,
+        ConsensusImpl(
+          validatorsP2P.header,
+          validatorsP2P.headerToBody,
+          chainSelection,
+          consensusValidationStateP2P,
+          etaCalculation,
+          leaderElection,
+          localChain
+        ),
+        LedgerImpl(
+          validatorsP2P.transactionSyntax,
+          validatorsP2P.transactionSemantics,
+          validatorsP2P.transactionAuthorization,
+          validatorsP2P.bodySyntax,
+          validatorsP2P.bodySemantics,
+          validatorsP2P.bodyAuthorization,
+          protectedMempool,
+          validatorsP2P.boxState,
+          validatorsP2P.registrationAccumulator,
+          validatorsP2P.rewardCalculator,
+          costCalculator
+        ),
+        validatorsP2P,
+        epochData,
+        protocolConfig
+      )
+
       // Finally, run the program
       _ <- Blockchain
         .make[F](
-          clock,
+          localBlockchain,
+          p2pBlockchain,
           staking,
-          dataStores,
-          localChain,
-          chainSelectionAlgebra,
-          blockIdTree,
           eventSourcedStates,
-          validatorsLocal,
-          validatorsP2P,
-          protectedMempool,
-          cryptoResources,
           localPeer,
           p2pConfig.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
-          protocolConfig,
           genusServices ::: healthServices,
-          epochData,
           (p2pConfig.publicHost, p2pConfig.publicPort).mapN(KnownPeer),
-          p2pConfig.networkProperties,
-          costCalculator
+          p2pConfig.networkProperties
         )
         .parProduct(genusOpt.traverse(Replicator.background[F]).void)
         .parProduct(

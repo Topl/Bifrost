@@ -13,6 +13,7 @@ import co.topl.ledger.algebras._
 import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.QuivrContext
 import co.topl.ledger.models.{BodyValidationError, StaticBodyValidationContext}
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.BlockChecker.Message._
 import co.topl.networking.fsnetwork.BlockApplyError.BodyApplyException.BodyValidationException
 import co.topl.networking.fsnetwork.BlockApplyError.{BodyApplyException, HeaderApplyException}
@@ -71,6 +72,7 @@ object BlockChecker {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
+    chunkSize:                   Int,
     bestKnownRemoteSlotDataOpt:  Option[BestChain],
     bestKnownRemoteSlotDataHost: Option[HostId]
   )
@@ -97,6 +99,7 @@ object BlockChecker {
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    p2pNetworkConfig:            P2PNetworkConfig,
     bestChain:                   Option[BestChain] = None,
     bestKnownRemoteSlotDataHost: Option[HostId] = None
   ): Resource[F, BlockCheckerActor[F]] = {
@@ -112,6 +115,7 @@ object BlockChecker {
         bodySyntaxValidation,
         bodySemanticValidation,
         bodyAuthorizationValidation,
+        p2pNetworkConfig.networkProperties.chunkSize,
         bestChain,
         bestKnownRemoteSlotDataHost
       )
@@ -231,13 +235,13 @@ object BlockChecker {
       bestChain     <- OptionT.fromOption[F](state.bestKnownRemoteSlotDataOpt)
       missedHeaders <- OptionT.liftF(bestChain.slotData.dropWhileF(sd => state.headerStore.contains(sd.slotId.blockId)))
       missedNeC     <- OptionT.fromOption[F](NonEmptyChain.fromChain(missedHeaders))
-      blockId       <- OptionT.some[F](missedNeC.iterator.drop(chunkSize).nextOption().getOrElse(missedNeC.last))
+      blockId       <- OptionT.some[F](missedNeC.iterator.drop(state.chunkSize).nextOption().getOrElse(missedNeC.last))
       res           <- OptionT.liftF(requestHeadersUpToId(state, blockId.slotId.blockId))
     } yield res
   }.getOrElseF(().pure[F]).logDuration("Request next headers total time")
 
   private def requestHeadersUpToId[F[_]: Async: Logger](state: State[F], headerId: BlockId): F[Unit] =
-    getFirstNMissedInStore(state.headerStore, state.slotDataStore, headerId, chunkSize)
+    getFirstNMissedInStore(state.headerStore, state.slotDataStore, headerId, state.chunkSize)
       .logDuration(show"Find N-missing header")
       .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
       .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
@@ -369,7 +373,7 @@ object BlockChecker {
     state:        State[F],
     bestKnownTip: BlockId
   ): F[Option[NonEmptyChain[BlockId]]] =
-    getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, chunkSize).value
+    getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, state.chunkSize).value
 
   private def requestMissedBodies[F[_]: Async: Logger](
     state:             State[F],

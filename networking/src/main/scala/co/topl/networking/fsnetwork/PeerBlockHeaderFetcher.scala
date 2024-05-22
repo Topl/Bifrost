@@ -8,9 +8,10 @@ import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.algebras.{ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
 import co.topl.eventtree.ParentChildTree
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
@@ -51,13 +52,13 @@ object PeerBlockHeaderFetcher {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
+    chainSelection:  ChainSelectionAlgebra[F, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     blockIdTree:     ParentChildTree[F, BlockId],
     fetchingFiber:   Option[Fiber[F, Throwable, Unit]],
     clock:           ClockAlgebra[F],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: CommonAncestorF[F]
   )
 
   type Response[F[_]] = State[F]
@@ -76,12 +77,12 @@ object PeerBlockHeaderFetcher {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
+    chainSelection:  ChainSelectionAlgebra[F, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     blockIdTree:     ParentChildTree[F, BlockId],
     clock:           ClockAlgebra[F],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: CommonAncestorF[F]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
     val initialState =
       State(
@@ -91,12 +92,12 @@ object PeerBlockHeaderFetcher {
         requestsProxy,
         peersManager,
         localChain,
+        chainSelection,
         slotDataStore,
         bodyStore,
         blockIdTree,
         None,
         clock,
-        blockHeights,
         commonAncestorF
       )
     val actorName = show"Header fetcher actor for peer $hostId"
@@ -240,13 +241,12 @@ object PeerBlockHeaderFetcher {
     endSlot: SlotData
   ): F[(SlotData, SlotData)] =
     for {
-      commonBlockId    <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
+      commonBlockId    <- state.commonAncestorF(state.client, state.localChain)
       commonSlotData   <- getSlotDataFromStorageOrRemote(state)(commonBlockId)
       commonSlotHeight <- commonSlotData.height.pure[F]
       currentHeight    <- state.localChain.head.map(_.height)
       endSlotHeight    <- endSlot.height.pure[F]
-      chainSelection   <- state.localChain.chainSelectionAlgebra
-      requestedHeight  <- chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
+      requestedHeight  <- state.chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
       message =
         show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostIdString} :" ++
           show" commonSlotHeight=$commonSlotHeight, requestedHeight=$requestedHeight"
@@ -310,7 +310,7 @@ object PeerBlockHeaderFetcher {
     state.slotDataStore.get(blockId).flatMap {
       case Some(sd) => sd.pure[F]
       case None =>
-        Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostIdString}") >>
+        Logger[F].info(show"Fetching SlotData id=$blockId from peer ${state.hostIdString}") >>
         Async[F].cede >>
         state.client
           .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
@@ -403,7 +403,7 @@ object PeerBlockHeaderFetcher {
   ): F[List[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]] =
     Stream
       .foldable[F, NonEmptyChain, BlockId](blockIds)
-      .parEvalMapUnbounded(downloadHeader(client, hostId, _))
+      .evalMap(downloadHeader(client, hostId, _))
       .compile
       .toList
 

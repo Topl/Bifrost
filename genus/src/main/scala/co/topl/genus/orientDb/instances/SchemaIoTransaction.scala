@@ -53,6 +53,7 @@ object SchemaIoTransaction {
           readOnly = false,
           notNull = true
         )
+        // TODO add index by field Field.IsReward
         .withIndex[IoTransaction](Field.TransactionIndex, Field.TransactionId)(OIndexable.Instances.ioTransaction)
         .withLink(Field.ParentBlock, OType.LINK, SchemaBlockHeader.SchemaName),
       v => IoTransaction.parseFrom(v(Field.Transaction): Array[Byte])

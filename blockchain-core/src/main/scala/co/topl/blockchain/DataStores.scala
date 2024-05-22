@@ -8,12 +8,42 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.consensus.models._
 import co.topl.models.Epoch
-import co.topl.networking.fsnetwork.KnownRemotePeer
+import co.topl.models.p2p._
 import co.topl.node.models._
 import co.topl.proto.node.EpochData
 import fs2.io.file.Path
 
-case class DataStores[F[_]](
+trait DataStores[F[_]] {
+  def baseDirectory: Path
+  def parentChildTree: Store[F, BlockId, (Long, BlockId)]
+  def currentEventIds: Store[F, Byte, BlockId]
+  def slotData: Store[F, BlockId, SlotData]
+  def headers: Store[F, BlockId, BlockHeader]
+  def bodies: Store[F, BlockId, BlockBody]
+  def transactions: Store[F, TransactionId, IoTransaction]
+  def spendableBoxIdsLocal: Store[F, TransactionId, NonEmptySet[Short]]
+  def spendableBoxIdsP2P: Store[F, TransactionId, NonEmptySet[Short]]
+  def epochBoundariesLocal: Store[F, Long, BlockId]
+  def epochBoundariesP2P: Store[F, Long, BlockId]
+  def operatorStakesLocal: Store[F, StakingAddress, BigInt]
+  def operatorStakesP2P: Store[F, StakingAddress, BigInt]
+  def activeStakeLocal: Store[F, Unit, BigInt]
+  def activeStakeP2P: Store[F, Unit, BigInt]
+  def inactiveStakeLocal: Store[F, Unit, BigInt]
+  def inactiveStakeP2P: Store[F, Unit, BigInt]
+  def registrationsLocal: Store[F, StakingAddress, ActiveStaker]
+  def registrationsP2P: Store[F, StakingAddress, ActiveStaker]
+  def blockHeightTreeLocal: Store[F, Long, BlockId]
+  def blockHeightTreeP2P: Store[F, Long, BlockId]
+  def epochData: Store[F, Epoch, EpochData]
+  def registrationAccumulatorLocal: Store[F, StakingAddress, Unit]
+  def registrationAccumulatorP2P: Store[F, StakingAddress, Unit]
+  def knownHosts: Store[F, Unit, Seq[KnownRemotePeer]]
+  def metadata: Store[F, Array[Byte], Array[Byte]]
+  def txIdToBlockId: Store[F, TransactionId, BlockId]
+}
+
+case class DataStoresImpl[F[_]](
   baseDirectory:                Path,
   parentChildTree:              Store[F, BlockId, (Long, BlockId)],
   currentEventIds:              Store[F, Byte, BlockId],
@@ -41,7 +71,7 @@ case class DataStores[F[_]](
   knownHosts:                   Store[F, Unit, Seq[KnownRemotePeer]],
   metadata:                     Store[F, Array[Byte], Array[Byte]],
   txIdToBlockId:                Store[F, TransactionId, BlockId]
-)
+) extends DataStores[F]
 
 /**
  * Data stores which are used during pruning data stores

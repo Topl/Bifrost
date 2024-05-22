@@ -1,5 +1,6 @@
 package co.topl.networking.p2p
 
+import co.topl.models.p2p.RemoteAddress
 import fs2.concurrent.Topic
 
 /**

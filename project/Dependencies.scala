@@ -52,8 +52,9 @@ object Dependencies {
   )
 
   val monitoring: Seq[ModuleID] = Seq(
-    "io.kamon" %% "kamon-core"      % kamonVersion,
-    "io.kamon" %% "kamon-cats-io-3" % kamonVersion
+    "io.kamon" %% "kamon-system-metrics" % kamonVersion,
+    "io.kamon" %% "kamon-cats-io-3"      % kamonVersion,
+    "io.kamon" %% "kamon-prometheus"     % kamonVersion
   )
 
   val cats: Seq[ModuleID] = Seq(
@@ -122,6 +123,8 @@ object Dependencies {
   val protobufSpecs: Seq[ModuleID] = Seq(
     "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
   )
+
+  val ipaddress = "com.github.seancfoley" % "ipaddress" % "5.5.0"
 
   // For NTP-UDP
   val commonsNet = "commons-net" % "commons-net" % "3.10.0"
@@ -211,7 +214,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(ipaddress)
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
@@ -228,6 +231,7 @@ object Dependencies {
     cats ++
     catsEffect ++
     scalacache ++
+    monitoring ++
     Seq(
       commonsNet,
       catsSlf4j % Test

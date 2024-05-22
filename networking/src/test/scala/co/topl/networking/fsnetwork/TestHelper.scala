@@ -10,8 +10,8 @@ import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators._
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.{BlockBody, KnownHost}
 import co.topl.typeclasses.implicits._
 import com.google.protobuf.ByteString

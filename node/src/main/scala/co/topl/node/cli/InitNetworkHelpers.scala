@@ -23,6 +23,7 @@ import quivr.models.{Int128, Ratio}
 import java.nio.charset.StandardCharsets
 import java.time.format.DateTimeFormatter
 import java.time.{Instant, LocalDateTime}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 object InitNetworkHelpers {
@@ -113,7 +114,7 @@ object InitNetworkHelpers {
       ifNo = StageResultT.liftF(List.empty[UnspentTransactionOutput].pure[F])
     )
 
-  def readTimestamp[F[_]: Async: Console] = {
+  def readTimestamp[F[_]: Async: Console]: StageResultT[F, FiniteDuration] = {
     import scala.concurrent.duration._
     (writeMessage[F](
       "Enter a genesis timestamp (milliseconds since UNIX epoch) or a relative duration (i.e. 4 hours).  Leave blank to start in 20 seconds."
@@ -156,7 +157,7 @@ object InitNetworkHelpers {
     }).untilDefinedM
   }
 
-  def readProtocolSettings[F[_]: Sync: Console] =
+  def readProtocolSettings[F[_]: Sync: Console]: StageResultT[F, UpdateProposal] =
     readYesNo("Do you want to customize the protocol settings?", No.some)(
       ifYes =
         for {

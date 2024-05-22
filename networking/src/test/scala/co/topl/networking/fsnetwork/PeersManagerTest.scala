@@ -12,13 +12,14 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.{BlockchainPeerClient, NetworkProtocolVersions}
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.NetworkQualityError.{IncorrectPongMessage, NoPongMessage}
@@ -27,7 +28,7 @@ import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.PeersManagerTest.F
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.TestHelper.{arbitraryHost, arbitraryRemoteAddress}
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer}
 import co.topl.node.models.{BlockBody, KnownHost}
 import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -39,6 +40,8 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.jdk.CollectionConverters._
+import co.topl.algebras.Stats
+import co.topl.brambl.utils.Encoding
 
 object PeersManagerTest {
   type F[A] = IO[A]
@@ -50,6 +53,7 @@ class PeersManagerTest
     with AsyncMockFactory
     with TransactionGenerator {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
+  implicit val stats: Stats[F] = Stats.noop[F]
   val maxChainSize = 99
 
   val thisHostId: HostId = arbitraryHost.arbitrary.first
@@ -164,11 +168,11 @@ class PeersManagerTest
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -197,11 +201,11 @@ class PeersManagerTest
       thisHostId,
       networkAlgebra = networkAlgebra,
       localChain = mock[LocalChainAlgebra[F]],
+      chainSelection = mock[ChainSelectionAlgebra[F, SlotData]],
       slotDataStore = mock[Store[F, BlockId, SlotData]],
       bodyStore = defaultBodyStorage,
       transactionStore = mock[Store[F, TransactionId, IoTransaction]],
       blockIdTree = mock[ParentChildTree[F, BlockId]],
-      blockHeights = mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]],
       mempool = mock[MempoolAlgebra[F]],
       headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]],
       transactionSyntaxValidation = defaultTransactionSyntaxValidation,
@@ -225,11 +229,11 @@ class PeersManagerTest
         mockData.thisHostId,
         mockData.networkAlgebra,
         mockData.localChain,
+        mockData.chainSelection,
         mockData.slotDataStore,
         mockData.bodyStore,
         mockData.transactionStore,
         mockData.blockIdTree,
-        mockData.blockHeights,
         mockData.mempool,
         mockData.headerToBodyValidation,
         mockData.transactionSyntaxValidation,
@@ -241,7 +245,7 @@ class PeersManagerTest
         mockData.warmToHotSelector,
         mockData.initialPeers,
         mockData.blockSource
-      )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dnsResolver, reverseDnsResolver)
+      )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dnsResolver, reverseDnsResolver, stats)
 
   test("Get current tips request shall be forwarded if application level is enabled") {
     withMock {
@@ -1027,7 +1031,7 @@ class PeersManagerTest
     }
   }
 
-  test("Reputation update: close opened hot connections") {
+  test("Reputation update: close opened hot connections / filter host by ip or id") {
     withMock {
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("first", 1)
@@ -1038,7 +1042,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
 
       val host3Id = arbitraryHost.arbitrary.first
-      val host3Ra = RemoteAddress("third", 3)
+      val host3Ra = RemoteAddress("10.0.0.3", 3)
       val peer3 = mockPeerActor[F]()
 
       val host4Id = arbitraryHost.arbitrary.first
@@ -1131,11 +1135,17 @@ class PeersManagerTest
 
       val hotUpdater = mock[Set[RemotePeer] => F[Unit]]
       (hotUpdater.apply _)
-        .expects(Set(RemotePeer(host1Id, host1Ra), RemotePeer(host3Id, host3Ra)))
+        .expects(Set.empty[RemotePeer])
         .once()
         .returns(().pure[F])
 
-      val mockData = buildDefaultMockData(hotPeersUpdate = hotUpdater, initialPeers = initialPeersMap)
+      val networkProperties = defaultP2PConfig.networkProperties.copy(
+        doNotExposeIds = List(Encoding.encodeToBase58(host1Id.id.toByteArray)),
+        doNotExposeIps = List(host3Ra.host)
+      )
+      val p2pConfig = defaultP2PConfig.copy(networkProperties = networkProperties)
+      val mockData =
+        buildDefaultMockData(hotPeersUpdate = hotUpdater, initialPeers = initialPeersMap, p2pConfig = p2pConfig)
       buildActorFromMockData(mockData)
         .use { actor =>
           for {
@@ -1153,10 +1163,10 @@ class PeersManagerTest
             _ = assert(withUpdate.peersHandler(host4Id).closedTimestamps == Seq(4))
             _ = assert(withUpdate.peersHandler(host4Id).actorOpt.isDefined)
             _ = assert(withUpdate.peersHandler(host5Id).state == PeerState.Cold)
-            _ = assert(withUpdate.peersHandler(host5Id).closedTimestamps.size == 2)
+            _ = assert(withUpdate.peersHandler(host5Id).closedTimestamps.sizeIs == 2)
             _ = assert(withUpdate.peersHandler(host5Id).actorOpt.isEmpty)
             _ = assert(withUpdate.peersHandler(host6Id).state == PeerState.Cold)
-            _ = assert(withUpdate.peersHandler(host6Id).closedTimestamps.size == 2)
+            _ = assert(withUpdate.peersHandler(host6Id).closedTimestamps.sizeIs == 2)
             _ = assert(withUpdate.peersHandler(host6Id).actorOpt.isDefined)
           } yield ()
         }
