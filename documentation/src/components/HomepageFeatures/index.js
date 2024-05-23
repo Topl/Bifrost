@@ -17,7 +17,7 @@ const FeatureList = [
     Svg: require('@site/static/img/future-proof.svg').default,
     description: (
       <>
-        Topl’s digital asset model can support fungible, non-fungible, and semi-fungible tokens, all defined without smart contracts, unlocking novel uses for developers and future-proofing against new use cases.
+        Apparatus’s digital asset model can support fungible, non-fungible, and semi-fungible tokens, all defined without smart contracts, unlocking novel uses for developers and future-proofing against new use cases.
       </>
     ),
   },
@@ -26,7 +26,7 @@ const FeatureList = [
     Svg: require('@site/static/img/bitcoin-compliant.svg').default,
     description: (
       <>
-        No more walled gardens – Topl is built to connect the Bitcoin economy across ecosystems, making it the future-proof home for your next project.
+        No more walled gardens – Apparatus is built to connect the Bitcoin economy across ecosystems, making it the future-proof home for your next project.
       </>
     ),
   }

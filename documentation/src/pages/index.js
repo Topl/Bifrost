@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <Layout
       title={`Documentation Portal`}
-      description="Documentation for Topl's Bifrost Node">
+      description="Documentation for Apparatus' Bifrost Node">
       <HomepageHeader />
       <main>
         <HomepageFeatures />

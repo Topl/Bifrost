@@ -81,7 +81,7 @@ The rest of the guide assumes an alias. If you didn’t add one, use the kubectl
 
 Install Helm Chart
 
-Add the Topl Helm repository
+Add the Apparatus Helm repository
 
 ```sh
 helm repo add topl https://topl.github.io/helm-charts
