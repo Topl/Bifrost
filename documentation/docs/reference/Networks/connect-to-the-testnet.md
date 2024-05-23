@@ -26,7 +26,7 @@ The testnet configs are hosted on GitHub https://github.com/Topl/Genesis_Testnet
 A full example of connecting to the node:
 
 ```
-docker run --name bifrost-testnet -p 9085:9085 -p 9084:9084 toplprotocol/bifrost-node:2.0.0-beta1 \
+docker run --name bifrost-testnet -p 9085:9085 -p 9084:9084 toplprotocol/bifrost-node:2.0.0-beta3 \
     --knownPeers testnet.topl.co:9085 \
     --config https://raw.githubusercontent.com/Topl/Genesis_Testnets/main/testnet2/config.yaml
 ```
