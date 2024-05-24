@@ -17,7 +17,7 @@ const FeatureList = [
     Svg: require('@site/static/img/future-proof.svg').default,
     description: (
       <>
-        Apparatus’s digital asset model can support fungible, non-fungible, and semi-fungible tokens, all defined without smart contracts, unlocking novel uses for developers and future-proofing against new use cases.
+        Apparatus' digital asset model can support fungible, non-fungible, and semi-fungible tokens, all defined without smart contracts, unlocking novel uses for developers and future-proofing against new use cases.
       </>
     ),
   },
