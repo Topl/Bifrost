@@ -6,6 +6,7 @@ import cats.effect.implicits._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import co.topl.algebras._
+import co.topl.blockchain.interpreters.RegtestRpcServer
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.catsutils._
@@ -51,7 +52,8 @@ object Blockchain {
     rpcPort:                Int,
     additionalGrpcServices: List[ServerServiceDefinition],
     peerAsServer:           Option[KnownPeer],
-    networkProperties:      NetworkProperties
+    networkProperties:      NetworkProperties,
+    regtestEnabled:         Boolean
   ): Resource[F, Unit] = new BlockchainImpl[F](
     localBlockchain,
     p2pBlockchain,
@@ -63,7 +65,8 @@ object Blockchain {
     rpcPort,
     additionalGrpcServices,
     peerAsServer,
-    networkProperties
+    networkProperties,
+    regtestEnabled
   ).resource
 
 }
@@ -79,7 +82,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
   rpcPort:                Int,
   additionalGrpcServices: List[ServerServiceDefinition],
   peerAsServer:           Option[KnownPeer],
-  networkProperties:      NetworkProperties
+  networkProperties:      NetworkProperties,
+  regtestEnabled:         Boolean
 ) {
   implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
 
@@ -147,17 +151,20 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
         )
     } yield ()
 
-  def rpc: Resource[F, Unit] =
+  def rpc(regtestPermitQueue: Option[Queue[F, Unit]]): Resource[F, Unit] =
     for {
       _               <- Resource.make(Logger[F].info("Initializing RPC"))(_ => Logger[F].info("RPC Terminated"))
       rpcInterpreter  <- ToplRpcServer.make(localBlockchain).toResource
       nodeGrpcService <- NodeGrpc.Server.service[F](rpcInterpreter)
+      regtestServices <- regtestPermitQueue.toList.traverse(queue =>
+        RegtestRpcServer.service[F](Async[F].defer(queue.offer(())))
+      )
       rpcServer <- ToplGrpc.Server
-        .serve(rpcHost, rpcPort)(nodeGrpcService :: additionalGrpcServices)
+        .serve(rpcHost, rpcPort)(nodeGrpcService :: regtestServices ++ additionalGrpcServices)
       _ <- Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}").toResource
     } yield ()
 
-  private def blockProduction: Resource[F, Unit] =
+  private def blockProduction(regtestPermitQueue: Option[Queue[F, Unit]]): Resource[F, Unit] =
     for {
       _ <- Resource.make(Logger[F].info("Initializing local blocks (potential no-op)"))(_ =>
         Logger[F].info("Local blocks terminated")
@@ -195,13 +202,18 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
                 .dropOldest(1)
                 .evalMap(localBlockchain.dataStores.slotData.getOrRaise)
             )
+          productionPermit =
+            regtestPermitQueue.fold(().pure[F])(regtestPermitQueue =>
+              Async[F].defer(Logger[F].info("Awaiting RegtestRpc.MakeBlock") >> regtestPermitQueue.take)
+            )
           blockProducer <- Stream.eval(
             BlockProducer.make[F](
               parentBlocksStream,
               staker,
               localBlockchain.clock,
               blockPacker,
-              localBlockchain.validators.rewardCalculator
+              localBlockchain.validators.rewardCalculator,
+              productionPermit
             )
           )
           block <- Stream.force(blockProducer.blocks)
@@ -242,10 +254,14 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
   def resource: Resource[F, Unit] =
     for {
       _ <- Resource.make(Logger[F].info("Initializing Blockchain"))(_ => Logger[F].info("Blockchain Terminated"))
+      // When regtest mode is enabled, allocate a queue to hold commands to produce new blocks
+      regtestPermitQueue <-
+        if (regtestEnabled) Queue.unbounded[F, Unit].toResource.map(_.some)
+        else none[Queue[F, Unit]].pure[F].toResource
       _ <- (
         p2p,
-        rpc,
-        blockProduction,
+        rpc(regtestPermitQueue),
+        blockProduction(regtestPermitQueue),
         eventSourcedStateUpdater
       ).parTupled
       _ <- Resource.never[F, Unit]

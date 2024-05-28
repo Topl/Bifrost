@@ -115,7 +115,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               staker,
               clock,
               blockPacker,
-              rewardCalculator
+              rewardCalculator,
+              ().pure[F]
             )
             resultFiber <- Async[F].start(Stream.force(underTest.blocks).enqueueNoneTerminated(results).compile.drain)
             _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)

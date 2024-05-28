@@ -12,7 +12,7 @@ object Dependencies {
   val orientDbVersion = "3.2.29"
   val ioGrpcVersion = "1.62.2"
   val http4sVersion = "0.23.26"
-  val protobufSpecsVersion = "2.0.0-beta2" // scala-steward:off
+  val protobufSpecsVersion = "2.0.0-beta3" // scala-steward:off
   val bramblScVersion = "2.0.0-beta3+3-de74a6dd-SNAPSHOT" // scala-steward:off
 
   val catsSlf4j =

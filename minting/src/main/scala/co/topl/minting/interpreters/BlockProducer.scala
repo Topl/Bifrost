@@ -41,26 +41,40 @@ object BlockProducer {
    * @param blockPacker a function which returns a Source that should emit a single element when demanded.  The Source
    *                    should immediately start constructing a result once created, and it should emit its best attempt
    *                    when demanded.
+   * @param constructionPermit an effect which semantically blocks until permission to produce a new block is provided.
+   *                      Under normal chains, this is a no-op (permission immediately provided).
+   *                      Under regtest mode, this semantically blocks until an RPC is invoked granting permission
    */
   def make[F[_]: Async: Stats](
-    parentHeaders:    Stream[F, SlotData],
-    staker:           StakingAlgebra[F],
-    clock:            ClockAlgebra[F],
-    blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra
+    parentHeaders:      Stream[F, SlotData],
+    staker:             StakingAlgebra[F],
+    clock:              ClockAlgebra[F],
+    blockPacker:        BlockPackerAlgebra[F],
+    rewardCalculator:   TransactionRewardCalculatorAlgebra,
+    constructionPermit: F[Unit]
   ): F[BlockProducerAlgebra[F]] =
     (staker.address, Ref.of(0L)).mapN((address, lastUsedSlotRef) =>
-      new Impl[F](address, parentHeaders, staker, clock, blockPacker, rewardCalculator, lastUsedSlotRef)
+      new Impl[F](
+        address,
+        parentHeaders,
+        staker,
+        clock,
+        blockPacker,
+        rewardCalculator,
+        lastUsedSlotRef,
+        constructionPermit
+      )
     )
 
   private class Impl[F[_]: Async: Stats](
-    stakerAddress:    StakingAddress,
-    parentHeaders:    Stream[F, SlotData],
-    staker:           StakingAlgebra[F],
-    clock:            ClockAlgebra[F],
-    blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra,
-    lastUsedSlotRef:  Ref[F, Slot]
+    stakerAddress:      StakingAddress,
+    parentHeaders:      Stream[F, SlotData],
+    staker:             StakingAlgebra[F],
+    clock:              ClockAlgebra[F],
+    blockPacker:        BlockPackerAlgebra[F],
+    rewardCalculator:   TransactionRewardCalculatorAlgebra,
+    lastUsedSlotRef:    Ref[F, Slot],
+    constructionPermit: F[Unit]
   ) extends BlockProducerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -194,6 +208,7 @@ object BlockProducer {
           Iterative
             .run(FullBlockBody().pure[F])(_)
             .use(resF =>
+              constructionPermit >>
               clock.delayedUntilSlot(untilSlot) >>
               Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
               resF

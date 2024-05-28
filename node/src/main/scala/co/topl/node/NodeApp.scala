@@ -608,7 +608,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           appConfig.bifrost.rpc.bindPort,
           genusServices ::: healthServices,
           (p2pConfig.publicHost, p2pConfig.publicPort).mapN(KnownPeer),
-          p2pConfig.networkProperties
+          p2pConfig.networkProperties,
+          appConfig.bifrost.bigBang match {
+            case p: ApplicationConfig.Bifrost.BigBangs.Private => p.regtestEnabled
+            case _                                             => false
+          }
         )
         .parProduct(genusOpt.traverse(Replicator.background[F]).void)
         .parProduct(
