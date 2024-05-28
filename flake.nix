@@ -12,6 +12,11 @@
           jdk = prev."jdk${toString javaVersion}";
           sbt = prev.sbt.override { jre = jdk; };
           scala = prev.scala.override { jre = jdk; };
+
+          # For Docusaurus site.
+          nodejs = prev.nodejs_latest;
+          pnpm = prev.nodePackages.pnpm;
+          yarn = (prev.yarn.override { inherit nodejs; });
         })
       ];
       supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
@@ -22,7 +27,7 @@
     {
       devShells = forEachSupportedSystem ({ pkgs }: {
         default = pkgs.mkShell {
-          packages = with pkgs; [ jdk scala sbt coursier scalafmt scalafix ];
+          packages = with pkgs; [ jdk scala sbt coursier scalafmt scalafix node2nix nodejs pnpm yarn ];
         };
       });
     };
