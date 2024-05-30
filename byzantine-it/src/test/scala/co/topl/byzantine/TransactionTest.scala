@@ -24,7 +24,7 @@ class TransactionTest extends IntegrationSuite {
 
   type RpcClient = NodeRpc[F, Stream[F, *]]
 
-  override val munitTimeout: Duration = 3.minutes
+  override val munitIOTimeout: Duration = 3.minutes
 
   /**
    * Submits many transactions to a group of running node and verifies the transactions are confirmed

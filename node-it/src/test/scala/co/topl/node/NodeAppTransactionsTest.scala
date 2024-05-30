@@ -34,7 +34,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
 
   type RpcClient = NodeRpc[F, Stream[F, *]]
 
-  override val munitTimeout: Duration = 3.minutes
+  override val munitIOTimeout: Duration = 3.minutes
 
   val maxMempoolSize = 1024 * 20
 
