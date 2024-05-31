@@ -116,7 +116,8 @@ trait NetworkAlgebra[F[_]] {
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     mempool:                     MempoolAlgebra[F],
-    peersManager:                PeersManagerActor[F]
+    peersManager:                PeersManagerActor[F],
+    localChainAlgebra:           LocalChainAlgebra[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]]
 }
 
@@ -291,7 +292,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     mempool:                     MempoolAlgebra[F],
-    peersManager:                PeersManagerActor[F]
+    peersManager:                PeersManagerActor[F],
+    localChainAlgebra:           LocalChainAlgebra[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]] =
     PeerMempoolTransactionSync.makeActor(
       hostId,
@@ -299,6 +301,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       transactionSyntaxValidation,
       transactionStore,
       mempool,
-      peersManager
+      peersManager,
+      localChainAlgebra
     )
 }

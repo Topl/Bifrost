@@ -60,7 +60,11 @@ object ApplicationConfig {
       remotePeerNoveltyInExpectedBlocks:    Double = 2.0,
       minimumBlockProvidingReputationPeers: Int = 2,
       minimumPerformanceReputationPeers:    Int = 2,
-      minimumRequiredReputation:            Double = 0.66,
+      // every slot we update txMempoolReputation as
+      // newReputation = (currentReputation * (txImpactValue - 1) + txMempoolReputationForLastSlot) / txImpactValue
+      txImpactRatio:                   Int = 1000,
+      minimumTxMempoolReputationPeers: Int = 2,
+      minimumRequiredReputation:       Double = 0.66,
       // any non-new peer require that reputation to be hot
       minimumBlockProvidingReputation: Double = 0.15,
       minimumEligibleColdConnections:  Int = 50,

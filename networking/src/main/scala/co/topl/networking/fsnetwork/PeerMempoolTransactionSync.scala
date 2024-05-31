@@ -1,13 +1,14 @@
 package co.topl.networking.fsnetwork
 
 import cats.effect.kernel.Fiber
-import cats.effect.{Async, Resource, Spawn}
+import cats.effect.{Async, Ref, Resource, Spawn}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
 import co.topl.algebras.Store
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
+import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
@@ -18,6 +19,7 @@ import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+import cats.data.OptionT
 
 object PeerMempoolTransactionSync {
   sealed trait Message
@@ -25,6 +27,7 @@ object PeerMempoolTransactionSync {
   object Message {
     case object StartActor extends Message
     case object StopActor extends Message
+    case object CollectTransactionsRep extends Message
   }
 
   case class State[F[_]](
@@ -34,6 +37,8 @@ object PeerMempoolTransactionSync {
     transactionFetcher: TransactionFetcher[F],
     mempool:            MempoolAlgebra[F],
     peersManager:       PeersManagerActor[F],
+    txsCount:           Ref[F, Long],
+    localChain:         LocalChainAlgebra[F],
     fetchingFiber:      Option[Fiber[F, Throwable, Unit]]
   )
 
@@ -43,8 +48,9 @@ object PeerMempoolTransactionSync {
   private val maxConcurrent = 16
 
   def getFsm[F[_]: Async: Logger]: Fsm[F, State[F], Message, Response[F]] = Fsm {
-    case (state, Message.StartActor) => startActor(state)
-    case (state, Message.StopActor)  => stopActor(state)
+    case (state, Message.StartActor)             => startActor(state)
+    case (state, Message.StopActor)              => stopActor(state)
+    case (state, Message.CollectTransactionsRep) => collectTransactionsRep(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -53,11 +59,13 @@ object PeerMempoolTransactionSync {
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     mempool:                     MempoolAlgebra[F],
-    peersManager:                PeersManagerActor[F]
+    peersManager:                PeersManagerActor[F],
+    localChain:                  LocalChainAlgebra[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]] = {
     val transactionFetcher = new TransactionFetcher[F](hostId, transactionSyntaxValidation, transactionStore, client)
+    val txCount = Ref.unsafe(0L)
     val initialState =
-      State(hostId, client, transactionStore, transactionFetcher, mempool, peersManager, None)
+      State(hostId, client, transactionStore, transactionFetcher, mempool, peersManager, txCount, localChain, None)
     val actorName = show"Mempool transaction sync for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
   }
@@ -97,16 +105,26 @@ object PeerMempoolTransactionSync {
     transactionIdsStream: Stream[F, TransactionId]
   ): Stream[F, Unit] =
     transactionIdsStream
-      .evalFilterNotAsync(maxConcurrent)(state.transactionStore.contains)
+      .evalFilterAsync(maxConcurrent) { id =>
+        {
+          for {
+            _    <- OptionT.whenM(state.transactionStore.contains(id).map(!_))(id.pure[F])
+            head <- OptionT.liftF(state.localChain.head)
+            _    <- OptionT.whenM(state.mempool.contains(head.slotId.blockId, id).map(!_))(id.pure[F])
+          } yield id
+        }.isDefined
+      }
       .evalMap(processTransactionId(state))
 
   private def processTransactionId[F[_]: Async: Logger](state: State[F])(id: TransactionId): F[Unit] = {
     val fetchingTransaction =
       for {
+        _ <- Logger[F].debug(show"Received mempool tx $id from ${state.hostId}")
         // tx download time could be used for performance measure,
-        // but reputation aggregator will be overwhelmed by messages
+        // but peers manager will be overwhelmed by messages
         (id, _) <- state.transactionFetcher.downloadCheckSaveTransaction(id, runSyntaxCheck = true)
         _       <- state.mempool.add(id)
+        _       <- state.txsCount.update(_ + 1)
       } yield id
 
     fetchingTransaction
@@ -130,4 +148,9 @@ object PeerMempoolTransactionSync {
       }
       .void
   }
+
+  private def collectTransactionsRep[F[_]: Async](state: State[F]): F[(State[F], Response[F])] =
+    state.txsCount.getAndSet(0).flatMap { txCount =>
+      state.peersManager.sendNoWait(PeersManager.Message.ReceivedTransactionsCount(state.hostId, txCount))
+    } >> (state, state).pure[F]
 }

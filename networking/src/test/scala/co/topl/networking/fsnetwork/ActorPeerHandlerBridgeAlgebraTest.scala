@@ -138,7 +138,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
     override def remove(transactionId: TransactionId): F[Unit] = transactions.update(_ - transactionId)
 
-    override def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] = ???
+    override def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =
+      transactions.get.map(_.contains(transactionId))
 
     def contains(transactionId: TransactionId): F[Boolean] = transactions.get.map(_.contains(transactionId))
 

@@ -77,6 +77,11 @@ object PeerActor {
      * Request to get remote host's hot connections
      */
     case class GetHotPeersFromPeer(maxHosts: Int) extends Message
+
+    /**
+     * Request reputation update
+     */
+    case object ReputationUpdateTick extends Message
   }
 
   case class State[F[_]](
@@ -107,6 +112,7 @@ object PeerActor {
     case (state, GetNetworkQuality)                           => getNetworkQuality(state)
     case (state, PrintCommonAncestor)                         => printCommonAncestor(state)
     case (state, GetHotPeersFromPeer(maxHosts))               => getHotPeersOfCurrentPeer(state, maxHosts)
+    case (state, ReputationUpdateTick)                        => reputationUpdateTick(state)
   }
 
   def makeActor[F[_]: Async: Logger](
@@ -160,7 +166,8 @@ object PeerActor {
         transactionSyntaxValidation,
         transactionStore,
         mempool,
-        peersManager
+        peersManager,
+        localChain
       )
 
       genesisSlotData <- localChain.genesis.toResource
@@ -289,6 +296,9 @@ object PeerActor {
         Logger[F].error(show"Error ${error.toString} during getting remote peer network quality") >>
         state.peersManager.sendNoWait(PeersManager.Message.NonCriticalErrorForHost(state.hostId))
       } >> (state, state).pure[F]
+
+  private def reputationUpdateTick[F[_]: Concurrent](state: State[F]): F[(State[F], Response[F])] =
+    state.mempoolSync.sendNoWait(PeerMempoolTransactionSync.Message.CollectTransactionsRep) >> (state, state).pure[F]
 
   private val incorrectPongMessage: NetworkQualityError = NetworkQualityError.IncorrectPongMessage: NetworkQualityError
 
