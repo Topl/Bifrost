@@ -193,7 +193,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     val mempoolTransactionSync = mock[PeerMempoolTransactionSyncActor[F]]
     (() => mempoolTransactionSync.id).expects().anyNumberOfTimes().returns(3)
     (networkAlgebra.makeMempoolSyncFetcher _)
-      .expects(*, *, *, *, *, *)
+      .expects(*, *, *, *, *, *, *)
       .returns(
         // simulate real body fetcher behaviour on finalizing
         Resource
@@ -260,6 +260,23 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           for {
             _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
             _ <- actor.send(PeerActor.Message.DownloadBlockBodies(NonEmptyChain.one(blockHeader)))
+          } yield ()
+        }
+    }
+  }
+
+  test("Reputation update tick shall be forwarded") {
+    withMock {
+      val mockData = buildDefaultMockData()
+      (mockData.peerMempoolTransactionSyncActor.sendNoWait _)
+        .expects(PeerMempoolTransactionSync.Message.CollectTransactionsRep)
+        .returns(Applicative[F].unit)
+
+      buildPeerActorFromMockedData(mockData)
+        .use { actor =>
+          for {
+            _ <- actor.send(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
+            _ <- actor.send(PeerActor.Message.ReputationUpdateTick)
           } yield ()
         }
     }
@@ -617,7 +634,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
 
       val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
       (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
-      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *).returns(Resource.pure(mempoolSync))
+      (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(mempoolSync))
 
       PeerActor
         .makeActor(

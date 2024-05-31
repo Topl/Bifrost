@@ -102,6 +102,14 @@ object PeersManager {
     case class DownloadTimeBody(hostId: HostId, bodyDelay: Long, txDelays: Seq[Long]) extends Message
 
     /**
+     * Information how many transaction for Memory pool had been received via that host,
+     * allow keep connection to remote peer which provide transactions for memory pool
+     * @param hostId remote peer
+     * @param txCount how many transaction had been received per slot
+     */
+    case class ReceivedTransactionsCount(hostId: HostId, txCount: Long) extends Message
+
+    /**
      * Remote peer provide us remote slot data with better height than our current local chain,
      * but whole slot data chain turned out to be worse of local chain because of density rule
      *
@@ -255,6 +263,7 @@ object PeersManager {
         case (state, PingPongMessagePing(hostId, pongResponse))   => pongMessage(thisActor, state, hostId, pongResponse)
         case (state, DownloadTimeHeader(hostId, delay))           => headerDownloadTime(state, hostId, delay)
         case (state, DownloadTimeBody(hostId, delay, txDelays))   => blockDownloadTime(state, hostId, delay, txDelays)
+        case (state, ReceivedTransactionsCount(hostId, txCount))  => updateTransactionRep(state, hostId, txCount)
         case (state, BadKLookbackSlotData(hostId))                => badKLookbackSlotData(thisActor, state, hostId)
         case (state, CriticalErrorForHost(hostId))                => criticalErrorForHost(thisActor, state, hostId)
         case (state, NonCriticalErrorForHost(hostId))             => nonCriticalErrorForHost(thisActor, state, hostId)
@@ -306,7 +315,19 @@ object PeersManager {
       actorName <- "Peers manager actor".pure[F].toResource
 
       selfBannedPeer =
-        thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0, None)
+        thisHostId -> Peer[F](
+          PeerState.Banned,
+          None,
+          None,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = false,
+          0,
+          0,
+          0,
+          0,
+          None
+        )
 
       filteredHosts <- parseHostIds(p2pConfig.networkProperties.doNotExposeIds).toResource
       peerFilter    <- new PeerFilter(p2pConfig.networkProperties.doNotExposeIps, filteredHosts).pure[F].toResource
@@ -458,6 +479,19 @@ object PeersManager {
     ) >>
     Logger[F].debug(show"Received block download from host $hostId with max delay $delay ms") >>
     updatePerfRepWithDelay(state, hostId, maxDelay)
+  }
+
+  private def updateTransactionRep[F[_]: Async](
+    state:   State[F],
+    hostId:  HostId,
+    txCount: Long
+  ): F[(State[F], Response[F])] = {
+    val prevRep = state.peersHandler.get(hostId).fold(0.0)(_.mempoolTxRep)
+    val txImpactRatio = state.p2pNetworkConfig.networkProperties.txImpactRatio
+    val newRep = ((txImpactRatio - 1) * prevRep + txCount) / txImpactRatio
+    val newHandler = state.peersHandler.copyWithUpdatedReputation(mempoolTxRepMap = Map(hostId -> newRep))
+    val newState = state.copy(peersHandler = newHandler)
+    (newState, newState).pure[F]
   }
 
   private def badKLookbackSlotData[F[_]: Async: Logger](
@@ -974,6 +1008,8 @@ object PeersManager {
       stateWithClosedPeers <- hotToCold(thisActor, stateWithPreWarm)
       stateWithNewHotPeers <- warmToHot(thisActor, stateWithClosedPeers)
       _                    <- updateExternalHotPeersList(stateWithNewHotPeers)
+      _ <- stateWithNewHotPeers.peersHandler.getHotPeers.values.toList
+        .traverse(_.sendNoWait(PeerActor.Message.ReputationUpdateTick))
     } yield (stateWithNewHotPeers, stateWithNewHotPeers)
 
   private def getPeerHandlerAfterReputationDecoy[F[_]](
@@ -1088,6 +1124,7 @@ object PeersManager {
     val saveByBlockProviding =
       currentHotPeers.toSeq
         .map { case (id, peer) => id -> peer.blockRep }
+        .filter(_._2 > 0)
         .sortBy(_._2)
         .takeRight(p2pNetworkConfig.networkProperties.minimumBlockProvidingReputationPeers)
         .map(_._1)
@@ -1107,8 +1144,18 @@ object PeersManager {
         }
         .keySet
 
+    val saveByMempoolTxProviding =
+      currentHotPeers
+        .filter(_._2.mempoolTxRep > (1 / p2pNetworkConfig.networkProperties.txImpactRatio))
+        .toList
+        .sortBy(_._2.mempoolTxRep)
+        .takeRight(p2pNetworkConfig.networkProperties.minimumTxMempoolReputationPeers)
+        .map(_._1)
+        .toSet
+
     val allKeptConnections =
-      saveByNovelty ++ saveByBlockProviding ++ saveByPerformanceReputation ++ saveByOverallReputation
+      saveByNovelty ++ saveByBlockProviding ++ saveByPerformanceReputation ++
+      saveByOverallReputation ++ saveByMempoolTxProviding
 
     currentHotPeers.keySet -- allKeptConnections
   }

@@ -122,6 +122,7 @@ class PeersManagerTest
     blockRep:            HostReputationValue = 0,
     perfRep:             HostReputationValue = 0,
     newRep:              Long = 0,
+    txMempool:           Double = 0.0,
     noServer:            Boolean = false,
     connectionTimestamp: Option[Long] = None
   ): (HostId, Peer[F]) = buildPeerEntry(
@@ -135,6 +136,7 @@ class PeersManagerTest
     blockRep,
     perfRep,
     newRep,
+    txMempool,
     connectionTimestamp
   )
 
@@ -149,6 +151,7 @@ class PeersManagerTest
     blockRep:            HostReputationValue = 0,
     perfRep:             HostReputationValue = 0,
     newRep:              Long = 0,
+    txMempool:           Double = 0.0,
     connectionTimestamp: Option[Long] = None
   ): (HostId, Peer[F]) =
     id -> Peer(
@@ -161,6 +164,7 @@ class PeersManagerTest
       blockRep,
       perfRep,
       newRep,
+      txMempool,
       connectionTimestamp
     )
 
@@ -600,7 +604,7 @@ class PeersManagerTest
           buildSimplePeerEntry(PeerState.Cold, None, host2Id, host2Ra),
           buildPeerEntry(host3Id, PeerState.Cold, None, host3Ra.some, None),
           buildSimplePeerEntry(PeerState.Warm, None, host4Id, host4Ra),
-          buildSimplePeerEntry(PeerState.Hot, None, host5Id, host5Ra),
+          buildSimplePeerEntry(PeerState.Hot, None, host5Id, host5Ra, blockRep = 0.1),
           buildSimplePeerEntry(PeerState.Banned, None, host6Id, host6Ra),
           buildSimplePeerEntry(PeerState.Cold, host7Actor.some, host7Id, host7Ra)
         )
@@ -946,6 +950,9 @@ class PeersManagerTest
       (host4Actor.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
         .returning(Applicative[F].unit)
+      (host4Actor.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .returning(Applicative[F].unit)
 
       val initialPeersMap: Map[HostId, Peer[F]] =
         Map(
@@ -982,6 +989,105 @@ class PeersManagerTest
             _ = assert(withUpdate.peersHandler(host2Id).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host3Id).state == PeerState.Cold)
             _ = assert(withUpdate.peersHandler(host4Id).state == PeerState.Hot)
+          } yield ()
+        }
+    }
+  }
+
+  test("Reputation update: Keep host if it provides only mempool transaction data") {
+    withMock {
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("1", 1)
+      val peerActor1 = mockPeerActor[F]()
+      (peerActor1.sendNoWait _)
+        .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returning(Applicative[F].unit)
+
+      val host2Id = arbitraryHost.arbitrary.first
+      val host2Ra = RemoteAddress("2", 2)
+      val peerActor2 = mockPeerActor[F]()
+      (peerActor2.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .returning(Applicative[F].unit)
+
+      val host3Id = arbitraryHost.arbitrary.first
+      val host3Ra = RemoteAddress("3", 3)
+      val peerActor3 = mockPeerActor[F]()
+
+      val host4Id = arbitraryHost.arbitrary.first
+      val host4Ra = RemoteAddress("4", 4)
+      val peerActor4 = mockPeerActor[F]()
+
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(
+          buildSimplePeerEntry(
+            PeerState.Hot,
+            peerActor1.some,
+            host1Id,
+            host1Ra,
+            txMempool = 0.1
+          ),
+          buildSimplePeerEntry(
+            PeerState.Hot,
+            peerActor2.some,
+            host2Id,
+            host2Ra,
+            txMempool = 0.3
+          ),
+          buildSimplePeerEntry(PeerState.Cold, peerActor3.some, host3Id, host3Ra),
+          buildSimplePeerEntry(PeerState.Cold, peerActor4.some, host4Id, host4Ra)
+        )
+
+      val networkProperties =
+        NetworkProperties(minimumTxMempoolReputationPeers = 1, minimumHotConnections = 1, maximumWarmConnections = 0)
+      val p2pConfig = defaultP2PConfig.copy(networkProperties = networkProperties)
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = p2pConfig)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            withUpdate <- actor.send(PeersManager.Message.UpdatedReputationTick)
+            _ = assert(withUpdate.peersHandler(host1Id).state == PeerState.Cold)
+            _ = assert(withUpdate.peersHandler(host2Id).state == PeerState.Hot)
+            _ = assert(withUpdate.peersHandler(host3Id).state == PeerState.Cold)
+            _ = assert(withUpdate.peersHandler(host4Id).state == PeerState.Cold)
+          } yield ()
+        }
+    }
+  }
+
+  test("Transaction mempool reputation shall be updated") {
+    withMock {
+      val host1Id = arbitraryHost.arbitrary.first
+      val host1Ra = RemoteAddress("1", 1)
+      val peerActor1 = mockPeerActor[F]()
+
+      val oldTxCount = 100.0
+      val newTxCount = 1000
+
+      val txImpactRatio = 2000
+      val networkProperties = NetworkProperties(txImpactRatio = txImpactRatio)
+      val p2pNetworkConfig = defaultP2PConfig.copy(networkProperties = networkProperties)
+      val initialPeersMap: Map[HostId, Peer[F]] =
+        Map(
+          buildSimplePeerEntry(
+            PeerState.Hot,
+            peerActor1.some,
+            host1Id,
+            host1Ra,
+            txMempool = oldTxCount
+          )
+        )
+
+      val mockData = buildDefaultMockData(initialPeers = initialPeersMap, p2pConfig = p2pNetworkConfig)
+      buildActorFromMockData(mockData)
+        .use { actor =>
+          for {
+            withUpdate <- actor.send(PeersManager.Message.ReceivedTransactionsCount(host1Id, newTxCount))
+            _ = assert(
+              withUpdate
+                .peersHandler(host1Id)
+                .mempoolTxRep == (oldTxCount * (txImpactRatio - 1) + newTxCount) / txImpactRatio
+            )
           } yield ()
         }
     }
@@ -1036,18 +1142,34 @@ class PeersManagerTest
       val host1Id = arbitraryHost.arbitrary.first
       val host1Ra = RemoteAddress("first", 1)
       val peer1 = mockPeerActor[F]()
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
+        .returns(().pure[F])
 
       val host2Id = arbitraryHost.arbitrary.first
       val host2Ra = RemoteAddress("second", 2)
       val peer2 = mockPeerActor[F]()
+      (peer2.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
+        .returns(().pure[F])
 
       val host3Id = arbitraryHost.arbitrary.first
       val host3Ra = RemoteAddress("10.0.0.3", 3)
       val peer3 = mockPeerActor[F]()
+      (peer3.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
+        .returns(().pure[F])
 
       val host4Id = arbitraryHost.arbitrary.first
       val host4Ra = RemoteAddress("fourth", 4)
       val peer4 = mockPeerActor[F]()
+      (peer4.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
+        .returns(().pure[F])
 
       val host5Id = arbitraryHost.arbitrary.first
       val host5Ra = RemoteAddress("five", 5)
@@ -1055,12 +1177,20 @@ class PeersManagerTest
       (peer5.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
         .returns(().pure[F])
+      (peer5.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
+        .returns(().pure[F])
 
       val host6Id = arbitraryHost.arbitrary.first
       val host6Ra = RemoteAddress("six", 6)
       val peer6 = mockPeerActor[F]()
       (peer6.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = false, applicationLevel = false))
+        .returns(().pure[F])
+      (peer6.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .anyNumberOfTimes()
         .returns(().pure[F])
 
       val minimumBlockProvidingReputation = defaultP2PConfig.networkProperties.minimumBlockProvidingReputation
@@ -1379,12 +1509,18 @@ class PeersManagerTest
       (peer1.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
         .returns(().pure[F])
+      (peer1.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
+        .returns(().pure[F])
 
       val host2Id = arbitraryHost.arbitrary.first
       val host2Ra = RemoteAddress("second", 2)
       val peer2 = mockPeerActor[F]()
       (peer2.sendNoWait _)
         .expects(PeerActor.Message.UpdateState(networkLevel = true, applicationLevel = true))
+        .returns(().pure[F])
+      (peer2.sendNoWait _)
+        .expects(PeerActor.Message.ReputationUpdateTick)
         .returns(().pure[F])
 
       val host3Id = arbitraryHost.arbitrary.first
@@ -3213,6 +3349,7 @@ class PeersManagerTest
         0,
         0.0,
         0,
+        0.0,
         None
       )
       val host2Id = arbitraryHost.arbitrary.first
@@ -3230,6 +3367,7 @@ class PeersManagerTest
           0,
           0.0,
           0,
+          0.0,
           None
         )
       )
@@ -3263,6 +3401,7 @@ class PeersManagerTest
         0,
         0.0,
         0,
+        0.0,
         None
       )
       val host2Id = arbitraryHost.arbitrary.first
@@ -3280,6 +3419,7 @@ class PeersManagerTest
           0,
           0.0,
           0,
+          0.0,
           None
         )
       )
