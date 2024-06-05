@@ -31,7 +31,7 @@ import scala.util.Random
 
 class OperationalKeyMakerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
-  override def munitTimeout: Duration = new FiniteDuration(2, TimeUnit.MINUTES)
+  override def munitIOTimeout: Duration = new FiniteDuration(2, TimeUnit.MINUTES)
 
   type F[A] = cats.effect.IO[A]
 

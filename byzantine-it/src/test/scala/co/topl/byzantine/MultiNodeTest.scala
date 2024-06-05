@@ -36,7 +36,7 @@ import scala.concurrent.duration._
 class MultiNodeTest extends IntegrationSuite {
   import MultiNodeTest._
 
-  override def munitTimeout: Duration = 15.minutes
+  override def munitIOTimeout: Duration = 15.minutes
   // This many nodes will be launched for this test.  All but one of the nodes will be launched immediately as
   // genesis stakers.  The final node will be launched later in the test.
   // When running on GitHub Actions, only 3 nodes can run on one machine.

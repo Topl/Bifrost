@@ -37,7 +37,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
   private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
   private val dummyCostCalc: TransactionCostCalculator = (tx: IoTransaction) => tx.inputs.size
 
-  override val munitTimeout: FiniteDuration = 5.seconds
+  override val munitIOTimeout: FiniteDuration = 5.seconds
 
   test("serve slot data") {
     PropF.forAllF { slotData: SlotData =>

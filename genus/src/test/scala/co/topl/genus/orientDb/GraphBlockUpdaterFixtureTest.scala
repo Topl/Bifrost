@@ -33,7 +33,7 @@ class GraphBlockUpdaterFixtureTest
       .withMaxSize(3)
       .withMinSuccessfulTests(5)
 
-  override def munitTimeout: Duration =
+  override def munitIOTimeout: Duration =
     new FiniteDuration(10, TimeUnit.SECONDS)
 
   orientDbFixture.test("Insert and remove genesis block") { case (odbFactory, implicit0(oThread: OrientThread[F])) =>

@@ -21,7 +21,7 @@ import scala.concurrent.duration._
  */
 class ChainSelectionTest extends IntegrationSuite {
 
-  override def munitTimeout: Duration = 12.minutes
+  override def munitIOTimeout: Duration = 12.minutes
 
   test("Disconnected nodes can forge independently and later sync up to a proper chain") {
     val bigBang = Instant.now().plusSeconds(30)

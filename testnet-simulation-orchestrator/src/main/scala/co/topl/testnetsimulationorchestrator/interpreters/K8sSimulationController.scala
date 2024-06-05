@@ -22,9 +22,7 @@ object K8sSimulationController {
       implicit0(logger: Logger[F]) <- Resource.eval(Slf4jLogger.fromName("Bifrost.K8sSimulationController"))
     } yield new SimulationController[F] {
 
-      def terminate: F[Unit] = withCallback[V1Status](
-        api.deleteNamespaceAsync(namespace, null, null, null, null, null, null, _)
-      ).void
+      def terminate: F[Unit] = withCallback[V1Status](api.deleteNamespace(namespace).executeAsync).void
 
       private def createDeferredCallback[T]: Resource[F, (ApiCallback[T], F[T])] =
         for {

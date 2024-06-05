@@ -31,7 +31,7 @@ import co.topl.algebras.Stats.Implicits._
 class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
-  override val munitTimeout: FiniteDuration = 10.seconds
+  override val munitIOTimeout: FiniteDuration = 10.seconds
 
   override def scalaCheckTestParameters =
     super.scalaCheckTestParameters

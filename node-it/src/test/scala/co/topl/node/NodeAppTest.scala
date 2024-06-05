@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 class NodeAppTest extends CatsEffectSuite {
 
-  override val munitTimeout: Duration = 3.minutes
+  override val munitIOTimeout: Duration = 3.minutes
 
   test("Two block-producing nodes that maintain consensus") {
     // Allow the nodes to produce/adopt blocks until reaching this height
