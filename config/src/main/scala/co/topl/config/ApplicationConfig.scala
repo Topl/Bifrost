@@ -140,7 +140,8 @@ object ApplicationConfig {
         timestamp:        Long = System.currentTimeMillis() + 5_000L,
         stakerCount:      Int,
         stakes:           Option[List[BigInt]],
-        localStakerIndex: Option[Int]
+        localStakerIndex: Option[Int],
+        regtestEnabled:   Boolean = false
       ) extends BigBang
 
       @Lenses

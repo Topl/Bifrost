@@ -70,7 +70,8 @@ object ApplicationConfigOps {
     if (
       cmdArgs.runtime.testnetArgs.testnetTimestamp.nonEmpty ||
       cmdArgs.runtime.testnetArgs.testnetStakerCount.nonEmpty ||
-      cmdArgs.runtime.testnetArgs.testnetStakerIndex.nonEmpty
+      cmdArgs.runtime.testnetArgs.testnetStakerIndex.nonEmpty ||
+      cmdArgs.runtime.testnetArgs.regtest.value
     ) {
       val bigBangConfig =
         simpleArgApplications.bifrost.bigBang match {
@@ -78,7 +79,8 @@ object ApplicationConfigOps {
             p.copy(
               timestamp = cmdArgs.runtime.testnetArgs.testnetTimestamp.getOrElse(p.timestamp),
               stakerCount = cmdArgs.runtime.testnetArgs.testnetStakerCount.getOrElse(p.stakerCount),
-              localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex)
+              localStakerIndex = cmdArgs.runtime.testnetArgs.testnetStakerIndex.orElse(p.localStakerIndex),
+              regtestEnabled = cmdArgs.runtime.testnetArgs.regtest.value
             )
           case p => p
         }

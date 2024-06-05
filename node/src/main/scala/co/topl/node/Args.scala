@@ -106,7 +106,11 @@ object Args {
     @arg(
       doc = "The index of the staker to launch."
     )
-    testnetStakerIndex: Option[Int] = None
+    testnetStakerIndex: Option[Int] = None,
+    @arg(
+      doc = "Enables a testing mode for the node."
+    )
+    regtest: Flag
   )
 
   @main @Lenses
