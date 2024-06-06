@@ -8,7 +8,6 @@ import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.box.{FungibilityType, QuantityDescriptorType}
 import co.topl.brambl.models.{GroupId, LockAddress, SeriesId}
 import co.topl.brambl.syntax._
-import co.topl.catsutils.Iterative
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, StakingAddress}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.ledger.models.{AssetId, RewardQuantities}
@@ -101,12 +100,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             _                <- blockPackerQueue.offer(outputBody)
             blockPacker = new BlockPackerAlgebra[F] {
 
-              def improvePackedBlock(parentBlockId: BlockId, height: Long, slot: Long): F[Iterative[F, FullBlockBody]] =
-                new Iterative[F, FullBlockBody] {
-
-                  def improve(current: FullBlockBody): F[FullBlockBody] =
-                    blockPackerQueue.take.flatTap(_ => (IO.sleep(100.milli) >> clockDeferment.complete(())).start)
-                }.pure[F]
+              def blockImprover(parentBlockId: BlockId, height: Long, slot: Long): Stream[F, FullBlockBody] =
+                Stream
+                  .fromQueueUnterminated(blockPackerQueue)
+                  .evalTap(_ => (IO.sleep(100.milli) >> clockDeferment.complete(())).start)
             }
             parents <- Queue.unbounded[F, Option[SlotData]]
             results <- Queue.unbounded[F, Option[FullBlock]]

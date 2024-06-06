@@ -202,19 +202,19 @@ object BlockProducer {
      * @param untilSlot The slot at which the block packer function should be halted and a value extracted
      */
     private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
-      blockPacker
-        .improvePackedBlock(parentId, height, untilSlot)
-        .flatMap(
-          Iterative
-            .run(FullBlockBody().pure[F])(_)
-            .use(resF =>
-              constructionPermit >>
-              clock.delayedUntilSlot(untilSlot) >>
-              Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
-              resF
-                .flatTap(_ => Logger[F].info(s"Captured packed block at slot=$untilSlot"))
-            )
-        )
+      OptionT(
+        blockPacker
+          .blockImprover(parentId, height, untilSlot)
+          .interruptWhen(
+            constructionPermit >>
+            clock.delayedUntilSlot(untilSlot) >>
+            Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
+            ().asRight[Throwable].pure[F]
+          )
+          .compile
+          .last
+      ).getOrElse(FullBlockBody())
+        .flatTap(_ => Logger[F].info(s"Captured packed block at slot=$untilSlot"))
         .flatMap(insertReward(parentId, untilSlot, _))
 
     /**

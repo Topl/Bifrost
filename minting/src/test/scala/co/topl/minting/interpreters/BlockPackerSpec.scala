@@ -16,7 +16,6 @@ import co.topl.ledger.models.{MempoolGraph, RewardQuantities, TransactionSemanti
 import co.topl.models.ModelGenerators._
 import co.topl.models.Slot
 import co.topl.models.generators.consensus.ModelGenerators
-import co.topl.node.models.FullBlockBody
 import co.topl.quivr.runtime.DynamicContext
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -55,11 +54,12 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             mock[BlockPackerValidation[F]],
             mock[RegistrationAccumulatorAlgebra[F]]
           )
-          iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          _ <- iterative
-            .improve(FullBlockBody.defaultInstance)
+          _ <- underTest
+            .blockImprover(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0)
             // Timeout should be less than the Block Packer's mempool polling period
             .timeout(200.milli)
+            .compile
+            .toList
             .intercept[TimeoutException]
             .toResource
         } yield ()
@@ -158,9 +158,8 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             validation,
             registrationAccumulator
           )
-          iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          result <- fs2.Stream
-            .unfoldEval(FullBlockBody.defaultInstance)(iterative.improve(_).map(v => (v, v).some))
+          stream = underTest.blockImprover(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0)
+          result <- stream
             .interruptAfter(3.seconds)
             .compile
             .lastOrError
@@ -264,9 +263,8 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             validation,
             registrationAccumulator
           )
-          iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          result <- fs2.Stream
-            .unfoldEval(FullBlockBody.defaultInstance)(iterative.improve(_).map(v => (v, v).some))
+          stream = underTest.blockImprover(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0)
+          result <- stream
             .interruptAfter(3.seconds)
             .compile
             .lastOrError
