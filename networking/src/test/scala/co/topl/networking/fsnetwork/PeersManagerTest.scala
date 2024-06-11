@@ -1317,7 +1317,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1333,7 +1333,7 @@ class PeersManagerTest
       (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returns(Applicative[F].unit)
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -1385,7 +1385,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1432,7 +1432,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1608,7 +1608,7 @@ class PeersManagerTest
       val host1Ra = RemoteAddress("1", 1)
       val peer1 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer1))
       (peer1.sendNoWait _)
@@ -1624,7 +1624,7 @@ class PeersManagerTest
       val host2Ra = RemoteAddress("2", 2)
       val peer2 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host2Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host2Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -1639,7 +1639,7 @@ class PeersManagerTest
       val host3Ra = RemoteAddress("3", 3)
       val peer3 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host3Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host3Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer3))
       (peer3.sendNoWait _)
@@ -1659,7 +1659,7 @@ class PeersManagerTest
       val host5Ra = RemoteAddress("5", 5)
       val peer5 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host5Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host5Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer5))
       (peer5.sendNoWait _)
@@ -3450,7 +3450,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -3504,7 +3504,7 @@ class PeersManagerTest
       val host2Id = arbitraryHost.arbitrary.first
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource

@@ -22,6 +22,7 @@ import co.topl.typeclasses.implicits._
 import co.topl.node.models.KnownHost
 import co.topl.networking.fsnetwork.P2PShowInstances._
 import co.topl.algebras.Stats
+import co.topl.crypto.signing.Ed25519VRF
 
 object ActorPeerHandlerBridgeAlgebra {
 
@@ -33,7 +34,8 @@ object ActorPeerHandlerBridgeAlgebra {
     remotePeers:             Seq[DisconnectedPeer],
     peersStatusChangesTopic: Topic[F, PeerConnectionChange],
     addRemotePeer:           DisconnectedPeer => F[Unit],
-    hotPeersUpdate:          Set[RemotePeer] => F[Unit]
+    hotPeersUpdate:          Set[RemotePeer] => F[Unit],
+    ed25519VRF:              Resource[F, Ed25519VRF]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName("Bifrost.P2P")
 
@@ -47,7 +49,8 @@ object ActorPeerHandlerBridgeAlgebra {
         networkProperties,
         PeerCreationRequestAlgebra(addRemotePeer),
         peersStatusChangesTopic,
-        hotPeersUpdate
+        hotPeersUpdate,
+        ed25519VRF
       )
 
     networkManager.map(pm => makeAlgebra(pm))

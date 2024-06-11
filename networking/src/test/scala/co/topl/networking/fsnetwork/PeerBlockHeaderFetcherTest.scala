@@ -9,7 +9,6 @@ import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.{ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.p2p._
@@ -90,8 +89,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
 
       val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
@@ -106,7 +103,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -152,8 +148,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
 
       val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
@@ -168,7 +162,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -222,8 +215,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
 
       val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
@@ -238,7 +229,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -298,8 +288,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
 
       val commonAncestorF = mock[(BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]]
@@ -314,7 +302,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           defaultBodyStorage,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -388,9 +375,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount).returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -410,7 +394,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -497,9 +480,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).rep(remoteSlotDataCount - enoughHeightDelta).returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -519,7 +499,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           chainSelection,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -600,8 +579,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -621,7 +598,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           chainSelection,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -699,9 +675,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -721,7 +694,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -789,9 +761,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).once().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -810,7 +779,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -880,9 +848,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).twice().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -905,7 +870,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -973,9 +937,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -995,7 +956,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1072,9 +1032,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1097,7 +1054,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1170,9 +1126,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1194,7 +1147,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1237,8 +1189,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .anyNumberOfTimes()
         .returning(slotData.pure[F])
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1260,7 +1210,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1312,8 +1261,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .anyNumberOfTimes()
         .returning(remoteKnownHead.pure[F])
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1334,7 +1281,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1413,9 +1359,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1435,7 +1378,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1511,9 +1453,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1533,7 +1472,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1608,9 +1546,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           slotDataStoreMap(id).pure[F]
         }
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-      (blockIdTree.associate _).expects(*, *).anyNumberOfTimes().returning(().pure[F])
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot).expects().anyNumberOfTimes().returning(2L.pure[F])
 
@@ -1630,7 +1565,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )
@@ -1677,8 +1611,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .once()
         .returning(none[SlotData].pure[F])
 
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
-
       val clock = mock[ClockAlgebra[F]]
       (() => clock.globalSlot)
         .expects()
@@ -1702,7 +1634,6 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
           defaultChainSelectionAlgebra,
           slotDataStore,
           bodyStore,
-          blockIdTree,
           clock,
           commonAncestorF
         )

@@ -24,6 +24,7 @@ import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.Caffeine
 import org.typelevel.log4cats.Logger
 import co.topl.algebras.Stats
+import co.topl.crypto.signing.Ed25519VRF
 
 trait NetworkAlgebra[F[_]] {
 
@@ -51,11 +52,13 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
+    blockIdTree:                 ParentChildTree[F, BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
     p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]]
 
@@ -81,7 +84,6 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
@@ -97,7 +99,6 @@ trait NetworkAlgebra[F[_]] {
     chainSelection:  ChainSelectionAlgebra[F, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
     commonAncestorF: CommonAncestorF[F]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]]
 
@@ -174,11 +175,13 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
+    blockIdTree:                 ParentChildTree[F, BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
     p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]] =
     BlockChecker.makeActor(
@@ -187,11 +190,13 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       slotDataStore,
       headerStore,
       bodyStore,
+      blockIdTree,
       headerValidation,
       bodySyntaxValidation,
       bodySemanticValidation,
       bodyAuthorizationValidation,
       chainSelectionAlgebra,
+      ed25519VRF,
       p2pNetworkConfig
     )
 
@@ -219,7 +224,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
@@ -236,7 +240,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       slotDataStore,
       bodyStore,
       transactionStore,
-      blockIdTree,
       headerToBodyValidation,
       transactionSyntaxValidation,
       mempool,
@@ -252,7 +255,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     chainSelection:  ChainSelectionAlgebra[F, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
     commonAncestorF: CommonAncestorF[F]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
     PeerBlockHeaderFetcher.makeActor(
@@ -264,7 +266,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       chainSelection,
       slotDataStore,
       bodyStore,
-      blockIdTree,
       clock,
       commonAncestorF
     )

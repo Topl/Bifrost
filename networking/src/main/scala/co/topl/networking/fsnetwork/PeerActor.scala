@@ -11,7 +11,6 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.p2p._
 import co.topl.networking.KnownHostOps
@@ -126,7 +125,6 @@ object PeerActor {
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
@@ -148,7 +146,6 @@ object PeerActor {
         chainSelection,
         slotDataStore,
         bodyStore,
-        blockIdTree,
         commonAncestorF
       )
       body <- networkAlgebra.makePeerBodyFetcher(

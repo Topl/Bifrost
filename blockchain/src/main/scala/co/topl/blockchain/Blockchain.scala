@@ -127,7 +127,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
           initialPeers,
           peersStatusChangesTopic,
           remotePeers.offer,
-          currentPeers.set
+          currentPeers.set,
+          p2pBlockchain.cryptoResources.ed25519VRF
         )
         .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
       _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.fold("")(_.toString)}").toResource
