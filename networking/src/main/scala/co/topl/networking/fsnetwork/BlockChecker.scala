@@ -9,6 +9,8 @@ import co.topl.catsutils.faAsFAClockOps
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.QuivrContext
@@ -67,12 +69,14 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
+    blockIdTree:                 ParentChildTree[F, BlockId],
     chainSelection:              ChainSelectionAlgebra[F, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
     chunkSize:                   Int,
+    ed25519VRF:                  Resource[F, Ed25519VRF],
     bestKnownRemoteSlotDataOpt:  Option[BestChain],
     bestKnownRemoteSlotDataHost: Option[HostId]
   )
@@ -94,11 +98,13 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
+    blockIdTree:                 ParentChildTree[F, BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
     chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
     p2pNetworkConfig:            P2PNetworkConfig,
     bestChain:                   Option[BestChain] = None,
     bestKnownRemoteSlotDataHost: Option[HostId] = None
@@ -110,12 +116,14 @@ object BlockChecker {
         slotDataStore,
         headerStore,
         bodyStore,
+        blockIdTree,
         chainSelectionAlgebra,
         headerValidation,
         bodySyntaxValidation,
         bodySemanticValidation,
         bodyAuthorizationValidation,
         p2pNetworkConfig.networkProperties.chunkSize,
+        ed25519VRF,
         bestChain,
         bestKnownRemoteSlotDataHost
       )
@@ -146,7 +154,7 @@ object BlockChecker {
   ): F[Boolean] =
     for {
       bestRemoteSlotData <- remoteSlotDataChain.last.pure[F]
-      localBestSlotData  <- state.bestKnownRemoteSlotDataOpt.map(_.last.pure[F]).getOrElse(state.localChain.head)
+      localBestSlotData  <- state.bestKnownRemoteSlotDataOpt.fold(state.localChain.head)(_.last.pure[F])
       chainComparing = Async[F].defer(state.chainSelection.compare(bestRemoteSlotData, localBestSlotData).map(_ > 0))
       res <-
         // if received slot data chain could be appended to the END of current best slot data,
@@ -274,11 +282,17 @@ object BlockChecker {
         .foldable(blockHeaders)
         .covaryAll[F, UnverifiedBlockHeader]
         .evalFilter(headerCouldBeVerified(state, lastProcessedBodySlot))
-        .evalMap(header =>
-          verifyOneBlockHeader(state)(header)
-            .logDuration(show"Verified header ${header.blockHeader.id}")
-        )
-        .evalTap(header => state.headerStore.put(header.id, header))
+        .evalMap { unverifiedBlockHeader =>
+          val blockId = unverifiedBlockHeader.blockHeader.id
+          val parentId = unverifiedBlockHeader.blockHeader.parentHeaderId
+          Logger[F].info(show"Associating child=$blockId to parent=$parentId") >>
+          state.blockIdTree.associate(blockId, parentId) >>
+          verifyOneBlockHeader(state)(unverifiedBlockHeader).logDuration(show"Verified header $blockId")
+        }
+        .evalTap { header =>
+          state.ed25519VRF.use(ed => state.slotDataStore.put(header.id, header.slotData(ed))) >>
+          state.headerStore.put(header.id, header)
+        }
         .map(Right.apply[HeaderApplyException, BlockHeader])
         .handleErrorWith {
           case e: HeaderValidationException => Stream.emit(Left(e: HeaderApplyException))

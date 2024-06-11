@@ -126,6 +126,8 @@ object Dependencies {
 
   val ipaddress = "com.github.seancfoley" % "ipaddress" % "5.5.0"
 
+  val apacheCommonLang = "org.apache.commons" % "commons-lang3" % "3.0"
+
   // For NTP-UDP
   val commonsNet = "commons-net" % "commons-net" % "3.10.0"
 
@@ -214,7 +216,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(ipaddress)
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(ipaddress, apacheCommonLang)
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)

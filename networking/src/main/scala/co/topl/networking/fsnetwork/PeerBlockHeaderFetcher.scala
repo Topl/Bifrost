@@ -10,7 +10,6 @@ import co.topl.algebras.{ClockAlgebra, Store}
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.consensus.algebras.{ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
 import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
@@ -55,7 +54,6 @@ object PeerBlockHeaderFetcher {
     chainSelection:  ChainSelectionAlgebra[F, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
     fetchingFiber:   Option[Fiber[F, Throwable, Unit]],
     clock:           ClockAlgebra[F],
     commonAncestorF: CommonAncestorF[F]
@@ -80,7 +78,6 @@ object PeerBlockHeaderFetcher {
     chainSelection:  ChainSelectionAlgebra[F, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
     clock:           ClockAlgebra[F],
     commonAncestorF: CommonAncestorF[F]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
@@ -95,7 +92,6 @@ object PeerBlockHeaderFetcher {
         chainSelection,
         slotDataStore,
         bodyStore,
-        blockIdTree,
         None,
         clock,
         commonAncestorF
@@ -282,10 +278,6 @@ object PeerBlockHeaderFetcher {
   ): F[List[SlotData]] = {
     def adoptSlotData(slotData: SlotData) = {
       val slotBlockId = slotData.slotId.blockId
-      val parentBlockId = slotData.parentSlotId.blockId
-
-      Logger[F].info(show"Associating child=$slotBlockId to parent=$parentBlockId from peer ${state.hostIdString}") >>
-      state.blockIdTree.associate(slotBlockId, parentBlockId) >>
       Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString}") >>
       state.slotDataStore.put(slotBlockId, slotData)
     }

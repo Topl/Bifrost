@@ -13,7 +13,6 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
@@ -51,7 +50,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     slotDataStore:                   Store[F, BlockId, SlotData],
     bodyDataStore:                   Store[F, BlockId, BlockBody],
     transactionStore:                Store[F, TransactionId, IoTransaction],
-    blockIdTree:                     ParentChildTree[F, BlockId],
     headerToBodyValidation:          BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation:     TransactionSyntaxVerifier[F],
     mempool:                         MempoolAlgebra[F],
@@ -93,7 +91,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     slotDataStore:                   Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]],
     bodyDataStore:                   Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
     transactionStore:            Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
-    blockIdTree:                 ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
     mempool:                     MempoolAlgebra[F] = mock[MempoolAlgebra[F]]
@@ -107,7 +104,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       slotDataStore,
       bodyDataStore,
       transactionStore,
-      blockIdTree,
       headerToBodyValidation,
       transactionSyntaxValidation,
       mempool,
@@ -132,7 +128,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         peerActorMockData.slotDataStore,
         peerActorMockData.bodyDataStore,
         peerActorMockData.transactionStore,
-        peerActorMockData.blockIdTree,
         peerActorMockData.headerToBodyValidation,
         peerActorMockData.transactionSyntaxValidation,
         peerActorMockData.mempool,
@@ -171,7 +166,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
     (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
     (networkAlgebra.makePeerHeaderFetcher _)
-      .expects(*, *, *, *, *, *, *, *, *, *)
+      .expects(*, *, *, *, *, *, *, *, *)
       .returns(
         // simulate real header fetcher behaviour on finalizing
         Resource
@@ -605,7 +600,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
       val mempool = mock[MempoolAlgebra[F]]
@@ -626,7 +620,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *, *)
+        .expects(*, *, *, *, *, *, *, *, *)
         .returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
@@ -648,7 +642,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           slotDataStore,
           bodyDataStore,
           transactionStore,
-          blockIdTree,
           headerToBodyValidation,
           transactionSyntaxValidation,
           mempool,
@@ -669,7 +662,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val headerToBodyValidation = mock[BlockHeaderToBodyValidationAlgebra[F]]
       val client = mock[BlockchainPeerClient[F]]
       val transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
@@ -701,7 +693,6 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           slotDataStore,
           bodyDataStore,
           transactionStore,
-          blockIdTree,
           headerToBodyValidation,
           transactionSyntaxValidation,
           mempool,

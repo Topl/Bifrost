@@ -44,6 +44,7 @@ import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 import co.topl.algebras.Stats.Implicits._
+import co.topl.crypto.signing.Ed25519VRF
 
 object ActorPeerHandlerBridgeAlgebraTest {
   type F[A] = IO[A]
@@ -295,7 +296,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             remotePeers,
             topic,
             addRemotePeer,
-            hotPeersUpdate
+            hotPeersUpdate,
+            Resource.pure(Ed25519VRF.precomputed())
           )
       } yield (algebra, remotePeersStore, mempoolAlgebra)
 

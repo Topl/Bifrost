@@ -852,7 +852,6 @@ object PeersManager {
             state.slotDataStore,
             state.bodyStore,
             state.transactionStore,
-            state.blockIdTree,
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
             state.mempool,

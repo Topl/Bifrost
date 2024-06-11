@@ -9,6 +9,7 @@ import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.blockchain.BlockchainCore
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
+import co.topl.crypto.signing.Ed25519VRF
 import co.topl.models.p2p.{HostId, KnownRemotePeer}
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, PeerConnectionChanges}
@@ -29,7 +30,8 @@ object NetworkManager {
     networkProperties:       NetworkProperties,
     addRemotePeerAlgebra:    PeerCreationRequestAlgebra[F],
     peersStatusChangesTopic: Topic[F, PeerConnectionChange],
-    hotPeersUpdate:          Set[RemotePeer] => F[Unit]
+    hotPeersUpdate:          Set[RemotePeer] => F[Unit],
+    ed25519VRF:              Resource[F, Ed25519VRF]
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _ <- Resource.liftK(Logger[F].info(show"Start actors network with list of peers: ${initialHosts.mkString(";")}"))
@@ -67,11 +69,13 @@ object NetworkManager {
         blockchain.dataStores.slotData,
         blockchain.dataStores.headers,
         blockchain.dataStores.bodies,
+        blockchain.blockIdTree,
         blockchain.validators.header,
         blockchain.validators.bodySyntax,
         blockchain.validators.bodySemantics,
         blockchain.validators.bodyAuthorization,
         blockchain.consensus.chainSelection,
+        ed25519VRF,
         p2pNetworkConfig
       )
 
