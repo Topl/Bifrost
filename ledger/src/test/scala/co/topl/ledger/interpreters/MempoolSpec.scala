@@ -25,6 +25,7 @@ import org.scalacheck.Gen
 import org.scalacheck.Test
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.algebras.Stats.Implicits._
 
 import scala.concurrent.duration._
 

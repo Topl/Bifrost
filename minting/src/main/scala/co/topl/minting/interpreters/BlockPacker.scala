@@ -161,7 +161,7 @@ object BlockPacker {
       /**
        * Some of the "unresolved" transactions of the mempool may be double-spends, so prune away the lower-value sub-graphs.
        */
-      def stripDoubleSpendUnresolved(graph: MempoolGraph): F[MempoolGraph] =
+      def stripDoubleSpendUnresolved(graph: MempoolGraph[F]): F[MempoolGraph] =
         Logger[F].debug("Discarding lower-value double-spend transactions") >>
         Sync[F]
           .delay(
@@ -184,52 +184,50 @@ object BlockPacker {
           .guarantee(Async[F].cede)
           .flatMap(_.foldLeftM(graph)(pruneDoubleSpenders(_)(_)))
 
-      /**
-       * Finds the first instance of a double-spend in the given graph, and removes the double-spend with the
-       * lowest subgraph score.
-       *
-       * If no double-spends are found, moves on to the final stage of forming a block
-       */
-      def stripGraph(graph: MempoolGraph): F[MempoolGraph] =
-        Async[F].cede *>
-        (graph.spenders.find(_._2.exists(_._2.size > 1)) match {
-          // Find the first instance of a double-spender in the graph and prune its subtree
-          case Some((_, spenders)) =>
-            spenders.values.toList
-              .map(_.map(_._1))
-              .foldLeftM(graph)(pruneDoubleSpenders(_)(_))
-              .flatMap(stripGraph)
-          // If there are no remaining double-spenders in the graph, form a block
-          case _ =>
-            graph.pure[F]
-        })
+          /**
+           * Finds the first instance of a double-spend in the given graph, and removes the double-spend with the
+           * lowest subgraph score.
+           *
+           * If no double-spends are found, moves on to the final stage of forming a block
+           */
+          private def stripGraph(graph: MempoolGraph[F]): F[FullBlockBody] =
+            Async[F].cede *>
+            (graph.spenders.find(_._2.exists(_._2.size > 1)) match {
+              // Find the first instance of a double-spender in the graph and prune its subtree
+              case Some((_, spenders)) =>
+                spenders.values.toList
+                  .map(_.map(_._1))
+                  .foldLeftM(graph)(pruneDoubleSpenders(_)(_))
+                  .flatMap(stripGraph)
+              // If there are no remaining double-spenders in the graph, form a block
+              case _ =>
+                formBlockBody(graph)
+            })
 
-      /**
-       * The final step is to take the given graph containing zero double-spends and flatten it into a linear sequence of transactions
-       *
-       * @param graph a graph with all double-spends removed
-       * @return a FullBlockBody
-       */
-      def formBlockBody(graph: MempoolGraph): Stream[F, FullBlockBody] = {
-        def withDependencies(transaction: IoTransaction): F[ListSet[TransactionId]] =
-          transaction.inputs
-            .map(_.address.id)
-            .distinct
-            .flatMap(graph.ioTransactions.get)
-            .parTraverse(withDependencies)
-            .map(_.foldLeft(ListSet.empty[TransactionId])(_.concat(_)))
-            .map(_.incl(transaction.id))
-        def go(
-          accepted:                            FullBlockBody,
-          queue:                               ListSet[TransactionId],
-          registrationAccumulatorAugmentation: RegistrationAccumulator.Augmentation
-        ): F[
-          (Option[FullBlockBody], Option[(FullBlockBody, ListSet[TransactionId], RegistrationAccumulator.Augmentation)])
-        ] =
-          Async[F].cede *> (
-            queue.headOption match {
-              case Some(transaction) if accepted.transactions.exists(_.id == transaction.id) =>
-                (none[FullBlockBody], (accepted, queue.tail, registrationAccumulatorAugmentation).some).pure[F]
+          /**
+           * The final step is to take the given graph containing zero double-spends and flatten it into a linear sequence of transactions
+           *
+           * @param graph a graph with all double-spends removed
+           * @return a FullBlockBody
+           */
+          private def formBlockBody(graph: MempoolGraph[F]): F[FullBlockBody] = {
+            def withDependencies(transaction: IoTransaction): F[ListSet[TransactionId]] =
+              transaction.inputs
+                .map(_.address.id)
+                .distinct
+                .flatMap(graph.ioTransactions.get)
+                .parTraverse(withDependencies)
+                .map(_.foldLeft(ListSet.empty[TransactionId])(_.concat(_)))
+                .map(_.incl(transaction.id))
+
+            def go(
+              accepted:                            FullBlockBody,
+              queue:                               ListSet[TransactionId],
+              registrationAccumulatorAugmentation: RegistrationAccumulator.Augmentation
+            ): F[FullBlockBody] = Async[F].cede *> (
+              queue.headOption match {
+                case Some(transaction) if accepted.transactions.exists(_.id == transaction.id) =>
+                  go(accepted, queue.tail, registrationAccumulatorAugmentation)
 
               case Some(transactionId) =>
                 val transaction = graph.ioTransactions(transactionId)
@@ -289,46 +287,46 @@ object BlockPacker {
         (transactionRewardCalculator.rewardsOf(transaction).lvl - transactionCostCalculator.costOf(transaction))
           .pure[F]
 
-      /**
-       * Accumulate the score of the given transaction, as well as all dependent transactions
-       */
-      private def subgraphScore(graph: MempoolGraph)(transaction: IoTransaction): F[BigInt] =
-        Async[F].cede *>
-        (
-          transactionScore(transaction),
-          graph
-            .spenders(transaction.id)
-            .toList
-            .map(_._2)
-            .parFoldMapA {
-              case spenders if spenders.isEmpty =>
-                BigInt(0).pure[F]
-              case spenders =>
-                spenders.toList
-                  .map(_._1)
-                  .map(graph.ioTransactions)
-                  .parTraverse(subgraphScore(graph))
-                  .map(_.max)
-            }
-        ).parMapN(_ + _)
+          /**
+           * Accumulate the score of the given transaction, as well as all dependent transactions
+           */
+          private def subgraphScore(graph: MempoolGraph[F])(transaction: IoTransaction): F[BigInt] =
+            Async[F].cede *>
+            (
+              transactionScore(transaction),
+              graph
+                .spenders(transaction.id)
+                .toList
+                .map(_._2)
+                .parFoldMapA {
+                  case spenders if spenders.isEmpty =>
+                    BigInt(0).pure[F]
+                  case spenders =>
+                    spenders.toList
+                      .map(_._1)
+                      .map(graph.ioTransactions)
+                      .parTraverse(subgraphScore(graph))
+                      .map(_.max)
+                }
+            ).parMapN(_ + _)
 
-      /**
-       * Steps through the given collection of spenders (of a specific transaction), and if multiple
-       * dependents attempt to spend the same TxO, the dependents with the lowest subgraph score will be removed
-       * from the returned graph
-       */
-      private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]): F[MempoolGraph] =
-        Logger[F].debug("Searching for double-spend transactions") >>
-        spenders.toList
-          .map(graph.ioTransactions)
-          .parTraverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
-          .map(_.sortBy(-_._2).map(_._1))
-          .flatMap {
-            case Nil => graph.pure[F]
-            case _ :: doubleSpenders =>
-              Logger[F].debug(show"Ignoring double-spend transactions ${doubleSpenders.map(_.id)}") *>
-              Sync[F].delay(doubleSpenders.foldLeft(graph)(_.removeSubtree(_)._1))
-          }
+          /**
+           * Steps through the given collection of spenders (of a specific transaction), and if multiple
+           * dependents attempt to spend the same TxO, the dependents with the lowest subgraph score will be removed
+           * from the returned graph
+           */
+          private def pruneDoubleSpenders(graph: MempoolGraph[F])(spenders: Set[TransactionId]): F[MempoolGraph[F]] =
+            Logger[F].debug("Searching for double-spend transactions") >>
+            spenders.toList
+              .map(graph.ioTransactions)
+              .parTraverse(tx => subgraphScore(graph)(tx).tupleLeft(tx))
+              .map(_.sortBy(-_._2).map(_._1))
+              .flatMap {
+                case Nil => graph.pure[F]
+                case _ :: doubleSpenders =>
+                  Logger[F].debug(show"Ignoring double-spend transactions ${doubleSpenders.map(_.id)}") *>
+                  Sync[F].delay(doubleSpenders.foldLeft(graph)(_.removeSubtree(_)._1))
+              }
 
     }
   }

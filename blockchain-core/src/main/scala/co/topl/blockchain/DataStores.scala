@@ -143,7 +143,10 @@ object CurrentEventIdGetterSetters {
   object GetterSetter {
 
     def forByte[F[_]: MonadThrow](store: Store[F, Byte, BlockId])(byte: Byte): GetterSetter[F] =
-      CurrentEventIdGetterSetters.GetterSetter(() => store.getOrRaise(byte), store.put(byte, _))
+      CurrentEventIdGetterSetters.GetterSetter(
+        () => store.getOrRaise(byte),
+        store.put(byte, _)
+      )
   }
 
   object Indices {

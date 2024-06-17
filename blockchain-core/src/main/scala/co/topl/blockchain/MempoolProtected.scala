@@ -20,10 +20,11 @@ import cats.effect.std.Semaphore
 import co.topl.config.ApplicationConfig.Bifrost.MempoolProtection
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import fs2.concurrent.Topic
+import co.topl.algebras.Stats
 
 object MempoolProtected {
 
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async: Logger: Stats](
     mempool:                          MempoolAlgebra[F],
     semanticValidationAlgebra:        TransactionSemanticValidationAlgebra[F],
     transactionAuthorizationVerifier: TransactionAuthorizationVerifier[F],
@@ -55,7 +56,7 @@ object MempoolProtected {
         .toResource
     } yield memoryPool
 
-  class MempoolProtected[F[_]: Async: Logger](
+  class MempoolProtected[F[_]: Async: Logger: Stats](
     underlying:               MempoolAlgebra[F],
     semanticValidation:       TransactionSemanticValidationAlgebra[F],
     transactionAuthorization: TransactionAuthorizationVerifier[F],
@@ -67,7 +68,7 @@ object MempoolProtected {
     config:                   MempoolProtection,
     semaphore:                Semaphore[F]
   ) extends MempoolAlgebra[F] {
-    override def read(blockId: BlockId): F[MempoolGraph] = underlying.read(blockId)
+    override def read(blockId: BlockId): F[MempoolGraph[F]] = underlying.read(blockId)
 
     override def add(transactionId: TransactionId): F[Boolean] = semaphore.permit.use { _ =>
       for {
@@ -95,7 +96,7 @@ object MempoolProtected {
 
     private def checkTransaction(
       currentHeader: BlockHeader,
-      graph:         MempoolGraph,
+      graph:         MempoolGraph[F],
       transaction:   IoTransactionEx
     ): F[Boolean] = {
       val txId = transaction.tx.id
@@ -124,7 +125,7 @@ object MempoolProtected {
       }
     }
 
-    private def doSemanticCheck(currentHeader: BlockHeader, graph: MempoolGraph)(
+    private def doSemanticCheck(currentHeader: BlockHeader, graph: MempoolGraph[F])(
       txToValidate: IoTransactionEx
     ): EitherT[F, String, IoTransactionEx] = {
       val semanticContextTemplate = StaticTransactionValidationContext(
@@ -158,7 +159,7 @@ object MempoolProtected {
     }
 
     private def doFeeCheck(
-      graph: MempoolGraph
+      graph: MempoolGraph[F]
     )(txToValidate: IoTransactionEx): EitherT[F, String, IoTransactionEx] =
       if ((graph.memSize + txToValidate.size) < config.feeFilterThreshold) {
         EitherT.right[String](txToValidate.pure[F])
@@ -170,6 +171,31 @@ object MempoolProtected {
           if (freeMempoolSizePercent == 0) Double.MaxValue
           else (meanFeePerKByte / freeMempoolSizePercent) - meanFeePerKByte
 
+        Stats[F].recordGauge(
+          "bifrost_mempool_mean_fee_per_kb",
+          "Average fee per kb in Topls.",
+          Map(),
+          meanFeePerKByte.toLong
+        )
+        Stats[F].recordGauge(
+          "bifrost_mempool_free_size",
+          "Current free size of the mempool.",
+          Map(),
+          freeMempoolSize.toLong
+        )
+        Stats[F].recordGauge(
+          "bifrost_mempool_free_size_percent",
+          "Current free size ratio of the mempool.",
+          Map(),
+          freeMempoolSizePercent.toLong
+        )
+        Stats[F].recordGauge(
+          "bifrost_mempool_minimum_fee_per_kilobyte",
+          "Minimum fee per kb.",
+          Map(),
+          minimumFeePerKByte.toLong
+        )
+
         Either
           .cond(
             test = txToValidate.toplFeePerKByte >= minimumFeePerKByte,
@@ -180,7 +206,7 @@ object MempoolProtected {
           .toEitherT[F]
       }
 
-    private def doAgeCheck(currentHeader: BlockHeader, graph: MempoolGraph)(
+    private def doAgeCheck(currentHeader: BlockHeader, graph: MempoolGraph[F])(
       txToValidate: IoTransactionEx
     ): EitherT[F, String, IoTransactionEx] =
       if ((graph.memSize + txToValidate.size) < config.ageFilterThreshold) {

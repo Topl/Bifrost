@@ -24,6 +24,7 @@ import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
 import co.topl.ledger.models._
 import co.topl.quivr.runtime.DynamicContext
 import scala.annotation.tailrec
+import co.topl.algebras.Stats.Implicits._
 
 class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -90,7 +91,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
 
       val underlying = mock[MempoolAlgebra[F]]
       val readBlockId = arbitraryBlockId.arbitrary.first
-      val readMempoolGraph = MempoolGraph(Map.empty, Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+      val readMempoolGraph = MempoolGraph[F](Map.empty, Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
       (underlying.read _).expects(readBlockId).once().returns(readMempoolGraph.pure[F])
 
       val removeTx = arbitraryTxWithInput
@@ -101,7 +102,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       (underlying.contains _).expects(containsBlockId, containsTx.id).returns(true.pure[F])
 
       val (addedTx, fetchTransaction) = makeTransaction
-      val addMempoolGraph = MempoolGraph(Map.empty, Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+      val addMempoolGraph = MempoolGraph[F](Map.empty, Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
       (underlying.read _).expects(currentBlockHeader.id).once().returns(addMempoolGraph.pure[F])
       (underlying.add _).expects(addedTx.id).once().returns(true.pure[F])
 
@@ -151,7 +152,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
-        MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+        MempoolGraph[F](Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
       // first tx, no check because we didn't hit threshold
       (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
@@ -223,7 +224,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
-        MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+        MempoolGraph[F](Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
       // Consider tx already in memorypool because did not hit useMempoolForSemanticThreshold threshold
       (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
@@ -320,7 +321,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
-        MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+        MempoolGraph[F](Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
       (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
       (costMock.costOf _).expects(addedTx).returns(1000L)
@@ -389,7 +390,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
       val txInMempool = arbitraryTxWithInput
       val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(), 500L)
       val mempoolGraph =
-        MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+        MempoolGraph[F](Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
       (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
       (costMock.costOf _).expects(addedTx).returns(1000L)
@@ -443,7 +444,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
     val freeMempoolSizePercent = (maxMempoolSize - sizeInMempool).toDouble / maxMempoolSize.toDouble
     val txExInMempool = IoTransactionEx(txInMempool, RewardQuantities(topl = feeInMempool.toLong), sizeInMempool)
     val mempoolGraph =
-      MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+      MempoolGraph[F](Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
     (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
     val feeBelowTxSize = 1024
@@ -521,7 +522,7 @@ class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite wi
     val txExInMempool =
       IoTransactionEx(txInMempool, RewardQuantities(topl = feeInMempool.toLong), occupiedMempoolSize)
     val mempoolGraph =
-      MempoolGraph(Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
+      MempoolGraph[F](Map(txInMempool.id -> txExInMempool), Map.empty, Map.empty, dummyRewardCalc, dummyCostCalc)
 
     (underlying.read _).expects(currentBlockHeader.id).once().returns(mempoolGraph.pure[F])
     val heightBellow =

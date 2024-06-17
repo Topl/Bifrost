@@ -1,6 +1,7 @@
 package co.topl.minting.interpreters
 
 import cats.effect.{IO, Resource}
+import co.topl.algebras.Stats.Implicits._
 import cats.implicits._
 import co.topl.algebras.ContextlessValidationAlgebra
 import co.topl.brambl.generators.ModelGenerators._
@@ -43,7 +44,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .read(_: BlockId))
         .expects(*)
         .anyNumberOfTimes()
-        .returning(MempoolGraph.empty(dummyRewardCalc, dummyCostCalc).pure[F])
+        .returning(MempoolGraph.empty[F](dummyRewardCalc, dummyCostCalc).pure[F])
       val testResource =
         for {
           underTest <- BlockPacker.make[F](
@@ -120,7 +121,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
           .embedId
 
       val mempool = mock[MempoolAlgebra[F]]
-      val mempoolGraph = MempoolGraph.empty(dummyRewardCalc, dummyCostCalc).add(tx2).add(tx3).add(tx4)
+      val mempoolGraph = MempoolGraph.empty[F](dummyRewardCalc, dummyCostCalc).add(tx2).add(tx3).add(tx4)
       (mempool.read(_: BlockId)).expects(*).once().returning(mempoolGraph.pure[F])
       val boxState = mock[BoxStateAlgebra[F]]
       (boxState
@@ -225,7 +226,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
           .embedId
 
       val mempool = mock[MempoolAlgebra[F]]
-      val mempoolGraph = MempoolGraph.empty(dummyRewardCalc, dummyCostCalc).add(tx2).add(tx3).add(tx4)
+      val mempoolGraph = MempoolGraph.empty[F](dummyRewardCalc, dummyCostCalc).add(tx2).add(tx3).add(tx4)
       (mempool.read(_: BlockId)).expects(*).once().returning(mempoolGraph.pure[F])
       (mempool.remove(_: TransactionId)).expects(tx3.id).once().returning(().pure[F])
       (mempool.remove(_: TransactionId)).expects(tx4.id).once().returning(().pure[F])

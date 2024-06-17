@@ -7,6 +7,8 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
 import co.topl.brambl.validation.algebras.TransactionCostCalculator
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
+import co.topl.algebras.Stats
+import cats.effect.kernel.Sync
 
 /**
  * @param transactions a collection of all transactions in the mempool
@@ -15,7 +17,7 @@ import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
  * @param unresolved a collection of STxOs that attempt to spend unknown UTxOs.  The key is the transaction ID and the
  *                   value is the set of input indices on that transaction that are unresolved
  */
-case class MempoolGraph(
+case class MempoolGraph[F[_]: Sync: Stats](
   transactions:     Map[TransactionId, IoTransactionEx],
   spenders:         Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
   unresolved:       Map[TransactionId, NonEmptySet[Int]],
@@ -33,9 +35,9 @@ case class MempoolGraph(
    * @param transaction The transaction to remove
    * @return a new MempoolGraph
    */
-  def removeSingle(transaction: IoTransaction): MempoolGraph =
+  def removeSingle(transaction: IoTransaction): MempoolGraph[F] =
     if (transactions.contains(transaction.id))
-      MempoolGraph(
+      MempoolGraph[F](
         transactions = transactions - transaction.id,
         // Step through each input of this transaction, and remove any associated spender entries from the referenced UTxOs
         spenders = transaction.inputs.zipWithIndex.foldLeft(spenders.removed(transaction.id)) {
@@ -62,16 +64,16 @@ case class MempoolGraph(
   /**
    * Remove the given transaction from this graph and all recursive transactions that depend on it.
    * @param transaction The transaction to remove
-   * @return a tuple containing (new MempoolGraph, removed transactions)
+   * @return a tuple containing (new MempoolGraph[F], removed transactions)
    */
-  def removeSubtree(transaction: IoTransactionEx): (MempoolGraph, Set[IoTransaction]) = removeSubtree(transaction.tx)
+  def removeSubtree(transaction: IoTransactionEx): (MempoolGraph[F], Set[IoTransaction]) = removeSubtree(transaction.tx)
 
   /**
    * Remove the given transaction from this graph and all recursive transactions that depend on it.
    * @param transaction The transaction to remove
-   * @return a tuple containing (new MempoolGraph, removed transactions)
+   * @return a tuple containing (new MempoolGraph[F], removed transactions)
    */
-  def removeSubtree(transaction: IoTransaction): (MempoolGraph, Set[IoTransaction]) =
+  def removeSubtree(transaction: IoTransaction): (MempoolGraph[F], Set[IoTransaction]) =
     if (transactions.contains(transaction.id)) {
       val (newGraph, removed) =
         spenders
@@ -93,7 +95,7 @@ case class MempoolGraph(
    * @param transaction the transaction to add
    * @return an updated MempoolGraph
    */
-  def add(transaction: IoTransaction): MempoolGraph = add(
+  def add(transaction: IoTransaction): MempoolGraph[F] = add(
     IoTransactionEx(transaction, rewardCalculator.rewardsOf(transaction), txCostCalculator.costOf(transaction))
   )
 
@@ -102,7 +104,7 @@ case class MempoolGraph(
    * @param transaction the transaction to add
    * @return an updated MempoolGraph
    */
-  def add(transaction: IoTransactionEx): MempoolGraph =
+  def add(transaction: IoTransactionEx): MempoolGraph[F] =
     if (transactions.contains(transaction.tx.id))
       this
     else {
@@ -130,7 +132,7 @@ case class MempoolGraph(
         if (transactions.contains(input.address.id)) unresolved
         else unresolved.updatedWith(transaction.tx.id)(_.foldLeft(NonEmptySet.one(index))(_ ++ _).some)
       }
-      MempoolGraph(
+      MempoolGraph[F](
         transactions = transactions + (transaction.tx.id -> transaction),
         spenders = newSpenders + (transaction.tx.id      -> spenderEntry),
         unresolved = spenderEntry.values.flatten.foldLeft(newUnresolved) { case (unresolved, (id, index)) =>
@@ -144,14 +146,14 @@ case class MempoolGraph(
 
 object MempoolGraph {
 
-  def fromTxs(
+  def fromTxs[F[_]: Sync: Stats](
     transactions:            Map[TransactionId, IoTransaction],
     spenders:                Map[TransactionId, Map[Int, Set[(TransactionId, Int)]]],
     unresolved:              Map[TransactionId, NonEmptySet[Int]],
     rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra,
     txCostCalculator:        TransactionCostCalculator
-  ): MempoolGraph =
-    MempoolGraph(
+  ): MempoolGraph[F] =
+    MempoolGraph[F](
       transactions.view
         .mapValues(tx => IoTransactionEx(tx, rewardCalculatorAlgebra.rewardsOf(tx), txCostCalculator.costOf(tx)))
         .toMap,
@@ -161,11 +163,11 @@ object MempoolGraph {
       txCostCalculator
     )
 
-  def empty(
+  def empty[F[_]: Sync: Stats](
     rewardCalculatorAlgebra: TransactionRewardCalculatorAlgebra,
     txCostCalculator:        TransactionCostCalculator
-  ): MempoolGraph =
-    MempoolGraph(
+  ): MempoolGraph[F] =
+    MempoolGraph[F](
       Map.empty[TransactionId, IoTransactionEx],
       Map.empty,
       Map.empty,
