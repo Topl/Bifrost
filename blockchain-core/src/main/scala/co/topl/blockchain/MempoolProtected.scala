@@ -172,30 +172,38 @@ object MempoolProtected {
           else (meanFeePerKByte / freeMempoolSizePercent) - meanFeePerKByte
 
         for {
-          _ <- EitherT.liftF(Stats[F].recordGauge(
-            "bifrost_mempool_mean_fee_per_kb",
-            "Average fee per kb in Topls.",
-            Map(),
-            meanFeePerKByte.toLong
-          ))
-          _ <- EitherT.liftF(Stats[F].recordGauge(
-            "bifrost_mempool_free_size",
-            "Current free size of the mempool.",
-            Map(),
-            freeMempoolSize.toLong
-          ))
-          _ <- EitherT.liftF(Stats[F].recordGauge(
-            "bifrost_mempool_free_size_percent",
-            "Current free size ratio of the mempool.",
-            Map(),
-            freeMempoolSizePercent.toLong
-          ))
-          _ <- EitherT.liftF(Stats[F].recordGauge(
-            "bifrost_mempool_minimum_fee_per_kilobyte",
-            "Minimum fee per kb.",
-            Map(),
-            minimumFeePerKByte.toLong
-          ))
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_mean_fee_per_kb",
+              "Average fee per kb in Topls.",
+              Map(),
+              meanFeePerKByte.toLong
+            )
+          )
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_free_size",
+              "Current free size of the mempool.",
+              Map(),
+              freeMempoolSize.toLong
+            )
+          )
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_free_size_percent",
+              "Current free size ratio of the mempool.",
+              Map(),
+              freeMempoolSizePercent.toLong
+            )
+          )
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_minimum_fee_per_kilobyte",
+              "Minimum fee per kb.",
+              Map(),
+              minimumFeePerKByte.toLong
+            )
+          )
 
           result <- Either
             .cond(
