@@ -176,30 +176,20 @@ object EpochDataEventSourcedState {
         )
         newEpochData <- applyTransactions(newEpochDataBase)(header)
         _            <- state.put(epoch, newEpochData)
-        _ <- Sync[F].defer(
-          Stats[F].recordGauge(
-            "bifrost_epoch_timestamp",
-            "Timestamp of the epoch.",
-            Map("epoch" -> epoch.toString),
-            newEpochData.startTimestamp
-          )
+        _ <- Stats[F].recordGauge(
+          "bifrost_epoch_timestamp",
+          "Timestamp of the epoch.",
+          Map("epoch" -> epoch.toString),
+          newEpochData.startTimestamp
         )
-        _ <- Sync[F].defer(
-          Stats[F].recordGauge("bifrost_epoch", "Current value of the Epoch.", Map(), newEpochData.epoch)
-        )
-        _ <- Sync[F].defer(
-          Stats[F].recordGauge("bifrost_epoch_eon", "Current value of the Eon.", Map(), newEpochData.eon)
-        )
-        _ <- Sync[F].defer(
-          Stats[F].recordGauge("bifrost_epoch_era", "Current value of the Era.", Map(), newEpochData.era)
-        )
-        _ <- Sync[F].defer(
-          Stats[F].recordGauge(
-            "bifrost_epoch_transaction_count",
-            "Current value of the Era.",
-            Map("epoch" -> epoch.toString),
-            newEpochData.transactionCount
-          )
+        _ <- Stats[F].recordGauge("bifrost_epoch", "Current value of the Epoch.", Map(), newEpochData.epoch)
+        _ <- Stats[F].recordGauge("bifrost_epoch_eon", "Current value of the Eon.", Map(), newEpochData.eon)
+        _ <- Stats[F].recordGauge("bifrost_epoch_era", "Current value of the Era.", Map(), newEpochData.era)
+        _ <- Stats[F].recordGauge(
+          "bifrost_epoch_transaction_count",
+          "Current value of the Era.",
+          Map("epoch" -> epoch.toString),
+          newEpochData.transactionCount
         )
       } yield state
 
