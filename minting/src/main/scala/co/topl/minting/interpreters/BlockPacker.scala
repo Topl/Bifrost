@@ -94,7 +94,7 @@ object BlockPacker {
       /**
        * Initializes the state with the current mempool and cedes
        */
-      def initFromMempool: F[MempoolGraph[F]] =
+      def initFromMempool: F[MempoolGraph] =
         Async[F].defer(
           Logger[F].debug("Initializing block packing from mempool") *>
           mempool
@@ -115,7 +115,7 @@ object BlockPacker {
       /**
        * Step through each transaction in the mempool, and remove any transaction sub-trees that are not (currently) authorized
        */
-      def filterValidTransactions(graph: MempoolGraph[F]): F[MempoolGraph[F]] =
+      def filterValidTransactions(graph: MempoolGraph): F[MempoolGraph] =
         Logger[F].debug("Validating available transactions") >>
         graph.ioTransactions.values.toList
           .parTraverse(tx => blockPackerValidation.transactionIsValid(tx, height, slot).tupleLeft(tx))
@@ -140,7 +140,7 @@ object BlockPacker {
        * does not know about some transactions yet).  These transactions (and all recursive dependents) should
        * be removed from the graph since they can't be applied to the chain yet.
        */
-      def pruneUnresolvedTransactions(graph: MempoolGraph[F]): F[MempoolGraph[F]] =
+      def pruneUnresolvedTransactions(graph: MempoolGraph): F[MempoolGraph] =
         Logger[F].debug("Discarding transactions which spend unknown/unspendable UTxOs") >>
         graph.unresolved.toList
           .traverseFilter { case (id, indices) =>
@@ -161,7 +161,7 @@ object BlockPacker {
       /**
        * Some of the "unresolved" transactions of the mempool may be double-spends, so prune away the lower-value sub-graphs.
        */
-      def stripDoubleSpendUnresolved(graph: MempoolGraph[F]): F[MempoolGraph[F]] =
+      def stripDoubleSpendUnresolved(graph: MempoolGraph): F[MempoolGraph] =
         Logger[F].debug("Discarding lower-value double-spend transactions") >>
         Sync[F]
           .delay(
@@ -190,7 +190,7 @@ object BlockPacker {
        *
        * If no double-spends are found, moves on to the final stage of forming a block
        */
-      def stripGraph(graph: MempoolGraph[F]): F[MempoolGraph[F]] =
+      def stripGraph(graph: MempoolGraph): F[MempoolGraph] =
         Async[F].cede *>
         (graph.spenders.find(_._2.exists(_._2.size > 1)) match {
           // Find the first instance of a double-spender in the graph and prune its subtree
@@ -210,7 +210,7 @@ object BlockPacker {
        * @param graph a graph with all double-spends removed
        * @return a FullBlockBody
        */
-      def formBlockBody(graph: MempoolGraph[F]): Stream[F, FullBlockBody] = {
+      def formBlockBody(graph: MempoolGraph): Stream[F, FullBlockBody] = {
         def withDependencies(transaction: IoTransaction): F[ListSet[TransactionId]] =
           transaction.inputs
             .map(_.address.id)
@@ -292,7 +292,7 @@ object BlockPacker {
       /**
        * Accumulate the score of the given transaction, as well as all dependent transactions
        */
-      private def subgraphScore(graph: MempoolGraph[F])(transaction: IoTransaction): F[BigInt] =
+      private def subgraphScore(graph: MempoolGraph)(transaction: IoTransaction): F[BigInt] =
         Async[F].cede *>
         (
           transactionScore(transaction),
@@ -317,7 +317,7 @@ object BlockPacker {
        * dependents attempt to spend the same TxO, the dependents with the lowest subgraph score will be removed
        * from the returned graph
        */
-      private def pruneDoubleSpenders(graph: MempoolGraph[F])(spenders: Set[TransactionId]): F[MempoolGraph[F]] =
+      private def pruneDoubleSpenders(graph: MempoolGraph)(spenders: Set[TransactionId]): F[MempoolGraph] =
         Logger[F].debug("Searching for double-spend transactions") >>
         spenders.toList
           .map(graph.ioTransactions)

@@ -21,7 +21,7 @@ import co.topl.algebras.Stats
 
 object Mempool {
 
-  type State[F[_]] = Ref[F, MempoolGraph[F]]
+  type State[F[_]] = Ref[F, MempoolGraph]
 
   // scalastyle:off method.length
   def make[F[_]: Async: Stats](
@@ -38,7 +38,7 @@ object Mempool {
   ): Resource[F, (MempoolAlgebra[F], EventSourcedState[F, State[F], BlockId])] =
     for {
       graphState <- Ref
-        .of(MempoolGraph[F](Map.empty, Map.empty, Map.empty, transactionRewardCalculator, txCostCalculator))
+        .of(MempoolGraph(Map.empty, Map.empty, Map.empty, transactionRewardCalculator, txCostCalculator))
         .toResource
       expirationsState <- Resource.make(Ref.of(Map.empty[TransactionId, Fiber[F, Throwable, Unit]]))(
         _.get.flatMap(_.values.toList.traverse(_.cancel).void)
@@ -104,7 +104,7 @@ object Mempool {
         .toResource
       interpreter = new MempoolAlgebra[F] {
 
-        def read(blockId: BlockId): F[MempoolGraph[F]] =
+        def read(blockId: BlockId): F[MempoolGraph] =
           eventSourcedState
             .useStateAt(blockId)(_.get)
 

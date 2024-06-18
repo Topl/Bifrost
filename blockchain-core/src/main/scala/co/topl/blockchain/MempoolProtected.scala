@@ -68,7 +68,7 @@ object MempoolProtected {
     config:                   MempoolProtection,
     semaphore:                Semaphore[F]
   ) extends MempoolAlgebra[F] {
-    override def read(blockId: BlockId): F[MempoolGraph[F]] = underlying.read(blockId)
+    override def read(blockId: BlockId): F[MempoolGraph] = underlying.read(blockId)
 
     override def add(transactionId: TransactionId): F[Boolean] = semaphore.permit.use { _ =>
       for {
@@ -96,7 +96,7 @@ object MempoolProtected {
 
     private def checkTransaction(
       currentHeader: BlockHeader,
-      graph:         MempoolGraph[F],
+      graph:         MempoolGraph,
       transaction:   IoTransactionEx
     ): F[Boolean] = {
       val txId = transaction.tx.id
@@ -125,7 +125,7 @@ object MempoolProtected {
       }
     }
 
-    private def doSemanticCheck(currentHeader: BlockHeader, graph: MempoolGraph[F])(
+    private def doSemanticCheck(currentHeader: BlockHeader, graph: MempoolGraph)(
       txToValidate: IoTransactionEx
     ): EitherT[F, String, IoTransactionEx] = {
       val semanticContextTemplate = StaticTransactionValidationContext(
@@ -159,7 +159,7 @@ object MempoolProtected {
     }
 
     private def doFeeCheck(
-      graph: MempoolGraph[F]
+      graph: MempoolGraph
     )(txToValidate: IoTransactionEx): EitherT[F, String, IoTransactionEx] =
       if ((graph.memSize + txToValidate.size) < config.feeFilterThreshold) {
         EitherT.right[String](txToValidate.pure[F])
@@ -216,7 +216,7 @@ object MempoolProtected {
         } yield (result)
       }
 
-    private def doAgeCheck(currentHeader: BlockHeader, graph: MempoolGraph[F])(
+    private def doAgeCheck(currentHeader: BlockHeader, graph: MempoolGraph)(
       txToValidate: IoTransactionEx
     ): EitherT[F, String, IoTransactionEx] =
       if ((graph.memSize + txToValidate.size) < config.ageFilterThreshold) {

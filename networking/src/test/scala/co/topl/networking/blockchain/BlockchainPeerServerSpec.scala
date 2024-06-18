@@ -27,7 +27,6 @@ import fs2.concurrent.Topic
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
-import co.topl.algebras.Stats.Implicits._
 
 import scala.concurrent.duration._
 
@@ -197,7 +196,7 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         adoptionC:  TransactionId
       ) =>
         withMock {
-          val currentMempool = MempoolGraph.fromTxs[F](
+          val currentMempool = MempoolGraph.fromTxs(
             Map(
               mempoolTxA -> IoTransaction.defaultInstance,
               mempoolTxB -> IoTransaction.defaultInstance,

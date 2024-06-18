@@ -10,7 +10,7 @@ trait MempoolAlgebra[F[_]] {
   /**
    * Read the set of unconfirmed Transaction IDs at the given block ID
    */
-  def read(blockId: BlockId): F[MempoolGraph[F]]
+  def read(blockId: BlockId): F[MempoolGraph]
 
   /**
    * Inserts an externally sourced Transaction ID into the Mempool,
