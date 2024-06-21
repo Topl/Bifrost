@@ -18,7 +18,7 @@ import co.topl.algebras.Stats.Implicits._
 
 import scala.concurrent.duration._
 import cats.effect.kernel.Async
-import cats.data.Validated
+import cats.data.{NonEmptyChain, Validated}
 
 class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
@@ -27,10 +27,13 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
   private val blockId1 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(1)))
   private val blockId2 = BlockId(ByteString.copyFrom(Array.fill[Byte](32)(2)))
 
-  val chainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
-    override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compareTo(y.height).pure[F]
-    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = ???
-  }
+  val chainSelection: ChainSelectionAlgebra[F, BlockId, SlotData] =
+    new ChainSelectionAlgebra[F, BlockId, SlotData] {
+
+      override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+        x.height.compareTo(y.height).pure[F]
+      override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = ???
+    }
 
   test("store the head of the local canonical tine") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
@@ -80,7 +83,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
 
         LocalChain
           .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
-          .use(_.isWorseThan(newHead).assert)
+          .use(_.isWorseThan(NonEmptyChain.one(newHead)).assert)
       }
     }
   }

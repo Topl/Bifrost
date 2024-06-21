@@ -52,7 +52,7 @@ object ChainSelection {
     blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
-  ): ChainSelectionAlgebra[F, SlotData] =
+  ): ChainSelectionAlgebra[F, BlockId, SlotData] =
     new ChainSelectionImpl[F](fetchSlotData, blake2b512Resource, kLookback, sWindow)
 
   /**
@@ -63,7 +63,7 @@ object ChainSelection {
     blake2b512Resource: Resource[F, Blake2b512],
     kLookback:          Long,
     sWindow:            Long
-  ) extends ChainSelectionAlgebra[F, SlotData] {
+  ) extends ChainSelectionAlgebra[F, BlockId, SlotData] {
 
     implicit private val logger: Logger[F] =
       Slf4jLogger.getLoggerFromName("Bifrost.ChainSelection")
@@ -77,14 +77,14 @@ object ChainSelection {
       }
     }
 
-    override def compare(x: SlotData, y: SlotData): F[Int] =
+    override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
       Async[F].defer(
         if (x === y) 0.pure[F]
         else if (x.parentSlotId.blockId === y.slotId.blockId) 1.pure[F]
         else if (y.parentSlotId.blockId === x.slotId.blockId) (-1).pure[F]
         else
           TineComparisonTraversal
-            .build(x, y)
+            .build(x, y, yFetcher)
             .flatTap(logTraversal)
             .flatMap(_.comparisonResult)
       )
@@ -94,7 +94,7 @@ object ChainSelection {
      */
     private def logTraversal(traversal: TineComparisonTraversal): F[Unit] =
       traversal match {
-        case LongestChainTraversal(xSegment, ySegment) if xSegment.tineLength > 1 && ySegment.tineLength > 1 =>
+        case LongestChainTraversal(xSegment, ySegment, _) if xSegment.tineLength > 1 && ySegment.tineLength > 1 =>
           Logger[F].info(
             "Performing standard chain selection" +
             show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
@@ -110,7 +110,7 @@ object ChainSelection {
             Map("tine_x_length" -> xSegment.tineLength),
             ySegment.tineLength
           )
-        case DensityChainTraversal(xSegment, ySegment) =>
+        case DensityChainTraversal(xSegment, ySegment, _) =>
           Logger[F].info(
             "Performing density chain selection" +
             show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
@@ -144,12 +144,20 @@ object ChainSelection {
        */
       protected def prependSegments[C[_]: Prepend: NonEmpty](
         xSegment: C[SlotData],
-        ySegment: C[SlotData]
+        ySegment: C[SlotData],
+        yFetcher: BlockId => F[Option[SlotData]]
       ): F[(C[SlotData], C[SlotData])] = {
 
-        def prependSegment(segment: C[SlotData]): F[C[SlotData]] =
+        def prependSegment(
+          segment:           C[SlotData],
+          additionalFetcher: BlockId => F[Option[SlotData]] = (_ => Option.empty[SlotData].pure[F])
+        ): F[C[SlotData]] =
           for {
-            parent <- fetchSlotData(NonEmpty[C].head(segment).parentSlotId.blockId)
+            id <- NonEmpty[C].head(segment).parentSlotId.blockId.pure[F]
+            parent <- additionalFetcher(id).flatMap {
+              case Some(slotId) => slotId.pure[F]
+              case None         => fetchSlotData(id)
+            }
             prepended = Prepend[C].prepend(parent, segment)
           } yield prepended
 
@@ -157,7 +165,7 @@ object ChainSelection {
         val yLowestHeight = NonEmpty[C].head(ySegment).height
 
         xLowestHeight.comparison(yLowestHeight) match {
-          case Comparison.EqualTo     => (prependSegment(xSegment), prependSegment(ySegment)).tupled
+          case Comparison.EqualTo     => (prependSegment(xSegment), prependSegment(ySegment, yFetcher)).tupled
           case Comparison.GreaterThan => (prependSegment(xSegment), ySegment.pure[F]).tupled
           case Comparison.LessThan    => (xSegment.pure[F], prependSegment(ySegment)).tupled
         }
@@ -170,8 +178,8 @@ object ChainSelection {
        * Assembles an entire traversal (to some common ancestor) given two tine heads.  This operation starts
        * with a LongestChainTraversal but will switch to a DensityTraversal if the traversal digs deep enough
        */
-      def build(x: SlotData, y: SlotData): F[TineComparisonTraversal] =
-        (LongestChainTraversal(NonEmptyChain.one(x), NonEmptyChain.one(y)): TineComparisonTraversal)
+      def build(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[TineComparisonTraversal] =
+        (LongestChainTraversal(NonEmptyChain.one(x), NonEmptyChain.one(y), yFetcher): TineComparisonTraversal)
           .iterateWhileM(c => Async[F].cede >> c.next)(!_.sharesCommonAncestor)
     }
 
@@ -182,20 +190,25 @@ object ChainSelection {
      */
     private case class LongestChainTraversal(
       xSegment: NonEmptyChain[SlotData],
-      ySegment: NonEmptyChain[SlotData]
+      ySegment: NonEmptyChain[SlotData],
+      yFetcher: BlockId => F[Option[SlotData]]
     ) extends TineComparisonTraversal {
 
       def next: F[TineComparisonTraversal] =
         // Prepend/accumulate the next parent header for the xSegment and the ySegment
         for {
-          (newXSegment, newYSegment) <- prependSegments(xSegment, ySegment)
+          (newXSegment, newYSegment) <- prependSegments(xSegment, ySegment, yFetcher)
           // Once we've traversed back K number of blocks, switch to the chain density rule
           switchToChainDensity = (newXSegment.tineLength > kLookback) || (newYSegment.tineLength > kLookback)
           nextTraversal =
             if (switchToChainDensity)
-              DensityChainTraversal(newXSegment.toNonEmptyVector, newYSegment.toNonEmptyVector).slicedWithinSWindow
+              DensityChainTraversal(
+                newXSegment.toNonEmptyVector,
+                newYSegment.toNonEmptyVector,
+                yFetcher
+              ).slicedWithinSWindow
             else
-              LongestChainTraversal(newXSegment, newYSegment)
+              LongestChainTraversal(newXSegment, newYSegment, yFetcher)
         } yield nextTraversal
 
       def sharesCommonAncestor: Boolean =
@@ -212,13 +225,16 @@ object ChainSelection {
      * This aggregation process involves prepending a segment of chain and subsequently dropping the right-most elements
      * which do not fit within the `sWindow` based on the slot of the left-most element.
      */
-    private case class DensityChainTraversal(xSegment: NonEmptyVector[SlotData], ySegment: NonEmptyVector[SlotData])
-        extends TineComparisonTraversal {
+    private case class DensityChainTraversal(
+      xSegment: NonEmptyVector[SlotData],
+      ySegment: NonEmptyVector[SlotData],
+      yFetcher: BlockId => F[Option[SlotData]]
+    ) extends TineComparisonTraversal {
 
       def next: F[TineComparisonTraversal] =
         for {
-          (newXSegment, newYSegment) <- prependSegments(xSegment, ySegment)
-        } yield DensityChainTraversal(newXSegment, newYSegment).slicedWithinSWindow
+          (newXSegment, newYSegment) <- prependSegments(xSegment, ySegment, yFetcher)
+        } yield DensityChainTraversal(newXSegment, newYSegment, yFetcher).slicedWithinSWindow
 
       def sharesCommonAncestor: Boolean =
         xSegment.head === ySegment.head

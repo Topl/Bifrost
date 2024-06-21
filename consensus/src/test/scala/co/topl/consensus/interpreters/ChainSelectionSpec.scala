@@ -26,6 +26,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
   private val blake2b512Resource =
     ResourceSuiteLocalFixture("blake2b512", CatsUnsafeResource.make[F, Blake2b512](new Blake2b512, 1).toResource)
 
+  private val emptyFetcher = (_: BlockId) => Option.empty[SlotData].pure[F]
   override def munitFixtures = List(blake2b512Resource)
 
   // TODO: Use generators to account for edge cases
@@ -37,7 +38,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
       ChainSelection
         .make[F](mockFunction[BlockId, F[SlotData]], blake2b512Resource(), kLookback = 1, sWindow = 1)
 
-    orderT.compare(slotData, slotData).assertEquals(0)
+    orderT.compare(slotData, slotData, emptyFetcher).assertEquals(0)
   }
 
   test("use longest-chain rule for tines shorter than the kLookback parameter") {
@@ -71,7 +72,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, emptyFetcher).map(_ > 0).assert
     }
 
     test("use lowest-slot rule for equal length tines shorter than the kLookback parameter") {
@@ -110,7 +111,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, emptyFetcher).map(_ > 0).assert
     }
   }
 
@@ -176,7 +177,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, emptyFetcher).map(_ > 0).assert
     }
   }
 
@@ -212,7 +213,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 10, sWindow = 20)
 
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, emptyFetcher).map(_ > 0).assert
     }
 
     test("tiebreak chain-density rule by rhoTestHash for equal density tines") {
@@ -271,7 +272,7 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 0, sWindow = 150)
 
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, emptyFetcher).map(_ > 0).assert
     }
   }
 

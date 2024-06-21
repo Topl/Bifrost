@@ -239,7 +239,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
             .getOrRaise(block.header.id)
             .flatMap(slotData =>
               localBlockchain.consensus.localChain
-                .isWorseThan(slotData)
+                .isWorseThan(NonEmptyChain.one(slotData))
                 .ifM(
                   localBlockchain.consensus.localChain.adopt(Validated.Valid(slotData)),
                   Logger[F].warn("Skipping adoption of locally-produced block due to better local chain.")

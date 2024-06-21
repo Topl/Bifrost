@@ -32,7 +32,7 @@ trait NetworkAlgebra[F[_]] {
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
-    chainSelection:              ChainSelectionAlgebra[F, SlotData],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
@@ -57,7 +57,7 @@ trait NetworkAlgebra[F[_]] {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, BlockId, SlotData],
     ed25519VRF:                  Resource[F, Ed25519VRF],
     p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]]
@@ -80,7 +80,7 @@ trait NetworkAlgebra[F[_]] {
     requestsProxy:               RequestsProxyActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
-    chainSelection:              ChainSelectionAlgebra[F, SlotData],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
@@ -96,7 +96,7 @@ trait NetworkAlgebra[F[_]] {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
-    chainSelection:  ChainSelectionAlgebra[F, SlotData],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     commonAncestorF: CommonAncestorF[F]
@@ -130,7 +130,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
-    chainSelection:              ChainSelectionAlgebra[F, SlotData],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
@@ -180,7 +180,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, BlockId, SlotData],
     ed25519VRF:                  Resource[F, Ed25519VRF],
     p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]] =
@@ -220,7 +220,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     requestsProxy:               RequestsProxyActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
-    chainSelection:              ChainSelectionAlgebra[F, SlotData],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
@@ -252,7 +252,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
-    chainSelection:  ChainSelectionAlgebra[F, SlotData],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     commonAncestorF: CommonAncestorF[F]

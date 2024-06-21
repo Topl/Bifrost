@@ -1,12 +1,12 @@
 package co.topl.consensus
 
 import co.topl.consensus.algebras._
-import co.topl.consensus.models.SlotData
+import co.topl.consensus.models.{BlockId, SlotData}
 
 trait Consensus[F[_]] {
   def headerValidation: BlockHeaderValidationAlgebra[F]
   def headerToBodyValidation: BlockHeaderToBodyValidationAlgebra[F]
-  def chainSelection: ChainSelectionAlgebra[F, SlotData]
+  def chainSelection: ChainSelectionAlgebra[F, BlockId, SlotData]
   def consensusValidationState: ConsensusValidationStateAlgebra[F]
   def etaCalculation: EtaCalculationAlgebra[F]
   def leaderElection: LeaderElectionValidationAlgebra[F]
@@ -16,7 +16,7 @@ trait Consensus[F[_]] {
 case class ConsensusImpl[F[_]](
   headerValidation:         BlockHeaderValidationAlgebra[F],
   headerToBodyValidation:   BlockHeaderToBodyValidationAlgebra[F],
-  chainSelection:           ChainSelectionAlgebra[F, SlotData],
+  chainSelection:           ChainSelectionAlgebra[F, BlockId, SlotData],
   consensusValidationState: ConsensusValidationStateAlgebra[F],
   etaCalculation:           EtaCalculationAlgebra[F],
   leaderElection:           LeaderElectionValidationAlgebra[F],

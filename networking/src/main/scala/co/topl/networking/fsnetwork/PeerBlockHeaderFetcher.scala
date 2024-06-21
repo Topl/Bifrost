@@ -51,7 +51,7 @@ object PeerBlockHeaderFetcher {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
-    chainSelection:  ChainSelectionAlgebra[F, SlotData],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     fetchingFiber:   Option[Fiber[F, Throwable, Unit]],
@@ -75,7 +75,7 @@ object PeerBlockHeaderFetcher {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
-    chainSelection:  ChainSelectionAlgebra[F, SlotData],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
     clock:           ClockAlgebra[F],
@@ -359,7 +359,7 @@ object PeerBlockHeaderFetcher {
     NonEmptyChain.fromSeq(slotData) match {
       case Some(nonEmptySlotDataChain) =>
         val bestSlotData = nonEmptySlotDataChain.last
-        state.localChain.isWorseThan(bestSlotData).flatMap {
+        state.localChain.isWorseThan(nonEmptySlotDataChain).flatMap {
           case true => Async[F].pure(RemoteIsBetter(nonEmptySlotDataChain))
           case false =>
             state.localChain.head.map(localHead =>
