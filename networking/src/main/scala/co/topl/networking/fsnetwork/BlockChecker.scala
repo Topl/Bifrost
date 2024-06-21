@@ -70,7 +70,7 @@ object BlockChecker {
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    chainSelection:              ChainSelectionAlgebra[F, SlotData],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
@@ -103,7 +103,7 @@ object BlockChecker {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData],
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, BlockId, SlotData],
     ed25519VRF:                  Resource[F, Ed25519VRF],
     p2pNetworkConfig:            P2PNetworkConfig,
     bestChain:                   Option[BestChain] = None,
@@ -155,7 +155,10 @@ object BlockChecker {
     for {
       bestRemoteSlotData <- remoteSlotDataChain.last.pure[F]
       localBestSlotData  <- state.bestKnownRemoteSlotDataOpt.fold(state.localChain.head)(_.last.pure[F])
-      chainComparing = Async[F].defer(state.chainSelection.compare(bestRemoteSlotData, localBestSlotData).map(_ > 0))
+      remoteSlots = remoteSlotDataChain.toList.map(sd => (sd.slotId.blockId, sd)).toMap
+      fetcher = (id: BlockId) => remoteSlots.get(id).pure[F]
+      chainComparing =
+        Async[F].defer(state.chainSelection.compare(localBestSlotData, bestRemoteSlotData, fetcher).map(_ < 0))
       res <-
         // if received slot data chain could be appended to the END of current best slot data,
         // then we could skip chain comparing because
@@ -486,7 +489,7 @@ object BlockChecker {
     for {
       lastBlockSlotData <- state.slotDataStore.getOrRaise(id)
       _ <- state.localChain
-        .isWorseThan(lastBlockSlotData)
+        .isWorseThan(NonEmptyChain.one(lastBlockSlotData))
         .logDuration(show"Compare local chain after block apply")
         .ifM(
           ifTrue = state.localChain.adopt(Validated.Valid(lastBlockSlotData)) >>

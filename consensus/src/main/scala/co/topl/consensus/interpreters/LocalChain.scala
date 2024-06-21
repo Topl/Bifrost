@@ -1,6 +1,6 @@
 package co.topl.consensus.interpreters
 
-import cats.data.{EitherT, Validated}
+import cats.data.{EitherT, NonEmptyChain, Validated}
 import cats.effect.{Async, Ref, Resource}
 import cats.effect.kernel.Sync
 import cats.effect.implicits._
@@ -19,7 +19,7 @@ object LocalChain {
   def make[F[_]: Async: Stats](
     genesis:         SlotData,
     initialHead:     SlotData,
-    chainSelection:  ChainSelectionAlgebra[F, SlotData],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     onAdopted:       BlockId => F[Unit],
     blockHeightsESS: EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
   ): Resource[F, LocalChainAlgebra[F]] = {
@@ -33,8 +33,10 @@ object LocalChain {
         implicit private val logger: SelfAwareStructuredLogger[F] =
           Slf4jLogger.getLoggerFromName[F]("Bifrost.LocalChain")
 
-        def isWorseThan(newHead: SlotData): F[Boolean] =
-          head.flatMap(chainSelection.compare(_, newHead).map(_ < 0))
+        def isWorseThan(newHeadChain: NonEmptyChain[SlotData]): F[Boolean] = {
+          val idToSd = newHeadChain.map(sd => (sd.slotId.blockId, sd)).toList.toMap
+          head.flatMap(chainSelection.compare(_, newHeadChain.last, id => idToSd.get(id).pure[F]).map(_ < 0))
+        }
 
         // TODO add semaphore to avoid possible concurrency issue with adoption in the same time local / network
         def adopt(newHead: Validated.Valid[SlotData]): F[Unit] = {

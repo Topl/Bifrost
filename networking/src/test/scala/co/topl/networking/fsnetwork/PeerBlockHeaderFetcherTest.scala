@@ -41,12 +41,15 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
   val hostId: HostId = arbitraryHost.arbitrary.first
   val maxChainSize = 99
 
-  val defaultChainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
-    override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+  val defaultChainSelectionAlgebra: ChainSelectionAlgebra[F, BlockId, SlotData] =
+    new ChainSelectionAlgebra[F, BlockId, SlotData] {
 
-    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
-      proposedHeight.pure[F]
-  }
+      override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+        x.height.compare(y.height).pure[F]
+
+      override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
+        proposedHeight.pure[F]
+    }
 
   def defaultBodyStorage: Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]]
 
@@ -353,7 +356,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = buildLocalChainAlgebra()
       (() => localChain.head).expects().anyNumberOfTimes().returns(bestSlotData.pure[F])
-      (localChain.isWorseThan _).expects(bestSlotData).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestSlotData == ids.last)
+        (bestSlotData == ids.last).pure[F]
+      }
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
       slotDataStoreMap.put(knownId, knownSlotData)
@@ -438,17 +444,22 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val requestsProxy = mock[RequestsProxyActor[F]]
 
       val enoughHeightDelta = 1
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
-        override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+      val chainSelection: ChainSelectionAlgebra[F, BlockId, SlotData] =
+        new ChainSelectionAlgebra[F, BlockId, SlotData] {
 
-        override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
-          (proposedHeight - enoughHeightDelta).pure[F]
-      }
+          override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+            x.height.compare(y.height).pure[F]
+
+          override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
+            (proposedHeight - enoughHeightDelta).pure[F]
+        }
       val localChain = mock[LocalChainAlgebra[F]]
       (() => localChain.head).expects().anyNumberOfTimes().returns(bestSlotData.pure[F])
       val req = remoteSlotData.toList.dropRight(enoughHeightDelta)
-
-      (localChain.isWorseThan _).expects(req.last._2).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(req.last._2 == ids.last)
+        (req.last._2 == ids.last).pure[F]
+      }
 
       val necMes = NonEmptyChain.fromSeq(req).get
       val expectedSourceMessage: PeersManager.Message =
@@ -542,17 +553,23 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val requestsProxy = mock[RequestsProxyActor[F]]
 
       val enoughHeightDelta = 1
-      val chainSelection: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
-        override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+      val chainSelection: ChainSelectionAlgebra[F, BlockId, SlotData] =
+        new ChainSelectionAlgebra[F, BlockId, SlotData] {
 
-        override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
-          (proposedHeight - enoughHeightDelta).pure[F]
-      }
+          override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+            x.height.compare(y.height).pure[F]
+
+          override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
+            (proposedHeight - enoughHeightDelta).pure[F]
+        }
       val localChain = mock[LocalChainAlgebra[F]]
       (() => localChain.head).expects().anyNumberOfTimes().returns(bestSlotData.pure[F])
       val req = remoteSlotData.toList.dropRight(enoughHeightDelta)
 
-      (localChain.isWorseThan _).expects(req.last._2).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(req.last._2 == ids.last)
+        (req.last._2 == ids.last).pure[F]
+      }
 
       val necMes = NonEmptyChain.fromSeq(req).get
       val expectedSourceMessage: PeersManager.Message =
@@ -649,7 +666,11 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
         .returning(Applicative[F].unit)
 
       val localChain = buildLocalChainAlgebra()
-      (localChain.isWorseThan _).expects(bestSlotData).once().returning(false.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestSlotData == ids.last)
+        false.pure[F]
+      }
+
       (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
@@ -739,7 +760,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = buildLocalChainAlgebra()
       (() => localChain.head).expects().anyNumberOfTimes().returns(localSlot.pure[F])
-      (localChain.isWorseThan _).expects(remote1Slot).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(remote1Slot == ids.last)
+        (remote1Slot == ids.last).pure[F]
+      }
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
       slotDataStoreMap.put(localId, localSlot)
@@ -825,8 +849,14 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       val localChain = buildLocalChainAlgebra()
       (() => localChain.head).expects().once().returns(localSlot.pure[F])
       (() => localChain.head).expects().once().returns(remote1Slot.pure[F])
-      (localChain.isWorseThan _).expects(remote1Slot).once().returning(true.pure[F])
-      (localChain.isWorseThan _).expects(remote2Slot).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(remote1Slot == ids.last)
+        (remote1Slot == ids.last).pure[F]
+      }
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(remote2Slot == ids.last)
+        (remote2Slot == ids.last).pure[F]
+      }
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
       slotDataStoreMap.put(localId, localSlot)
@@ -1006,7 +1036,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = buildLocalChainAlgebra()
       (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
-      (localChain.isWorseThan _).expects(bestSlotData).once().returning(false.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestSlotData == ids.last)
+        (bestSlotData == ids.last).pure[F]
+      }
 
       val slotDataStoreMap = mutable.Map() ++ idAndSlotData.map { case (id, slot) => id -> slot }.toList.toMap
 
@@ -1100,7 +1133,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = buildLocalChainAlgebra()
       (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
-      (localChain.isWorseThan _).expects(bestSlotData).once().returning(false.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestSlotData == ids.last)
+        (bestSlotData == ids.last).pure[F]
+      }
 
       val slotDataStoreMap = mutable.Map() ++ idAndSlotData.map { case (id, slot) => id -> slot }.toList.toMap
 
@@ -1336,7 +1372,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (requestsProxy.sendNoWait _).expects(expectedSlotDataMessage).once().returning(().pure[F])
 
       val localChain = buildLocalChainAlgebra()
-      (localChain.isWorseThan _).expects(bestTip).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestTip == ids.last)
+        (bestTip == ids.last).pure[F]
+      }
       (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
@@ -1429,7 +1468,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
       (requestsProxy.sendNoWait _).expects(expectedBadKLookbackMessage).once().returning(().pure[F])
 
       val localChain = buildLocalChainAlgebra()
-      (localChain.isWorseThan _).expects(bestTip).once().returning(false.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestTip == ids.last)
+        false.pure[F]
+      }
       val head = arbitrarySlotData.arbitrary.first.copy(height = 1)
       (() => localChain.head).expects().anyNumberOfTimes().returning(head.pure[F])
 
@@ -1524,7 +1566,10 @@ class PeerBlockHeaderFetcherTest extends CatsEffectSuite with ScalaCheckEffectSu
 
       val localChain = buildLocalChainAlgebra()
       (() => localChain.head).expects().anyNumberOfTimes().returning(knownSlotData.pure[F])
-      (localChain.isWorseThan _).expects(bestTip).once().returning(false.pure[F])
+      (localChain.isWorseThan _).expects(*).once().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(bestTip == ids.last)
+        false.pure[F]
+      }
 
       val slotDataStoreMap = mutable.Map.empty[BlockId, SlotData]
       slotDataStoreMap.put(knownId, knownSlotData)

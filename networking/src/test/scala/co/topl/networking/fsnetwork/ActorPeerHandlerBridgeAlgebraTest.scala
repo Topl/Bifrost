@@ -15,7 +15,7 @@ import co.topl.brambl.validation.TransactionSyntaxError
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.Consensus
-import co.topl.consensus.algebras._
+import co.topl.consensus.algebras.{ChainSelectionAlgebra, _}
 import co.topl.consensus.models._
 import co.topl.eventtree.ParentChildTree
 import co.topl.interpreters.SchedulerClock
@@ -51,12 +51,15 @@ object ActorPeerHandlerBridgeAlgebraTest {
 
   val genesisSlotData: SlotData = arbitrarySlotData.arbitrary.first.copy(height = 0)
 
-  val defaultChainSelectionAlgebra: ChainSelectionAlgebra[F, SlotData] = new ChainSelectionAlgebra[F, SlotData] {
-    override def compare(x: SlotData, y: SlotData): F[Int] = x.height.compare(y.height).pure[F]
+  val defaultChainSelectionAlgebra: ChainSelectionAlgebra[F, BlockId, SlotData] =
+    new ChainSelectionAlgebra[F, BlockId, SlotData] {
 
-    override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
-      proposedHeight.pure[F]
-  }
+      override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+        x.height.compare(y.height).pure[F]
+
+      override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =
+        proposedHeight.pure[F]
+    }
 
   val networkProperties: NetworkProperties = NetworkProperties()
 
@@ -116,8 +119,8 @@ object ActorPeerHandlerBridgeAlgebraTest {
   def createEmptyLocalChain: LocalChainAlgebra[F] = new LocalChainAlgebra[F] {
     private var currentHead: SlotData = genesisSlotData
 
-    override def isWorseThan(newHead: SlotData): F[Boolean] =
-      (newHead.height > currentHead.height).pure[F]
+    override def isWorseThan(newHead: NonEmptyChain[SlotData]): F[Boolean] =
+      (newHead.last.height > currentHead.height).pure[F]
 
     override def adopt(newHead: Validated.Valid[SlotData]): F[Unit] =
       (currentHead = newHead.a).pure[F]

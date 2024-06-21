@@ -46,7 +46,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     peersManager:                    PeersManagerActor[F],
     requestsProxy:                   RequestsProxyActor[F],
     localChain:                      LocalChainAlgebra[F],
-    chainSelection:                  ChainSelectionAlgebra[F, SlotData],
+    chainSelection:                  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:                   Store[F, BlockId, SlotData],
     bodyDataStore:                   Store[F, BlockId, BlockBody],
     transactionStore:                Store[F, TransactionId, IoTransaction],
@@ -87,10 +87,10 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     peersManager:                    PeersManagerActor[F] = mock[PeersManagerActor[F]],
     requestsProxy:                   RequestsProxyActor[F] = mock[RequestsProxyActor[F]],
     localChain:                      LocalChainAlgebra[F] = mock[LocalChainAlgebra[F]],
-    chainSelection:                  ChainSelectionAlgebra[F, SlotData] = mock[ChainSelectionAlgebra[F, SlotData]],
-    slotDataStore:                   Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]],
-    bodyDataStore:                   Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
-    transactionStore:            Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
+    chainSelection:   ChainSelectionAlgebra[F, BlockId, SlotData] = mock[ChainSelectionAlgebra[F, BlockId, SlotData]],
+    slotDataStore:    Store[F, BlockId, SlotData] = mock[Store[F, BlockId, SlotData]],
+    bodyDataStore:    Store[F, BlockId, BlockBody] = mock[Store[F, BlockId, BlockBody]],
+    transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
     mempool:                     MempoolAlgebra[F] = mock[MempoolAlgebra[F]]
@@ -596,7 +596,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       (() => localChain.genesis).expects().once().returning(localGenesis.pure[F])
-      val chainSelection = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelection = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
@@ -658,7 +658,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val requestsProxy = mock[RequestsProxyActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
       (() => localChain.genesis).expects().once().returning(genesis.pure[F])
-      val chainSelection = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelection = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val bodyDataStore = mock[Store[F, BlockId, BlockBody]]
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
