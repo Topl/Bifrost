@@ -13,6 +13,8 @@ import co.topl.node.models.BlockBody
 import com.google.protobuf.ByteString
 
 import scala.collection.immutable.SortedSet
+import co.topl.algebras.Stats
+import co.topl.typeclasses.implicits._
 
 object BodySyntaxValidation {
 
@@ -28,7 +30,7 @@ object BodySyntaxValidation {
   }
 
   // scalastyle:off method.length
-  def make[F[_]: Sync: Parallel](
+  def make[F[_]: Sync: Parallel: Stats](
     fetchTransaction:               TransactionId => F[IoTransaction],
     transactionSyntacticValidation: TransactionSyntaxVerifier[F],
     rewardCalculator:               TransactionRewardCalculatorAlgebra
@@ -111,11 +113,51 @@ object BodySyntaxValidation {
                   // Verify quantities
                   maximumReward <- EitherT.liftF(transactions.parFoldMapA(t => rewardCalculator.rewardsOf(t).pure[F]))
                   _             <- cond(!maximumReward.isEmpty)
+                  _ <- EitherT.liftF(
+                    Stats[F].recordHistogram(
+                      "bifrost_max_reward_lvl",
+                      "Maximum reward in lvls.",
+                      Map(),
+                      maximumReward.lvl.toLong
+                    )
+                  )
+                  _ <- EitherT.liftF(
+                    Stats[F].recordHistogram(
+                      "bifrost_max_reward_topl",
+                      "Maximum reward in topls.",
+                      Map(),
+                      maximumReward.topl.toLong
+                    )
+                  )
                   claimedLvls = TransactionRewardCalculator.sumLvls(rewardTransaction.outputs)(_.value)
                   _ <- cond(maximumReward.lvl >= claimedLvls)
+                  _ <- EitherT.liftF(
+                    Stats[F].recordHistogram(
+                      "bifrost_claimed_lvls",
+                      "Lvls claimed via transaction rewards.",
+                      Map(),
+                      claimedLvls.toLong
+                    )
+                  )
                   claimedTopls = TransactionRewardCalculator.sumTopls(rewardTransaction.outputs)(_.value)
                   _ <- cond(maximumReward.topl >= claimedTopls)
+                  _ <- EitherT.liftF(
+                    Stats[F].recordHistogram(
+                      "bifrost_claimed_topls",
+                      "Topls claimed via transaction rewards.",
+                      Map(),
+                      claimedTopls.toLong
+                    )
+                  )
                   claimedAssets = TransactionRewardCalculator.sumAssets(rewardTransaction.outputs)(_.value)
+                  _ <- EitherT.liftF(
+                    Stats[F].recordHistogram(
+                      "bifrost_claimed_assets",
+                      "Assets claimed via transaction rewards.",
+                      Map(),
+                      claimedAssets.size.toLong
+                    )
+                  )
                   _ <- claimedAssets.toList.traverse { case (id, quantity) =>
                     cond(maximumReward.assets.get(id).exists(_ >= quantity))
                   }

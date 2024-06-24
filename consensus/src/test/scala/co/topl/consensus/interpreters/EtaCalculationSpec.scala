@@ -21,6 +21,7 @@ import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.Gen
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.algebras.Stats.Implicits._
 
 class EtaCalculationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 

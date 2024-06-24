@@ -24,6 +24,7 @@ import co.topl.numerics.implicits._
 import cats.effect.kernel.Sync
 import co.topl.codecs.bytes.tetra.TetraScodecCodecs
 import co.topl.proto.node.EpochData
+import co.topl.algebras.Stats
 
 /**
  * Invokes an EpochDataEventSourcedState implementation along the chain's canonical head to produce EpochData
@@ -64,7 +65,7 @@ object EpochDataEventSourcedState {
    * @param epochBoundaryEventSourcedState an event-sourced state which tracks the last block of each epoch
    * @param consensusDataEventSourcedState an event-sourced state which tracks staking information
    */
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     currentBlockId:              F[BlockId],
     genesisBlockId:              BlockId,
     parentChildTree:             ParentChildTree[F, BlockId],
@@ -103,7 +104,7 @@ object EpochDataEventSourcedState {
       )
       .toResource
 
-  private class ApplyBlock[F[_]: Sync](
+  private class ApplyBlock[F[_]: Sync: Stats](
     genesisBlockId:              BlockId,
     clock:                       ClockAlgebra[F],
     fetchBlockHeader:            BlockId => F[BlockHeader],
@@ -175,6 +176,21 @@ object EpochDataEventSourcedState {
         )
         newEpochData <- applyTransactions(newEpochDataBase)(header)
         _            <- state.put(epoch, newEpochData)
+        _ <- Stats[F].recordGauge(
+          "bifrost_epoch_timestamp",
+          "Timestamp of the epoch.",
+          Map("epoch" -> epoch.toString),
+          newEpochData.startTimestamp
+        )
+        _ <- Stats[F].recordGauge("bifrost_epoch", "Current value of the Epoch.", Map(), newEpochData.epoch)
+        _ <- Stats[F].recordGauge("bifrost_epoch_eon", "Current value of the Eon.", Map(), newEpochData.eon)
+        _ <- Stats[F].recordGauge("bifrost_epoch_era", "Current value of the Era.", Map(), newEpochData.era)
+        _ <- Stats[F].recordGauge(
+          "bifrost_epoch_transaction_count",
+          "Current value of the Era.",
+          Map("epoch" -> epoch.toString),
+          newEpochData.transactionCount
+        )
       } yield state
 
     /**

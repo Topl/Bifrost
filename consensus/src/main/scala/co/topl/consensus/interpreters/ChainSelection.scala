@@ -99,10 +99,16 @@ object ChainSelection {
             "Performing standard chain selection" +
             show" tineX=[${xSegment.tineLength}](${xSegment.head.slotId}..${xSegment.last.slotId})" +
             show" tineY=[${ySegment.tineLength}](${ySegment.head.slotId}..${ySegment.last.slotId})"
-          ) >> Stats[F].incrementCounter(
-            "bifrost_chain_selection_longest",
-            "Counter to track standard chain selection and the tines as attributes.",
-            Map("tine_x_length" -> xSegment.tineLength, "tine_y_length" -> ySegment.tineLength)
+          ) >> Stats[F].recordHistogram(
+            "bifrost_chain_selection_longest_tinex",
+            "Histogram to track standard chain selection and the tines as attributes.",
+            Map("tine_y_length" -> ySegment.tineLength),
+            xSegment.tineLength
+          ) >> Stats[F].recordHistogram(
+            "bifrost_chain_selection_longest_tiney",
+            "Histogram to track standard chain selection and the tines as attributes.",
+            Map("tine_x_length" -> xSegment.tineLength),
+            ySegment.tineLength
           )
         case DensityChainTraversal(xSegment, ySegment) =>
           Logger[F].info(

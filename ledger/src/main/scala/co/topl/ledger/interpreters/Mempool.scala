@@ -17,13 +17,14 @@ import co.topl.ledger.models.MempoolGraph
 import co.topl.node.models.BlockBody
 import co.topl.typeclasses.implicits._
 import fs2.concurrent.Topic
+import co.topl.algebras.Stats
 
 object Mempool {
 
   type State[F[_]] = Ref[F, MempoolGraph]
 
   // scalastyle:off method.length
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     currentBlockId:              F[BlockId],
     fetchBody:                   BlockId => F[BlockBody],
     fetchTransaction:            TransactionId => F[IoTransaction],
@@ -58,7 +59,16 @@ object Mempool {
           expirationFiber <-
             clock
               .delayedUntilSlot(expirationSlot)
-              .flatMap(_ => expireTransaction(transaction))
+              .flatMap(_ =>
+                for {
+                  _ <- expireTransaction(transaction)
+                  _ <- Stats[F].incrementCounter(
+                    "bifrost_mempool_transaction_expired",
+                    "Counter when a transaction is expired from the mempool",
+                    Map()
+                  )
+                } yield ()
+              )
               .void
               .start
           _ <- expirationsState.update(_.updated(transaction.id, expirationFiber))
@@ -102,14 +112,27 @@ object Mempool {
           (fetchTransaction(transactionId).flatMap(addWithExpiration) >> true.pure[F])
             .flatTap(
               Async[F].whenA(_)(
-                EitherT(adoptionsTopic.publish1(transactionId))
+                EitherT(for {
+                  adoptionsTopic <- adoptionsTopic.publish1(transactionId)
+                  _ <- Stats[F].incrementCounter(
+                    "bifrost_mempool_transaction_published",
+                    "Counter when a transaction is published to the mempool topic",
+                    Map()
+                  )
+                } yield (adoptionsTopic))
                   .leftMap(_ => new IllegalStateException("MempoolBroadcaster topic unexpectedly closed"))
                   .rethrowT
               )
             )
 
-        def remove(transactionId: TransactionId): F[Unit] =
-          fetchTransaction(transactionId).flatMap(removeWithExpiration)
+        def remove(transactionId: TransactionId): F[Unit] = for {
+          _ <- fetchTransaction(transactionId).flatMap(removeWithExpiration)
+          _ <- Stats[F].incrementCounter(
+            "bifrost_mempool_transaction_removed",
+            "Counter when a transaction is removed from the mempool",
+            Map()
+          )
+        } yield ()
 
         def contains(blockId: BlockId, transactionId: TransactionId): F[Boolean] =
           eventSourcedState

@@ -22,6 +22,7 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import scodec.bits._
 import co.topl.models.ModelGenerators.GenHelper
+import co.topl.algebras.Stats.Implicits._
 
 class StakingSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]

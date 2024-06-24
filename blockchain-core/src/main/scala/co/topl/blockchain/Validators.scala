@@ -21,6 +21,7 @@ import co.topl.ledger.interpreters._
 import co.topl.quivr.api.Verifier.instances.verifierInstance
 import co.topl.typeclasses.implicits._
 import co.topl.brambl.validation.algebras.TransactionAuthorizationVerifier
+import co.topl.algebras.Stats
 
 trait Validators[F[_]] {
   def header: BlockHeaderValidationAlgebra[F]
@@ -52,7 +53,7 @@ case class ValidatorsImpl[F[_]](
 
 object Validators {
 
-  def make[F[_]: Async](
+  def make[F[_]: Async: Stats](
     cryptoResources:          CryptoResources[F],
     dataStores:               DataStores[F],
     bigBangBlockId:           BlockId,

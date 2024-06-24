@@ -24,6 +24,7 @@ import co.topl.models.generators.consensus.ModelGenerators.arbitraryBlockId
 import co.topl.ledger.models._
 import co.topl.quivr.runtime.DynamicContext
 import scala.annotation.tailrec
+import co.topl.algebras.Stats.Implicits._
 
 class MempoolProtectedTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]

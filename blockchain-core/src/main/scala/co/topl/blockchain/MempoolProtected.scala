@@ -20,10 +20,11 @@ import cats.effect.std.Semaphore
 import co.topl.config.ApplicationConfig.Bifrost.MempoolProtection
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import fs2.concurrent.Topic
+import co.topl.algebras.Stats
 
 object MempoolProtected {
 
-  def make[F[_]: Async: Logger](
+  def make[F[_]: Async: Logger: Stats](
     mempool:                          MempoolAlgebra[F],
     semanticValidationAlgebra:        TransactionSemanticValidationAlgebra[F],
     transactionAuthorizationVerifier: TransactionAuthorizationVerifier[F],
@@ -55,7 +56,7 @@ object MempoolProtected {
         .toResource
     } yield memoryPool
 
-  class MempoolProtected[F[_]: Async: Logger](
+  class MempoolProtected[F[_]: Async: Logger: Stats](
     underlying:               MempoolAlgebra[F],
     semanticValidation:       TransactionSemanticValidationAlgebra[F],
     transactionAuthorization: TransactionAuthorizationVerifier[F],
@@ -170,14 +171,49 @@ object MempoolProtected {
           if (freeMempoolSizePercent == 0) Double.MaxValue
           else (meanFeePerKByte / freeMempoolSizePercent) - meanFeePerKByte
 
-        Either
-          .cond(
-            test = txToValidate.toplFeePerKByte >= minimumFeePerKByte,
-            right = txToValidate,
-            left = show"Transaction ${txToValidate.tx.id} have fee ${txToValidate.toplFeePerKByte} per Kb " +
-              show"but minimum acceptable fee is $minimumFeePerKByte per Kb"
+        for {
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_mean_fee_per_kb",
+              "Average fee per kb in Topls.",
+              Map(),
+              meanFeePerKByte.toLong
+            )
           )
-          .toEitherT[F]
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_free_size",
+              "Current free size of the mempool.",
+              Map(),
+              freeMempoolSize.toLong
+            )
+          )
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_free_size_percent",
+              "Current free size ratio of the mempool.",
+              Map(),
+              freeMempoolSizePercent.toLong
+            )
+          )
+          _ <- EitherT.liftF(
+            Stats[F].recordGauge(
+              "bifrost_mempool_minimum_fee_per_kilobyte",
+              "Minimum fee per kb.",
+              Map(),
+              minimumFeePerKByte.toLong
+            )
+          )
+
+          result <- Either
+            .cond(
+              test = txToValidate.toplFeePerKByte >= minimumFeePerKByte,
+              right = txToValidate,
+              left = show"Transaction ${txToValidate.tx.id} have fee ${txToValidate.toplFeePerKByte} per Kb " +
+                show"but minimum acceptable fee is $minimumFeePerKByte per Kb"
+            )
+            .toEitherT[F]
+        } yield (result)
       }
 
     private def doAgeCheck(currentHeader: BlockHeader, graph: MempoolGraph)(

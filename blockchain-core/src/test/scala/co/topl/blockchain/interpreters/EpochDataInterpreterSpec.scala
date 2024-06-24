@@ -28,6 +28,7 @@ import quivr.models.Int128
 import co.topl.models._
 import co.topl.models.utility._
 import co.topl.proto.node.EpochData
+import co.topl.algebras.Stats.Implicits._
 
 import java.time.Instant
 import scala.concurrent.duration._
