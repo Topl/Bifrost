@@ -62,7 +62,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
 
       val totalTransactions = 10
       val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
@@ -121,7 +121,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
 
       val totalTransactions = 10
       val transactions = Seq.fill(totalTransactions)(arbitraryIoTransaction.arbitrary.first).map(_.embedId)
@@ -183,7 +183,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
       (mempool.contains _).expects(headBlock.slotId.blockId, *).anyNumberOfTimes().returns(false.pure[F])
 
       val totalTransactions = 1
@@ -236,7 +236,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
       (mempool.contains _).expects(headBlock.slotId.blockId, *).anyNumberOfTimes().returns(false.pure[F])
 
       val totalTransactions = 1
@@ -284,7 +284,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
       (mempool.contains _).expects(headBlock.slotId.blockId, *).anyNumberOfTimes().returns(false.pure[F])
 
       val totalTransactions = 10
@@ -337,7 +337,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
       (mempool.contains _).expects(headBlock.slotId.blockId, *).anyNumberOfTimes().returns(false.pure[F])
 
       (() => client.remoteTransactionNotifications).expects().once().onCall { () =>
@@ -367,7 +367,7 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
       val transactionStore = mock[Store[F, TransactionId, IoTransaction]]
       val peersManager = mock[PeersManagerActor[F]]
       val localChain = mock[LocalChainAlgebra[F]]
-      (localChain.head _).expects().anyNumberOfTimes().returns(headBlock.pure[F])
+      (() => localChain.head).expects().anyNumberOfTimes().returns(headBlock.pure[F])
       (mempool.contains _).expects(headBlock.slotId.blockId, *).anyNumberOfTimes().returns(false.pure[F])
 
       (() => client.remoteTransactionNotifications).expects().once().onCall { () =>

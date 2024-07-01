@@ -303,7 +303,6 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
 
       chainSelection = ChainSelection
         .make[F](
-          dataStores.slotData.getOrRaise,
           cryptoResources.blake2b512,
           bigBangProtocol.chainSelectionKLookback,
           bigBangProtocol.chainSelectionSWindow
@@ -314,7 +313,8 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           canonicalHeadSlotData,
           chainSelection,
           currentEventIdGetterSetters.canonicalHead.set,
-          blockHeightTreeLocal
+          blockHeightTreeLocal,
+          dataStores.slotData.getOrRaise
         )
       staking =
         OptionT

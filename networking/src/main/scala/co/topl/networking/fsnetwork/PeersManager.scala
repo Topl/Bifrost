@@ -31,6 +31,7 @@ import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
 import co.topl.algebras.Stats
+import co.topl.crypto.signing.Ed25519VRF
 import scodec.bits.ByteVector
 import co.topl.models.utility._
 
@@ -247,7 +248,8 @@ object PeersManager {
     warmToHotSelector:           SelectorWarmToHot[F],
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
     blockSource:                 Cache[BlockId, Set[HostId]],
-    peerFilter:                  PeerFilter
+    peerFilter:                  PeerFilter,
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   )
 
   type Response[F[_]] = State[F]
@@ -307,6 +309,7 @@ object PeersManager {
     savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
     coldToWarmSelector:          SelectorColdToWarm[F],
     warmToHotSelector:           SelectorWarmToHot[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
     initialPeers:                Map[HostId, Peer[F]],
     blockSource:                 Cache[BlockId, Set[HostId]]
   ): Resource[F, PeersManagerActor[F]] =
@@ -355,7 +358,8 @@ object PeersManager {
           warmToHotSelector,
           hotPeersUpdate,
           blockSource,
-          peerFilter
+          peerFilter,
+          ed25519VRF
         )
 
       actor <- Actor.makeFull(actorName, initialState, getFsm[F], finalizeActor[F](savePeersFunction))
@@ -855,7 +859,9 @@ object PeersManager {
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
             state.mempool,
-            commonAncestor
+            commonAncestor,
+            state.ed25519VRF,
+            state.blockIdTree
           )
         )
 

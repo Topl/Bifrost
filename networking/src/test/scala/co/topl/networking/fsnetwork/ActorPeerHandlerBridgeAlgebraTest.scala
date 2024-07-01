@@ -54,7 +54,12 @@ object ActorPeerHandlerBridgeAlgebraTest {
   val defaultChainSelectionAlgebra: ChainSelectionAlgebra[F, BlockId, SlotData] =
     new ChainSelectionAlgebra[F, BlockId, SlotData] {
 
-      override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+      override def compare(
+        x:        SlotData,
+        y:        SlotData,
+        xFetcher: BlockId => F[SlotData],
+        yFetcher: BlockId => F[SlotData]
+      ): F[Int] =
         x.height.compare(y.height).pure[F]
 
       override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] =

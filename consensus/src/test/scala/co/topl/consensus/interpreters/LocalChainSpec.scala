@@ -30,10 +30,19 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
   val chainSelection: ChainSelectionAlgebra[F, BlockId, SlotData] =
     new ChainSelectionAlgebra[F, BlockId, SlotData] {
 
-      override def compare(x: SlotData, y: SlotData, yFetcher: BlockId => F[Option[SlotData]]): F[Int] =
+      override def compare(
+        x:        SlotData,
+        y:        SlotData,
+        xFetcher: BlockId => F[SlotData],
+        yFetcher: BlockId => F[SlotData]
+      ): F[Int] =
         x.height.compareTo(y.height).pure[F]
       override def enoughHeightToCompare(currentHeight: Long, commonHeight: Long, proposedHeight: Long): F[Long] = ???
     }
+
+  val emptyFetcher: BlockId => F[SlotData] = { _: BlockId =>
+    SlotData(SlotId.of(1, blockId1), SlotId.of(0, blockId0)).pure[F]
+  }
 
   test("store the head of the local canonical tine") {
     PropF.forAllF(genSizedStrictByteString[Lengths.`64`.type](), etaGen) { (rho, eta) =>
@@ -51,7 +60,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
 
         LocalChain
-          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights, emptyFetcher)
           .use(_.head.assertEquals(initialHead))
       }
     }
@@ -82,7 +91,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
 
         LocalChain
-          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights, emptyFetcher)
           .use(_.isWorseThan(NonEmptyChain.one(newHead)).assert)
       }
     }
@@ -113,7 +122,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
           mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
 
         LocalChain
-          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+          .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights, emptyFetcher)
           .use(underTest =>
             underTest.head.assertEquals(initialHead) >>
             underTest.adopt(Validated.Valid(newHead)) >>
@@ -148,7 +157,7 @@ class LocalChainSpec extends CatsEffectSuite with ScalaCheckEffectSuite with Asy
         mock[EventSourcedState[F, Long => F[Option[BlockId]], BlockId]]
 
       LocalChain
-        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights)
+        .make[F](initialHead, initialHead, chainSelection, _ => Applicative[F].unit, blockHeights, emptyFetcher)
         .use(underTest =>
           fs2.Stream
             .force(underTest.adoptions)
