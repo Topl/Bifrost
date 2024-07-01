@@ -11,7 +11,6 @@ import co.topl.consensus.models._
 import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.node.models.BlockBody
-import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import scodec.Codec
@@ -27,6 +26,9 @@ package object fsnetwork {
   val slotIdResponseCacheSize = 256
 
   val blockSourceCacheSize = 1024
+
+  // magic number will be refactored later
+  val peerSlotDataStoreCacheSize = 20000
 
   // requests in proxy shall be expired, there is no strict guarantee that we will receive responses
   val proxyBlockDataTTL: FiniteDuration = 1.seconds
@@ -129,7 +131,7 @@ package object fsnetwork {
   /**
    * build first "size" elements missed in store
    * @param store store to be checked, i.e. first "size" element absent in that store are returned
-   * @param slotStore slot store
+   * @param getSlotDataFetcher slot data fetcher
    * @param from start point to check
    * @param size maximum size of returned elements
    * @tparam F effect
@@ -137,13 +139,13 @@ package object fsnetwork {
    * @return missed ids for "store"
    */
   def getFirstNMissedInStore[F[_]: MonadThrow, T](
-    store:     Store[F, BlockId, T],
-    slotStore: Store[F, BlockId, SlotData],
-    from:      BlockId,
-    size:      Int
+    store:              Store[F, BlockId, T],
+    getSlotDataFetcher: BlockId => F[SlotData],
+    from:               BlockId,
+    size:               Int
   ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      prependOnChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
+      prependOnChainUntil(getSlotDataFetcher, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )

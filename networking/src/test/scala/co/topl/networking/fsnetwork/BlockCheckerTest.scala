@@ -13,7 +13,6 @@ import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockHeaderValidationFailures.NonForwardSlot
 import co.topl.consensus.models._
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.models.BodySemanticErrors.TransactionSemanticErrors
 import co.topl.ledger.models.TransactionSemanticErrors.InputDataMismatch
@@ -48,7 +47,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
   implicit val ed255Vrf: Ed25519VRF = Ed25519VRF.precomputed()
   private val hostId: HostId = arbitraryHost.arbitrary.first
-  private val maxChainSize = 99
+  private val maxChainSize = 5
   private val chunkSize = 1
   private val defaultConfig = P2PNetworkConfig(NetworkProperties(chunkSize = chunkSize), 1.second)
 
@@ -64,8 +63,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           (() => localChain.head).expects().once().onCall(() => currentSlotDataHead.pure[F])
 
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
+          (slotDataStore.contains _).expects(slotData.head.parentSlotId.blockId).returns(true.pure[F])
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -73,7 +72,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
           val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
-          (chainSelectionAlgebra.compare _).expects(currentSlotDataHead, slotData.last, *).returning(1.pure[F])
+          (chainSelectionAlgebra.compare _).expects(currentSlotDataHead, slotData.last, *, *).returning(1.pure[F])
 
           BlockChecker
             .makeActor(
@@ -82,7 +81,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -108,7 +106,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -118,19 +115,15 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
-          // local is known data which are stored in stores
-          val (localId, localSlotData) = idAndSlotData.head
-          (slotDataStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(localId, *, *)
-            .once()
-            .returning(localSlotData.pure[F])
-          (headerStore.contains _).expects(localId).once().returning(true.pure[F])
-          (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
-
           // slot data from peer
           val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
           val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
+          // local is known data which are stored in stores
+          val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
+          (headerStore.contains _).expects(localId).once().returning(true.pure[F])
+          (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
 
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
@@ -157,7 +150,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -185,7 +177,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -195,8 +186,13 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
+          // slot data from peer
+          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
+          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
           // local is known data which are stored in stores
           val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
             .expects(localId, *, *)
@@ -204,10 +200,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             .returning(localSlotData.pure[F])
           (headerStore.contains _).expects(localId).once().returning(true.pure[F])
           (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
-
-          // slot data from peer
-          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
-          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
           // known but not accepted yet data
           NonEmptyChain.fromSeq(slotData.toChain.toList.take(2)).get
@@ -237,7 +229,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -265,7 +256,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -275,17 +265,18 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
+          // slot data from peer
+          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
+          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
           // local is known data which are stored in stores
           val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
             .expects(localId, *, *)
             .once()
             .returning(localSlotData.pure[F])
-
-          // slot data from peer
-          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
-          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
           (() => localChain.head).expects().once().returning(localSlotData.pure[F])
 
@@ -317,7 +308,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -344,7 +334,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -354,25 +343,21 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
+          // slot data from peer
+          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
+          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
           // local is known data which are stored in stores
           val (localId, localSlotData) = idAndSlotData.head
-          (slotDataStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(localId, *, *)
-            .once()
-            .returning(localSlotData.pure[F])
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
 
           val currentFork =
             arbitraryLinkedSlotDataChainFor(Gen.choose(1L, 1L), localSlotData.some).arbitrary.first
               .prepend(localSlotData)
 
-          // slot data from peer
-          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
-          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
-
           // (() => localChain.head).expects().once().returning(localSlotData.pure[F])
 
-          (chainSelectionAlgebra.compare _).expects(currentFork.last, slotData.last, *).returning((-1).pure[F])
+          (chainSelectionAlgebra.compare _).expects(currentFork.last, slotData.last, *, *).returning((-1).pure[F])
 
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
@@ -403,7 +388,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -432,7 +416,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -452,6 +435,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val (_, peerSlotData) = remoteIdAndSlotData.unzip
 
           val localSlotDataStore = idAndSlotData.toList.toMap
+          (slotDataStore.contains _).expects(peerSlotData.head.parentSlotId.blockId).returns(true.pure[F])
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
             .expects(*, *, *)
@@ -464,7 +448,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
 
           val currentBestChain = NonEmptyChain.fromSeq(slotData.toList.take(2)).get
-          (chainSelectionAlgebra.compare _).expects(currentBestChain.last, slotData.last, *).returning(-1.pure[F])
+          (chainSelectionAlgebra.compare _).expects(currentBestChain.last, slotData.last, *, *).returning((-1).pure[F])
 
           val expectedRequest =
             RequestsProxy.Message.DownloadHeadersRequest(
@@ -482,7 +466,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -512,7 +495,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -543,7 +525,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -569,7 +550,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -589,7 +569,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -615,7 +594,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -649,13 +627,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               addedHeader.put(id, header)
               headerStoreData.put(id, header)
               ().pure[F]
-          }
-
-          newIdAndHeaders.foreach { case (id, header) =>
-            val parent = header.parentHeaderId
-            (blockIdTree.associate _).expects(id, parent).returns(().pure[F])
-            val slotData = header.slotData
-            (slotDataStore.put _).expects(id, slotData).returns(().pure[F])
           }
 
           (() => localChain.head).stubs().returning(knownSlotData.pure[F])
@@ -692,7 +663,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -720,7 +690,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
@@ -772,7 +741,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -801,7 +769,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val localChain = mock[LocalChainAlgebra[F]]
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -834,19 +801,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             addedHeader.put(id, header)
             headerStoreData.put(id, header)
             ().pure[F]
-          }
-
-          newIdAndHeaders.headOption.foreach { case (id, header) =>
-            val parent = header.parentHeaderId
-            (blockIdTree.associate _).expects(id, parent).returns(().pure[F])
-
-            val slotData = header.slotData
-            (slotDataStore.put _).expects(id, slotData).returns(().pure[F])
-          }
-
-          newIdAndHeaders.get(1).foreach { case (id, header) =>
-            val parent = header.parentHeaderId
-            (blockIdTree.associate _).expects(id, parent).returns(().pure[F])
           }
 
           (() => localChain.head).stubs().returning(knownSlotData.pure[F])
@@ -912,7 +866,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -945,7 +898,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
-          val blockIdTree = mock[ParentChildTree[F, BlockId]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
@@ -977,17 +929,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             addedHeader.put(id, header)
             headerStoreData.put(id, header)
             ().pure[F]
-          }
-          newIdAndHeaders.headOption.foreach { case (id, header) =>
-            val parent = header.parentHeaderId
-            (blockIdTree.associate _).expects(id, parent).returns(().pure[F])
-            val slotData = header.slotData
-            (slotDataStore.put _).expects(id, slotData).returns(().pure[F])
-          }
-
-          newIdAndHeaders.get(1).foreach { case (id, header) =>
-            val parent = header.parentHeaderId
-            (blockIdTree.associate _).expects(id, parent).returns(().pure[F])
           }
 
           (() => localChain.head).stubs().returning(knownSlotData.pure[F])
@@ -1045,7 +986,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               slotDataStore,
               headerStore,
               bodyStore,
-              blockIdTree,
               headerValidation,
               bodySyntaxValidation,
               bodySemanticValidation,
@@ -1074,7 +1014,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val localChain = mock[LocalChainAlgebra[F]]
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
         val headerStore = mock[Store[F, BlockId, BlockHeader]]
-        val blockIdTree = mock[ParentChildTree[F, BlockId]]
         val bodyStore = mock[Store[F, BlockId, BlockBody]]
         val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
         val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1099,7 +1038,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             slotDataStore,
             headerStore,
             bodyStore,
-            blockIdTree,
             headerValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
@@ -1126,7 +1064,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val localChain = mock[LocalChainAlgebra[F]]
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
         val headerStore = mock[Store[F, BlockId, BlockHeader]]
-        val blockIdTree = mock[ParentChildTree[F, BlockId]]
         val bodyStore = mock[Store[F, BlockId, BlockBody]]
         val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
         val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1208,7 +1145,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             slotDataStore,
             headerStore,
             bodyStore,
-            blockIdTree,
             headerValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
@@ -1235,7 +1171,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val localChain = mock[LocalChainAlgebra[F]]
         val slotDataStore = mock[Store[F, BlockId, SlotData]]
         val headerStore = mock[Store[F, BlockId, BlockHeader]]
-        val blockIdTree = mock[ParentChildTree[F, BlockId]]
         val bodyStore = mock[Store[F, BlockId, BlockBody]]
         val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
         val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1326,7 +1261,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             slotDataStore,
             headerStore,
             bodyStore,
-            blockIdTree,
             headerValidation,
             bodySyntaxValidation,
             bodySemanticValidation,
@@ -1352,7 +1286,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1466,7 +1399,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
@@ -1496,7 +1428,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1608,7 +1539,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
@@ -1638,7 +1568,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1759,7 +1688,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
@@ -1784,7 +1712,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1907,7 +1834,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
@@ -1932,7 +1858,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -1952,7 +1877,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
@@ -1981,7 +1905,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -2002,7 +1925,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,
@@ -2031,7 +1953,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val localChain = mock[LocalChainAlgebra[F]]
       val slotDataStore = mock[Store[F, BlockId, SlotData]]
       val headerStore = mock[Store[F, BlockId, BlockHeader]]
-      val blockIdTree = mock[ParentChildTree[F, BlockId]]
       val bodyStore = mock[Store[F, BlockId, BlockBody]]
       val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
@@ -2051,7 +1972,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           slotDataStore,
           headerStore,
           bodyStore,
-          blockIdTree,
           headerValidation,
           bodySyntaxValidation,
           bodySemanticValidation,

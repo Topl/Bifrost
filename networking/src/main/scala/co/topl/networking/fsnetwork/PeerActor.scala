@@ -11,6 +11,8 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.p2p._
 import co.topl.networking.KnownHostOps
@@ -114,6 +116,7 @@ object PeerActor {
     case (state, ReputationUpdateTick)                        => reputationUpdateTick(state)
   }
 
+  // scalastyle:off parameter.number
   def makeActor[F[_]: Async: Logger](
     hostId:                      HostId,
     networkAlgebra:              NetworkAlgebra[F],
@@ -128,7 +131,9 @@ object PeerActor {
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             CommonAncestorF[F]
+    commonAncestorF:             CommonAncestorF[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]] = {
     val initNetworkLevel = false
     val initAppLevel = false
@@ -146,7 +151,9 @@ object PeerActor {
         chainSelection,
         slotDataStore,
         bodyStore,
-        commonAncestorF
+        commonAncestorF,
+        ed25519VRF,
+        blockIdTree
       )
       body <- networkAlgebra.makePeerBodyFetcher(
         hostId,
@@ -187,6 +194,7 @@ object PeerActor {
       actor <- Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
     } yield actor
   }
+  // scalastyle:on parameter.number
 
   private def finalizer[F[_]: Async: Logger](state: State[F]): F[Unit] =
     Logger[F].info(show"Run finalizer for actor for peer ${state.hostId}") >>

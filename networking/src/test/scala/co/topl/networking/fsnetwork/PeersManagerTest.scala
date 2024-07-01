@@ -42,6 +42,7 @@ import scala.concurrent.duration.{FiniteDuration, SECONDS}
 import scala.jdk.CollectionConverters._
 import co.topl.algebras.Stats
 import co.topl.brambl.utils.Encoding
+import co.topl.crypto.signing.Ed25519VRF
 
 object PeersManagerTest {
   type F[A] = IO[A]
@@ -187,8 +188,11 @@ class PeersManagerTest
     coldToWarmSelector:          SelectorColdToWarm[F],
     warmToHotSelector:           SelectorWarmToHot[F],
     initialPeers:                Map[HostId, Peer[F]],
-    blockSource:                 Cache[BlockId, Set[HostId]]
+    blockSource:                 Cache[BlockId, Set[HostId]],
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   )
+
+  val defaultEd255Vrf: Resource[F, Ed25519VRF] = Resource.pure(Ed25519VRF.precomputed())
 
   private def buildDefaultMockData(
     networkAlgebra:         NetworkAlgebra[F] = mock[NetworkAlgebra[F]],
@@ -199,7 +203,8 @@ class PeersManagerTest
     warmToHotSelector:      SelectorWarmToHot[F] = defaultWarmToHotSelector,
     initialPeers:           Map[HostId, Peer[F]] = Map.empty,
     newPeerCreationAlgebra: PeerCreationRequestAlgebra[F] = mock[PeerCreationRequestAlgebra[F]],
-    blockSource:            Cache[BlockId, Set[HostId]] = defaultCache()
+    blockSource:            Cache[BlockId, Set[HostId]] = defaultCache(),
+    ed25519VRF:             Resource[F, Ed25519VRF] = defaultEd255Vrf
   ): PeerManagerMockData =
     PeerManagerMockData(
       thisHostId,
@@ -220,7 +225,8 @@ class PeersManagerTest
       coldToWarmSelector = coldToWarmSelector,
       warmToHotSelector = warmToHotSelector,
       initialPeers = initialPeers,
-      blockSource = blockSource
+      blockSource = blockSource,
+      ed25519VRF
     )
 
   private def buildActorFromMockData(
@@ -247,6 +253,7 @@ class PeersManagerTest
         mockData.savePeersFunction,
         mockData.coldToWarmSelector,
         mockData.warmToHotSelector,
+        mockData.ed25519VRF,
         mockData.initialPeers,
         mockData.blockSource
       )(implicitly[Async[IO]], implicitly[Parallel[IO]], logger, dnsResolver, reverseDnsResolver, stats)
@@ -1317,7 +1324,7 @@ class PeersManagerTest
       val peer2 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1333,7 +1340,7 @@ class PeersManagerTest
       (peer1.sendNoWait _).expects(PeerActor.Message.CloseConnectionForActor).returns(Applicative[F].unit)
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -1385,7 +1392,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1432,7 +1439,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -1608,7 +1615,7 @@ class PeersManagerTest
       val host1Ra = RemoteAddress("1", 1)
       val peer1 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer1))
       (peer1.sendNoWait _)
@@ -1624,7 +1631,7 @@ class PeersManagerTest
       val host2Ra = RemoteAddress("2", 2)
       val peer2 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host2Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host2Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer2))
       (peer2.sendNoWait _)
@@ -1639,7 +1646,7 @@ class PeersManagerTest
       val host3Ra = RemoteAddress("3", 3)
       val peer3 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host3Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host3Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer3))
       (peer3.sendNoWait _)
@@ -1659,7 +1666,7 @@ class PeersManagerTest
       val host5Ra = RemoteAddress("5", 5)
       val peer5 = mockPeerActor[F]()
       (networkAlgebra.makePeer _)
-        .expects(host5Id, *, *, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host5Id, *, *, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(Resource.pure(peer5))
       (peer5.sendNoWait _)
@@ -3450,7 +3457,7 @@ class PeersManagerTest
       val peer1 = mockPeerActor[F]()
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource
@@ -3504,7 +3511,7 @@ class PeersManagerTest
       val host2Id = arbitraryHost.arbitrary.first
 
       (networkAlgebra.makePeer _)
-        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *)
+        .expects(host1Id, *, client1, *, *, *, *, *, *, *, *, *, *, *, *, *)
         .once()
         .returns(
           Resource

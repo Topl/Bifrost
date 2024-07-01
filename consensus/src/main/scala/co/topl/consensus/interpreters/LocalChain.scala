@@ -21,7 +21,8 @@ object LocalChain {
     initialHead:     SlotData,
     chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     onAdopted:       BlockId => F[Unit],
-    blockHeightsESS: EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
+    blockHeightsESS: EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
+    slotDataFetcher: BlockId => F[SlotData]
   ): Resource[F, LocalChainAlgebra[F]] = {
     val _g = genesis
     (
@@ -35,7 +36,16 @@ object LocalChain {
 
         def isWorseThan(newHeadChain: NonEmptyChain[SlotData]): F[Boolean] = {
           val idToSd = newHeadChain.map(sd => (sd.slotId.blockId, sd)).toList.toMap
-          head.flatMap(chainSelection.compare(_, newHeadChain.last, id => idToSd.get(id).pure[F]).map(_ < 0))
+          val newHeadSlotFetcher = (id: BlockId) =>
+            idToSd.get(id).pure[F].flatMap {
+              case Some(sd) => sd.pure[F]
+              case None     => slotDataFetcher(id)
+            }
+          head.flatMap { headSlotData =>
+            chainSelection
+              .compare(headSlotData, newHeadChain.last, slotDataFetcher, newHeadSlotFetcher)
+              .map(_ < 0)
+          }
         }
 
         // TODO add semaphore to avoid possible concurrency issue with adoption in the same time local / network
@@ -68,14 +78,10 @@ object LocalChain {
           )
         }
 
-        override def adoptions: F[fs2.Stream[F, BlockId]] =
-          Async[F].delay(adoptionsTopic.subscribeUnbounded)
+        override def adoptions: F[fs2.Stream[F, BlockId]] = Async[F].delay(adoptionsTopic.subscribeUnbounded)
 
-        val head: F[SlotData] =
-          headRef.get
-
-        val genesis: F[SlotData] =
-          _g.pure[F]
+        val head: F[SlotData] = headRef.get
+        val genesis: F[SlotData] = _g.pure[F]
 
         def blockIdAtHeight(height: Long): F[Option[BlockId]] =
           if (height == _g.height)

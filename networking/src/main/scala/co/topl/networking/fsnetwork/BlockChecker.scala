@@ -10,7 +10,6 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
 import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.QuivrContext
@@ -26,6 +25,7 @@ import co.topl.node.models._
 import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.collection.Searching
 
@@ -63,13 +63,12 @@ object BlockChecker {
     case class InvalidateBlockIds(blockIds: NonEmptyChain[BlockId]) extends Message
   }
 
-  case class State[F[_]](
+  case class State[F[_]: Async](
     requestsProxy:               RequestsProxyActor[F],
     localChain:                  LocalChainAlgebra[F],
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
@@ -79,7 +78,12 @@ object BlockChecker {
     ed25519VRF:                  Resource[F, Ed25519VRF],
     bestKnownRemoteSlotDataOpt:  Option[BestChain],
     bestKnownRemoteSlotDataHost: Option[HostId]
-  )
+  ) {
+
+    // Slot data fetcher which try to get slot data from best known chain, if not found then from local slot data store
+    lazy val slotDataFetcher: BlockId => F[SlotData] =
+      combineSlotDataSources(slotDataStore, bestKnownRemoteSlotDataOpt.fold(List.empty[SlotData])(_.slotData.toList))
+  }
 
   type Response[F[_]] = State[F]
   type BlockCheckerActor[F[_]] = Actor[F, Message, Response[F]]
@@ -98,7 +102,6 @@ object BlockChecker {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
@@ -116,7 +119,6 @@ object BlockChecker {
         slotDataStore,
         headerStore,
         bodyStore,
-        blockIdTree,
         chainSelectionAlgebra,
         headerValidation,
         bodySyntaxValidation,
@@ -134,15 +136,26 @@ object BlockChecker {
   private def processSlotData[F[_]: Async: Logger](
     state:           State[F],
     candidateHostId: HostId,
-    slotData:        NonEmptyChain[SlotData]
+    remoteSlotData:  NonEmptyChain[SlotData]
+  ): F[(State[F], Response[F])] =
+    Async[F].ifM(state.slotDataStore.contains(remoteSlotData.head.parentSlotId.blockId))(
+      ifTrue = processCorrectSlotData(state, candidateHostId, remoteSlotData),
+      ifFalse = Logger[F].error("Got incorrect slot data chain") >>
+        invalidateBlockId(state, remoteSlotData.map(_.slotId.blockId)).map(s => (s, s))
+    )
+
+  private def processCorrectSlotData[F[_]: Async: Logger](
+    state:           State[F],
+    candidateHostId: HostId,
+    remoteSlotData:  NonEmptyChain[SlotData]
   ): F[(State[F], Response[F])] = {
-    val bestRemoteSlotData: SlotData = slotData.last
+    val bestRemoteSlotData: SlotData = remoteSlotData.last
     val bestRemoteBlockId: BlockId = bestRemoteSlotData.slotId.blockId
 
     for {
       _ <- Logger[F].debug(show"Received slot data proposal with best block id $bestRemoteBlockId")
-      newState <- remoteSlotDataBetter(state, slotData).ifM(
-        ifTrue = processNewBestSlotData(state, slotData, candidateHostId),
+      newState <- remoteSlotDataBetter(state, remoteSlotData).ifM(
+        ifTrue = processNewBestSlotData(state, remoteSlotData, candidateHostId),
         ifFalse = Logger[F].debug(show"Ignore weaker slot data $bestRemoteBlockId") >> state.pure[F]
       )
     } yield (newState, newState)
@@ -153,21 +166,21 @@ object BlockChecker {
     remoteSlotDataChain: NonEmptyChain[SlotData]
   ): F[Boolean] =
     for {
-      bestRemoteSlotData <- remoteSlotDataChain.last.pure[F]
-      localBestSlotData  <- state.bestKnownRemoteSlotDataOpt.fold(state.localChain.head)(_.last.pure[F])
-      remoteSlots = remoteSlotDataChain.toList.map(sd => (sd.slotId.blockId, sd)).toMap
-      fetcher = (id: BlockId) => remoteSlots.get(id).pure[F]
-      chainComparing =
-        Async[F].defer(state.chainSelection.compare(localBestSlotData, bestRemoteSlotData, fetcher).map(_ < 0))
+      bestRemote <- remoteSlotDataChain.last.pure[F]
+      localBest  <- state.bestKnownRemoteSlotDataOpt.fold(state.localChain.head)(_.last.pure[F])
+
       res <-
         // if received slot data chain could be appended to the END of current best slot data,
         // then we could skip chain comparing because
         // if chain N is better than chain M then chain N + a1 + an is better than chain M as well
-        if (couldAppend(localBestSlotData, remoteSlotDataChain)) {
-          Logger[F].info(show"Could be append ${bestRemoteSlotData.slotId.blockId} to best chain") >>
+        if (couldAppend(localBest, remoteSlotDataChain)) {
+          Logger[F].info(show"Could be append ${bestRemote.slotId.blockId} to best chain") >>
           true.pure[F]
         } else {
-          chainComparing.logDuration(show"Compare slot data chain for ${bestRemoteSlotData.slotId.blockId}")
+          val remoteFetcher = combineSlotDataSources(state.slotDataStore, remoteSlotDataChain.toList)
+          Async[F]
+            .defer(state.chainSelection.compare(localBest, bestRemote, state.slotDataFetcher, remoteFetcher).map(_ < 0))
+            .logDuration(show"Compare slot data chain for ${bestRemote.slotId.blockId}")
         }
     } yield res
 
@@ -224,7 +237,7 @@ object BlockChecker {
     val from = remoteSlotData.head.parentSlotId.blockId
     val missedSlotDataF = prependOnChainUntil[F, SlotData](
       getSlotDataFromT = s => s.pure[F],
-      getT = state.slotDataStore.getOrRaise,
+      getT = state.slotDataFetcher,
       terminateOn = sd => state.bodyStore.contains(sd.slotId.blockId)
     )(from)
 
@@ -251,13 +264,18 @@ object BlockChecker {
     } yield res
   }.getOrElseF(().pure[F]).logDuration("Request next headers total time")
 
-  private def requestHeadersUpToId[F[_]: Async: Logger](state: State[F], headerId: BlockId): F[Unit] =
-    getFirstNMissedInStore(state.headerStore, state.slotDataStore, headerId, state.chunkSize)
+  private def requestHeadersUpToId[F[_]: Async: Logger](
+    state:    State[F],
+    headerId: BlockId
+  ): F[Unit] =
+    getFirstNMissedInStore(state.headerStore, state.slotDataFetcher, headerId, state.chunkSize)
       .logDuration(show"Find N-missing header")
       .flatTap(m => OptionT.liftF(Logger[F].info(show"Send request to get missed headers for blockIds: $m")))
       .map(RequestsProxy.Message.DownloadHeadersRequest(state.bestKnownRemoteSlotDataHost.get, _))
       .foreachF(state.requestsProxy.sendNoWait)
-      .handleErrorWith(e => Logger[F].error(show"Failed to request next headers due ${e.toString}"))
+      .handleErrorWith(e =>
+        Logger[F].error(show"Failed to request next headers due ${e.toString} ${ExceptionUtils.getStackTrace(e)}")
+      )
 
   private def processRemoteHeaders[F[_]: Async: Logger](
     state:        State[F],
@@ -287,13 +305,9 @@ object BlockChecker {
         .evalFilter(headerCouldBeVerified(state, lastProcessedBodySlot))
         .evalMap { unverifiedBlockHeader =>
           val blockId = unverifiedBlockHeader.blockHeader.id
-          val parentId = unverifiedBlockHeader.blockHeader.parentHeaderId
-          Logger[F].info(show"Associating child=$blockId to parent=$parentId") >>
-          state.blockIdTree.associate(blockId, parentId) >>
           verifyOneBlockHeader(state)(unverifiedBlockHeader).logDuration(show"Verified header $blockId")
         }
         .evalTap { header =>
-          state.ed25519VRF.use(ed => state.slotDataStore.put(header.id, header.slotData(ed))) >>
           state.headerStore.put(header.id, header)
         }
         .map(Right.apply[HeaderApplyException, BlockHeader])
@@ -314,7 +328,7 @@ object BlockChecker {
     for {
       unknownBodies     <- getMissedBodiesId(state, blockHeaders.last.blockHeader.id).logDuration("Get missed bodies")
       lastProcessedBody <- unknownBodies.map(_.head).get.pure[F] // shall always be defined
-      lastProcessedBodySlot   <- state.slotDataStore.getOrRaise(lastProcessedBody)
+      lastProcessedBodySlot   <- state.slotDataFetcher(lastProcessedBody)
       (appliedHeaders, error) <- processedHeadersAndErrors(lastProcessedBodySlot)
       newState                <- processHeaderValidationError(state, error)
       _ <-
@@ -390,7 +404,7 @@ object BlockChecker {
     state:        State[F],
     bestKnownTip: BlockId
   ): F[Option[NonEmptyChain[BlockId]]] =
-    getFirstNMissedInStore(state.bodyStore, state.slotDataStore, bestKnownTip, state.chunkSize).value
+    getFirstNMissedInStore(state.bodyStore, state.slotDataFetcher, bestKnownTip, state.chunkSize).value
 
   private def requestMissedBodies[F[_]: Async: Logger](
     state:             State[F],
@@ -567,7 +581,7 @@ object BlockChecker {
     }
 
   // clear bestKnownRemoteSlotData at the end of sync, so new slot data will be compared with local chain again
-  private def updateState[F[_]](state: State[F], newTopBlockOpt: Option[BlockId]): State[F] = {
+  private def updateState[F[_]: Async](state: State[F], newTopBlockOpt: Option[BlockId]): State[F] = {
     for {
       bestChain   <- state.bestKnownRemoteSlotDataOpt
       newTopBlock <- newTopBlockOpt
@@ -592,5 +606,20 @@ object BlockChecker {
     Logger[F].error(show"Clean current best chain due error in receiving/validation data from $invalidBlockIds") >>
     state.requestsProxy.sendNoWait(RequestsProxy.Message.ResetRequestsProxy) >>
     newState.pure[F]
+  }
+
+  def combineSlotDataSources[F[_]: Async](
+    slotDataStore: Store[F, BlockId, SlotData],
+    slotData:      List[SlotData]
+  ): BlockId => F[SlotData] = {
+    val sdMap = slotData.toList.map(sd => (sd.slotId.blockId, sd)).toMap
+    val mapFetcher = (id: BlockId) => sdMap.get(id).pure[F]
+    val fetcher = (id: BlockId) =>
+      mapFetcher(id).flatMap {
+        case Some(sd) => sd.pure[F]
+        case None     => slotDataStore.getOrRaise(id)
+      }
+
+    fetcher
   }
 }

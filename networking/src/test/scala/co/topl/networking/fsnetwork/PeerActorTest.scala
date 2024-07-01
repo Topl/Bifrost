@@ -13,6 +13,8 @@ import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
@@ -57,7 +59,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     networkAlgebra:                  NetworkAlgebra[F],
     blockHeaderFetcher:              PeerBlockHeaderFetcherActor[F],
     blockBodyFetcher:                PeerBlockBodyFetcherActor[F],
-    peerMempoolTransactionSyncActor: PeerMempoolTransactionSyncActor[F]
+    peerMempoolTransactionSyncActor: PeerMempoolTransactionSyncActor[F],
+    ed255Vrf:                        Resource[F, Ed25519VRF],
+    blockIdTree:                     ParentChildTree[F, BlockId]
   ) {}
 
   private def buildDefaultMockData(client: BlockchainPeerClient[F] = createDummyClient()): PeerActorMockData = {
@@ -77,7 +81,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       peersManager = peersManager
     )
   }
+  val defaultEd255Vrf: Resource[F, Ed25519VRF] = Resource.pure(Ed25519VRF.precomputed())
 
+  // scalastyle:off parameter.number
   private def buildMockData(
     networkAlgebra:                  NetworkAlgebra[F],
     peerBlockHeaderFetcherActor:     PeerBlockHeaderFetcherActor[F],
@@ -93,7 +99,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     transactionStore: Store[F, TransactionId, IoTransaction] = mock[Store[F, TransactionId, IoTransaction]],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F] = mock[BlockHeaderToBodyValidationAlgebra[F]],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F] = mock[TransactionSyntaxVerifier[F]],
-    mempool:                     MempoolAlgebra[F] = mock[MempoolAlgebra[F]]
+    mempool:                     MempoolAlgebra[F] = mock[MempoolAlgebra[F]],
+    ed255Vrf:                    Resource[F, Ed25519VRF] = defaultEd255Vrf,
+    blockIdTree:                 ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
   ): PeerActorMockData = {
     (() => localChain.genesis).expects().once().returning(genesis.pure[F])
     PeerActorMockData(
@@ -111,9 +119,12 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       networkAlgebra,
       peerBlockHeaderFetcherActor,
       peerBlockBodyFetcherActor,
-      peerMempoolTransactionSyncActor
+      peerMempoolTransactionSyncActor,
+      ed255Vrf,
+      blockIdTree
     )
   }
+  // scalastyle:on parameter.number
 
   private def buildPeerActorFromMockedData(peerActorMockData: PeerActorMockData): Resource[F, PeerActor.PeerActor[F]] =
     PeerActor
@@ -131,7 +142,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
         peerActorMockData.headerToBodyValidation,
         peerActorMockData.transactionSyntaxValidation,
         peerActorMockData.mempool,
-        commonAncestor[F]
+        commonAncestor[F],
+        peerActorMockData.ed255Vrf,
+        peerActorMockData.blockIdTree
       )
 
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
@@ -166,7 +179,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
     val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
     (() => blockHeaderFetcher.id).expects().anyNumberOfTimes().returns(1)
     (networkAlgebra.makePeerHeaderFetcher _)
-      .expects(*, *, *, *, *, *, *, *, *)
+      .expects(*, *, *, *, *, *, *, *, *, *, *)
       .returns(
         // simulate real header fetcher behaviour on finalizing
         Resource
@@ -620,7 +633,7 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val networkAlgebra = mock[NetworkAlgebra[F]]
       val blockHeaderFetcher = mock[PeerBlockHeaderFetcherActor[F]]
       (networkAlgebra.makePeerHeaderFetcher _)
-        .expects(*, *, *, *, *, *, *, *, *)
+        .expects(*, *, *, *, *, *, *, *, *, *, *)
         .returns(Resource.pure(blockHeaderFetcher))
 
       val blockBodyFetcher = mock[PeerBlockBodyFetcherActor[F]]
@@ -629,6 +642,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       val mempoolSync = mock[PeerMempoolTransactionSyncActor[F]]
       (() => mempoolSync.id).expects().anyNumberOfTimes().returns(3)
       (networkAlgebra.makeMempoolSyncFetcher _).expects(*, *, *, *, *, *, *).returns(Resource.pure(mempoolSync))
+
+      val ed255Vrf: Resource[F, Ed25519VRF] = defaultEd255Vrf
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
 
       PeerActor
         .makeActor(
@@ -645,7 +661,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           headerToBodyValidation,
           transactionSyntaxValidation,
           mempool,
-          commonAncestor[F]
+          commonAncestor[F],
+          ed255Vrf,
+          blockIdTree
         )
         .use(_ => Applicative[F].unit)
     }
@@ -681,6 +699,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
       (client.closeConnection _).stubs().returns(Applicative[F].unit)
       (client.notifyAboutThisNetworkLevel _).expects(false).returns(Applicative[F].unit)
 
+      val ed255Vrf: Resource[F, Ed25519VRF] = defaultEd255Vrf
+      val blockIdTree: ParentChildTree[F, BlockId] = mock[ParentChildTree[F, BlockId]]
+
       PeerActor
         .makeActor(
           hostId,
@@ -696,7 +717,9 @@ class PeerActorTest extends CatsEffectSuite with ScalaCheckEffectSuite with Asyn
           headerToBodyValidation,
           transactionSyntaxValidation,
           mempool,
-          commonAncestor[F]
+          commonAncestor[F],
+          ed255Vrf,
+          blockIdTree
         )
         .use { actor =>
           for {

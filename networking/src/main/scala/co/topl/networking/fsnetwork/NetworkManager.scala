@@ -55,7 +55,8 @@ object NetworkManager {
         addRemotePeerAlgebra,
         p2pNetworkConfig,
         hotPeersUpdate,
-        buildSaveRemotePeersFunction(blockchain.dataStores.knownHosts)
+        buildSaveRemotePeersFunction(blockchain.dataStores.knownHosts),
+        ed25519VRF
       )
 
       requestsProxy <- networkAlgebra.makeRequestsProxy(
@@ -69,7 +70,6 @@ object NetworkManager {
         blockchain.dataStores.slotData,
         blockchain.dataStores.headers,
         blockchain.dataStores.bodies,
-        blockchain.blockIdTree,
         blockchain.validators.header,
         blockchain.validators.bodySyntax,
         blockchain.validators.bodySemantics,

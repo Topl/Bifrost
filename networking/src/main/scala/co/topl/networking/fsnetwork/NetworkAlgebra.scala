@@ -26,6 +26,7 @@ import org.typelevel.log4cats.Logger
 import co.topl.algebras.Stats
 import co.topl.crypto.signing.Ed25519VRF
 
+// scalastyle:off parameter.number
 trait NetworkAlgebra[F[_]] {
 
   def makePeerManger(
@@ -43,7 +44,8 @@ trait NetworkAlgebra[F[_]] {
     newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:            P2PNetworkConfig,
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
-    savePeersFunction:           Set[KnownRemotePeer] => F[Unit]
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeBlockChecker(
@@ -52,7 +54,6 @@ trait NetworkAlgebra[F[_]] {
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
@@ -87,7 +88,9 @@ trait NetworkAlgebra[F[_]] {
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             CommonAncestorF[F]
+    commonAncestorF:             CommonAncestorF[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]]
 
   def makePeerHeaderFetcher(
@@ -99,7 +102,9 @@ trait NetworkAlgebra[F[_]] {
     chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    commonAncestorF: CommonAncestorF[F]
+    commonAncestorF: CommonAncestorF[F],
+    ed25519VRF:      Resource[F, Ed25519VRF],
+    blockIdTree:     ParentChildTree[F, BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]]
 
   def makePeerBodyFetcher(
@@ -141,7 +146,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:            P2PNetworkConfig,
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
-    savePeersFunction:           Set[KnownRemotePeer] => F[Unit]
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   ): Resource[F, PeersManagerActor[F]] = {
     val coldToWarm: SelectorColdToWarm[F] = new SemiRandomSelectorColdToWarm[F]()
     val warmToHot: SelectorWarmToHot[F] = new ReputationRandomBasedSelectorWarmToHot[F]()
@@ -164,6 +170,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       savePeersFunction,
       coldToWarm,
       warmToHot,
+      ed25519VRF,
       initialPeers = Map.empty[HostId, Peer[F]],
       blockSource = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
     )
@@ -175,7 +182,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     slotDataStore:               Store[F, BlockId, SlotData],
     headerStore:                 Store[F, BlockId, BlockHeader],
     bodyStore:                   Store[F, BlockId, BlockBody],
-    blockIdTree:                 ParentChildTree[F, BlockId],
     headerValidation:            BlockHeaderValidationAlgebra[F],
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
@@ -190,7 +196,6 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       slotDataStore,
       headerStore,
       bodyStore,
-      blockIdTree,
       headerValidation,
       bodySyntaxValidation,
       bodySemanticValidation,
@@ -227,7 +232,9 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             CommonAncestorF[F]
+    commonAncestorF:             CommonAncestorF[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]] =
     PeerActor.makeActor(
       hostId,
@@ -243,7 +250,9 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       headerToBodyValidation,
       transactionSyntaxValidation,
       mempool,
-      commonAncestorF
+      commonAncestorF,
+      ed25519VRF,
+      blockIdTree
     )
 
   override def makePeerHeaderFetcher(
@@ -255,7 +264,9 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    commonAncestorF: CommonAncestorF[F]
+    commonAncestorF: CommonAncestorF[F],
+    ed25519VRF:      Resource[F, Ed25519VRF],
+    blockIdTree:     ParentChildTree[F, BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
     PeerBlockHeaderFetcher.makeActor(
       hostId,
@@ -267,7 +278,9 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       slotDataStore,
       bodyStore,
       clock,
-      commonAncestorF
+      commonAncestorF,
+      ed25519VRF,
+      blockIdTree
     )
 
   override def makePeerBodyFetcher(
@@ -306,3 +319,4 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       localChainAlgebra
     )
 }
+// scalastyle:on parameter.number
