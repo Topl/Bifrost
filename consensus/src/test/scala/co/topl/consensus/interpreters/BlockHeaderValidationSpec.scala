@@ -72,6 +72,7 @@ class BlockHeaderValidationSpec extends CatsEffectSuite with ScalaCheckEffectSui
         .mapN((blake2b512, exp, log1p) =>
           LeaderElectionValidation.make[F](
             VrfConfig(lddCutoff = 0, precision = 16, baselineDifficulty = Ratio(1, 15), amplitude = Ratio(2, 5)),
+            0,
             blake2b512,
             exp,
             log1p

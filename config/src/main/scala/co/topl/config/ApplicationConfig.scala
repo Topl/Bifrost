@@ -163,6 +163,7 @@ object ApplicationConfig {
       vrfPrecision:               Int,
       vrfBaselineDifficulty:      Ratio,
       vrfAmplitude:               Ratio,
+      slotGapLeaderElection:      Long,
       chainSelectionKLookback:    Long,
       slotDuration:               FiniteDuration,
       forwardBiasedSlotWindow:    Slot,

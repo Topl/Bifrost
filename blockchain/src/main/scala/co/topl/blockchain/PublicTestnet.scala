@@ -14,6 +14,7 @@ object PublicTestnet {
       vrfPrecision = 40,
       vrfBaselineDifficulty = co.topl.models.utility.Ratio(5, 100),
       vrfAmplitude = co.topl.models.utility.Ratio(50, 100),
+      slotGapLeaderElection = 0,
       chainSelectionKLookback = 5184,
       slotDuration = 1.seconds,
       forwardBiasedSlotWindow = 50,
