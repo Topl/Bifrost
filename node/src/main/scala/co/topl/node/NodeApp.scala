@@ -245,7 +245,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
             cryptoResources.blake2b512
           )
           .toResource
-      leaderElection <- makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
+      leaderElection <- makeLeaderElectionThreshold(
+        cryptoResources.blake2b512,
+        vrfConfig,
+        bigBangProtocol.slotGapLeaderElection
+      ).toResource
 
       epochBoundariesStateLocal <- EpochBoundariesEventSourcedState
         .make[F](
@@ -324,7 +328,11 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           .semiflatMap { _ =>
             // Construct a separate threshold calculator instance with a separate cache to avoid
             // polluting the staker's cache with remote block eligibilities
-            makeLeaderElectionThreshold(cryptoResources.blake2b512, vrfConfig).toResource
+            makeLeaderElectionThreshold(
+              cryptoResources.blake2b512,
+              vrfConfig,
+              bigBangProtocol.slotGapLeaderElection
+            ).toResource
               .flatMap(leaderElectionThreshold =>
                 StakingInit
                   .makeStakingFromDisk(
@@ -621,11 +629,15 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
     } yield ()
   // scalastyle:on method.length
 
-  private def makeLeaderElectionThreshold(blake2b512Resource: Resource[F, Blake2b512], vrfConfig: VrfConfig) =
+  private def makeLeaderElectionThreshold(
+    blake2b512Resource:    Resource[F, Blake2b512],
+    vrfConfig:             VrfConfig,
+    slotGapLeaderElection: Long
+  ) =
     for {
       exp   <- ExpInterpreter.make[F](10000, 38)
       log1p <- Log1pInterpreter.make[F](10000, 8).flatMap(Log1pInterpreter.makeCached[F])
-      base = LeaderElectionValidation.make[F](vrfConfig, blake2b512Resource, exp, log1p)
+      base = LeaderElectionValidation.make[F](vrfConfig, slotGapLeaderElection, blake2b512Resource, exp, log1p)
       leaderElectionThresholdCached <- LeaderElectionValidation.makeCached(base)
       leaderElectionThreshold = LeaderElectionValidation.makeWithCappedSlotDiff(
         leaderElectionThresholdCached,

@@ -186,6 +186,11 @@ object InitNetworkHelpers {
             List("1/2"),
             PublicTestnet.DefaultProtocol.vrfAmplitude.show
           )
+          slotGapLeaderElection <- readDefaultedOptional[F, Long](
+            "slot-gap-leader-election",
+            List("0"),
+            PublicTestnet.DefaultProtocol.slotGapLeaderElection.show
+          )
           chainSelectionKLookback <- readDefaultedOptional[F, Long](
             "chain-selection-k-lookback",
             List("500"),
@@ -228,7 +233,8 @@ object InitNetworkHelpers {
           forwardBiasedSlotWindow.some,
           operationalPeriodsPerEpoch.some,
           kesKeyHours.some,
-          kesKeyMinutes.some
+          kesKeyMinutes.some,
+          slotGapLeaderElection.some
         ),
       ifNo = StageResultT.liftF(PublicTestnet.DefaultUpdateProposal.pure[F])
     )

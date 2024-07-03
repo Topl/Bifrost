@@ -162,6 +162,7 @@ object PrivateTestnet {
       vrfPrecision = 40,
       vrfBaselineDifficulty = Ratio(5, 100),
       vrfAmplitude = Ratio(50, 100),
+      slotGapLeaderElection = 0,
       chainSelectionKLookback = 5184,
       slotDuration = 1.seconds,
       forwardBiasedSlotWindow = 50,

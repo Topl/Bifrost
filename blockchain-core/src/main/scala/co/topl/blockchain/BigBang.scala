@@ -171,11 +171,13 @@ object BigBang {
 
   def updateProposalToProtocol(proposal: Value.UpdateProposal): Either[String, ApplicationConfig.Bifrost.Protocol] =
     for {
-      fEffective              <- proposal.fEffective.toRight("Missing fEffective")
-      vrfLddCutoff            <- proposal.vrfLddCutoff.toRight("Missing vrfLddCutoff")
-      vrfPrecision            <- proposal.vrfPrecision.toRight("Missing vrfPrecision")
-      vrfBaselineDifficulty   <- proposal.vrfBaselineDifficulty.toRight("Missing vrfBaselineDifficulty")
-      vrfAmplitude            <- proposal.vrfAmplitude.toRight("Missing vrfAmplitude")
+      fEffective            <- proposal.fEffective.toRight("Missing fEffective")
+      vrfLddCutoff          <- proposal.vrfLddCutoff.toRight("Missing vrfLddCutoff")
+      vrfPrecision          <- proposal.vrfPrecision.toRight("Missing vrfPrecision")
+      vrfBaselineDifficulty <- proposal.vrfBaselineDifficulty.toRight("Missing vrfBaselineDifficulty")
+      vrfAmplitude          <- proposal.vrfAmplitude.toRight("Missing vrfAmplitude")
+      // TODO Temporary solution shall be changed as soon as we relaunch toplnet
+      slotGapLeaderElection <- proposal.slotGapLeaderElection.toRight("Missing slotGapLeaderElection").recover(_ => 0L)
       chainSelectionKLookback <- proposal.chainSelectionKLookback.toRight("Missing chainSelectionKLookback")
       slotDuration            <- proposal.slotDuration.toRight("Missing slotDuration")
       forwardBiasedSlotWindow <- proposal.forwardBiasedSlotWindow.toRight("Missing forwardBiasedSlotWindow")
@@ -191,6 +193,7 @@ object BigBang {
       vrfPrecision,
       vrfBaselineDifficulty,
       vrfAmplitude,
+      slotGapLeaderElection,
       chainSelectionKLookback,
       slotDuration,
       forwardBiasedSlotWindow,
@@ -216,6 +219,7 @@ object BigBang {
       forwardBiasedSlotWindow = protocol.forwardBiasedSlotWindow.some,
       operationalPeriodsPerEpoch = protocol.operationalPeriodsPerEpoch.some,
       kesKeyHours = protocol.kesKeyHours.some,
-      kesKeyMinutes = protocol.kesKeyMinutes.some
+      kesKeyMinutes = protocol.kesKeyMinutes.some,
+      slotGapLeaderElection = protocol.slotGapLeaderElection.some
     )
 }

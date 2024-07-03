@@ -50,6 +50,7 @@ private class ProposalCommandImpl[F[_]: Async](implicit c: Console[F]) {
       operationalPeriodsPerEpoch <- readOptionalParameter[F, Long]("operational-periods-per-epoch", List("2"))
       kesKeyHours                <- readOptionalParameter[F, Int]("kes-key-hours", List("2"))
       kesKeyMinutes              <- readOptionalParameter[F, Int]("kes-key-minutes", List("9"))
+      slotGapLeaderElection      <- readOptionalParameter[F, Long]("slot-gap-leader-election", List("0"))
 
       proposal = UpdateProposal(
         label,
@@ -63,7 +64,8 @@ private class ProposalCommandImpl[F[_]: Async](implicit c: Console[F]) {
         forwardBiasedSlotWindow,
         operationalPeriodsPerEpoch,
         kesKeyHours,
-        kesKeyMinutes
+        kesKeyMinutes,
+        slotGapLeaderElection
       )
 
       lockAddress <- readParameter[F, LockAddress](

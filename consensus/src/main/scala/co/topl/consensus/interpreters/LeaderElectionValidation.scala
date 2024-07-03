@@ -23,26 +23,30 @@ object LeaderElectionValidation {
   private val NormalizationConstant: BigInt = BigInt(2).pow(512)
 
   def make[F[_]: Sync](
-    config:             VrfConfig,
-    blake2b512Resource: Resource[F, Blake2b512],
-    exp:                Exp[F],
-    log1p:              Log1p[F]
+    config:                VrfConfig,
+    slotGapLeaderElection: Long,
+    blake2b512Resource:    Resource[F, Blake2b512],
+    exp:                   Exp[F],
+    log1p:                 Log1p[F]
   ): LeaderElectionValidationAlgebra[F] =
     new LeaderElectionValidationAlgebra[F] {
 
       def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] = {
 
         val difficultyCurve: Ratio =
-          if (slotDiff > config.lddCutoff) config.baselineDifficulty
+          if (slotDiff < slotGapLeaderElection) Ratio.Zero
+          else if (slotDiff > config.lddCutoff) config.baselineDifficulty
           else Ratio(BigInt(slotDiff), BigInt(config.lddCutoff)) * config.amplitude
 
-        if (difficultyCurve == Ratio.One) {
-          Ratio.One.pure[F]
-        } else
-          for {
-            coefficient <- log1p.evaluate(Ratio.NegativeOne * difficultyCurve)
-            result      <- exp.evaluate(coefficient * relativeStake)
-          } yield Ratio.One - result
+        difficultyCurve match {
+          case Ratio.One  => Ratio.One.pure[F]
+          case Ratio.Zero => Ratio.Zero.pure[F]
+          case _ =>
+            for {
+              coefficient <- log1p.evaluate(Ratio.NegativeOne * difficultyCurve)
+              result      <- exp.evaluate(coefficient * relativeStake)
+            } yield Ratio.One - result
+        }
       }
 
       /**
