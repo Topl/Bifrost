@@ -68,7 +68,7 @@ object LeaderElectionValidation {
     CaffeineCache[F, (Ratio, Slot), Ratio].map(cache =>
       new LeaderElectionValidationAlgebra[F] {
 
-        override def getThreshold(relativeStake: Ratio, slotDiff: Slot): F[Ratio] =
+        override def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] =
           cache.cachingF((relativeStake, slotDiff))(ttl = None)(
             Sync[F].defer(
               alg.getThreshold(relativeStake, slotDiff)
@@ -96,7 +96,7 @@ object LeaderElectionValidation {
        * If slotDiff > lddCutoff, substitute (lddCutoff + 1) for the slotDiff since the result should
        * always be constant
        */
-      def getThreshold(relativeStake: Ratio, slotDiff: Epoch): F[Ratio] =
+      def getThreshold(relativeStake: Ratio, slotDiff: Long): F[Ratio] =
         if (slotDiff > lddCutoff) alg.getThreshold(relativeStake, lddCutoff + 1)
         else alg.getThreshold(relativeStake, slotDiff)
 
