@@ -203,8 +203,7 @@ object BlockProducer {
      */
     private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
       OptionT(
-        blockPacker
-          .blockImprover(parentId, height, untilSlot)
+        (blockPacker.blockImprover(parentId, height, untilSlot) ++ Stream.never)
           .interruptWhen(
             constructionPermit >>
             clock.delayedUntilSlot(untilSlot) >>
