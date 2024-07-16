@@ -35,7 +35,8 @@ object ActorPeerHandlerBridgeAlgebra {
     peersStatusChangesTopic: Topic[F, PeerConnectionChange],
     addRemotePeer:           DisconnectedPeer => F[Unit],
     hotPeersUpdate:          Set[RemotePeer] => F[Unit],
-    ed25519VRF:              Resource[F, Ed25519VRF]
+    ed25519VRF:              Resource[F, Ed25519VRF],
+    networkCommands:         Topic[F, NetworkCommands]
   ): Resource[F, BlockchainPeerHandlerAlgebra[F]] = {
     implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName("Bifrost.P2P")
 
@@ -50,7 +51,8 @@ object ActorPeerHandlerBridgeAlgebra {
         PeerCreationRequestAlgebra(addRemotePeer),
         peersStatusChangesTopic,
         hotPeersUpdate,
-        ed25519VRF
+        ed25519VRF,
+        networkCommands
       )
 
     networkManager.map(pm => makeAlgebra(pm))

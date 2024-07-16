@@ -296,6 +296,7 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
           b
         }
 
+        networkCommandsTopic <- Resource.make(Topic[F, NetworkCommands])(_.close.void)
         algebra <- ActorPeerHandlerBridgeAlgebra
           .make[F](
             hostId,
@@ -305,7 +306,8 @@ class ActorPeerHandlerBridgeAlgebraTest extends CatsEffectSuite with ScalaCheckE
             topic,
             addRemotePeer,
             hotPeersUpdate,
-            Resource.pure(Ed25519VRF.precomputed())
+            Resource.pure(Ed25519VRF.precomputed()),
+            networkCommandsTopic
           )
       } yield (algebra, remotePeersStore, mempoolAlgebra)
 

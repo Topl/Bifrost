@@ -150,10 +150,10 @@ class PeerMempoolTransactionSyncTest extends CatsEffectSuite with ScalaCheckEffe
 
       (transactionStore.contains _).expects(*).anyNumberOfTimes().returns(false.pure[F])
       transactionInMempool.map { tx =>
-        (mempool.contains _).expects(headBlock.slotId.blockId, tx.id).once.returns(true.pure[F])
+        (mempool.contains _).expects(headBlock.slotId.blockId, tx.id).once().returns(true.pure[F])
       }
       missedTransaction.map { tx =>
-        (mempool.contains _).expects(headBlock.slotId.blockId, tx.id).once.returns(false.pure[F])
+        (mempool.contains _).expects(headBlock.slotId.blockId, tx.id).once().returns(false.pure[F])
       }
 
       (peersManager.sendNoWait _)

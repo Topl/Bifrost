@@ -735,6 +735,7 @@ lazy val nodeIt = project
   )
   .dependsOn(
     node,
+    models % "test->compile",
     transactionGenerator % "test->compile"
   )
 

@@ -614,6 +614,7 @@ class ConfiguredNodeApp(args: Args, appConfig: ApplicationConfig) {
           p2pConfig.knownPeers,
           appConfig.bifrost.rpc.bindHost,
           appConfig.bifrost.rpc.bindPort,
+          appConfig.bifrost.rpc.networkControl,
           genusServices ::: healthServices,
           (p2pConfig.publicHost, p2pConfig.publicPort).mapN(KnownPeer),
           p2pConfig.networkProperties,
