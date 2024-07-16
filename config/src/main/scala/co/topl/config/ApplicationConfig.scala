@@ -100,7 +100,7 @@ object ApplicationConfig {
     case class KnownPeer(host: String, port: Int)
 
     @Lenses
-    case class RPC(bindHost: String, bindPort: Int)
+    case class RPC(bindHost: String, bindPort: Int, networkControl: Boolean = false)
 
     @Lenses
     case class Mempool(defaultExpirationSlots: Long, protection: MempoolProtection = MempoolProtection())

@@ -6,7 +6,7 @@ import cats.effect.implicits._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.blockchain.interpreters.RegtestRpcServer
+import co.topl.blockchain.interpreters.{NetworkControlRpcServer, RegtestRpcServer}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
 import co.topl.catsutils._
@@ -42,18 +42,19 @@ object Blockchain {
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
   def make[F[_]: Async: Random: Dns: Stats](
-    localBlockchain:        BlockchainCore[F],
-    p2pBlockchain:          BlockchainCore[F],
-    stakerResource:         Resource[F, Option[StakingAlgebra[F]]],
-    eventSourcedStates:     EventSourcedStates[F],
-    localPeer:              LocalPeer,
-    knownPeers:             List[KnownPeer],
-    rpcHost:                String,
-    rpcPort:                Int,
-    additionalGrpcServices: List[ServerServiceDefinition],
-    peerAsServer:           Option[KnownPeer],
-    networkProperties:      NetworkProperties,
-    regtestEnabled:         Boolean
+    localBlockchain:          BlockchainCore[F],
+    p2pBlockchain:            BlockchainCore[F],
+    stakerResource:           Resource[F, Option[StakingAlgebra[F]]],
+    eventSourcedStates:       EventSourcedStates[F],
+    localPeer:                LocalPeer,
+    knownPeers:               List[KnownPeer],
+    rpcHost:                  String,
+    rpcPort:                  Int,
+    rpcNetworkControlEnabled: Boolean,
+    additionalGrpcServices:   List[ServerServiceDefinition],
+    peerAsServer:             Option[KnownPeer],
+    networkProperties:        NetworkProperties,
+    regtestEnabled:           Boolean
   ): Resource[F, Unit] = new BlockchainImpl[F](
     localBlockchain,
     p2pBlockchain,
@@ -63,6 +64,7 @@ object Blockchain {
     knownPeers,
     rpcHost,
     rpcPort,
+    rpcNetworkControlEnabled,
     additionalGrpcServices,
     peerAsServer,
     networkProperties,
@@ -72,20 +74,23 @@ object Blockchain {
 }
 
 class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
-  localBlockchain:        BlockchainCore[F],
-  p2pBlockchain:          BlockchainCore[F],
-  stakerResource:         Resource[F, Option[StakingAlgebra[F]]],
-  eventSourcedStates:     EventSourcedStates[F],
-  localPeer:              LocalPeer,
-  knownPeers:             List[KnownPeer],
-  rpcHost:                String,
-  rpcPort:                Int,
-  additionalGrpcServices: List[ServerServiceDefinition],
-  peerAsServer:           Option[KnownPeer],
-  networkProperties:      NetworkProperties,
-  regtestEnabled:         Boolean
+  localBlockchain:          BlockchainCore[F],
+  p2pBlockchain:            BlockchainCore[F],
+  stakerResource:           Resource[F, Option[StakingAlgebra[F]]],
+  eventSourcedStates:       EventSourcedStates[F],
+  localPeer:                LocalPeer,
+  knownPeers:               List[KnownPeer],
+  rpcHost:                  String,
+  rpcPort:                  Int,
+  rpcNetworkControlEnabled: Boolean,
+  additionalGrpcServices:   List[ServerServiceDefinition],
+  peerAsServer:             Option[KnownPeer],
+  networkProperties:        NetworkProperties,
+  regtestEnabled:           Boolean
 ) {
   implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
+
+  private val thisHostId = HostId(localPeer.p2pVK)
 
   /**
    * For each adopted block, trigger all internal event-sourced states to update.  Generally, EventSourcedStates are
@@ -107,7 +112,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
       .background
       .void
 
-  private def p2p =
+  private def p2p(networkCommands: Topic[F, NetworkCommands]) =
     for {
       _           <- Resource.make(Logger[F].info("Initializing P2P"))(_ => Logger[F].info("P2P Terminated"))
       remotePeers <- Queue.unbounded[F, DisconnectedPeer].toResource
@@ -121,14 +126,15 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
         if (networkProperties.useHostNames) new DefaultReverseDnsResolver[F]() else new NoOpReverseResolver[F]
       bridge <- ActorPeerHandlerBridgeAlgebra
         .make(
-          HostId(localPeer.p2pVK),
+          thisHostId,
           p2pBlockchain,
           networkProperties,
           initialPeers,
           peersStatusChangesTopic,
           remotePeers.offer,
           currentPeers.set,
-          p2pBlockchain.cryptoResources.ed25519VRF
+          p2pBlockchain.cryptoResources.ed25519VRF,
+          networkCommands
         )
         .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
       _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.fold("")(_.toString)}").toResource
@@ -152,7 +158,10 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
         )
     } yield ()
 
-  def rpc(regtestPermitQueue: Option[Queue[F, Unit]]): Resource[F, Unit] =
+  def rpc(
+    regtestPermitQueue: Option[Queue[F, Unit]],
+    networkCommandsOpt: Option[Topic[F, NetworkCommands]]
+  ): Resource[F, Unit] =
     for {
       _               <- Resource.make(Logger[F].info("Initializing RPC"))(_ => Logger[F].info("RPC Terminated"))
       rpcInterpreter  <- ToplRpcServer.make(localBlockchain).toResource
@@ -160,8 +169,10 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
       regtestServices <- regtestPermitQueue.toList.traverse(queue =>
         RegtestRpcServer.service[F](Async[F].defer(queue.offer(())))
       )
+      _ <- networkCommandsOpt.fold(().pure[F])(_ => Logger[F].error("Network could be controlled via RPC")).toResource
+      networkControl <- NetworkControlRpcServer.service(thisHostId, networkCommandsOpt)
       rpcServer <- ToplGrpc.Server
-        .serve(rpcHost, rpcPort)(nodeGrpcService :: regtestServices ++ additionalGrpcServices)
+        .serve(rpcHost, rpcPort)(networkControl :: nodeGrpcService :: regtestServices ++ additionalGrpcServices)
       _ <- Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}").toResource
     } yield ()
 
@@ -259,9 +270,10 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
       regtestPermitQueue <-
         if (regtestEnabled) Queue.unbounded[F, Unit].toResource.map(_.some)
         else none[Queue[F, Unit]].pure[F].toResource
+      networkCommandsTopic <- Resource.make(Topic[F, NetworkCommands])(_.close.void)
       _ <- (
-        p2p,
-        rpc(regtestPermitQueue),
+        p2p(networkCommandsTopic),
+        rpc(regtestPermitQueue, if (rpcNetworkControlEnabled) networkCommandsTopic.some else None),
         blockProduction(regtestPermitQueue),
         eventSourcedStateUpdater
       ).parTupled

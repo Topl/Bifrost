@@ -2,6 +2,7 @@ package co.topl.node
 
 import cats.effect._
 import cats.effect.implicits._
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.SecureRandom
 import cats.implicits._
 import co.topl.algebras.{NodeRpc, SynchronizationTraversalSteps}
@@ -14,9 +15,11 @@ import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig
 import co.topl.consensus.models.{BlockId, ProtocolVersion}
 import co.topl.genus.services._
+import co.topl.grpc.makeChannel
 import co.topl.interpreters.NodeRpcOps.clientAsNodeRpcApi
 import co.topl.models.utility._
 import co.topl.node.models.{BlockBody, FullBlock}
+import co.topl.node.services.NetworkControlRpcFs2Grpc
 import co.topl.transactiongenerator.interpreters.GenusWalletInitializer
 import co.topl.transactiongenerator.models._
 import co.topl.typeclasses.implicits._
@@ -30,6 +33,8 @@ import org.http4s.dsl.io._
 import org.http4s.ember.server._
 import org.http4s.server.Router
 import quivr.models.Int128
+import co.topl.models.p2p.HostId
+import co.topl.node.services._
 
 import java.nio.charset.StandardCharsets
 import scala.concurrent.duration._
@@ -102,13 +107,13 @@ object Util {
       Stream.chunk(Chunk.array(data)).through(Files.forAsync[F].writeAll(dir / name)).compile.drain
 
     saveFile(StakingInit.OperatorKeyName, staker.operatorSK.toByteArray) *>
-      saveFile(StakingInit.VrfKeyName, staker.vrfSK.toByteArray) *>
-      Files.forAsync[F].createDirectories(dir / StakingInit.KesDirectoryName) *>
-      saveFile(
-        s"${StakingInit.KesDirectoryName}/0",
-        co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey.persistedBytes(staker.kesSK).toByteArray
-      ) *>
-      saveFile(StakingInit.RegistrationTxName, staker.registrationTransaction(quantity).toByteArray)
+    saveFile(StakingInit.VrfKeyName, staker.vrfSK.toByteArray) *>
+    Files.forAsync[F].createDirectories(dir / StakingInit.KesDirectoryName) *>
+    saveFile(
+      s"${StakingInit.KesDirectoryName}/0",
+      co.topl.codecs.bytes.tetra.instances.persistableKesProductSecretKey.persistedBytes(staker.kesSK).toByteArray
+    ) *>
+    saveFile(StakingInit.RegistrationTxName, staker.registrationTransaction(quantity).toByteArray)
   }
 
   /**
@@ -163,8 +168,8 @@ object Util {
     } yield backgroundOutcomeF
 
   def confirmTransactions(
-                                   client: RpcClient
-                                 )(ids: Set[TransactionId], confirmationDepth: Int = 3): F[Unit] = {
+    client: RpcClient
+  )(ids: Set[TransactionId], confirmationDepth: Int = 3): F[Unit] = {
     def filterTransactions(targetBlock: BlockId)(ids: Set[TransactionId]): F[Set[TransactionId]] =
       client
         .fetchBlockBody(targetBlock)
@@ -198,7 +203,6 @@ object Util {
       .drain
   }
 
-
   def txsInChain(client: RpcClient)(ids: Set[TransactionId]): IO[Boolean] =
     client.history
       .flatMap(block => Stream.emits(block.fullBody.allTransactions))
@@ -225,21 +229,20 @@ object Util {
       .void
       .handleErrorWith(_ => Async[F].delayBy(awaitGenusReady(blockService), 1.seconds))
 
-  def makeWallet[F[_]: Async](genusRpc: TransactionServiceFs2Grpc[F, Metadata]): Resource[F,  Wallet] = {
-    GenusWalletInitializer.make[F](genusRpc).flatMap(w => w.initialize.toResource).flatMap{
+  def makeWallet[F[_]: Async](genusRpc: TransactionServiceFs2Grpc[F, Metadata]): Resource[F, Wallet] =
+    GenusWalletInitializer.make[F](genusRpc).flatMap(w => w.initialize.toResource).flatMap {
       case w if w.spendableBoxes.isEmpty => makeWallet(genusRpc)
-      case w => w.pure[F].toResource
+      case w                             => w.pure[F].toResource
     }
-  }
 }
 
 case class TestnetConfig(
-                          timestamp:     Long,
-                          stakers:       List[(StakerInitializers.Operator, Int128)],
-                          unstakedTopls: List[UnspentTransactionOutput],
-                          lvls:          List[UnspentTransactionOutput],
-                          protocol:      ApplicationConfig.Bifrost.Protocol
-                        ) {
+  timestamp:     Long,
+  stakers:       List[(StakerInitializers.Operator, Int128)],
+  unstakedTopls: List[UnspentTransactionOutput],
+  lvls:          List[UnspentTransactionOutput],
+  protocol:      ApplicationConfig.Bifrost.Protocol
+) {
 
   val protocolUtxo: UnspentTransactionOutput =
     UnspentTransactionOutput(PrivateTestnet.HeightLockOneSpendingAddress, BigBang.protocolToValue(protocol))
@@ -256,4 +259,30 @@ case class TestnetConfig(
         protocolVersion = ProtocolVersion(2, 0, 0)
       )
     )
+}
+
+trait NodeControlRpc[F[_]] {
+  def getHostId(): F[HostId]
+  def forgetPeer(hostId: HostId): F[Unit]
+  def addPeer(ip: String, port: Int, HostIdOpt: Option[HostId]): F[Unit]
+}
+
+object NetworkControlClient {
+
+  def make[F[_]: Async](host: String, port: Int, tls: Boolean): Resource[F, NodeControlRpc[F]] =
+    makeChannel(host, port, tls)
+      .flatMap(NetworkControlRpcFs2Grpc.stubResource[F])
+      .map(client =>
+        new NodeControlRpc[F] {
+
+          override def getHostId(): F[HostId] =
+            client.getHostId(GetHostIdReq(), new Metadata()).map(resp => HostId(resp.id.id))
+
+          override def forgetPeer(hostId: HostId): F[Unit] =
+            client.forgetPeer(ForgetPeerReq(RpcHostId(hostId.id)), new Metadata()).void
+
+          override def addPeer(ip: String, port: Int, HostIdOpt: Option[HostId]): F[Unit] =
+            client.addPeer(AddPeerReq(HostIdOpt.map(id => RpcHostId(id.id)), ip, port), new Metadata()).void
+        }
+      )
 }

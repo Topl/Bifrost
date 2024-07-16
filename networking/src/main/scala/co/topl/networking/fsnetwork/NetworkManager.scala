@@ -10,7 +10,7 @@ import co.topl.algebras.Store
 import co.topl.blockchain.BlockchainCore
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.crypto.signing.Ed25519VRF
-import co.topl.models.p2p.{HostId, KnownRemotePeer}
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.p2p.{DisconnectedPeer, PeerConnectionChange, PeerConnectionChanges}
 import co.topl.networking.fsnetwork.P2PShowInstances._
@@ -31,7 +31,8 @@ object NetworkManager {
     addRemotePeerAlgebra:    PeerCreationRequestAlgebra[F],
     peersStatusChangesTopic: Topic[F, PeerConnectionChange],
     hotPeersUpdate:          Set[RemotePeer] => F[Unit],
-    ed25519VRF:              Resource[F, Ed25519VRF]
+    ed25519VRF:              Resource[F, Ed25519VRF],
+    networkCommands:         Topic[F, NetworkCommands]
   ): Resource[F, PeersManagerActor[F]] =
     for {
       _ <- Resource.liftK(Logger[F].info(show"Start actors network with list of peers: ${initialHosts.mkString(";")}"))
@@ -96,6 +97,7 @@ object NetworkManager {
       _        <- Resource.liftK(notifier.sendNoWait(Notifier.Message.StartNotifications))
 
       _ <- startPeersStatusNotifier(peerManager, peersStatusChangesTopic)
+      _ <- startNetworkCommands(peerManager, networkCommands)
     } yield peerManager
 
   private def startPeersStatusNotifier[F[_]: Async: Logger](
@@ -129,6 +131,23 @@ object NetworkManager {
       .drain
       .background
 
+  private def startNetworkCommands[F[_]: Async: Logger](
+    peersManager: PeersManagerActor[F],
+    topic:        Topic[F, NetworkCommands]
+  ): Resource[F, F[Outcome[F, Throwable, Unit]]] =
+    topic.subscribeUnbounded
+      .evalTap {
+        case NetworkCommands.ForgetPeer(hostId) =>
+          peersManager.sendNoWait(PeersManager.Message.ForgetPeer(hostId))
+        case NetworkCommands.AddPeer(remoteAddress, remotePeerIdOpt) =>
+          val hostId = remotePeerIdOpt.getOrElse(HostId(ByteString.copyFrom(Random.nextBytes(hostIdBytesLen))))
+          val knownPeer = KnownRemotePeer(hostId, remoteAddress, 0, 0, None)
+          peersManager.sendNoWait(PeersManager.Message.AddKnownPeers(NonEmptyChain.one(knownPeer)))
+      }
+      .compile
+      .drain
+      .background
+
   private def buildSaveRemotePeersFunction[F[_]: Async: Logger](
     remotePeersStore: Store[F, Unit, Seq[KnownRemotePeer]]
   ): Set[KnownRemotePeer] => F[Unit] = { peers: Set[KnownRemotePeer] =>
@@ -143,7 +162,7 @@ object NetworkManager {
   ): Seq[KnownRemotePeer] = {
     val remoteAddressMap = remoteAddress.map { ra =>
       val id =
-        ra.p2pVK.map(HostId).getOrElse(HostId(ByteString.copyFrom(Random.nextBytes(hostIdBytesLen))))
+        ra.p2pVK.fold(HostId(ByteString.copyFrom(Random.nextBytes(hostIdBytesLen))))(HostId)
       ra.remoteAddress -> KnownRemotePeer(id, ra.remoteAddress, 0, 0, None)
     }.toMap
     val remotePeersMap = remotePeers.map(p => p.address -> p).toMap

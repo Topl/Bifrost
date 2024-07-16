@@ -112,8 +112,8 @@ class NodeAppTest extends CatsEffectSuite {
           .parMapN(_.race(_).map(_.merge).flatMap(_.embedNever))
           .flatMap(nodeCompletion =>
             nodeCompletion.toResource.race(for {
-              rpcClientA <- NodeGrpc.Client.make[F]("127.0.0.2", 9151, tls = false)
-              rpcClientB <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
+              rpcClientA      <- NodeGrpc.Client.make[F]("127.0.0.2", 9151, tls = false)
+              rpcClientB      <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
               rpcClients = List(rpcClientA, rpcClientB)
               implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
               _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
@@ -121,8 +121,8 @@ class NodeAppTest extends CatsEffectSuite {
               genusTxServiceA              <- TransactionServiceFs2Grpc.stubResource[F](genusChannelA)
               genusBlockServiceA           <- BlockServiceFs2Grpc.stubResource[F](genusChannelA)
               _                            <- awaitGenusReady(genusBlockServiceA).timeout(45.seconds).toResource
-              wallet <- makeWallet(genusTxServiceA)
-              _      <- IO(wallet.spendableBoxes.nonEmpty).assert.toResource
+              wallet                       <- makeWallet(genusTxServiceA)
+              _                            <- IO(wallet.spendableBoxes.nonEmpty).assert.toResource
               implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
               // Construct two competing graphs of transactions.
               // Graph 1 has higher fees and should be included in the chain

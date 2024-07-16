@@ -160,6 +160,12 @@ object PeersManager {
     case class AddKnownPeers(knownPeers: NonEmptyChain[KnownRemotePeer]) extends Message
 
     /**
+     * Forget remote peer, if connection is open to that peer then close that connection as well
+     * @param hostId peer to forget
+     */
+    case class ForgetPeer(hostId: HostId) extends Message
+
+    /**
      * Add known neighbour, i.e. hot peers of remote current hot peer
      * @param knownNeighbors known neighbors
      */
@@ -284,6 +290,7 @@ object PeersManager {
         case (state, newPeer: OpenedPeerConnection[F] @unchecked) => openedPeerConnection(thisActor, state, newPeer)
         case (state, AddKnownNeighbors(source, peers))            => addKnownNeighbors(state, source, peers)
         case (state, AddKnownPeers(peers))                        => addKnownPeers(state, peers)
+        case (state, ForgetPeer(peer))                            => forgetPeer(thisActor, state, peer)
         case (state, UpdatePeersTick)                             => updatePeersTick(state)
         case (state, AggressiveP2PUpdate)                         => aggressiveP2PUpdate(thisActor, state)
         case (state, UpdatedReputationTick)                       => repUpdate(thisActor, state)
@@ -929,6 +936,17 @@ object PeersManager {
       changedPeers     <- (newPeers.peers -- oldPeers.peers.keySet).pure[F]
       _                <- Logger[F].infoIf(changedPeers.nonEmpty, show"New known peers: $changedPeers")
       newState         <- state.copy(peersHandler = newPeers).pure[F]
+    } yield (newState, newState)
+
+  private def forgetPeer[F[_]: Async: Logger](
+    thisActor: PeersManagerActor[F],
+    state:     State[F],
+    peer:      HostId
+  ): F[(State[F], Response[F])] =
+    for {
+      (stateWithClosed, _) <- closePeer(thisActor, state, peer)
+      newPeersHandler = stateWithClosed.peersHandler.removeColdPeers(Set(peer))
+      newState = stateWithClosed.copy(peersHandler = newPeersHandler)
     } yield (newState, newState)
 
   private def updatePeersTick[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
