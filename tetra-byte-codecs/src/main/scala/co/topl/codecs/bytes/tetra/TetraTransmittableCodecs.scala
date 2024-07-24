@@ -6,6 +6,8 @@ import co.topl.consensus.models.BlockId
 import co.topl.models.utility.Ratio
 import com.google.protobuf.ByteString
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+import scodec.Codec
+import scodec.codecs._
 
 import scala.util.Try
 
@@ -41,6 +43,12 @@ trait TetraTransmittableCodecs {
       (longCodec :: optionCodec[BlockId])
         .as[(Long, Option[BlockId])]
     )
+
+  implicit def listTransmittable[A: Codec]: Transmittable[List[A]] =
+    Transmittable.instanceFromCodec(list[A](implicitly[Codec[A]]))
+
+  implicit def pairTransmittable[A: Codec, B: Codec]: Transmittable[(A, B)] =
+    Transmittable.instanceFromCodec(pairCodec[A, B])
 
   implicit def optionalTransmittable[T: Transmittable]: Transmittable[Option[T]] =
     new Transmittable[Option[T]] {

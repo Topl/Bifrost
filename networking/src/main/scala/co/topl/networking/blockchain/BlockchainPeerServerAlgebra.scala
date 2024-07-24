@@ -14,6 +14,7 @@ trait BlockchainPeerServerAlgebra[F[_]] {
   def localBlockAdoptions: F[Stream[F, BlockId]]
   def localTransactionNotifications: F[Stream[F, TransactionId]]
   def getLocalSlotData(id:              BlockId): F[Option[SlotData]]
+  def requestSlotDataAndParents(from:   BlockId, to: BlockId): F[Option[List[SlotData]]]
   def getLocalHeader(id:                BlockId): F[Option[BlockHeader]]
   def getLocalBody(id:                  BlockId): F[Option[BlockBody]]
   def getLocalTransaction(id:           TransactionId): F[Option[IoTransaction]]

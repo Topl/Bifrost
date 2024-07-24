@@ -56,6 +56,15 @@ trait BlockchainPeerClient[F[_]] {
   def getRemoteSlotData(id: BlockId): F[Option[SlotData]]
 
   /**
+   * A Lookup to retrieve a remote SlotData by ID defined by "to" parameter and N parents for that slot.
+   * @param to requested slot data id
+   * @param from stop building parents if slot data id is equal to that parameter
+   * @return slot data (to, from) OR (fromParent(N), ..., fromParent(1), from) where number is parent index, i.e.
+   *         fromParent(2) is parent of parent of slot data with id "from"
+   */
+  def getRemoteSlotDataWithParents(from: BlockId, to: BlockId): F[Option[List[SlotData]]]
+
+  /**
    * A Lookup to retrieve a remote slot data by ID, or throw specified Error
    */
   def getSlotDataOrError[E <: Throwable](id: BlockId, error: => E)(implicit MonadThrow: MonadThrow[F]): F[SlotData] =

@@ -1,8 +1,10 @@
 package co.topl.networking.blockchain
 
+import cats.data.Chain
 import cats.effect.{Async, Resource}
 import cats.implicits._
 import co.topl.blockchain.BlockchainCore
+import co.topl.blockchain._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.catsutils._
@@ -25,6 +27,7 @@ object BlockchainPeerServer {
     peerServerPort:          () => Option[KnownHost],
     currentHotPeers:         () => F[Set[RemotePeer]],
     peerStatus:              Topic[F, PeerConnectionChange],
+    slotDataParentDepth:     Int,
     blockIdBufferSize:       Int = 8,
     transactionIdBufferSize: Int = 512
   )(peer: ConnectedPeer): Resource[F, BlockchainPeerServerAlgebra[F]] =
@@ -72,6 +75,42 @@ object BlockchainPeerServer {
 
           override def getLocalSlotData(id: BlockId): F[Option[SlotData]] =
             blockchain.dataStores.slotData.get(id)
+
+          private def slotDataPrependIteration(
+            acc:          Chain[SlotData],
+            maxParent:    BlockId,
+            nextParent:   BlockId,
+            currentLevel: Int
+          ): F[Chain[SlotData]] =
+            blockchain.dataStores.slotData.getOrRaise(nextParent).flatMap { slotData =>
+              if (
+                currentLevel >= slotDataParentDepth ||
+                slotData.slotId.blockId == maxParent ||
+                slotData.height == BigBang.Height
+              ) {
+                acc.prepend(slotData).pure[F]
+              } else {
+                slotDataPrependIteration(
+                  acc.prepend(slotData),
+                  maxParent,
+                  slotData.parentSlotId.blockId,
+                  currentLevel + 1
+                )
+              }
+            }
+
+          override def requestSlotDataAndParents(from: BlockId, to: BlockId): F[Option[List[SlotData]]] =
+            Logger[F].debug(show"Server request requestSlotDataAndParents $from : $to") >>
+            blockchain.dataStores.slotData
+              .contains(to)
+              .ifM(
+                ifTrue = slotDataPrependIteration(Chain.empty[SlotData], from, to, 0).map(_.toList.some),
+                ifFalse = Option.empty[List[SlotData]].pure[F]
+              )
+              .flatTap { res =>
+                val str = res.getOrElse(List.empty[SlotData]).map(d => show"${d.slotId.blockId}").mkString(",")
+                Logger[F].debug(show"Server response requestSlotDataAndParents chain is: $str")
+              }
 
           override def getLocalHeader(id: BlockId): F[Option[BlockHeader]] =
             blockchain.dataStores.headers.get(id)

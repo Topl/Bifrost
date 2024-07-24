@@ -8,7 +8,7 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.node.models.KnownHost
 import scodec.Codec
-import scodec.codecs.{discriminated, lazily, utf8_32}
+import scodec.codecs._
 import shapeless.{::, HList, HNil}
 
 /**
@@ -154,10 +154,31 @@ trait TetraScodecCodecs {
       stakingAddressCodec // address
   ).as[UnsignedBlockHeader]
 
+  implicit val slotIdCodec: Codec[SlotId] = (
+    longCodec :: // slot
+      blockIdCodec :: // blockId
+      unknownFieldSetCodec
+  ).as[SlotId]
+
+  implicit val slotDataCodec: Codec[SlotData] = (
+    slotIdCodec :: // slotId
+      slotIdCodec :: // parentSlotId
+      byteStringCodecSized(64) :: // rho
+      byteStringCodecSized(32) :: // eta
+      longCodec :: // height
+      unknownFieldSetCodec // unknownFields
+  ).as[SlotData]
+
   implicit val knownHostCodec: Codec[KnownHost] = (
     byteStringCodec ::
       utf8_32 ::
       intCodec ::
       unknownFieldSetCodec
   ).as[KnownHost]
+
+  implicit def pairCodec[A: Codec, B: Codec]: Codec[(A, B)] =
+    (
+      implicitly[Codec[A]] ::
+        implicitly[Codec[B]]
+    ).as[(A, B)]
 }

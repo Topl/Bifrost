@@ -1,6 +1,7 @@
 package co.topl.networking.blockchain
 
-import cats.effect.{IO, Resource}
+import cats.{MonadThrow, Show}
+import cats.data.NonEmptyChain
 import cats.implicits._
 import co.topl.algebras.Store
 import co.topl.blockchain.{BlockchainCore, DataStores}
@@ -25,8 +26,10 @@ import co.topl.node.models.{BlockBody, CurrentKnownHostsReq, CurrentKnownHostsRe
 import fs2._
 import fs2.concurrent.Topic
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
+import org.scalacheck.Gen
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import cats.effect.{IO, Resource}
 
 import scala.concurrent.duration._
 
@@ -47,6 +50,54 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         makeServer(slotDataStore = slotDataStore)
           .use(underTest => underTest.getLocalSlotData(slotData.slotId.blockId).assertEquals(slotData.some))
       }
+    }
+  }
+
+  val chainLen = 100L
+
+  test("serve slot data chain") {
+    PropF.forAllF(Gen.choose(1L, chainLen), Gen.choose(1L, chainLen), Gen.choose(1, chainLen + 1)) {
+      (firstVal: Long, secondVal: Long, chunkSize: Long) =>
+        withMock {
+          val from = Math.min(firstVal, secondVal)
+          val to = Math.max(firstVal, secondVal)
+
+          val preGenesis = arbitrarySlotData.arbitrary.first.copy(height = 0)
+          val slotDataChain: NonEmptyChain[SlotData] =
+            arbitraryLinkedSlotDataChainFor(Gen.choose(chainLen, chainLen), preGenesis.some).arbitrary.first
+          val slotDataMap = slotDataChain.map(sd => (sd.slotId.blockId, sd)).toList.toMap
+          val heightToId = slotDataChain.map(sd => (sd.height, sd.slotId.blockId)).toList.toMap
+          val slotDataStore = mock[Store[F, BlockId, SlotData]]
+          (slotDataStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId =>
+            slotDataMap.contains(id).pure[F]
+          }
+          (slotDataStore
+            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
+            .expects(*, *, *)
+            .anyNumberOfTimes()
+            .onCall { case (id: BlockId, _: MonadThrow[F] @unchecked, _: Show[BlockId] @unchecked) =>
+              slotDataMap(id).pure[F]
+            }
+
+          makeServer(slotDataStore = slotDataStore, slotDataParentDepth = chunkSize.toInt).use { underTest =>
+            for {
+              resOpt <- underTest.requestSlotDataAndParents(heightToId(from), heightToId(to))
+              res = resOpt.get
+              expectedSize = Math.min((to - from) + 1, chunkSize + 1)
+              _        <- assert(res.size == expectedSize).pure[F]
+              _        <- assert(res.head.slotId.blockId == heightToId(to - expectedSize + 1)).pure[F]
+              _        <- assert(res.last.slotId.blockId == heightToId(to)).pure[F]
+              _        <- assert(res.forall(sd => sd.height >= from && sd.height <= to)).pure[F]
+              _        <- assert(res.forall(sd => sd.slotId.blockId == heightToId(sd.height))).pure[F]
+              _        <- assert(res.map(sd => sd.height).toSet.size == expectedSize).pure[F]
+              _        <- assert(res.map(sd => sd.height).sorted == res.map(sd => sd.height)).pure[F]
+              resToGen <- underTest.requestSlotDataAndParents(slotDataChain.head.parentSlotId.blockId, heightToId(to))
+              _ <- assert(if (to > 1) resToGen.get.size == Math.min(to, chunkSize + 1) else resToGen.isEmpty).pure[F]
+              empty <- underTest.requestSlotDataAndParents(heightToId(to), slotDataChain.head.parentSlotId.blockId)
+              _     <- assert(empty.isEmpty).pure[F]
+            } yield ()
+          }.void
+        }
     }
   }
 
@@ -256,7 +307,8 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         .returning(t)
       c
     },
-    peer: ConnectedPeer = arbitraryConnectedPeer.arbitrary.first
+    peer:                ConnectedPeer = arbitraryConnectedPeer.arbitrary.first,
+    slotDataParentDepth: Int = 0
   ) =
     Resource
       .eval(connectionStatusF)
@@ -278,6 +330,6 @@ class BlockchainPeerServerSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         (() => blockchain.consensus).expects().anyNumberOfTimes().returning(consensus)
         (() => blockchain.ledger).expects().anyNumberOfTimes().returning(ledger)
 
-        BlockchainPeerServer.make(blockchain, asServer, currentHotPeers, connectionStatus)(peer)
+        BlockchainPeerServer.make(blockchain, asServer, currentHotPeers, connectionStatus, slotDataParentDepth)(peer)
       }
 }

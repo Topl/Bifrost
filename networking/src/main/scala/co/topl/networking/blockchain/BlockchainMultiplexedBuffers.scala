@@ -23,7 +23,8 @@ case class BlockchainMultiplexedBuffers[F[_]](
   headers:              MultiplexedBuffer[F, BlockId, Option[BlockHeader]],
   bodies:               MultiplexedBuffer[F, BlockId, Option[BlockBody]],
   transactions:         MultiplexedBuffer[F, TransactionId, Option[IoTransaction]],
-  appLevel:             MultiplexedBuffer[F, Boolean, Unit]
+  appLevel:             MultiplexedBuffer[F, Boolean, Unit],
+  slotDataAndParents:   MultiplexedBuffer[F, (BlockId, BlockId), Option[List[SlotData]]]
 )
 
 object BlockchainMultiplexedBuffers {
@@ -41,7 +42,8 @@ object BlockchainMultiplexedBuffers {
       MultiplexedBuffer.make[F, BlockId, Option[BlockHeader]],
       MultiplexedBuffer.make[F, BlockId, Option[BlockBody]],
       MultiplexedBuffer.make[F, TransactionId, Option[IoTransaction]],
-      MultiplexedBuffer.make[F, Boolean, Unit]
+      MultiplexedBuffer.make[F, Boolean, Unit],
+      MultiplexedBuffer.make[F, (BlockId, BlockId), Option[List[SlotData]]]
     ).mapN(BlockchainMultiplexedBuffers.apply[F])
 
 }

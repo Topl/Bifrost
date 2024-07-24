@@ -94,7 +94,11 @@ object ApplicationConfig {
       doNotExposeIps: List[String] = List.empty,
       // If remote peer have id in that list then that peer will not be exposed to other peers
       // Could be used if current node serves as proxy, and we don't want to expose any node behind proxy
-      doNotExposeIds: List[String] = List.empty
+      doNotExposeIds: List[String] = List.empty,
+
+      // How many parents shall be returned for getRemoteSlotDataWithParents request
+      // Increasing number lead to fast sync from scratch from that peer but increased network usage
+      slotDataParentDepth: Int = 25
     )
 
     case class KnownPeer(host: String, port: Int)

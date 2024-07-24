@@ -183,4 +183,24 @@ package object fsnetwork {
       else
         Applicative[F].unit
   }
+
+  sealed trait SlotDataToSync {
+    def lastOrElse(slotData: SlotData): SlotData
+  }
+
+  object SlotDataToSync {
+
+    case object Empty extends SlotDataToSync {
+      override def lastOrElse(slotData: SlotData): SlotData = slotData
+    }
+
+    case class Chain(from: SlotData, to: SlotData) extends SlotDataToSync {
+      override def lastOrElse(slotData: SlotData): SlotData = to
+    }
+
+    case class One(toSync: SlotData) extends SlotDataToSync {
+      override def lastOrElse(slotData: SlotData): SlotData = toSync
+    }
+  }
+
 }

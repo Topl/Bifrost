@@ -96,6 +96,12 @@ trait P2PShowInstances {
     (objToString.productElementNames zip objToString.productIterator)
       .map { case (paramName, param) => s"$paramName=$param, " }
       .foldLeft("")(_ + _)
+
+  implicit val SlotDataToSyncShow: Show[SlotDataToSync] = {
+    case SlotDataToSync.Empty           => "slot data sync empty"
+    case SlotDataToSync.Chain(from, to) => show"slot data sync chain ${from.slotId.blockId}:${to.slotId.blockId}"
+    case SlotDataToSync.One(toSync)     => show"slot data sync one ${toSync.slotId.blockId}"
+  }
 }
 
 object P2PShowInstances extends P2PShowInstances
