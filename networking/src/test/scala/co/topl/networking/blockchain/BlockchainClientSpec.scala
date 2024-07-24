@@ -59,6 +59,8 @@ class BlockchainClientSpec extends CatsEffectSuite with ScalaCheckEffectSuite {
           override def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit] = ???
 
           override def closeConnection(): F[Unit] = ???
+
+          override def getRemoteSlotDataWithParents(from: BlockId, to: BlockId): F[Option[List[SlotData]]] = ???
         }
 
         val blockHeights =

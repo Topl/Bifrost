@@ -142,7 +142,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
         p2pBlockchain,
         () => peerAsServer.map(kp => KnownHost(localPeer.p2pVK, kp.host, kp.port)),
         () => currentPeers.get,
-        peersStatusChangesTopic
+        peersStatusChangesTopic,
+        networkProperties.slotDataParentDepth
       ) _
       _ <- BlockchainNetwork
         .make[F](

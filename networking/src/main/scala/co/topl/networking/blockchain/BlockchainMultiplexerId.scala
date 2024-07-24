@@ -24,6 +24,7 @@ object BlockchainMultiplexerId {
       case 19 => RemotePeerServerRequest.some
       case 20 => PingRequest.some
       case 21 => AppLevelRequest.some
+      case 22 => SlotDataAndParentsRequest.some
       case _  => none
     }
 
@@ -39,4 +40,5 @@ object BlockchainMultiplexerId {
   case object RemotePeerServerRequest extends BlockchainMultiplexerId(19)
   case object PingRequest extends BlockchainMultiplexerId(20)
   case object AppLevelRequest extends BlockchainMultiplexerId(21)
+  case object SlotDataAndParentsRequest extends BlockchainMultiplexerId(22)
 }

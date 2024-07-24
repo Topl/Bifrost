@@ -108,6 +108,9 @@ class BlockchainPeerClientCloseHook[F[_]: Monad](underlying: BlockchainPeerClien
 
   override def getRemoteSlotData(id: BlockId): F[Option[SlotData]] = underlying.getRemoteSlotData(id)
 
+  override def getRemoteSlotDataWithParents(from: BlockId, to: BlockId): F[Option[List[SlotData]]] =
+    underlying.getRemoteSlotDataWithParents(from, to)
+
   override def getRemoteHeader(id: BlockId): F[Option[BlockHeader]] = underlying.getRemoteHeader(id)
 
   override def getRemoteBody(id: BlockId): F[Option[BlockBody]] = underlying.getRemoteBody(id)
@@ -135,4 +138,5 @@ class BlockchainPeerClientCloseHook[F[_]: Monad](underlying: BlockchainPeerClien
     currentHeight:           () => F[Long]
   )(implicit syncF: Sync[F], loggerF: Logger[F]): F[BlockId] =
     underlying.findCommonAncestor(getLocalBlockIdAtHeight, currentHeight)
+
 }

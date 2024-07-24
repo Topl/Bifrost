@@ -147,7 +147,7 @@ class NodeNetworkControlTest extends CatsEffectSuite {
 
 
               // check there is no consensus
-              secondHeight = firstHeight + 2
+              secondHeight = firstHeight + 4
               _ <- rpcClients.parTraverse(fetchUntilHeight(_, secondHeight)).toResource
               idsAtTargetHeight2 <- rpcClients
                 .traverse(client =>

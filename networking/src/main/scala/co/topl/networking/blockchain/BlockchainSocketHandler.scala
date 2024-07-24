@@ -15,6 +15,7 @@ import co.topl.networking.multiplexer.{MultiplexedBuffer, MultiplexedReaderWrite
 import co.topl.networking.p2p.ConnectedPeer
 import co.topl.node.models._
 import fs2._
+import co.topl.codecs.bytes.tetra.TetraScodecCodecs._
 
 import scala.concurrent.duration.FiniteDuration
 import scala.language.implicitConversions
@@ -77,6 +78,13 @@ class BlockchainSocketHandler[F[_]: Async](
           override def getRemoteSlotData(id: BlockId): F[Option[SlotData]] =
             writeRequest(BlockchainMultiplexerId.SlotDataRequest, id, multiplexerBuffers.slotData)
 
+          override def getRemoteSlotDataWithParents(from: BlockId, to: BlockId): F[Option[List[SlotData]]] =
+            writeRequest(
+              BlockchainMultiplexerId.SlotDataAndParentsRequest,
+              (from, to),
+              multiplexerBuffers.slotDataAndParents
+            )
+
           override def getRemoteHeader(id: BlockId): F[Option[BlockHeader]] =
             writeRequest(BlockchainMultiplexerId.HeaderRequest, id, multiplexerBuffers.headers)
 
@@ -136,7 +144,8 @@ class BlockchainSocketHandler[F[_]: Async](
       multiplexerBuffers.headers.backgroundRequestProcessor(onPeerRequestedHeader),
       multiplexerBuffers.bodies.backgroundRequestProcessor(onPeerRequestedBody),
       multiplexerBuffers.transactions.backgroundRequestProcessor(onPeerRequestedTransaction),
-      multiplexerBuffers.appLevel.backgroundRequestProcessor(onPeerNotifiedAppLevel)
+      multiplexerBuffers.appLevel.backgroundRequestProcessor(onPeerNotifiedAppLevel),
+      multiplexerBuffers.slotDataAndParents.backgroundRequestProcessor(onPeerRequestSlotDataAndParents)
     ).parJoinUnbounded
 
   private def streamBufferPushers =
@@ -221,6 +230,8 @@ class BlockchainSocketHandler[F[_]: Async](
           multiplexerBuffers.transactions.processRequest(tDecoded[TransactionId](data))
         case BlockchainMultiplexerId.AppLevelRequest =>
           multiplexerBuffers.appLevel.processRequest(tDecoded[Boolean](data))
+        case BlockchainMultiplexerId.SlotDataAndParentsRequest =>
+          multiplexerBuffers.slotDataAndParents.processRequest(tDecoded[(BlockId, BlockId)](data))
       }
 
   private def processResponse(port: Int, data: Bytes): F[Unit] =
@@ -252,6 +263,8 @@ class BlockchainSocketHandler[F[_]: Async](
           multiplexerBuffers.transactions.processResponse(tDecoded[Option[IoTransaction]](data))
         case BlockchainMultiplexerId.AppLevelRequest =>
           multiplexerBuffers.appLevel.processResponse(())
+        case BlockchainMultiplexerId.SlotDataAndParentsRequest =>
+          multiplexerBuffers.slotDataAndParents.processResponse(tDecoded[Option[List[SlotData]]](data))
       }
       .flatMap(Async[F].raiseUnless(_)(new IllegalStateException(s"Unexpected response in port=$port")))
       .void
@@ -295,6 +308,13 @@ class BlockchainSocketHandler[F[_]: Async](
     server
       .getLocalSlotData(id)
       .flatMap(writeResponse(BlockchainMultiplexerId.SlotDataRequest, _))
+
+  private def onPeerRequestSlotDataAndParents(req: (BlockId, BlockId)): F[Unit] = {
+    val (to: BlockId, from: BlockId) = req
+    server
+      .requestSlotDataAndParents(to, from)
+      .flatMap(writeResponse(BlockchainMultiplexerId.SlotDataAndParentsRequest, _))
+  }
 
   private def onPeerRequestedHeader(id: BlockId) =
     server

@@ -195,6 +195,9 @@ object LegacyBlockchainSocketHandler {
             appNotifyCallback(networkLevel).void
 
           def closeConnection(): F[Unit] = close
+
+          def getRemoteSlotDataWithParents(to: BlockId, from: BlockId): F[Option[List[SlotData]]] =
+            getRemoteSlotData(to).map(_.map(List(_)))
         }
 
         subHandlers =
