@@ -19,6 +19,7 @@ import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.TxRoot
 import co.topl.models.generators.consensus.ModelGenerators
 import co.topl.models.generators.consensus.ModelGenerators.nonEmptyChainArbOf
+import co.topl.models.p2p._
 import co.topl.models.utility._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockBodyOrTransactionError

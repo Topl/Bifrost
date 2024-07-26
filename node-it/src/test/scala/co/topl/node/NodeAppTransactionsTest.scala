@@ -7,7 +7,6 @@ import cats.implicits._
 import co.topl.algebras.NodeRpc
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax._
-import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.consensus.models.BlockId
 import co.topl.genus.services._
 import co.topl.grpc.NodeGrpc
@@ -20,6 +19,11 @@ import fs2.{io => _, _}
 import munit._
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.codecs.bytes.tetra.instances._
+import cats.data.Chain
+import co.topl.brambl.validation.{TransactionCostCalculatorInterpreter, TransactionCostConfig}
+import co.topl.brambl.validation.algebras.TransactionCostCalculator
+import co.topl.ledger.models._
 
 import scala.concurrent.duration._
 
@@ -30,7 +34,12 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
 
   type RpcClient = NodeRpc[F, Stream[F, *]]
 
-  override val munitTimeout: Duration = 3.minutes
+  override val munitIOTimeout: Duration = 3.minutes
+
+  val maxMempoolSize = 1024 * 20
+
+  val sizeCalculator: TransactionCostCalculator =
+    TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
 
   def configNodeA(
     dataDir:                     Path,
@@ -38,7 +47,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
     genesisBlockId:              BlockId,
     genesisSourcePath:           String,
     rpcPort:                     Int,
-    useMempoolForSemanticIfLess: Int = 100
+    useMempoolForSemanticIfLess: Double = 100
   ): String =
     s"""
        |bifrost:
@@ -58,8 +67,9 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
        |  mempool:
        |    protection:
        |      enabled: true
-       |      no-check-if-less: 0
-       |      use-mempool-for-semantic-if-less: $useMempoolForSemanticIfLess
+       |      protection-enabled-threshold-percent: 0
+       |      max-mempool-size: $maxMempoolSize
+       |      use-mempool-for-semantic-threshold-percent: $useMempoolForSemanticIfLess
        |genus:
        |  enable: true
        |""".stripMargin
@@ -71,7 +81,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
     genesisSourcePath:           String,
     rpcPort:                     Int,
     NodeAIp:                     String,
-    useMempoolForSemanticIfLess: Int = 100
+    useMempoolForSemanticIfLess: Double = 100
   ): String =
     s"""
        |bifrost:
@@ -92,8 +102,9 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
        |  mempool:
        |    protection:
        |      enabled: true
-       |      no-check-if-less: 0
-       |      use-mempool-for-semantic-if-less: $useMempoolForSemanticIfLess
+       |      protection-enabled-threshold-percent: 0
+       |      max-mempool-size: $maxMempoolSize
+       |      use-mempool-for-semantic-threshold-percent: $useMempoolForSemanticIfLess
        |genus:
        |  enable: false
        |""".stripMargin
@@ -153,7 +164,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
 
               transactionGenerator <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 1000L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .make[F](wallet, _ => 1000L, Fs2TransactionGenerator.emptyMetadata[F])
                   .toResource
               transactionGraph <- Stream
                 .force(transactionGenerator.generateTransactions)
@@ -243,7 +254,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
               _      <- IO(wallet.spendableBoxes.nonEmpty).assert.toResource
               transactionGenerator <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 1000L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .make[F](wallet, _ => 1000L, Fs2TransactionGenerator.emptyMetadata[F])
                   .toResource
               transactionGraph <- Stream
                 .force(transactionGenerator.generateTransactions)
@@ -288,7 +299,8 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
     val rpcPortA: Int = 1971
     val rpcPortB: Int = 1973
 
-    val useMempoolForSemanticIfLess = 100
+    val useMempoolForSemanticIfLess: Double = 10
+    val useMempoolForSemanticIfLessSize = maxMempoolSize * (useMempoolForSemanticIfLess / 100)
 
     val resource =
       for {
@@ -357,17 +369,32 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
 
               transactionGenerator <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 10L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .make[F](wallet, _ => 10L, Fs2TransactionGenerator.emptyMetadata[F])
                   .toResource
+              // get transactions of such size that last transaction
+              // shall no longer take in consideration transactions im memory pool
               transactionGraph <- Stream
                 .force(transactionGenerator.generateTransactions)
-                .take(useMempoolForSemanticIfLess * 2)
+                .map(tx => IoTransactionEx(tx, RewardQuantities(), sizeCalculator.costOf(tx)))
+                .scan((Chain.empty[IoTransactionEx], 0L)) { case ((txs, totalSize), tx) =>
+                  (txs.append(tx), totalSize + tx.size)
+                }
+                .takeWhile { case (txs, totalSize) =>
+                  (totalSize - txs.lastOption.fold(0L)(_.size)) < useMempoolForSemanticIfLessSize
+                }
+                .last
+                .evalTap { txs =>
+                  val fr = txs.get
+                  Logger[F].info(s"total size: ${fr._2}") >>
+                  Logger[F].info(show"${fr._1.map(tx => (tx.tx.id, tx.size))}")
+                }
+                .map(_.get._1.map(_.tx))
                 .compile
-                .toList
+                .last
+                .map(_.get)
+                .map(_.toList)
                 .toResource
 
-              _ <- Logger[F].info(show"Generated txs: ${transactionGraph.map(_.id).zipWithIndex}").toResource
-              _ <- IO(transactionGraph.length).assertEquals(useMempoolForSemanticIfLess * 2).toResource
               // Broadcast _all_ of the good transactions to the nodes
               _ <- Stream
                 .emits(transactionGraph)
@@ -378,7 +405,7 @@ class NodeAppTransactionsTest extends CatsEffectSuite {
                 .toResource
 
               _ <- Async[F]
-                .timeout(fetchUntilTx(rpcClientB, transactionGraph(useMempoolForSemanticIfLess - 1).id), 70.seconds)
+                .timeout(fetchUntilTx(rpcClientB, transactionGraph.init.last.id), 70.seconds)
                 .toResource
               _ <- rpcClients
                 .parTraverse(verifyNotConfirmed(_)(Set(transactionGraph.last.id)))

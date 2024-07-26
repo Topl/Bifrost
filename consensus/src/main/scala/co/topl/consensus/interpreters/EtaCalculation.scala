@@ -15,13 +15,14 @@ import co.topl.models._
 import co.topl.models.utility._
 import co.topl.models.utility.HasLength.instances._
 import co.topl.models.utility.Sized
-import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import scalacache.Entry
 import scalacache.caffeine.CaffeineCache
+import co.topl.algebras.Stats
+import co.topl.typeclasses.implicits._
 
 object EtaCalculation {
 
@@ -31,7 +32,7 @@ object EtaCalculation {
    */
   private val caffeineCacheBuilder = Caffeine.newBuilder.maximumSize(32)
 
-  def make[F[_]: Sync: Parallel](
+  def make[F[_]: Sync: Parallel: Stats](
     fetchSlotData:      BlockId => F[SlotData],
     clock:              ClockAlgebra[F],
     genesisEta:         Eta,

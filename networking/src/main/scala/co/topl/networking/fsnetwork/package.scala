@@ -8,12 +8,9 @@ import co.topl.algebras.Store
 import co.topl.codecs.bytes.scodecs.valuetypes._
 import co.topl.consensus.algebras.LocalChainAlgebra
 import co.topl.consensus.models._
-import co.topl.eventtree.EventSourcedState
-import co.topl.models.Bytes
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
-import co.topl.networking.p2p.RemoteAddress
 import co.topl.node.models.BlockBody
-import co.topl.typeclasses.implicits._
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import scodec.Codec
@@ -24,25 +21,20 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 package object fsnetwork {
 
   val hostIdBytesLen: Int = 32
-  case class HostId(id: Bytes) extends AnyVal
-
-  type HostReputationValue =
-    Double // will be more complex, to get high reputation host shall fulfill different criteria
-
-  // how many block/headers could be requested from remote host in the same time,
-  // TODO shall be dynamically changed based by host reputation, i.e. bigger value for trusted host
-  val chunkSize = 1
 
   val requestCacheSize = 256
   val slotIdResponseCacheSize = 256
 
   val blockSourceCacheSize = 1024
 
+  // magic number will be refactored later
+  val peerSlotDataStoreCacheSize = 20000
+
   // requests in proxy shall be expired, there is no strict guarantee that we will receive responses
   val proxyBlockDataTTL: FiniteDuration = 1.seconds
   val proxySlotDataTTL: FiniteDuration = 30.seconds
 
-  type BlockHeights[F[_]] = EventSourcedState[F, Long => F[Option[BlockId]], BlockId]
+  type CommonAncestorF[F[_]] = (BlockchainPeerClient[F], LocalChainAlgebra[F]) => F[BlockId]
 
   implicit class CacheOps[K, V](cache: Cache[K, V]) {
     def contains(key: K): Boolean = cache.getIfPresent(key) != null
@@ -95,25 +87,16 @@ package object fsnetwork {
   }
 
   def commonAncestor[F[_]: Async: Logger](
-    client:       BlockchainPeerClient[F],
-    blockHeights: BlockHeights[F],
-    localChain:   LocalChainAlgebra[F]
+    client:     BlockchainPeerClient[F],
+    localChain: LocalChainAlgebra[F]
   ): F[BlockId] =
     client
       .findCommonAncestor(
-        getLocalBlockIdAtHeight(localChain, blockHeights),
+        height =>
+          OptionT(localChain.blockIdAtHeight(height))
+            .getOrRaise(new IllegalArgumentException(s"Unknown height=$height")),
         () => localChain.head.map(_.height)
       )
-
-  private def getLocalBlockIdAtHeight[F[_]: Async](
-    localChain:   LocalChainAlgebra[F],
-    blockHeights: BlockHeights[F]
-  )(height: Long): F[BlockId] =
-    OptionT(
-      localChain.head
-        .map(_.slotId.blockId)
-        .flatMap(blockHeights.useStateAt(_)(_.apply(height)))
-    ).toRight(new IllegalStateException("Unable to determine block height tree")).rethrowT
 
   /**
    * Get some T from chain until reach terminateOn condition, f.e.
@@ -148,7 +131,7 @@ package object fsnetwork {
   /**
    * build first "size" elements missed in store
    * @param store store to be checked, i.e. first "size" element absent in that store are returned
-   * @param slotStore slot store
+   * @param getSlotDataFetcher slot data fetcher
    * @param from start point to check
    * @param size maximum size of returned elements
    * @tparam F effect
@@ -156,13 +139,13 @@ package object fsnetwork {
    * @return missed ids for "store"
    */
   def getFirstNMissedInStore[F[_]: MonadThrow, T](
-    store:     Store[F, BlockId, T],
-    slotStore: Store[F, BlockId, SlotData],
-    from:      BlockId,
-    size:      Int
+    store:              Store[F, BlockId, T],
+    getSlotDataFetcher: BlockId => F[SlotData],
+    from:               BlockId,
+    size:               Int
   ): OptionT[F, NonEmptyChain[BlockId]] =
     OptionT(
-      prependOnChainUntil(slotStore.getOrRaise, s => s.pure[F], store.contains)(from)
+      prependOnChainUntil(getSlotDataFetcher, s => s.pure[F], store.contains)(from)
         .map(_.take(size))
         .map(NonEmptyChain.fromSeq)
     )
@@ -184,14 +167,6 @@ package object fsnetwork {
   case class RemotePeer(
     peerId:  HostId,
     address: RemoteAddress
-  )
-
-  case class KnownRemotePeer(
-    peerId:              HostId,
-    address:             RemoteAddress,
-    blockReputation:     HostReputationValue,
-    perfReputation:      HostReputationValue,
-    lastOpenedTimestamp: Option[Long]
   )
 
   private val hostIdCodec: Codec[HostId] = byteStringCodec.as[HostId]

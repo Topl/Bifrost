@@ -5,7 +5,7 @@ title: Getting Started
 
 # Bifrost Development Setup
 
-Bifrost officially supports development on Ubuntu.  Other operating systems may still work, but the Topl team may be unable to support certain questions.
+Bifrost officially supports development on Ubuntu.  Other operating systems may still work, but the Apparatus team may be unable to support certain questions.
 
 ## Installation
 

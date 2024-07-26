@@ -8,8 +8,9 @@ import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras._
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.Notifier.NotifierActor
@@ -22,25 +23,29 @@ import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.node.models.BlockBody
 import com.github.benmanes.caffeine.cache.Caffeine
 import org.typelevel.log4cats.Logger
+import co.topl.algebras.Stats
+import co.topl.crypto.signing.Ed25519VRF
 
+// scalastyle:off parameter.number
 trait NetworkAlgebra[F[_]] {
 
   def makePeerManger(
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:            P2PNetworkConfig,
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
-    savePeersFunction:           Set[KnownRemotePeer] => F[Unit]
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   ): Resource[F, PeersManagerActor[F]]
 
   def makeBlockChecker(
@@ -53,7 +58,9 @@ trait NetworkAlgebra[F[_]] {
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData]
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, BlockId, SlotData],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]]
 
   def makeRequestsProxy(
@@ -74,15 +81,16 @@ trait NetworkAlgebra[F[_]] {
     requestsProxy:               RequestsProxyActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                BlockHeights[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF:             CommonAncestorF[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]]
 
   def makePeerHeaderFetcher(
@@ -91,11 +99,12 @@ trait NetworkAlgebra[F[_]] {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: CommonAncestorF[F],
+    ed25519VRF:      Resource[F, Ed25519VRF],
+    blockIdTree:     ParentChildTree[F, BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]]
 
   def makePeerBodyFetcher(
@@ -113,29 +122,32 @@ trait NetworkAlgebra[F[_]] {
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     mempool:                     MempoolAlgebra[F],
-    peersManager:                PeersManagerActor[F]
+    peersManager:                PeersManagerActor[F],
+    localChainAlgebra:           LocalChainAlgebra[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]]
 }
 
-class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](clock: ClockAlgebra[F])
-    extends NetworkAlgebra[F] {
+class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver: Stats](
+  clock: ClockAlgebra[F]
+) extends NetworkAlgebra[F] {
 
   override def makePeerManger(
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     newPeerCreationAlgebra:      PeerCreationRequestAlgebra[F],
     p2pNetworkConfig:            P2PNetworkConfig,
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
-    savePeersFunction:           Set[KnownRemotePeer] => F[Unit]
+    savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   ): Resource[F, PeersManagerActor[F]] = {
     val coldToWarm: SelectorColdToWarm[F] = new SemiRandomSelectorColdToWarm[F]()
     val warmToHot: SelectorWarmToHot[F] = new ReputationRandomBasedSelectorWarmToHot[F]()
@@ -144,11 +156,11 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       thisHostId,
       networkAlgebra,
       localChain,
+      chainSelection,
       slotDataStore,
       bodyStore,
       transactionStore,
       blockIdTree,
-      blockHeights,
       mempool,
       headerToBodyValidation,
       transactionSyntaxValidation,
@@ -158,6 +170,7 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       savePeersFunction,
       coldToWarm,
       warmToHot,
+      ed25519VRF,
       initialPeers = Map.empty[HostId, Peer[F]],
       blockSource = Caffeine.newBuilder.maximumSize(blockSourceCacheSize).build[BlockId, Set[HostId]]()
     )
@@ -173,7 +186,9 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     bodySyntaxValidation:        BodySyntaxValidationAlgebra[F],
     bodySemanticValidation:      BodySemanticValidationAlgebra[F],
     bodyAuthorizationValidation: BodyAuthorizationValidationAlgebra[F],
-    chainSelectionAlgebra:       ChainSelectionAlgebra[F, SlotData]
+    chainSelectionAlgebra:       ChainSelectionAlgebra[F, BlockId, SlotData],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    p2pNetworkConfig:            P2PNetworkConfig
   ): Resource[F, BlockCheckerActor[F]] =
     BlockChecker.makeActor(
       requestsProxy,
@@ -185,7 +200,9 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       bodySyntaxValidation,
       bodySemanticValidation,
       bodyAuthorizationValidation,
-      chainSelectionAlgebra
+      chainSelectionAlgebra,
+      ed25519VRF,
+      p2pNetworkConfig
     )
 
   override def makeRequestsProxy(
@@ -208,15 +225,16 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     requestsProxy:               RequestsProxyActor[F],
     peersManager:                PeersManagerActor[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
-    blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                BlockHeights[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     mempool:                     MempoolAlgebra[F],
-    commonAncestorF:             (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF:             CommonAncestorF[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
+    blockIdTree:                 ParentChildTree[F, BlockId]
   ): Resource[F, PeerActor[F]] =
     PeerActor.makeActor(
       hostId,
@@ -225,15 +243,16 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       requestsProxy,
       peersManager,
       localChain,
+      chainSelection,
       slotDataStore,
       bodyStore,
       transactionStore,
-      blockIdTree,
-      blockHeights,
       headerToBodyValidation,
       transactionSyntaxValidation,
       mempool,
-      commonAncestorF
+      commonAncestorF,
+      ed25519VRF,
+      blockIdTree
     )
 
   override def makePeerHeaderFetcher(
@@ -242,11 +261,12 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: CommonAncestorF[F],
+    ed25519VRF:      Resource[F, Ed25519VRF],
+    blockIdTree:     ParentChildTree[F, BlockId]
   ): Resource[F, PeerBlockHeaderFetcherActor[F]] =
     PeerBlockHeaderFetcher.makeActor(
       hostId,
@@ -254,12 +274,13 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       requestsProxy,
       peersManager,
       localChain,
+      chainSelection,
       slotDataStore,
       bodyStore,
-      blockIdTree,
       clock,
-      blockHeights,
-      commonAncestorF
+      commonAncestorF,
+      ed25519VRF,
+      blockIdTree
     )
 
   override def makePeerBodyFetcher(
@@ -285,7 +306,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     mempool:                     MempoolAlgebra[F],
-    peersManager:                PeersManagerActor[F]
+    peersManager:                PeersManagerActor[F],
+    localChainAlgebra:           LocalChainAlgebra[F]
   ): Resource[F, PeerMempoolTransactionSyncActor[F]] =
     PeerMempoolTransactionSync.makeActor(
       hostId,
@@ -293,6 +315,8 @@ class NetworkAlgebraImpl[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsR
       transactionSyntaxValidation,
       transactionStore,
       mempool,
-      peersManager
+      peersManager,
+      localChainAlgebra
     )
 }
+// scalastyle:on parameter.number

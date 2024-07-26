@@ -2,6 +2,7 @@ package co.topl.networking.fsnetwork
 
 import cats.data.{NonEmptyChain, OptionT}
 import cats.effect.{Async, Resource}
+import cats.effect.implicits.effectResourceOps
 import cats.implicits._
 import cats.{Parallel, Show}
 import co.topl.actor.{Actor, Fsm}
@@ -10,10 +11,12 @@ import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.validation.algebras.TransactionSyntaxVerifier
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
-import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, LocalChainAlgebra}
+import co.topl.consensus.algebras.{BlockHeaderToBodyValidationAlgebra, ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.eventtree.{EventSourcedState, ParentChildTree}
+import co.topl.eventtree.ParentChildTree
 import co.topl.ledger.algebras.MempoolAlgebra
+import co.topl.models.p2p._
+import co.topl.networking._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockChecker.BlockCheckerActor
 import co.topl.networking.fsnetwork.DnsResolverHTInstances._
@@ -22,11 +25,15 @@ import co.topl.networking.fsnetwork.PeerActor.PeerActor
 import co.topl.networking.fsnetwork.PeersManager.Message._
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
 import co.topl.networking.fsnetwork.ReverseDnsResolverHTInstances._
-import co.topl.networking.p2p.{ConnectedPeer, DisconnectedPeer, RemoteAddress}
+import co.topl.networking.p2p._
 import co.topl.node.models.{BlockBody, KnownHost}
 import com.github.benmanes.caffeine.cache.Cache
 import org.typelevel.log4cats.Logger
 import co.topl.typeclasses.implicits._
+import co.topl.algebras.Stats
+import co.topl.crypto.signing.Ed25519VRF
+import scodec.bits.ByteVector
+import co.topl.models.utility._
 
 /**
  * Actor for managing peers
@@ -96,6 +103,14 @@ object PeersManager {
     case class DownloadTimeBody(hostId: HostId, bodyDelay: Long, txDelays: Seq[Long]) extends Message
 
     /**
+     * Information how many transaction for Memory pool had been received via that host,
+     * allow keep connection to remote peer which provide transactions for memory pool
+     * @param hostId remote peer
+     * @param txCount how many transaction had been received per slot
+     */
+    case class ReceivedTransactionsCount(hostId: HostId, txCount: Long) extends Message
+
+    /**
      * Remote peer provide us remote slot data with better height than our current local chain,
      * but whole slot data chain turned out to be worse of local chain because of density rule
      *
@@ -143,6 +158,12 @@ object PeersManager {
      * @param knownPeers peers to add
      */
     case class AddKnownPeers(knownPeers: NonEmptyChain[KnownRemotePeer]) extends Message
+
+    /**
+     * Forget remote peer, if connection is open to that peer then close that connection as well
+     * @param hostId peer to forget
+     */
+    case class ForgetPeer(hostId: HostId) extends Message
 
     /**
      * Add known neighbour, i.e. hot peers of remote current hot peer
@@ -219,11 +240,11 @@ object PeersManager {
     requestsProxy:               Option[RequestsProxyActor[F]],
     peersHandler:                PeersHandler[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -232,14 +253,16 @@ object PeersManager {
     coldToWarmSelector:          SelectorColdToWarm[F],
     warmToHotSelector:           SelectorWarmToHot[F],
     hotPeersUpdate:              Set[RemotePeer] => F[Unit],
-    blockSource:                 Cache[BlockId, Set[HostId]]
+    blockSource:                 Cache[BlockId, Set[HostId]],
+    peerFilter:                  PeerFilter,
+    ed25519VRF:                  Resource[F, Ed25519VRF]
   )
 
   type Response[F[_]] = State[F]
   type PeersManagerActor[F[_]] = Actor[F, Message, Response[F]]
 
   // scalastyle:off cyclomatic.complexity
-  def getFsm[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver]
+  def getFsm[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver: Stats]
     : PeersManagerActor[F] => Fsm[F, State[F], Message, Response[F]] =
     (thisActor: PeersManagerActor[F]) =>
       Fsm {
@@ -248,6 +271,7 @@ object PeersManager {
         case (state, PingPongMessagePing(hostId, pongResponse))   => pongMessage(thisActor, state, hostId, pongResponse)
         case (state, DownloadTimeHeader(hostId, delay))           => headerDownloadTime(state, hostId, delay)
         case (state, DownloadTimeBody(hostId, delay, txDelays))   => blockDownloadTime(state, hostId, delay, txDelays)
+        case (state, ReceivedTransactionsCount(hostId, txCount))  => updateTransactionRep(state, hostId, txCount)
         case (state, BadKLookbackSlotData(hostId))                => badKLookbackSlotData(thisActor, state, hostId)
         case (state, CriticalErrorForHost(hostId))                => criticalErrorForHost(thisActor, state, hostId)
         case (state, NonCriticalErrorForHost(hostId))             => nonCriticalErrorForHost(thisActor, state, hostId)
@@ -266,6 +290,7 @@ object PeersManager {
         case (state, newPeer: OpenedPeerConnection[F] @unchecked) => openedPeerConnection(thisActor, state, newPeer)
         case (state, AddKnownNeighbors(source, peers))            => addKnownNeighbors(state, source, peers)
         case (state, AddKnownPeers(peers))                        => addKnownPeers(state, peers)
+        case (state, ForgetPeer(peer))                            => forgetPeer(thisActor, state, peer)
         case (state, UpdatePeersTick)                             => updatePeersTick(state)
         case (state, AggressiveP2PUpdate)                         => aggressiveP2PUpdate(thisActor, state)
         case (state, UpdatedReputationTick)                       => repUpdate(thisActor, state)
@@ -273,15 +298,15 @@ object PeersManager {
   // scalastyle:on cyclomatic.complexity
 
   // scalastyle:off parameter.number
-  def makeActor[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver](
+  def makeActor[F[_]: Async: Parallel: Logger: DnsResolver: ReverseDnsResolver: Stats](
     thisHostId:                  HostId,
     networkAlgebra:              NetworkAlgebra[F],
     localChain:                  LocalChainAlgebra[F],
+    chainSelection:              ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:               Store[F, BlockId, SlotData],
     bodyStore:                   Store[F, BlockId, BlockBody],
     transactionStore:            Store[F, TransactionId, IoTransaction],
     blockIdTree:                 ParentChildTree[F, BlockId],
-    blockHeights:                EventSourcedState[F, Long => F[Option[BlockId]], BlockId],
     mempool:                     MempoolAlgebra[F],
     headerToBodyValidation:      BlockHeaderToBodyValidationAlgebra[F],
     transactionSyntaxValidation: TransactionSyntaxVerifier[F],
@@ -291,45 +316,72 @@ object PeersManager {
     savePeersFunction:           Set[KnownRemotePeer] => F[Unit],
     coldToWarmSelector:          SelectorColdToWarm[F],
     warmToHotSelector:           SelectorWarmToHot[F],
+    ed25519VRF:                  Resource[F, Ed25519VRF],
     initialPeers:                Map[HostId, Peer[F]],
     blockSource:                 Cache[BlockId, Set[HostId]]
-  ): Resource[F, PeersManagerActor[F]] = {
-    val selfBannedPeer =
-      thisHostId -> Peer[F](PeerState.Banned, None, None, None, Seq.empty, remoteNetworkLevel = false, 0, 0, 0, None)
-
-    val initialState =
-      PeersManager.State[F](
-        thisHostId,
-        Set.empty,
-        networkAlgebra,
-        blocksChecker = None,
-        requestsProxy = None,
-        PeersHandler(initialPeers + selfBannedPeer, p2pConfig),
-        localChain,
-        slotDataStore,
-        bodyStore,
-        transactionStore,
-        blockIdTree,
-        blockHeights,
-        mempool,
-        headerToBodyValidation,
-        transactionSyntaxValidation,
-        newPeerCreationAlgebra,
-        p2pConfig,
-        coldToWarmSelector,
-        warmToHotSelector,
-        hotPeersUpdate,
-        blockSource
-      )
-
-    val actorName = "Peers manager actor"
-
+  ): Resource[F, PeersManagerActor[F]] =
     for {
-      _     <- Resource.liftK(Logger[F].info(show"Start PeerManager for host $thisHostId"))
+      _         <- Logger[F].info(show"Start PeerManager for host $thisHostId").toResource
+      actorName <- "Peers manager actor".pure[F].toResource
+
+      selfBannedPeer =
+        thisHostId -> Peer[F](
+          PeerState.Banned,
+          None,
+          None,
+          None,
+          Seq.empty,
+          remoteNetworkLevel = false,
+          0,
+          0,
+          0,
+          0,
+          None
+        )
+
+      filteredHosts <- parseHostIds(p2pConfig.networkProperties.doNotExposeIds).toResource
+      peerFilter    <- new PeerFilter(p2pConfig.networkProperties.doNotExposeIps, filteredHosts).pure[F].toResource
+
+      initialState =
+        PeersManager.State[F](
+          thisHostId,
+          Set.empty,
+          networkAlgebra,
+          blocksChecker = None,
+          requestsProxy = None,
+          PeersHandler(initialPeers + selfBannedPeer, p2pConfig),
+          localChain,
+          chainSelection,
+          slotDataStore,
+          bodyStore,
+          transactionStore,
+          blockIdTree,
+          mempool,
+          headerToBodyValidation,
+          transactionSyntaxValidation,
+          newPeerCreationAlgebra,
+          p2pConfig,
+          coldToWarmSelector,
+          warmToHotSelector,
+          hotPeersUpdate,
+          blockSource,
+          peerFilter,
+          ed25519VRF
+        )
+
       actor <- Actor.makeFull(actorName, initialState, getFsm[F], finalizeActor[F](savePeersFunction))
     } yield actor
-  }
   // scalastyle:on parameter.number
+
+  private def parseHostIds[F[_]: Async: Logger](hosts: Seq[String]): F[Seq[HostId]] =
+    for {
+      parseRes <- hosts.map(id => ByteVector.fromBase58Descriptive(id)).pure[F]
+      _ <- parseRes.traverse {
+        case Left(error) => Logger[F].error(s"Failed to extract filtering host from Base58: $error")
+        case _           => ().pure[F]
+      }
+      filtered <- parseRes.flatMap(_.toOption).map(id => HostId(id)).pure[F]
+    } yield filtered
 
   private def finalizeActor[F[_]: Async: Logger](
     savePeersFunction: Set[KnownRemotePeer] => F[Unit]
@@ -405,23 +457,52 @@ object PeersManager {
     (newState, newState).pure[F]
   }
 
-  private def headerDownloadTime[F[_]: Async: Logger](
+  private def headerDownloadTime[F[_]: Async: Logger: Stats](
     state:  State[F],
     hostId: HostId,
     delay:  Long
   ): F[(State[F], Response[F])] =
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_header_download_time",
+        "Header download time from other peer in millisecconds",
+        Map("from_host" -> show"${hostId.id}"),
+        delay
+      )
+    ) >>
     Logger[F].info(show"Received header download from host $hostId with delay $delay ms") >>
     updatePerfRepWithDelay(state, hostId, delay)
 
-  private def blockDownloadTime[F[_]: Async: Logger](
+  private def blockDownloadTime[F[_]: Async: Logger: Stats](
     state:    State[F],
     hostId:   HostId,
     delay:    Long,
     tsDelays: Seq[Long]
   ): F[(State[F], Response[F])] = {
     val maxDelay = (tsDelays :+ delay).max
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_block_download_time",
+        "Block download time from other peer in millisecconds",
+        Map("from_host" -> show"${hostId.id}"),
+        delay
+      )
+    ) >>
     Logger[F].debug(show"Received block download from host $hostId with max delay $delay ms") >>
     updatePerfRepWithDelay(state, hostId, maxDelay)
+  }
+
+  private def updateTransactionRep[F[_]: Async](
+    state:   State[F],
+    hostId:  HostId,
+    txCount: Long
+  ): F[(State[F], Response[F])] = {
+    val prevRep = state.peersHandler.get(hostId).fold(0.0)(_.mempoolTxRep)
+    val txImpactRatio = state.p2pNetworkConfig.networkProperties.txImpactRatio
+    val newRep = ((txImpactRatio - 1) * prevRep + txCount) / txImpactRatio
+    val newHandler = state.peersHandler.copyWithUpdatedReputation(mempoolTxRepMap = Map(hostId -> newRep))
+    val newState = state.copy(peersHandler = newHandler)
+    (newState, newState).pure[F]
   }
 
   private def badKLookbackSlotData[F[_]: Async: Logger](
@@ -528,7 +609,7 @@ object PeersManager {
       peerToKnownSource
         .map { case (source, knownSourceCount) =>
           val newReputation = knownSourcesToReputation(state.p2pNetworkConfig, knownSourceCount)
-          val oldReputation = state.peersHandler.get(source).map(_.blockRep).getOrElse(0.0)
+          val oldReputation = state.peersHandler.get(source).fold(0.0)(_.blockRep)
           (source, Math.max(newReputation, oldReputation))
         }
 
@@ -548,14 +629,15 @@ object PeersManager {
     state.peersHandler.getWarmPeersWithActor.values.toSeq.traverse(_.sendNoWait(PeerActor.Message.GetNetworkQuality)) >>
     (state, state).pure[F]
 
-  private def printP2PState[F[_]: Async: Logger](
+  private def printP2PState[F[_]: Async: Logger: Stats](
     thisActor: PeersManagerActor[F],
     state:     State[F]
-  ): F[(State[F], Response[F])] = {
+  ): F[(State[F], State[F])] = {
     val hotPeers = state.peersHandler.getHotPeers
     val hotPeersIds = hotPeers.keySet.toList.map(showHostId.show).sorted.mkString(",")
     val warmPeers = state.peersHandler.getWarmPeers
     val coldPeers = state.peersHandler.getColdPeers
+    val hotPeerAttributes = Map("host_id" -> state.thisHostId.show) ++ hotPeers.map("peer_id" -> _._1.show)
 
     Logger[F].info(show"This peer id: ${state.thisHostId}") >>
     state.localChain.head.map(head => Logger[F].info(show"Current head: ${head.slotId}")) >>
@@ -566,6 +648,37 @@ object PeersManager {
     Logger[F].info(show"Current first five of (${coldPeers.size}) cold peer(s) state: ${coldPeers.take(5)}") >>
     Logger[F].info(show"With known cold peers: ${coldPeers.map(d => d._1 -> d._2.asServer)}") >>
     printQueueSizeInfo(thisActor, state) >>
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_hot_peers_count",
+        "Number of peers in hot state for given node.",
+        hotPeerAttributes,
+        hotPeers.size
+      )
+    ) >>
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_warm_peers_count",
+        "Number of peers in warm state for given node.",
+        Map("host_id" -> (show"${state.thisHostId}")),
+        warmPeers.size
+      )
+    ) >>
+    Async[F].defer(
+      Stats[F].recordGauge(
+        "bifrost_cold_peers_count",
+        "Number of peers in cold state for given node.",
+        Map("host_id" -> (show"${state.thisHostId}")),
+        coldPeers.size
+      )
+    ) >>
+    Async[F].defer(
+      Stats[F].incrementCounter(
+        "bifrost_peer_id",
+        "Counter with the sole purpose of adding the host attribute to track the peer id.",
+        Map("host_id" -> (show"${state.thisHostId}"))
+      )
+    ) >>
     state.peersHandler.forPeersWithActor(_.sendNoWait(PeerActor.Message.PrintCommonAncestor)).sequence >>
     (state, state).pure[F]
   }
@@ -604,8 +717,10 @@ object PeersManager {
       hotPeersServers <- state.peersHandler.getHotPeers.values.flatMap(_.asServer).pure[F]
       _               <- Logger[F].debug(show"Resolve ip(s) to hostnames for hot peers ${hotPeersServers.toList}")
       hotPeersAsHosts <- hotPeersServers.toSeq.parTraverse(_.reverseResolving())
-      _               <- Logger[F].debug(show"Update hot peers hostnames $hotPeersAsHosts")
-      _               <- state.hotPeersUpdate(hotPeersAsHosts.toSet)
+      _               <- Logger[F].debug(show"No filtered hot peers hostnames $hotPeersAsHosts")
+      filteredHosts   <- hotPeersAsHosts.filter(state.peerFilter.remotePeerIsAcceptable).pure[F]
+      _               <- Logger[F].debug(show"Filtered hot peers hostnames $filteredHosts")
+      _               <- state.hotPeersUpdate(filteredHosts.toSet)
     } yield ()
 
   private def remoteIdChanged[F[_]: Async: Logger](
@@ -744,15 +859,16 @@ object PeersManager {
             state.requestsProxy.get,
             thisActor,
             state.localChain,
+            state.chainSelection,
             state.slotDataStore,
             state.bodyStore,
             state.transactionStore,
-            state.blockIdTree,
-            state.blockHeights,
             state.headerToBodyValidation,
             state.transactionSyntaxValidation,
             state.mempool,
-            commonAncestor
+            commonAncestor,
+            state.ed25519VRF,
+            state.blockIdTree
           )
         )
 
@@ -794,7 +910,7 @@ object PeersManager {
     for {
       resolved        <- OptionT(resolveHosts(remotePeers.toList).map(NonEmptyChain.fromSeq))
       nonSpecialHosts <- OptionT.fromOption[F](NonEmptyChain.fromChain(resolved.filterNot(_.address.isSpecialHost)))
-      neighbourBlockRep = state.peersHandler.get(source).map(_.blockRep).getOrElse(0.0)
+      neighbourBlockRep = state.peersHandler.get(source).fold(0.0)(_.blockRep)
       peerToAdd = nonSpecialHosts.map(rp => KnownRemotePeer(rp.peerId, rp.address, neighbourBlockRep, 0.0, None))
     } yield addKnownResolvedPeers(state, peerToAdd)
   }.getOrElse((state, state).pure[F]).flatten
@@ -820,6 +936,17 @@ object PeersManager {
       changedPeers     <- (newPeers.peers -- oldPeers.peers.keySet).pure[F]
       _                <- Logger[F].infoIf(changedPeers.nonEmpty, show"New known peers: $changedPeers")
       newState         <- state.copy(peersHandler = newPeers).pure[F]
+    } yield (newState, newState)
+
+  private def forgetPeer[F[_]: Async: Logger](
+    thisActor: PeersManagerActor[F],
+    state:     State[F],
+    peer:      HostId
+  ): F[(State[F], Response[F])] =
+    for {
+      (stateWithClosed, _) <- closePeer(thisActor, state, peer)
+      newPeersHandler = stateWithClosed.peersHandler.removeColdPeers(Set(peer))
+      newState = stateWithClosed.copy(peersHandler = newPeersHandler)
     } yield (newState, newState)
 
   private def updatePeersTick[F[_]: Async: Logger](state: State[F]): F[(State[F], Response[F])] =
@@ -904,6 +1031,8 @@ object PeersManager {
       stateWithClosedPeers <- hotToCold(thisActor, stateWithPreWarm)
       stateWithNewHotPeers <- warmToHot(thisActor, stateWithClosedPeers)
       _                    <- updateExternalHotPeersList(stateWithNewHotPeers)
+      _ <- stateWithNewHotPeers.peersHandler.getHotPeers.values.toList
+        .traverse(_.sendNoWait(PeerActor.Message.ReputationUpdateTick))
     } yield (stateWithNewHotPeers, stateWithNewHotPeers)
 
   private def getPeerHandlerAfterReputationDecoy[F[_]](
@@ -1018,6 +1147,7 @@ object PeersManager {
     val saveByBlockProviding =
       currentHotPeers.toSeq
         .map { case (id, peer) => id -> peer.blockRep }
+        .filter(_._2 > 0)
         .sortBy(_._2)
         .takeRight(p2pNetworkConfig.networkProperties.minimumBlockProvidingReputationPeers)
         .map(_._1)
@@ -1037,8 +1167,18 @@ object PeersManager {
         }
         .keySet
 
+    val saveByMempoolTxProviding =
+      currentHotPeers
+        .filter(_._2.mempoolTxRep > (1 / p2pNetworkConfig.networkProperties.txImpactRatio))
+        .toList
+        .sortBy(_._2.mempoolTxRep)
+        .takeRight(p2pNetworkConfig.networkProperties.minimumTxMempoolReputationPeers)
+        .map(_._1)
+        .toSet
+
     val allKeptConnections =
-      saveByNovelty ++ saveByBlockProviding ++ saveByPerformanceReputation ++ saveByOverallReputation
+      saveByNovelty ++ saveByBlockProviding ++ saveByPerformanceReputation ++
+      saveByOverallReputation ++ saveByMempoolTxProviding
 
     currentHotPeers.keySet -- allKeptConnections
   }

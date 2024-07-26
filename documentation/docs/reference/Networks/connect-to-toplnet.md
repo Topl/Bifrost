@@ -29,7 +29,7 @@ A full example of connecting to the node:
 mkdir .bifrost
 sudo chown 1001 .bifrost -R -v; sudo chgrp 0 .bifrost -R -v
 
-docker run --name bifrost-toplnet -d -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta1 \
+docker run --name bifrost-toplnet -d -v $(pwd)/.bifrost:/bifrost -p 9084:9084 -p 9085:9085 toplprotocol/bifrost-node:2.0.0-beta3 \
     --knownPeers toplnet.topl.co:9085 \
     --config https://raw.githubusercontent.com/Topl/Genesis/main/toplnet/config.yaml
 ```

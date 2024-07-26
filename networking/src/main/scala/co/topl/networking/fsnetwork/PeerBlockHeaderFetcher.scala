@@ -6,11 +6,11 @@ import cats.effect.kernel.{Async, Fiber}
 import cats.effect.{Resource, Spawn}
 import cats.implicits._
 import co.topl.actor.{Actor, Fsm}
-import co.topl.algebras.{ClockAlgebra, Store}
+import co.topl.algebras.{ClockAlgebra, Store, StoreWriter}
 import co.topl.codecs.bytes.tetra.instances._
-import co.topl.consensus.algebras.LocalChainAlgebra
+import co.topl.consensus.algebras.{ChainSelectionAlgebra, LocalChainAlgebra}
 import co.topl.consensus.models.{BlockId, SlotData}
-import co.topl.eventtree.ParentChildTree
+import co.topl.models.p2p._
 import co.topl.networking.blockchain.BlockchainPeerClient
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError
 import co.topl.networking.fsnetwork.BlockDownloadError.BlockHeaderDownloadError._
@@ -23,6 +23,8 @@ import co.topl.typeclasses.implicits._
 import fs2.Stream
 import org.typelevel.log4cats.Logger
 import co.topl.catsutils.faAsFAClockOps
+import co.topl.crypto.signing.Ed25519VRF
+import co.topl.eventtree.ParentChildTree
 
 object PeerBlockHeaderFetcher {
   sealed trait Message
@@ -45,19 +47,21 @@ object PeerBlockHeaderFetcher {
   }
 
   case class State[F[_]](
-    hostId:          HostId,
-    hostIdString:    String,
-    client:          BlockchainPeerClient[F],
-    requestsProxy:   RequestsProxyActor[F],
-    peersManager:    PeersManagerActor[F],
-    localChain:      LocalChainAlgebra[F],
-    slotDataStore:   Store[F, BlockId, SlotData],
-    bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
-    fetchingFiber:   Option[Fiber[F, Throwable, Unit]],
-    clock:           ClockAlgebra[F],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    hostId:            HostId,
+    hostIdString:      String,
+    client:            BlockchainPeerClient[F],
+    requestsProxy:     RequestsProxyActor[F],
+    peersManager:      PeersManagerActor[F],
+    localChain:        LocalChainAlgebra[F],
+    chainSelection:    ChainSelectionAlgebra[F, BlockId, SlotData],
+    peerSlotDataStore: Store[F, BlockId, SlotData],
+    slotDataStore:     StoreWriter[F, BlockId, SlotData],
+    bodyStore:         Store[F, BlockId, BlockBody],
+    fetchingFiber:     Option[Fiber[F, Throwable, Unit]],
+    clock:             ClockAlgebra[F],
+    commonAncestorF:   CommonAncestorF[F],
+    ed25519VRF:        Resource[F, Ed25519VRF],
+    blockIdTree:       ParentChildTree[F, BlockId]
   )
 
   type Response[F[_]] = State[F]
@@ -76,13 +80,15 @@ object PeerBlockHeaderFetcher {
     requestsProxy:   RequestsProxyActor[F],
     peersManager:    PeersManagerActor[F],
     localChain:      LocalChainAlgebra[F],
+    chainSelection:  ChainSelectionAlgebra[F, BlockId, SlotData],
     slotDataStore:   Store[F, BlockId, SlotData],
     bodyStore:       Store[F, BlockId, BlockBody],
-    blockIdTree:     ParentChildTree[F, BlockId],
     clock:           ClockAlgebra[F],
-    blockHeights:    BlockHeights[F],
-    commonAncestorF: (BlockchainPeerClient[F], BlockHeights[F], LocalChainAlgebra[F]) => F[BlockId]
+    commonAncestorF: CommonAncestorF[F],
+    ed25519VRF:      Resource[F, Ed25519VRF],
+    blockIdTree:     ParentChildTree[F, BlockId]
   ): Resource[F, Actor[F, Message, Response[F]]] = {
+    val peerSlotDataStore = PeerSlotDataStore.make(slotDataStore, PeerSlotDataStoreConfig(peerSlotDataStoreCacheSize))
     val initialState =
       State(
         hostId,
@@ -91,13 +97,15 @@ object PeerBlockHeaderFetcher {
         requestsProxy,
         peersManager,
         localChain,
+        chainSelection,
         slotDataStore,
+        peerSlotDataStore,
         bodyStore,
-        blockIdTree,
         None,
         clock,
-        blockHeights,
-        commonAncestorF
+        commonAncestorF,
+        ed25519VRF,
+        blockIdTree
       )
     val actorName = show"Header fetcher actor for peer $hostId"
     Actor.makeWithFinalize(actorName, initialState, getFsm[F], finalizer[F])
@@ -227,7 +235,7 @@ object PeerBlockHeaderFetcher {
           state.bodyStore.contains(endSlotData.parentSlotId.blockId).flatMap {
             case true =>
               Logger[F].debug(show"Build sync data for $endBlockId: sync for $endBlockId only") >>
-              state.slotDataStore.getOrRaise(endSlotData.parentSlotId.blockId).map((_, endSlotData))
+              state.peerSlotDataStore.getOrRaise(endSlotData.parentSlotId.blockId).map((_, endSlotData))
             case false =>
               Logger[F].debug(show"Build sync data for $endBlockId: building long slot data chain") >>
               buildLongSlotDataToSync(state, endSlotData)
@@ -240,18 +248,17 @@ object PeerBlockHeaderFetcher {
     endSlot: SlotData
   ): F[(SlotData, SlotData)] =
     for {
-      commonBlockId    <- state.commonAncestorF(state.client, state.blockHeights, state.localChain)
+      commonBlockId    <- state.commonAncestorF(state.client, state.localChain)
       commonSlotData   <- getSlotDataFromStorageOrRemote(state)(commonBlockId)
       commonSlotHeight <- commonSlotData.height.pure[F]
       currentHeight    <- state.localChain.head.map(_.height)
       endSlotHeight    <- endSlot.height.pure[F]
-      chainSelection   <- state.localChain.chainSelectionAlgebra
-      requestedHeight  <- chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
+      requestedHeight  <- state.chainSelection.enoughHeightToCompare(currentHeight, commonSlotHeight, endSlotHeight)
       message =
         show"For slot ${endSlot.slotId.blockId} with height $endSlotHeight from peer ${state.hostIdString} :" ++
           show" commonSlotHeight=$commonSlotHeight, requestedHeight=$requestedHeight"
       _          <- Logger[F].info(message)
-      blockIdTo  <- state.client.getRemoteBlockIdAtHeight(requestedHeight, None).map(_.get)
+      blockIdTo  <- state.client.getRemoteBlockIdAtHeight(requestedHeight).map(_.get)
       slotDataTo <- state.client.getSlotDataOrError(blockIdTo, new NoSuchElementException(blockIdTo.toString))
     } yield (commonSlotData, slotDataTo)
 
@@ -282,12 +289,8 @@ object PeerBlockHeaderFetcher {
   ): F[List[SlotData]] = {
     def adoptSlotData(slotData: SlotData) = {
       val slotBlockId = slotData.slotId.blockId
-      val parentBlockId = slotData.parentSlotId.blockId
-
-      Logger[F].info(show"Associating child=$slotBlockId to parent=$parentBlockId from peer ${state.hostIdString}") >>
-      state.blockIdTree.associate(slotBlockId, parentBlockId) >>
-      Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString}") >>
-      state.slotDataStore.put(slotBlockId, slotData)
+      Logger[F].info(show"Storing SlotData id=$slotBlockId from peer ${state.hostIdString} to peer local store") >>
+      state.peerSlotDataStore.put(slotBlockId, slotData)
     }
 
     tine.traverse(adoptSlotData) >> tine.pure[F]
@@ -300,17 +303,17 @@ object PeerBlockHeaderFetcher {
   ): F[List[SlotData]] =
     prependOnChainUntil[F, SlotData](
       s => s.pure[F],
-      state.slotDataStore.getOrRaise,
+      state.peerSlotDataStore.getOrRaise,
       s => (s.slotId == from.slotId).pure[F]
     )(
       to.slotId.blockId
     )
 
   private def getSlotDataFromStorageOrRemote[F[_]: Async: Logger](state: State[F])(blockId: BlockId): F[SlotData] =
-    state.slotDataStore.get(blockId).flatMap {
+    state.peerSlotDataStore.get(blockId).flatMap {
       case Some(sd) => sd.pure[F]
       case None =>
-        Logger[F].info(show"Fetching remote SlotData id=$blockId from peer ${state.hostIdString}") >>
+        Logger[F].info(show"Fetching SlotData id=$blockId from peer ${state.hostIdString}") >>
         Async[F].cede >>
         state.client
           .getSlotDataOrError(blockId, new NoSuchElementException(blockId.toString))
@@ -343,7 +346,7 @@ object PeerBlockHeaderFetcher {
     prependOnChainUntil(
       (s: SlotData) => s.pure[F],
       getSlotData,
-      (sd: SlotData) => state.slotDataStore.contains(sd.slotId.blockId)
+      (sd: SlotData) => state.peerSlotDataStore.contains(sd.slotId.blockId)
     )(from.slotId.blockId)
       .handleErrorWith { error =>
         Logger[F].error(show"Failed to get slot data from ${state.hostIdString} due to ${error.toString}") >>
@@ -367,7 +370,7 @@ object PeerBlockHeaderFetcher {
     NonEmptyChain.fromSeq(slotData) match {
       case Some(nonEmptySlotDataChain) =>
         val bestSlotData = nonEmptySlotDataChain.last
-        state.localChain.isWorseThan(bestSlotData).flatMap {
+        state.localChain.isWorseThan(nonEmptySlotDataChain).flatMap {
           case true => Async[F].pure(RemoteIsBetter(nonEmptySlotDataChain))
           case false =>
             state.localChain.head.map(localHead =>
@@ -393,7 +396,9 @@ object PeerBlockHeaderFetcher {
   ): F[(State[F], Response[F])] =
     for {
       remoteHeaders <- getHeadersFromRemotePeer(state.client, state.hostId, blockIds)
-      _             <- sendHeadersToProxy(state, NonEmptyChain.fromSeq(remoteHeaders).get)
+      downloadedHeaders = remoteHeaders.flatMap { case (id, headers) => headers.toOption.map(header => (id, header)) }
+      _ <- extractAndSaveSlotData(state, downloadedHeaders)
+      _ <- sendHeadersToProxy(state, NonEmptyChain.fromSeq(remoteHeaders).get)
     } yield (state, state)
 
   private def getHeadersFromRemotePeer[F[_]: Async: Logger](
@@ -403,7 +408,7 @@ object PeerBlockHeaderFetcher {
   ): F[List[(BlockId, Either[BlockHeaderDownloadError, UnverifiedBlockHeader])]] =
     Stream
       .foldable[F, NonEmptyChain, BlockId](blockIds)
-      .parEvalMapUnbounded(downloadHeader(client, hostId, _))
+      .evalMap(downloadHeader(client, hostId, _))
       .compile
       .toList
 
@@ -435,6 +440,19 @@ object PeerBlockHeaderFetcher {
       }
       .map((blockId, _))
   }
+
+  private def extractAndSaveSlotData[F[_]: Async: Logger](
+    state:        State[F],
+    idAndHeaders: List[(BlockId, UnverifiedBlockHeader)]
+  ): F[Unit] =
+    state.ed25519VRF.use { ed =>
+      idAndHeaders.traverse { case (id, unverifiedBlockHeader) =>
+        val parentId = unverifiedBlockHeader.blockHeader.parentHeaderId
+        Logger[F].info(show"Associating child=$id to parent=$parentId") >>
+        state.blockIdTree.associate(id, parentId) >>
+        state.slotDataStore.put(id, unverifiedBlockHeader.blockHeader.slotData(ed))
+      }.void
+    }
 
   private def sendHeadersToProxy[F[_]](
     state:         State[F],

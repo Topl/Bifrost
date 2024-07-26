@@ -1,0 +1,2 @@
+# Blockchain Core
+This module glues together the (Consensus)[consensus] and [Ledger](ledger) modules into a basic framework for blockchain fundamentals. In addition to consensus and ledger, it also holds references to data storage, cryptographic resources, the clock, the block-id tree, validators, and some miscellaneous helpers.

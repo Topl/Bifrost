@@ -239,7 +239,7 @@ object Orchestrator
       transactionStream <- Fs2TransactionGenerator
         .make[F](
           wallet,
-          TransactionCostCalculatorInterpreter.make(TransactionCostConfig()),
+          TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig()),
           Fs2TransactionGenerator.randomMetadata[F]
         )
         .flatMap(_.generateTransactions)

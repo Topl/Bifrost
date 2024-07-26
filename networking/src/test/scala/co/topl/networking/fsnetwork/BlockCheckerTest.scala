@@ -8,6 +8,7 @@ import co.topl.algebras.Store
 import co.topl.brambl.models.Datum
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.algebras._
 import co.topl.consensus.models.BlockHeaderValidationFailures.NonForwardSlot
 import co.topl.consensus.models._
@@ -19,6 +20,7 @@ import co.topl.ledger.models._
 import co.topl.models.ModelGenerators.GenHelper
 import co.topl.models.generators.consensus.ModelGenerators._
 import co.topl.models.generators.node.ModelGenerators
+import co.topl.models.p2p._
 import co.topl.networking.fsnetwork.BlockCheckerTest.F
 import co.topl.networking.fsnetwork.PeersManager.PeersManagerActor
 import co.topl.networking.fsnetwork.RequestsProxy.RequestsProxyActor
@@ -32,7 +34,9 @@ import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import cats.effect.Resource
 
+import scala.concurrent.duration._
 import scala.collection.mutable
 
 object BlockCheckerTest {
@@ -42,8 +46,10 @@ object BlockCheckerTest {
 class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromName[F](this.getClass.getName)
   implicit val ed255Vrf: Ed25519VRF = Ed25519VRF.precomputed()
-  val hostId: HostId = arbitraryHost.arbitrary.first
-  val maxChainSize = 99
+  private val hostId: HostId = arbitraryHost.arbitrary.first
+  private val maxChainSize = 5
+  private val chunkSize = 1
+  private val defaultConfig = P2PNetworkConfig(NetworkProperties(chunkSize = chunkSize), 1.second)
 
   test("RemoteSlotData: Request no headers if new slot data is worse") {
     PropF.forAllF(arbitraryLinkedSlotDataChainFor(Gen.choose(1, maxChainSize)).arbitrary) {
@@ -57,15 +63,16 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           (() => localChain.head).expects().once().onCall(() => currentSlotDataHead.pure[F])
 
           val slotDataStore = mock[Store[F, BlockId, SlotData]]
+          (slotDataStore.contains _).expects(slotData.head.parentSlotId.blockId).returns(true.pure[F])
           val headerStore = mock[Store[F, BlockId, BlockHeader]]
           val bodyStore = mock[Store[F, BlockId, BlockBody]]
           val headerValidation = mock[BlockHeaderValidationAlgebra[F]]
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
-          (chainSelectionAlgebra.compare _).expects(slotData.last, currentSlotDataHead).returning((-1).pure[F])
+          (chainSelectionAlgebra.compare _).expects(currentSlotDataHead, slotData.last, *, *).returning(1.pure[F])
 
           BlockChecker
             .makeActor(
@@ -78,7 +85,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -102,23 +111,19 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
-
-          // local is known data which are stored in stores
-          val (localId, localSlotData) = idAndSlotData.head
-          (slotDataStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(localId, *, *)
-            .once()
-            .returning(localSlotData.pure[F])
-          (headerStore.contains _).expects(localId).once().returning(true.pure[F])
-          (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
 
           // slot data from peer
           val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
           val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
+          // local is known data which are stored in stores
+          val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
+          (headerStore.contains _).expects(localId).once().returning(true.pure[F])
+          (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
 
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
@@ -150,6 +155,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               Option(BestChain(NonEmptyChain.one(localSlotData)))
             )
             .use { actor =>
@@ -175,12 +182,17 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
+          // slot data from peer
+          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
+          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
           // local is known data which are stored in stores
           val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
             .expects(localId, *, *)
@@ -188,10 +200,6 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             .returning(localSlotData.pure[F])
           (headerStore.contains _).expects(localId).once().returning(true.pure[F])
           (bodyStore.contains _).expects(localId).once().returning(true.pure[F])
-
-          // slot data from peer
-          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
-          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
           // known but not accepted yet data
           NonEmptyChain.fromSeq(slotData.toChain.toList.take(2)).get
@@ -226,6 +234,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               Option(BestChain(NonEmptyChain.one(remoteSlotData.head)))
             )
             .use { actor =>
@@ -251,21 +261,22 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
+          // slot data from peer
+          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
+          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
+
           // local is known data which are stored in stores
           val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
             .expects(localId, *, *)
             .once()
             .returning(localSlotData.pure[F])
-
-          // slot data from peer
-          val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
-          val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
           (() => localChain.head).expects().once().returning(localSlotData.pure[F])
 
@@ -301,7 +312,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -326,29 +339,25 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
-
-          // local is known data which are stored in stores
-          val (localId, localSlotData) = idAndSlotData.head
-          (slotDataStore
-            .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
-            .expects(localId, *, *)
-            .once()
-            .returning(localSlotData.pure[F])
-
-          val currentFork =
-            arbitraryLinkedSlotDataChainFor(Gen.choose(1L, 1L), localSlotData.some).arbitrary.first
-              .prepend(localSlotData)
 
           // slot data from peer
           val remoteSlotDataAndId = NonEmptyChain.fromChain(idAndSlotData.tail).get
           val (_, remoteSlotData) = remoteSlotDataAndId.unzip
 
+          // local is known data which are stored in stores
+          val (localId, localSlotData) = idAndSlotData.head
+          (slotDataStore.contains _).expects(remoteSlotData.head.parentSlotId.blockId).returns(true.pure[F])
+
+          val currentFork =
+            arbitraryLinkedSlotDataChainFor(Gen.choose(1L, 1L), localSlotData.some).arbitrary.first
+              .prepend(localSlotData)
+
           // (() => localChain.head).expects().once().returning(localSlotData.pure[F])
 
-          (chainSelectionAlgebra.compare _).expects(slotData.last, currentFork.last).returning(1.pure[F])
+          (chainSelectionAlgebra.compare _).expects(currentFork.last, slotData.last, *, *).returning((-1).pure[F])
 
           val localSlotDataStore = idAndSlotData.toList.toMap
           (slotDataStore
@@ -384,6 +393,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               bestChain
             )
             .use { actor =>
@@ -410,7 +421,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndSlotData: NonEmptyChain[(BlockId, SlotData)] = slotData.map(s => (s.slotId.blockId, s))
 
@@ -424,6 +435,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val (_, peerSlotData) = remoteIdAndSlotData.unzip
 
           val localSlotDataStore = idAndSlotData.toList.toMap
+          (slotDataStore.contains _).expects(peerSlotData.head.parentSlotId.blockId).returns(true.pure[F])
           (slotDataStore
             .getOrRaise(_: BlockId)(_: MonadThrow[F], _: Show[BlockId]))
             .expects(*, *, *)
@@ -436,7 +448,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           (bodyStore.contains _).expects(*).anyNumberOfTimes().onCall { id: BlockId => (id == localId).pure[F] }
 
           val currentBestChain = NonEmptyChain.fromSeq(slotData.toList.take(2)).get
-          (chainSelectionAlgebra.compare _).expects(slotData.last, currentBestChain.last).returning(1.pure[F])
+          (chainSelectionAlgebra.compare _).expects(currentBestChain.last, slotData.last, *, *).returning((-1).pure[F])
 
           val expectedRequest =
             RequestsProxy.Message.DownloadHeadersRequest(
@@ -459,6 +471,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               Option(BestChain(currentBestChain))
             )
             .use { actor =>
@@ -486,7 +500,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
           (headerValidation.validate _).expects(*).never()
@@ -515,7 +529,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -539,7 +555,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           (headerStore.contains _).expects(*).rep(headers.size.toInt).returning(true.pure[F])
           (headerValidation.validate _).expects(*).never()
@@ -557,7 +573,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -581,7 +599,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndHeaders = headers.map(h => (h.id, h))
 
@@ -649,7 +667,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySyntaxValidation,
               bodySemanticValidation,
               bodyAuthorizationValidation,
-              chainSelectionAlgebra
+              chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig
             )
             .use { actor =>
               for {
@@ -674,7 +694,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndHeaders = headers.map(h => (h.id, h))
 
@@ -726,6 +746,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               Option(BestChain(bestChain)),
               Option(hostId)
             )
@@ -752,7 +774,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndHeaders = headers.map(h => (h.id, h))
 
@@ -849,6 +871,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               bestChain = Option(BestChain(NonEmptyChain.fromSeq(newIdAndHeaders.map(d => headerToSlotData(d._2))).get))
             )
             .use { actor =>
@@ -878,7 +902,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
           val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
           val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+          val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
           val idAndHeaders = headers.map(h => (h.id, h))
 
@@ -967,6 +991,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
               bodySemanticValidation,
               bodyAuthorizationValidation,
               chainSelectionAlgebra,
+              Resource.pure(ed255Vrf),
+              defaultConfig,
               bestChain = Option(BestChain(NonEmptyChain.fromSeq(newIdAndHeaders.map(d => headerToSlotData(d._2))).get))
             )
             .use { actor =>
@@ -993,7 +1019,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
         val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
         val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-        val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+        val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
         val ids: NonEmptyChain[BlockHeader] = bodies.map(_ => arbitraryHeader.arbitrary.first)
 
@@ -1016,7 +1042,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
-            chainSelectionAlgebra
+            chainSelectionAlgebra,
+            Resource.pure(ed255Vrf),
+            defaultConfig
           )
           .use { actor =>
             for {
@@ -1041,7 +1069,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
         val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
         val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-        val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+        val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
         val headers: NonEmptyChain[BlockHeader] = bodies.map(_ => arbitraryHeader.arbitrary.first).map(_.embedId)
 
@@ -1121,7 +1149,9 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             bodySyntaxValidation,
             bodySemanticValidation,
             bodyAuthorizationValidation,
-            chainSelectionAlgebra
+            chainSelectionAlgebra,
+            Resource.pure(ed255Vrf),
+            defaultConfig
           )
           .use { actor =>
             for {
@@ -1146,7 +1176,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
         val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
         val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-        val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+        val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
         val headers: NonEmptyChain[BlockHeader] = bodies.map(_ => arbitraryHeader.arbitrary.first).map(_.embedId)
 
@@ -1216,8 +1246,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
 
         val lastBlockSlotData = idAndSlotData.last._2
 
-        (localChain.isWorseThan _).expects(*).anyNumberOfTimes().onCall { id: SlotData =>
-          (lastBlockSlotData === id).pure[F]
+        (localChain.isWorseThan _).expects(*).anyNumberOfTimes().onCall { ids: NonEmptyChain[SlotData] =>
+          (lastBlockSlotData === ids.last).pure[F]
         }
 
         (localChain.adopt _).expects(Validated.Valid(lastBlockSlotData)).once().returning(().pure[F])
@@ -1236,6 +1266,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
             bodySemanticValidation,
             bodyAuthorizationValidation,
             chainSelectionAlgebra,
+            Resource.pure(ed255Vrf),
+            defaultConfig,
             Option(BestChain(NonEmptyChain.one(lastBlockSlotData)))
           )
           .use { actor =>
@@ -1259,7 +1291,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       // [1 - 5) -- known SlotData known Header known Body
       // [5 - 10) -- known SlotData known Header unknown Body
@@ -1372,6 +1404,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(NonEmptyChain.one(allIdSlotDataHeaderBlock.last._2))),
           Option(hostId)
         )
@@ -1399,7 +1433,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       // [1 - 5) -- known SlotData known Header known Body
       // [5 - 10) -- known SlotData known Header unknown Body
@@ -1510,6 +1544,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(NonEmptyChain.one(allIdSlotDataHeaderBlock.last._2))),
           Option(hostId)
         )
@@ -1537,7 +1573,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       // [1 - 5) -- known SlotData known Header known Body
       // [5 - 10) -- known SlotData known Header unknown Body
@@ -1632,7 +1668,10 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         }
 
       val lastAdoptedBlockSlotData = requestIdSlotDataHeaderBlock.head._2
-      (localChain.isWorseThan _).expects(lastAdoptedBlockSlotData).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).anyNumberOfTimes().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(lastAdoptedBlockSlotData == ids.last)
+        (lastAdoptedBlockSlotData == ids.last).pure[F]
+      }
       (localChain.adopt _).expects(Validated.Valid(lastAdoptedBlockSlotData)).once().returning(().pure[F])
 
       (requestsProxy.sendNoWait _)
@@ -1654,6 +1693,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(NonEmptyChain.fromSeq(allIdSlotDataHeaderBlock.map(_._2)).get)),
           Option(hostId)
         )
@@ -1676,7 +1717,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       // [1 - 5) -- known SlotData known Header known Body
       // [5 - 10) -- known SlotData known Header unknown Body
@@ -1775,7 +1816,10 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
         }
 
       val lastAdoptedBlockSlotData = requestIdSlotDataHeaderBlock.head._2
-      (localChain.isWorseThan _).expects(lastAdoptedBlockSlotData).once().returning(true.pure[F])
+      (localChain.isWorseThan _).expects(*).anyNumberOfTimes().onCall { ids: NonEmptyChain[SlotData] =>
+        assert(lastAdoptedBlockSlotData == ids.last)
+        (lastAdoptedBlockSlotData == ids.last).pure[F]
+      }
       (localChain.adopt _).expects(Validated.Valid(lastAdoptedBlockSlotData)).once().returning(().pure[F])
 
       (requestsProxy.sendNoWait _)
@@ -1795,6 +1839,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(NonEmptyChain.fromSeq(allIdSlotDataHeaderBlock.map(_._2)).get)),
           Option(hostId)
         )
@@ -1817,7 +1863,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
       val invalidSlotData = currentBestChain.get(Gen.choose(0, currentBestChain.size - 1).first).get
@@ -1836,6 +1882,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(currentBestChain)),
           Option(hostId)
         )
@@ -1862,7 +1910,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
       val invalidSlotData = currentBestChain.get(Gen.choose(0, currentBestChain.size - 1).first).get
@@ -1882,6 +1930,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(currentBestChain)),
           Option(hostId)
         )
@@ -1908,7 +1958,7 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
       val bodySyntaxValidation = mock[BodySyntaxValidationAlgebra[F]]
       val bodySemanticValidation = mock[BodySemanticValidationAlgebra[F]]
       val bodyAuthorizationValidation = mock[BodyAuthorizationValidationAlgebra[F]]
-      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, SlotData]]
+      val chainSelectionAlgebra = mock[ChainSelectionAlgebra[F, BlockId, SlotData]]
 
       val currentBestChain = arbitraryLinkedSlotDataChain.arbitrary.first
       val invalidBlockId = arbitrarySlotData.arbitrary.first.slotId.blockId
@@ -1927,6 +1977,8 @@ class BlockCheckerTest extends CatsEffectSuite with ScalaCheckEffectSuite with A
           bodySemanticValidation,
           bodyAuthorizationValidation,
           chainSelectionAlgebra,
+          Resource.pure(ed255Vrf),
+          defaultConfig,
           Option(BestChain(currentBestChain)),
           Option(hostId)
         )

@@ -7,7 +7,9 @@ import cats.effect.std.Random
 import cats.implicits._
 import co.topl.crypto.signing.Ed25519
 import co.topl.models.Bytes
+import co.topl.models.p2p._
 import co.topl.networking.SocketAddressOps
+import co.topl.networking.blockchain.NetworkProtocolVersions
 import com.comcast.ip4s._
 import fs2.Stream
 import fs2.concurrent.Topic
@@ -30,12 +32,18 @@ object FS2P2PServer {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P").toResource
       _                            <- eventLogger(peersStatusChangesTopic)
       sockets                      <- socketsStream[F](host, port)
-      idExtractor <- PeerIdentity
+      peerInfoExtractor <- PeerIdentity
         .extractor(Ed25519.SecretKey(localPeer.p2pSK.toByteArray), ed25519Resource)
-        .map(f => (socket: Socket[F]) => f(socket).rethrow)
+        .map(f =>
+          (socket: Socket[F]) =>
+            f(socket).rethrow.flatMap {
+              case (id, true) => PeerVersion.extractor[F](NetworkProtocolVersions.Local)(socket).rethrow.tupleLeft(id)
+              case (id, _)    => (id, NetworkProtocolVersions.V0).pure[F]
+            }
+        )
         .toResource
-      _ <- server(sockets)(peersStatusChangesTopic, peerHandler, idExtractor)
-      _ <- client(remotePeers, localPeer, idExtractor)(peersStatusChangesTopic, peerHandler)
+      _ <- server(sockets)(peersStatusChangesTopic, peerHandler, peerInfoExtractor)
+      _ <- client(remotePeers, localPeer, peerInfoExtractor)(peersStatusChangesTopic, peerHandler)
       _ <- Logger[F].info(s"Bound P2P at host=$host port=$port").toResource
     } yield new P2PServer[F] {
 
@@ -61,9 +69,9 @@ object FS2P2PServer {
     } yield Network.forAsync[F].server(parsedHost.some, parsedPort.some)
 
   private def server[F[_]: Async](sockets: Stream[F, Socket[F]])(
-    peerChangesTopic:    Topic[F, PeerConnectionChange],
-    peerHandler:         (ConnectedPeer, Socket[F]) => Resource[F, Unit],
-    extractRemotePeerId: Socket[F] => F[Bytes]
+    peerChangesTopic:  Topic[F, PeerConnectionChange],
+    peerHandler:       (ConnectedPeer, Socket[F]) => Resource[F, Unit],
+    peerInfoExtractor: Socket[F] => F[(Bytes, Bytes)]
   ) =
     sockets
       .evalMap(socket => socket.remoteAddress.map(_.asRemoteAddress).tupleRight(socket))
@@ -80,12 +88,12 @@ object FS2P2PServer {
           .resource(
             for {
               localAddress <- socket.localAddress.map(_.asRemoteAddress).toResource
-              peerId <- extractRemotePeerId(socket).onError { case e =>
+              (peerId, peerVersion) <- peerInfoExtractor(socket).onError { case e =>
                 peerChangesTopic
                   .publish1(PeerConnectionChanges.ConnectionClosed(DisconnectedPeer(remoteAddress, none), e.some))
                   .void
               }.toResource
-              peer = ConnectedPeer(remoteAddress, peerId)
+              peer = ConnectedPeer(remoteAddress, peerId, peerVersion)
               disconnectedPeer = DisconnectedPeer(remoteAddress, peerId.some)
               _ <- peerChangesTopic.publish1(PeerConnectionChanges.ConnectionEstablished(peer, localAddress)).toResource
               _ <- peerHandler(peer, socket)
@@ -95,6 +103,7 @@ object FS2P2PServer {
                     .void
                     .toResource
                 }
+              _ <- (socket.endOfOutput *> socket.endOfInput).toResource
               _ <- peerChangesTopic
                 .publish1(PeerConnectionChanges.ConnectionClosed(disconnectedPeer, none))
                 .toResource
@@ -108,9 +117,9 @@ object FS2P2PServer {
       .background
 
   private def client[F[_]: Async: Logger](
-    remotePeers:         Stream[F, DisconnectedPeer],
-    localPeer:           LocalPeer,
-    extractRemotePeerId: Socket[F] => F[Bytes]
+    remotePeers:       Stream[F, DisconnectedPeer],
+    localPeer:         LocalPeer,
+    peerInfoExtractor: Socket[F] => F[(Bytes, Bytes)]
   )(peerChangesTopic: Topic[F, PeerConnectionChange], peerHandler: (ConnectedPeer, Socket[F]) => Resource[F, Unit]) =
     remotePeers
       .filterNot(_.remoteAddress == localPeer.localAddress)
@@ -140,7 +149,7 @@ object FS2P2PServer {
                     .toResource
                 }
               // TODO: Compare against disconnectedPeer.p2pVK?
-              peerId <- extractRemotePeerId(socket).onError { case e =>
+              (peerId, peerVersion) <- peerInfoExtractor(socket).onError { case e =>
                 peerChangesTopic.publish1(PeerConnectionChanges.ConnectionClosed(disconnected, e.some)).void
               }.toResource
               newDisconnected = disconnected.copy(p2pVK = peerId.some)
@@ -152,7 +161,7 @@ object FS2P2PServer {
                     .void
                     .toResource
                 else Resource.unit[F]
-              connected = ConnectedPeer(disconnected.remoteAddress, peerId)
+              connected = ConnectedPeer(disconnected.remoteAddress, peerId, peerVersion)
               localAddress <- socket.localAddress.map(_.asRemoteAddress).toResource
               _ <- peerChangesTopic
                 .publish1(PeerConnectionChanges.ConnectionEstablished(connected, localAddress))
@@ -164,6 +173,7 @@ object FS2P2PServer {
                     .void
                     .toResource
                 }
+              _ <- (socket.endOfOutput *> socket.endOfInput).toResource
               _ <- peerChangesTopic
                 .publish1(PeerConnectionChanges.ConnectionClosed(newDisconnected, none))
                 .toResource

@@ -8,7 +8,6 @@ import co.topl.brambl.generators.ModelGenerators._
 import co.topl.brambl.models.box.{FungibilityType, QuantityDescriptorType}
 import co.topl.brambl.models.{GroupId, LockAddress, SeriesId}
 import co.topl.brambl.syntax._
-import co.topl.catsutils.Iterative
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData, StakingAddress}
 import co.topl.ledger.algebras.TransactionRewardCalculatorAlgebra
 import co.topl.ledger.models.{AssetId, RewardQuantities}
@@ -26,11 +25,12 @@ import org.scalamock.munit.AsyncMockFactory
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration._
+import co.topl.algebras.Stats.Implicits._
 
 class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
   type F[A] = IO[A]
 
-  override val munitTimeout: FiniteDuration = 10.seconds
+  override val munitIOTimeout: FiniteDuration = 10.seconds
 
   override def scalaCheckTestParameters =
     super.scalaCheckTestParameters
@@ -91,8 +91,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
           )
           val rewardQuantities = RewardQuantities(BigInt(10L), BigInt(5L), Map(assetId1 -> BigInt(30L)))
 
-          val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
-          (rewardCalculator.rewardsOf(_)).expects(*).anyNumberOfTimes().returning(rewardQuantities.pure[F])
+          val rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
+          (rewardCalculator.rewardsOf(_)).expects(*).anyNumberOfTimes().returning(rewardQuantities)
 
           for {
             clockDeferment   <- IO.deferred[Unit]
@@ -100,12 +100,10 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
             _                <- blockPackerQueue.offer(outputBody)
             blockPacker = new BlockPackerAlgebra[F] {
 
-              def improvePackedBlock(parentBlockId: BlockId, height: Long, slot: Long): F[Iterative[F, FullBlockBody]] =
-                new Iterative[F, FullBlockBody] {
-
-                  def improve(current: FullBlockBody): F[FullBlockBody] =
-                    blockPackerQueue.take.flatTap(_ => (IO.sleep(100.milli) >> clockDeferment.complete(())).start)
-                }.pure[F]
+              def blockImprover(parentBlockId: BlockId, height: Long, slot: Long): Stream[F, FullBlockBody] =
+                Stream
+                  .fromQueueUnterminated(blockPackerQueue)
+                  .evalTap(_ => (IO.sleep(100.milli) >> clockDeferment.complete(())).start)
             }
             parents <- Queue.unbounded[F, Option[SlotData]]
             results <- Queue.unbounded[F, Option[FullBlock]]
@@ -114,7 +112,8 @@ class BlockProducerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with 
               staker,
               clock,
               blockPacker,
-              rewardCalculator
+              rewardCalculator,
+              ().pure[F]
             )
             resultFiber <- Async[F].start(Stream.force(underTest.blocks).enqueueNoneTerminated(results).compile.drain)
             _ = (clock.delayedUntilSlot(_)).expects(vrfHit.slot).once().returning(clockDeferment.get)

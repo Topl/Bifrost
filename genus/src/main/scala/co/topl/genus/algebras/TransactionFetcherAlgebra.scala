@@ -14,7 +14,7 @@ trait TransactionFetcherAlgebra[F[_]] {
 
   /**
    * Fetch a Transaction on the stored Ledger
-   * @param ioTransaction32  Transaction Identifier filter by field
+   * @param transactionId  Transaction Identifier filter by field
    * @return Optional Transaction, None if it was not found
    */
   def fetchTransaction(transactionId: TransactionId): F[Either[GE, Option[IoTransaction]]]
@@ -22,7 +22,7 @@ trait TransactionFetcherAlgebra[F[_]] {
   /**
    * Fetch a Transaction TransactionReceipt (includes ioTx, blockId, chain distance,...) on the stored Ledger
    *
-   * @param ioTransaction32 Transaction Identifier filter by field
+   * @param transactionId Transaction Identifier filter by field
    * @return Optional Transaction, None if it was not found
    */
   def fetchTransactionReceipt(transactionId: TransactionId): F[Either[GE, Option[TransactionReceipt]]]

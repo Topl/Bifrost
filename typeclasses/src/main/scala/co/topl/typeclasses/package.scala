@@ -9,4 +9,5 @@ package object typeclasses {
       with ContainsTransactionIds.ToContainsTransactionIdsOps
       with ShowInstances
       with EqInstances
+      with JsonInstances
 }

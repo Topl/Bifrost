@@ -15,6 +15,7 @@ import co.topl.models.utility.{Lengths, Sized}
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.algebras.Stats.Implicits._
 
 class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -27,16 +28,27 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
   override def munitFixtures = List(blake2b512Resource)
 
+  private def makeFetcher(sdMap: Map[BlockId, SlotData]): BlockId => F[SlotData] = {
+    val fetcher = { id: BlockId => sdMap(id).pure[F] }
+    fetcher
+  }
+
+  private def makeFetcher(slotData: List[SlotData]): BlockId => F[SlotData] = {
+    val sdMap = slotData.map(sd => (sd.slotId.blockId, sd)).toMap
+    makeFetcher(sdMap)
+  }
+
+  private def makeFetcher(slotData: SlotData): BlockId => F[SlotData] = makeFetcher(List(slotData))
+
   // TODO: Use generators to account for edge cases
 
   test("return 0 for equal tines") {
     val slotData = createSlotData(10, SlotId(9, BlockId.of(ByteString.copyFrom(Array.fill[Byte](32)(9)))), height = 4)
+    val fetcher = makeFetcher(slotData)
 
-    val orderT =
-      ChainSelection
-        .make[F](mockFunction[BlockId, F[SlotData]], blake2b512Resource(), kLookback = 1, sWindow = 1)
+    val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 1, sWindow = 1)
 
-    orderT.compare(slotData, slotData).assertEquals(0)
+    orderT.compare(slotData, slotData, fetcher, fetcher).assertEquals(0)
   }
 
   test("use longest-chain rule for tines shorter than the kLookback parameter") {
@@ -61,16 +73,11 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
+      val fetcher = makeFetcher(allBlocks)
 
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, fetcher, fetcher).map(_ > 0).assert
     }
 
     test("use lowest-slot rule for equal length tines shorter than the kLookback parameter") {
@@ -100,16 +107,11 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
+      val fetcher = makeFetcher(allBlocks)
 
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, fetcher, fetcher).map(_ > 0).assert
     }
   }
 
@@ -166,16 +168,11 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
+      val fetcher = makeFetcher(allBlocks)
 
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 100, sWindow = 1)
 
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 100, sWindow = 1)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, fetcher, fetcher).map(_ > 0).assert
     }
   }
 
@@ -202,16 +199,11 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
+      val fetcher = makeFetcher(allBlocks)
 
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 10, sWindow = 20)
 
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 10, sWindow = 20)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, fetcher, fetcher).map(_ > 0).assert
     }
 
     test("tiebreak chain-density rule by rhoTestHash for equal density tines") {
@@ -261,16 +253,11 @@ class ChainSelectionSpec extends CatsEffectSuite with ScalaCheckEffectSuite with
 
       val allBlocks = (List(grandAncestor, ancestor) ++ xSegment ++ ySegment).map(d => d.slotId.blockId -> d).toMap
 
-      val fetchSlotData = mockFunction[BlockId, F[SlotData]]
+      val fetcher = makeFetcher(allBlocks)
 
-      fetchSlotData
-        .expects(*)
-        .anyNumberOfTimes()
-        .onCall((id: BlockId) => allBlocks(id).pure[F])
+      val orderT = ChainSelection.make[F](blake2b512Resource(), kLookback = 0, sWindow = 150)
 
-      val orderT = ChainSelection.make[F](fetchSlotData, blake2b512Resource(), kLookback = 0, sWindow = 150)
-
-      orderT.compare(xSegment.last, ySegment.last).map(_ > 0).assert
+      orderT.compare(xSegment.last, ySegment.last, fetcher, fetcher).map(_ > 0).assert
     }
   }
 

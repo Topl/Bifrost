@@ -4,7 +4,7 @@ import cats.{Applicative, Monad}
 import cats.data.OptionT
 import cats.effect.Sync
 import cats.implicits._
-import co.topl.networking.p2p.RemoteAddress
+import co.topl.models.p2p._
 import com.comcast.ip4s.{Dns, IpAddress}
 import com.github.benmanes.caffeine.cache.Caffeine
 import scalacache.Entry

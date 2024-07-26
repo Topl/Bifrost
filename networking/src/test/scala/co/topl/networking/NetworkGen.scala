@@ -1,5 +1,7 @@
 package co.topl.networking
 
+import co.topl.models.p2p._
+import co.topl.networking.blockchain.NetworkProtocolVersions
 import co.topl.networking.p2p._
 import com.google.protobuf.ByteString
 import org.scalacheck.Arbitrary
@@ -15,13 +17,9 @@ trait NetworkGen {
       for {
         address <- arbitraryRemoteAddress.arbitrary
         peerVK  <- Gen.containerOfN[Array, Byte](32, Arbitrary.arbByte.arbitrary)
-      } yield ConnectedPeer(address, ByteString.copyFrom(peerVK))
+      } yield ConnectedPeer(address, ByteString.copyFrom(peerVK), NetworkProtocolVersions.V1)
     )
 
-  implicit val arbitraryConnectionLeader: Arbitrary[ConnectionLeader] =
-    Arbitrary(
-      Gen.oneOf(ConnectionLeader.Local, ConnectionLeader.Remote)
-    )
 }
 
 object NetworkGen extends NetworkGen

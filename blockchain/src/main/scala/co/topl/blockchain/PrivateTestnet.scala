@@ -64,7 +64,7 @@ object PrivateTestnet {
     protocolVersion: ProtocolVersion,
     protocol:        ApplicationConfig.Bifrost.Protocol
   ): BigBang.Config = {
-    require(stakes.forall(_.length == stakers.length), "stakes must be the same length as stakers")
+    require(stakes.forall(_.sizeIs == stakers.length), "stakes must be the same length as stakers")
     val transactions =
       stakers
         .zip(stakes.getOrElse(List.fill(stakers.length)(defaultStake(stakers.length))))
@@ -127,14 +127,14 @@ object PrivateTestnet {
           } yield ()
       )
 
-  val HeightLockOneProposition: Proposition =
+  private val HeightLockOneProposition: Proposition =
     Proposition(
       Proposition.Value.HeightRange(
         Proposition.HeightRange("header", 1, Long.MaxValue)
       )
     )
 
-  val HeightLockOneChallenge: Challenge =
+  private val HeightLockOneChallenge: Challenge =
     Challenge().withRevealed(HeightLockOneProposition)
 
   val HeightLockOneLock: Lock =
@@ -162,6 +162,7 @@ object PrivateTestnet {
       vrfPrecision = 40,
       vrfBaselineDifficulty = Ratio(5, 100),
       vrfAmplitude = Ratio(50, 100),
+      slotGapLeaderElection = 0,
       chainSelectionKLookback = 5184,
       slotDuration = 1.seconds,
       forwardBiasedSlotWindow = 50,

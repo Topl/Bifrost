@@ -7,12 +7,12 @@ const darkCodeTheme = require('prism-react-renderer/themes/dracula');
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Bifrost',
-  tagline: 'Bifrost is the official Scala-based reference implementation of a full node running the Topl protocol.',
+  tagline: 'Bifrost is the official Scala-based reference implementation of a full node running the Apparatus protocol.',
   url: 'https://topl.github.io/',
   baseUrl: '/Bifrost',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: 'warn',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.png',
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
@@ -57,7 +57,7 @@ const config = {
         style: 'dark',
         title: '',
         logo: {
-          alt: 'Topl Logo',
+          alt: 'Apparatus Logo',
           src: 'img/logo.svg',
         },
         items: [
@@ -113,7 +113,7 @@ const config = {
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} Topl, Built with Docusaurus.`,
+        copyright: `Copyright © ${new Date().getFullYear()} Apparatus, Built with Docusaurus.`,
       },
       prism: {
         theme: lightCodeTheme,

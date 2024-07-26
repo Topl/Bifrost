@@ -1,16 +1,19 @@
 package co.topl.networking.blockchain
 
 import cats.Applicative
-import cats.implicits._
 import cats.effect._
 import cats.effect.implicits._
-import cats.effect.std.Random
+import cats.effect.std.{Mutex, Random}
+import cats.implicits._
 import co.topl.crypto.signing.Ed25519
+import co.topl.networking.legacy.{ConnectionLeader, LegacyBlockchainSocketHandler}
+import co.topl.networking.multiplexer.MultiplexedReaderWriter
 import co.topl.networking.p2p._
 import fs2._
 import fs2.concurrent.Topic
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.typeclasses.implicits._
 
 import scala.concurrent.duration._
 
@@ -25,6 +28,7 @@ object BlockchainNetwork {
    * @param clientHandler A handler for each peer client
    * @param serverF A server of data to each peer
    * @param peersStatusChangesTopic topic for notifying about changes in remote peers
+   * @param networkTimeout a default timeout duration for reads/writes
    * @return A P2PNetwork
    */
   def make[F[_]: Async: Random](
@@ -35,7 +39,8 @@ object BlockchainNetwork {
     clientHandler:           BlockchainPeerHandlerAlgebra[F],
     serverF:                 ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
     peersStatusChangesTopic: Topic[F, PeerConnectionChange],
-    ed25519Resource:         Resource[F, Ed25519]
+    ed25519Resource:         Resource[F, Ed25519],
+    networkTimeout:          FiniteDuration
   ): Resource[F, P2PServer[F]] =
     for {
       implicit0(logger: Logger[F]) <- Slf4jLogger.fromName("Bifrost.P2P.Blockchain").toResource
@@ -45,20 +50,49 @@ object BlockchainNetwork {
         localPeer,
         remotePeers,
         (peer, socket) =>
-          ConnectionLeader
-            .fromSocket(socket.readN, socket.write)
-            .timeout(5.seconds)
-            .toResource
-            .flatMap(connectionLeader =>
-              BlockchainSocketHandler
-                .make[F](serverF, clientHandler.usePeer)(
-                  peer,
-                  connectionLeader,
-                  socket.reads,
-                  socket.writes,
-                  socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
+          if (peer.networkVersion == NetworkProtocolVersions.V0) {
+            // Run the legacy P2P implementation
+            (
+              Logger[F].info(show"Using legacy network protocol for peer=${peer.p2pVK}").toResource >>
+              ConnectionLeader
+                .fromSocket(socket.readN, socket.write)
+                .timeout(networkTimeout * 3)
+                .toResource
+                .flatMap(connectionLeader =>
+                  LegacyBlockchainSocketHandler
+                    .make[F](serverF, clientHandler.usePeer)(
+                      peer,
+                      connectionLeader,
+                      socket.reads,
+                      socket.writes,
+                      socket.isOpen.ifM(socket.endOfOutput >> socket.endOfInput, Applicative[F].unit)
+                    )
                 )
-            ),
+            )
+          } else {
+            // Run the "newer" P2P implementation
+            for {
+              portQueues   <- BlockchainMultiplexedBuffers.make[F]
+              readerWriter <- MultiplexedReaderWriter.make(socket, networkTimeout)
+              peerCache    <- PeerStreamBuffer.make[F]
+              server       <- serverF(peer)
+              requestMutex <- Mutex[F].toResource
+              socketHandler = new BlockchainSocketHandler[F](
+                server,
+                portQueues,
+                readerWriter,
+                peerCache,
+                requestMutex,
+                peer,
+                networkTimeout
+              )
+              _ <- socketHandler.client
+                .evalMap(clientHandler.usePeer(_).use_)
+                .compile
+                .drain
+                .toResource
+            } yield ()
+          },
         peersStatusChangesTopic,
         ed25519Resource
       )

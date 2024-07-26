@@ -1,216 +1,377 @@
 package co.topl.networking.blockchain
 
-import cats.effect.{Async, Resource}
+import cats.data.OptionT
+import cats.effect.implicits._
+import cats.effect.std.{Mutex, Queue}
+import cats.effect.{Async, Deferred, Resource}
 import cats.implicits._
 import co.topl.brambl.models.TransactionId
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.codecs.bytes.tetra.instances._
+import co.topl.codecs.bytes.typeclasses.Transmittable
 import co.topl.consensus.models.{BlockHeader, BlockId, SlotData}
-import co.topl.networking._
-import co.topl.networking.blockchain.NetworkTypeTags._
-import co.topl.networking.p2p.{ConnectedPeer, ConnectionLeader}
+import co.topl.models.Bytes
+import co.topl.networking.multiplexer.{MultiplexedBuffer, MultiplexedReaderWriter}
+import co.topl.networking.p2p.ConnectedPeer
 import co.topl.node.models._
-import co.topl.typeclasses.implicits._
 import fs2._
-import org.typelevel.log4cats.Logger
-import co.topl.networking.fsnetwork.P2PShowInstances._
 
-object BlockchainSocketHandler {
+import scala.concurrent.duration.FiniteDuration
+import scala.language.implicitConversions
+
+/**
+ * Provides a blockchain-based abstraction over a multiplexed P2P connection
+ * @param server an implementation from the local application that can _provide_ data to the remote peer when requested
+ * @param multiplexerBuffers Stores inbound and outbound request/response information for each multiplexer port
+ * @param readerWriter an abstraction over a Socket, allowing for reading and writing multiplexer frame data
+ * @param streamBuffer a cache/buffer for stream-based information, like block notifications
+ * @param connectedPeer the remote peer
+ * @param requestTimeout a timeout to apply to all requests
+ */
+class BlockchainSocketHandler[F[_]: Async](
+  server:             BlockchainPeerServerAlgebra[F],
+  multiplexerBuffers: BlockchainMultiplexedBuffers[F],
+  readerWriter:       MultiplexedReaderWriter[F],
+  streamBuffer:       PeerStreamBuffer[F],
+  requestMutex:       Mutex[F],
+  connectedPeer:      ConnectedPeer,
+  requestTimeout:     FiniteDuration
+) {
 
   /**
-   * Consumes the given Socket by applying Blockchain-specific Multiplexed Typed Protocols to serve the given application
-   * functions.
-   * @param peerServerF a function which creates a BlockchainPeerServer for the given ConnectedPeer
-   * @param useClientAndPeer a function which consumes the BlockchainPeerClient to serve the application
-   * @param peer The remote peer
-   * @param leader The connection leader
-   * @param reads the input stream
-   * @param writes the output stream
-   * @return a Resource which completes when all processing has completed
+   * Returns a Stream containing a single BlockchainPeerClient that can be consumed by the application
+   *
+   * Running this Stream also runs background processing for this socket, including serving local data to the remote peer.
+   *
+   * Completion of this Stream will also shutdown the background processing, meaning this stream should be kept
+   * alive until the application is finished communicating with the peer/socket.
    */
-  def make[F[_]: Async: Logger](
-    peerServerF:      ConnectedPeer => Resource[F, BlockchainPeerServerAlgebra[F]],
-    useClientAndPeer: BlockchainPeerClient[F] => Resource[F, Unit]
-  )(
-    peer:   ConnectedPeer,
-    leader: ConnectionLeader,
-    reads:  Stream[F, Byte],
-    writes: Pipe[F, Byte, Nothing],
-    close:  F[Unit]
-  ): Resource[F, Unit] =
-    peerServerF(peer)
-      .map(server => createFactory(server, close))
-      .flatMap(_.multiplexed(useClientAndPeer)(peer, leader, reads, writes))
+  def client: Stream[F, BlockchainPeerClient[F]] =
+    Stream
+      .eval(Deferred[F, Unit])
+      .flatMap(deferred =>
+        Stream(new BlockchainPeerClient[F] {
 
-  private[blockchain] def createFactory[F[_]: Async: Logger](
-    protocolServer: BlockchainPeerServerAlgebra[F],
-    close:          F[Unit]
-  ): TypedProtocolSetFactory[F, BlockchainPeerClient[F]] = {
-    val blockAdoptionRecipF =
-      TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
-        BlockchainProtocols.BlockAdoption,
-        Stream.force(protocolServer.localBlockAdoptions),
-        1: Byte,
-        2: Byte
-      )
-    val transactionNotificationRecipF =
-      TypedProtocolSetFactory.CommonProtocols.notificationReciprocated(
-        BlockchainProtocols.TransactionBroadcasts,
-        Stream.force(protocolServer.localTransactionNotifications),
-        3: Byte,
-        4: Byte
-      )
+          override def remotePeer: ConnectedPeer = connectedPeer
 
-    val slotDataRecipF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
-        BlockchainProtocols.SlotData,
-        protocolServer.getLocalSlotData,
-        5: Byte,
-        6: Byte
-      )
+          override def remotePeerAsServer: F[Option[KnownHost]] =
+            writeRequest(BlockchainMultiplexerId.RemotePeerServerRequest, (), multiplexerBuffers.remotePeerServer)
 
-    val headerRecipF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
-        BlockchainProtocols.Header,
-        protocolServer.getLocalHeader,
-        7: Byte,
-        8: Byte
-      )
+          override def remotePeerAdoptions: F[Stream[F, BlockId]] =
+            Async[F].delay(
+              Stream
+                .fromQueueUnterminated(streamBuffer.remoteBlockAdoptions)
+                .interruptWhen(deferred.imap(_.asRight[Throwable])(_ => ()))
+            )
 
-    val bodyRecipF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
-        BlockchainProtocols.Body,
-        protocolServer.getLocalBody,
-        9: Byte,
-        10: Byte
-      )
+          override def remoteTransactionNotifications: F[Stream[F, TransactionId]] =
+            Async[F].delay(
+              Stream
+                .fromQueueUnterminated(streamBuffer.remoteTransactionAdoptions)
+                .interruptWhen(deferred.imap(_.asRight[Throwable])(_ => ()))
+            )
 
-    val transactionRecipF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated(
-        BlockchainProtocols.Transaction,
-        protocolServer.getLocalTransaction,
-        11: Byte,
-        12: Byte
+          override def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] =
+            writeRequest(BlockchainMultiplexerId.BlockIdAtDepthRequest, depth, multiplexerBuffers.blockIdAtDepth)
+
+          override def getRemoteSlotData(id: BlockId): F[Option[SlotData]] =
+            writeRequest(BlockchainMultiplexerId.SlotDataRequest, id, multiplexerBuffers.slotData)
+
+          override def getRemoteHeader(id: BlockId): F[Option[BlockHeader]] =
+            writeRequest(BlockchainMultiplexerId.HeaderRequest, id, multiplexerBuffers.headers)
+
+          override def getRemoteBody(id: BlockId): F[Option[BlockBody]] =
+            writeRequest(BlockchainMultiplexerId.BodyRequest, id, multiplexerBuffers.bodies)
+
+          override def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] =
+            writeRequest(BlockchainMultiplexerId.TransactionRequest, id, multiplexerBuffers.transactions)
+
+          override def getRemoteBlockIdAtHeight(height: Long): F[Option[BlockId]] =
+            writeRequest(BlockchainMultiplexerId.BlockIdAtHeightRequest, height, multiplexerBuffers.blockIdAtHeight)
+
+          override def getRemoteKnownHosts(request: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
+            writeRequest(BlockchainMultiplexerId.KnownHostsRequest, request, multiplexerBuffers.knownHosts)
+
+          override def getPongMessage(request: PingMessage): F[Option[PongMessage]] =
+            writeRequest(BlockchainMultiplexerId.PingRequest, request, multiplexerBuffers.pingPong)
+
+          override def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit] =
+            writeRequest(BlockchainMultiplexerId.AppLevelRequest, networkLevel, multiplexerBuffers.appLevel)
+
+          override def closeConnection(): F[Unit] = deferred.complete(()).void
+        })
+          .mergeHaltBoth(Stream.eval(deferred.get).drain)
+          .mergeHaltBoth((background ++ Stream.eval(deferred.complete(()))).drain)
       )
 
-    val idAtHeightRecipF =
-      TypedProtocolSetFactory.CommonProtocols
-        .requestResponseReciprocated[F, (Long, Option[BlockId]), BlockId](
-          BlockchainProtocols.BlockIdAtHeight,
-          t => protocolServer.getLocalBlockAtHeight(t._1),
-          13: Byte,
-          14: Byte
-        )
+  private def background: Stream[F, Unit] =
+    readerStream.concurrently(portQueueStreams.merge(streamBufferPushers))
 
-    val idAtDepthRecipF =
-      TypedProtocolSetFactory.CommonProtocols
-        .requestResponseReciprocated[F, Long, BlockId](
-          BlockchainProtocols.BlockIdAtDepth,
-          protocolServer.getLocalBlockAtDepth,
-          15: Byte,
-          16: Byte
-        )
-
-    val knownHostsRecipF =
-      TypedProtocolSetFactory.CommonProtocols
-        .requestResponseReciprocated[F, CurrentKnownHostsReq, CurrentKnownHostsRes](
-          BlockchainProtocols.KnownHosts,
-          protocolServer.getKnownHosts,
-          17: Byte,
-          18: Byte
-        )
-
-    val pingPongF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, PingMessage, PongMessage](
-        BlockchainProtocols.PingPong,
-        protocolServer.getPong,
-        19: Byte,
-        20: Byte
-      )
-
-    val remotePeerServerF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Unit, KnownHost](
-        BlockchainProtocols.RemotePeerServer,
-        _ => protocolServer.peerAsServer,
-        21: Byte,
-        22: Byte
-      )
-
-    val notifyRemoteAppLevelF =
-      TypedProtocolSetFactory.CommonProtocols.requestResponseReciprocated[F, Boolean, Unit](
-        BlockchainProtocols.ApplicationLevelNotify,
-        protocolServer.notifyApplicationLevel,
-        23: Byte,
-        24: Byte
-      )
-
-    (connectedPeer: ConnectedPeer, connectionLeader: ConnectionLeader) =>
-      for {
-        (adoptionTypedSubHandlers, remoteBlockIdsSource) <- blockAdoptionRecipF.ap(connectionLeader.pure[F])
-        (transactionNotificationTypedSubHandlers, remoteTransactionIdsSource) <- transactionNotificationRecipF.ap(
-          connectionLeader.pure[F]
-        )
-        (slotDataTypedSubHandlers, slotDataReceivedCallback)       <- slotDataRecipF.ap(connectionLeader.pure[F])
-        (headerTypedSubHandlers, headerReceivedCallback)           <- headerRecipF.ap(connectionLeader.pure[F])
-        (bodyTypedSubHandlers, bodyReceivedCallback)               <- bodyRecipF.ap(connectionLeader.pure[F])
-        (transactionTypedSubHandlers, transactionReceivedCallback) <- transactionRecipF.ap(connectionLeader.pure[F])
-        (idAtHeightTypedSubHandlers, heightIdReceivedCallback)     <- idAtHeightRecipF.ap(connectionLeader.pure[F])
-        (idAtDepthTypedSubHandlers, depthIdReceivedCallback)       <- idAtDepthRecipF.ap(connectionLeader.pure[F])
-        (knownHostsTypedSubHandlers, knownHostsReceivedCallback)   <- knownHostsRecipF.ap(connectionLeader.pure[F])
-        (pingPongHandlers, pingMessageReceivedCallback)            <- pingPongF.ap(connectionLeader.pure[F])
-        (peerServerHandlers, peerServerCallback)                   <- remotePeerServerF.ap(connectionLeader.pure[F])
-        (appLevelNotifyHandlers, appNotifyCallback)                <- notifyRemoteAppLevelF.ap(connectionLeader.pure[F])
-        blockchainProtocolClient = new BlockchainPeerClient[F] {
-          val remotePeer: ConnectedPeer = connectedPeer
-          val remotePeerAsServer: F[Option[KnownHost]] = peerServerCallback(())
-          val remotePeerAdoptions: F[Stream[F, BlockId]] = remoteBlockIdsSource.pure[F]
-
-          val remoteTransactionNotifications: F[Stream[F, TransactionId]] =
-            remoteTransactionIdsSource.pure[F]
-
-          def getRemoteSlotData(id: BlockId): F[Option[SlotData]] =
-            slotDataReceivedCallback(id)
-
-          def getRemoteHeader(id: BlockId): F[Option[BlockHeader]] =
-            headerReceivedCallback(id)
-
-          def getRemoteBody(id: BlockId): F[Option[BlockBody]] =
-            bodyReceivedCallback(id)
-
-          def getRemoteTransaction(id: TransactionId): F[Option[IoTransaction]] =
-            transactionReceivedCallback(id)
-
-          def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]] =
-            heightIdReceivedCallback((height, localBlockId))
-
-          def getRemoteBlockIdAtDepth(depth: Long): F[Option[BlockId]] =
-            depthIdReceivedCallback(depth)
-
-          def getRemoteKnownHosts(req: CurrentKnownHostsReq): F[Option[CurrentKnownHostsRes]] =
-            knownHostsReceivedCallback(req)
-
-          def getPongMessage(req: PingMessage): F[Option[PongMessage]] = pingMessageReceivedCallback(req)
-
-          def notifyAboutThisNetworkLevel(networkLevel: Boolean): F[Unit] =
-            appNotifyCallback(networkLevel).void
-
-          def closeConnection(): F[Unit] = close
+  /**
+   * Parse the incoming multiplexer frames into either a request or response message.  Once parsed,
+   * handle the payload accordingly.
+   */
+  private def readerStream =
+    readerWriter.read
+      .evalMap { case (port, bytes) =>
+        bytes.byteAt(0) match {
+          case 0 => processRequest(port, bytes.substring(1))
+          case 1 => processResponse(port, bytes.substring(1))
+          case _ =>
+            Async[F]
+              .raiseError[Unit](new IllegalArgumentException("Not RequestResponse"))
         }
+      }
 
-        subHandlers =
-          adoptionTypedSubHandlers ++
-            transactionNotificationTypedSubHandlers ++
-            slotDataTypedSubHandlers ++
-            headerTypedSubHandlers ++
-            bodyTypedSubHandlers ++
-            transactionTypedSubHandlers ++
-            idAtHeightTypedSubHandlers ++
-            idAtDepthTypedSubHandlers ++
-            knownHostsTypedSubHandlers ++
-            pingPongHandlers ++
-            peerServerHandlers ++
-            appLevelNotifyHandlers
-      } yield subHandlers -> blockchainProtocolClient
-  }
+  private def portQueueStreams =
+    Stream(
+      multiplexerBuffers.knownHosts.backgroundRequestProcessor(_ => onPeerRequestedKnownHosts()),
+      multiplexerBuffers.remotePeerServer.backgroundRequestProcessor(_ => onPeerRequestedRemotePeerServer()),
+      multiplexerBuffers.blockAdoptions.backgroundRequestProcessor(_ => onPeerRequestedBlockNotification()),
+      multiplexerBuffers.transactionAdoptions.backgroundRequestProcessor(_ => onPeerRequestedTransactionNotification()),
+      multiplexerBuffers.pingPong.backgroundRequestProcessor(onPeerRequestedPing),
+      multiplexerBuffers.blockIdAtHeight.backgroundRequestProcessor(onPeerRequestedBlockIdAtHeight),
+      multiplexerBuffers.blockIdAtDepth.backgroundRequestProcessor(onPeerRequestedBlockIdAtDepth),
+      multiplexerBuffers.slotData.backgroundRequestProcessor(onPeerRequestedSlotData),
+      multiplexerBuffers.headers.backgroundRequestProcessor(onPeerRequestedHeader),
+      multiplexerBuffers.bodies.backgroundRequestProcessor(onPeerRequestedBody),
+      multiplexerBuffers.transactions.backgroundRequestProcessor(onPeerRequestedTransaction),
+      multiplexerBuffers.appLevel.backgroundRequestProcessor(onPeerNotifiedAppLevel)
+    ).parJoinUnbounded
 
+  private def streamBufferPushers =
+    Stream(
+      Stream
+        .force(server.localBlockAdoptions)
+        .evalMap(
+          streamBuffer.localBlockAdoptions
+            .tryOffer(_)
+            .flatMap(
+              Async[F].raiseUnless(_)(new IllegalStateException("Slow peer subscriber of local block adoptions"))
+            )
+        )
+        .void,
+      Stream
+        .force(server.localTransactionNotifications)
+        .evalMap(
+          streamBuffer.localTransactionAdoptions
+            .tryOffer(_)
+            .flatMap(
+              Async[F]
+                .raiseUnless(_)(new IllegalStateException("Slow peer subscriber of local transaction notifications"))
+            )
+        )
+        .void,
+      Stream
+        .repeatEval(
+          writeRequestNoTimeout(BlockchainMultiplexerId.BlockAdoptionRequest, (), multiplexerBuffers.blockAdoptions)
+        )
+        .evalMap(
+          streamBuffer.remoteBlockAdoptions
+            .tryOffer(_)
+            .flatMap(
+              Async[F].raiseUnless(_)(new IllegalStateException("Slow local subscriber of peer block adoptions"))
+            )
+        )
+        .void,
+      Stream
+        .repeatEval(
+          writeRequestNoTimeout(
+            BlockchainMultiplexerId.TransactionNotificationRequest,
+            (),
+            multiplexerBuffers.transactionAdoptions
+          )
+        )
+        .evalMap(
+          streamBuffer.remoteTransactionAdoptions
+            .tryOffer(_)
+            .flatMap(
+              Async[F]
+                .raiseUnless(_)(new IllegalStateException("Slow local subscriber of peer transaction notifications"))
+            )
+        )
+    ).parJoinUnbounded
+
+  private def processRequest(port: Int, data: Bytes): F[Unit] =
+    OptionT
+      .fromOption[F](BlockchainMultiplexerId.parse(port))
+      .getOrRaise(new IllegalArgumentException(s"Invalid port=$port"))
+      .flatMap {
+        case BlockchainMultiplexerId.KnownHostsRequest =>
+          multiplexerBuffers.knownHosts.processRequest(tDecoded[CurrentKnownHostsReq](data))
+        case BlockchainMultiplexerId.RemotePeerServerRequest =>
+          multiplexerBuffers.remotePeerServer.processRequest(())
+        case BlockchainMultiplexerId.BlockAdoptionRequest =>
+          multiplexerBuffers.blockAdoptions.processRequest(())
+        case BlockchainMultiplexerId.TransactionNotificationRequest =>
+          multiplexerBuffers.transactionAdoptions.processRequest(())
+        case BlockchainMultiplexerId.PingRequest =>
+          multiplexerBuffers.pingPong.processRequest(tDecoded[PingMessage](data))
+        case BlockchainMultiplexerId.BlockIdAtHeightRequest =>
+          multiplexerBuffers.blockIdAtHeight.processRequest(tDecoded[Long](data))
+        case BlockchainMultiplexerId.BlockIdAtDepthRequest =>
+          multiplexerBuffers.blockIdAtDepth.processRequest(tDecoded[Long](data))
+        case BlockchainMultiplexerId.SlotDataRequest =>
+          multiplexerBuffers.slotData.processRequest(tDecoded[BlockId](data))
+        case BlockchainMultiplexerId.HeaderRequest =>
+          multiplexerBuffers.headers.processRequest(tDecoded[BlockId](data))
+        case BlockchainMultiplexerId.BodyRequest =>
+          multiplexerBuffers.bodies.processRequest(tDecoded[BlockId](data))
+        case BlockchainMultiplexerId.TransactionRequest =>
+          multiplexerBuffers.transactions.processRequest(tDecoded[TransactionId](data))
+        case BlockchainMultiplexerId.AppLevelRequest =>
+          multiplexerBuffers.appLevel.processRequest(tDecoded[Boolean](data))
+      }
+
+  private def processResponse(port: Int, data: Bytes): F[Unit] =
+    OptionT
+      .fromOption[F](BlockchainMultiplexerId.parse(port))
+      .getOrRaise(new IllegalArgumentException(s"Invalid port=$port"))
+      .flatMap {
+        case BlockchainMultiplexerId.KnownHostsRequest =>
+          multiplexerBuffers.knownHosts.processResponse(tDecoded[Option[CurrentKnownHostsRes]](data))
+        case BlockchainMultiplexerId.RemotePeerServerRequest =>
+          multiplexerBuffers.remotePeerServer.processResponse(tDecoded[Option[KnownHost]](data))
+        case BlockchainMultiplexerId.BlockAdoptionRequest =>
+          multiplexerBuffers.blockAdoptions.processResponse(tDecoded[BlockId](data))
+        case BlockchainMultiplexerId.TransactionNotificationRequest =>
+          multiplexerBuffers.transactionAdoptions.processResponse(tDecoded[TransactionId](data))
+        case BlockchainMultiplexerId.PingRequest =>
+          multiplexerBuffers.pingPong.processResponse(tDecoded[Option[PongMessage]](data))
+        case BlockchainMultiplexerId.BlockIdAtHeightRequest =>
+          multiplexerBuffers.blockIdAtHeight.processResponse(tDecoded[Option[BlockId]](data))
+        case BlockchainMultiplexerId.BlockIdAtDepthRequest =>
+          multiplexerBuffers.blockIdAtDepth.processResponse(tDecoded[Option[BlockId]](data))
+        case BlockchainMultiplexerId.SlotDataRequest =>
+          multiplexerBuffers.slotData.processResponse(tDecoded[Option[SlotData]](data))
+        case BlockchainMultiplexerId.HeaderRequest =>
+          multiplexerBuffers.headers.processResponse(tDecoded[Option[BlockHeader]](data))
+        case BlockchainMultiplexerId.BodyRequest =>
+          multiplexerBuffers.bodies.processResponse(tDecoded[Option[BlockBody]](data))
+        case BlockchainMultiplexerId.TransactionRequest =>
+          multiplexerBuffers.transactions.processResponse(tDecoded[Option[IoTransaction]](data))
+        case BlockchainMultiplexerId.AppLevelRequest =>
+          multiplexerBuffers.appLevel.processResponse(())
+      }
+      .flatMap(Async[F].raiseUnless(_)(new IllegalStateException(s"Unexpected response in port=$port")))
+      .void
+
+  private def writeRequest[Message: Transmittable, Response](
+    port:    BlockchainMultiplexerId,
+    message: Message,
+    buffer:  MultiplexedBuffer[F, Message, Response]
+  ): F[Response] =
+    writeRequestNoTimeout(port, message, buffer).timeout(requestTimeout)
+
+  private def writeRequestNoTimeout[Message: Transmittable, Response](
+    port:    BlockchainMultiplexerId,
+    message: Message,
+    buffer:  MultiplexedBuffer[F, Message, Response]
+  ): F[Response] =
+    requestMutex.lock
+      .surround(
+        buffer.expectResponse <*
+        readerWriter.write(port.id, RequestMarker.concat(Transmittable[Message].transmittableBytes(message)))
+      )
+      .flatten
+
+  private def writeResponse[Message: Transmittable](
+    port:    BlockchainMultiplexerId,
+    message: Message
+  ): F[Unit] =
+    readerWriter.write(port.id, ResponseMarker.concat(Transmittable[Message].transmittableBytes(message)))
+
+  private def onPeerRequestedBlockIdAtHeight(height: Long) =
+    server
+      .getLocalBlockAtHeight(height)
+      .flatMap(writeResponse(BlockchainMultiplexerId.BlockIdAtHeightRequest, _))
+
+  private def onPeerRequestedBlockIdAtDepth(depth: Long) =
+    server
+      .getLocalBlockAtDepth(depth)
+      .flatMap(writeResponse(BlockchainMultiplexerId.BlockIdAtDepthRequest, _))
+
+  private def onPeerRequestedSlotData(id: BlockId) =
+    server
+      .getLocalSlotData(id)
+      .flatMap(writeResponse(BlockchainMultiplexerId.SlotDataRequest, _))
+
+  private def onPeerRequestedHeader(id: BlockId) =
+    server
+      .getLocalHeader(id)
+      .flatMap(writeResponse(BlockchainMultiplexerId.HeaderRequest, _))
+
+  private def onPeerRequestedBody(id: BlockId) =
+    server
+      .getLocalBody(id)
+      .flatMap(writeResponse(BlockchainMultiplexerId.BodyRequest, _))
+
+  private def onPeerRequestedTransaction(id: TransactionId) =
+    server
+      .getLocalTransaction(id)
+      .flatMap(writeResponse(BlockchainMultiplexerId.TransactionRequest, _))
+
+  private def onPeerRequestedKnownHosts() =
+    server
+      .getKnownHosts(CurrentKnownHostsReq())
+      .flatMap(
+        writeResponse(BlockchainMultiplexerId.KnownHostsRequest, _)
+      )
+
+  private def onPeerRequestedRemotePeerServer() =
+    server.peerAsServer.flatMap(
+      writeResponse(BlockchainMultiplexerId.RemotePeerServerRequest, _)
+    )
+
+  private def onPeerRequestedPing(message: PingMessage) =
+    server
+      .getPong(message)
+      .flatMap(writeResponse(BlockchainMultiplexerId.PingRequest, _))
+
+  private def onPeerRequestedBlockNotification() =
+    streamBuffer.localBlockAdoptions.take
+      .flatMap(writeResponse(BlockchainMultiplexerId.BlockAdoptionRequest, _))
+
+  private def onPeerRequestedTransactionNotification() =
+    streamBuffer.localTransactionAdoptions.take
+      .flatMap(writeResponse(BlockchainMultiplexerId.TransactionNotificationRequest, _))
+
+  private def onPeerNotifiedAppLevel(networkLevel: Boolean) =
+    server.notifyApplicationLevel(networkLevel) >>
+    writeResponse(BlockchainMultiplexerId.AppLevelRequest, ())
+
+  implicit private def tDecoded[T: Transmittable](bytes: Bytes): T =
+    Transmittable[T].fromTransmittableBytes(bytes) match {
+      case Left(e)  => throw new IllegalArgumentException(e)
+      case Right(v) => v
+    }
+
+}
+
+/**
+ * A buffer for inbound and outbound stream-based data, specific to a peer
+ *
+ * @param localBlockAdoptions a buffer containing BlockIds to be sent to the peer
+ * @param localTransactionAdoptions a buffer containing TransactionIds to be sent to the peer
+ * @param remoteBlockAdoptions a buffer containing BlockIds sent by the peer
+ * @param remoteTransactionAdoptions a buffer containing TransactionIds sent by the peer
+ */
+class PeerStreamBuffer[F[_]](
+  val localBlockAdoptions:        Queue[F, BlockId],
+  val localTransactionAdoptions:  Queue[F, TransactionId],
+  val remoteBlockAdoptions:       Queue[F, BlockId],
+  val remoteTransactionAdoptions: Queue[F, TransactionId]
+)
+
+object PeerStreamBuffer {
+
+  def make[F[_]: Async]: Resource[F, PeerStreamBuffer[F]] =
+    (
+      Queue.bounded[F, BlockId](512),
+      Queue.bounded[F, TransactionId](512),
+      Queue.bounded[F, BlockId](512),
+      Queue.bounded[F, TransactionId](512)
+    )
+      .mapN(new PeerStreamBuffer[F](_, _, _, _))
+      .toResource
 }

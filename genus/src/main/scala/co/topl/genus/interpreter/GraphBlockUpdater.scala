@@ -27,6 +27,7 @@ import scala.util.Try
 
 object GraphBlockUpdater {
 
+  // scalastyle:off method.length
   def make[F[_]: OrientThread: Sync: Logger](
     graph:            OrientGraph,
     blockFetcher:     BlockFetcherAlgebra[F],
@@ -38,7 +39,7 @@ object GraphBlockUpdater {
         private val syncLogger = org.slf4j.LoggerFactory.getLogger("GraphBlockUpdater")
 
         def insert(block: BlockData): F[Either[GE, Unit]] =
-          if (block.header.height == 1) {
+          if (block.header.height == 1) { // TODO replace 1 to BigBang.Height
             insertBlock(block)
           } else {
             EitherT(blockFetcher.fetchBlock(block.header.parentHeaderId)).flatMapF {
@@ -218,5 +219,5 @@ object GraphBlockUpdater {
 
       }
     )
-
+  // scalastyle:on method.length
 }

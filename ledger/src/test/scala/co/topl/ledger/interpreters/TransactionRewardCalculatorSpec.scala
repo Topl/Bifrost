@@ -22,7 +22,7 @@ class TransactionRewardCalculatorSpec extends CatsEffectSuite with ScalaCheckEff
     val testResource =
       for {
         underTest <- TransactionRewardCalculator.make[F]
-        rewards   <- underTest.rewardsOf(tx).toResource
+        rewards   <- underTest.rewardsOf(tx).pure[F].toResource
         _         <- IO(rewards.lvl).assertEquals(BigInt(0)).toResource
         _         <- IO(rewards.topl).assertEquals(BigInt(0)).toResource
         _         <- IO(rewards.assets).assertEquals(Map.empty[AssetId, BigInt]).toResource
@@ -68,7 +68,7 @@ class TransactionRewardCalculatorSpec extends CatsEffectSuite with ScalaCheckEff
     val testResource =
       for {
         underTest <- TransactionRewardCalculator.make[F]
-        rewards   <- underTest.rewardsOf(tx).toResource
+        rewards   <- underTest.rewardsOf(tx).pure[F].toResource
         _         <- IO(rewards.lvl).assertEquals(BigInt(1200)).toResource
         _         <- IO(rewards.topl).assertEquals(BigInt(60)).toResource
         _ <- IO(rewards.assets)
@@ -106,7 +106,7 @@ class TransactionRewardCalculatorSpec extends CatsEffectSuite with ScalaCheckEff
     val testResource =
       for {
         underTest <- TransactionRewardCalculator.make[F]
-        rewards   <- underTest.rewardsOf(tx).toResource
+        rewards   <- underTest.rewardsOf(tx).pure[F].toResource
         _         <- IO(rewards.lvl).assertEquals(BigInt(0)).toResource
         _         <- IO(rewards.topl).assertEquals(BigInt(0)).toResource
         _         <- IO(rewards.assets).assertEquals(Map.empty[AssetId, BigInt]).toResource

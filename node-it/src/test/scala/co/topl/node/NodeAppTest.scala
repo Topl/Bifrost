@@ -25,7 +25,7 @@ import scala.concurrent.duration._
 
 class NodeAppTest extends CatsEffectSuite {
 
-  override val munitTimeout: Duration = 3.minutes
+  override val munitIOTimeout: Duration = 3.minutes
 
   test("Two block-producing nodes that maintain consensus") {
     // Allow the nodes to produce/adopt blocks until reaching this height
@@ -112,8 +112,8 @@ class NodeAppTest extends CatsEffectSuite {
           .parMapN(_.race(_).map(_.merge).flatMap(_.embedNever))
           .flatMap(nodeCompletion =>
             nodeCompletion.toResource.race(for {
-              rpcClientA <- NodeGrpc.Client.make[F]("127.0.0.2", 9151, tls = false)
-              rpcClientB <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
+              rpcClientA      <- NodeGrpc.Client.make[F]("127.0.0.2", 9151, tls = false)
+              rpcClientB      <- NodeGrpc.Client.make[F]("localhost", 9153, tls = false)
               rpcClients = List(rpcClientA, rpcClientB)
               implicit0(logger: Logger[F]) <- Slf4jLogger.fromName[F]("NodeAppTest").toResource
               _                            <- rpcClients.parTraverse(_.waitForRpcStartUp).toResource
@@ -121,14 +121,14 @@ class NodeAppTest extends CatsEffectSuite {
               genusTxServiceA              <- TransactionServiceFs2Grpc.stubResource[F](genusChannelA)
               genusBlockServiceA           <- BlockServiceFs2Grpc.stubResource[F](genusChannelA)
               _                            <- awaitGenusReady(genusBlockServiceA).timeout(45.seconds).toResource
-              wallet <- makeWallet(genusTxServiceA)
-              _      <- IO(wallet.spendableBoxes.nonEmpty).assert.toResource
+              wallet                       <- makeWallet(genusTxServiceA)
+              _                            <- IO(wallet.spendableBoxes.nonEmpty).assert.toResource
               implicit0(random: Random[F]) <- SecureRandom.javaSecuritySecureRandom[F].toResource
               // Construct two competing graphs of transactions.
               // Graph 1 has higher fees and should be included in the chain
               transactionGenerator1 <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 1000L.pure[F], Fs2TransactionGenerator.emptyMetadata[F])
+                  .make[F](wallet, _ => 1000L, Fs2TransactionGenerator.emptyMetadata[F])
                   .toResource
               transactionGraph1 <- Stream
                 .force(transactionGenerator1.generateTransactions)
@@ -140,7 +140,7 @@ class NodeAppTest extends CatsEffectSuite {
               // Graph 2 has lower fees, so the Block Packer should never choose them
               transactionGenerator2 <-
                 Fs2TransactionGenerator
-                  .make[F](wallet, _ => 10L.pure[F], Fs2TransactionGenerator.randomMetadata[F])
+                  .make[F](wallet, _ => 10L, Fs2TransactionGenerator.randomMetadata[F])
                   .toResource
               transactionGraph2 <- Stream
                 .force(transactionGenerator2.generateTransactions)

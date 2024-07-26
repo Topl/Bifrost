@@ -18,6 +18,7 @@ import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
 import org.scalacheck.effect.PropF
 import org.scalamock.munit.AsyncMockFactory
+import co.topl.algebras.Stats.Implicits._
 
 class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuite with AsyncMockFactory {
 
@@ -37,7 +38,7 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             .returning(
               (TransactionSyntaxError.EmptyInputs: TransactionSyntaxError).invalidNec[IoTransaction].toEither.pure[F]
             )
-          rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+          rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
           underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation, rewardCalculator)
           result    <- underTest.validate(body)
           _         <- IO(result.isInvalid).assert
@@ -109,12 +110,12 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
             .expects(transaction)
             .once()
             .returning(transaction.validNec[TransactionSyntaxError].toEither.pure[F])
-          rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+          rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
           _ = (rewardCalculator
             .rewardsOf(_))
             .expects(transaction)
             .once()
-            .returning(rewardOutput.pure[F])
+            .returning(rewardOutput)
           underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation, rewardCalculator)
           result    <- underTest.validate(body)
           _         <- IO(result.isValid == expectSuccess).assert
@@ -207,7 +208,7 @@ class BodySyntaxValidationSpec extends CatsEffectSuite with ScalaCheckEffectSuit
         fetchTransaction <- mockFunction[TransactionId, F[IoTransaction]].pure[F]
         _ = fetchTransaction.expects(rewardTx.id).once().returning(rewardTx.pure[F])
         transactionSyntaxValidation = mock[TransactionSyntaxVerifier[F]]
-        rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+        rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
         underTest <- BodySyntaxValidation.make[F](fetchTransaction, transactionSyntaxValidation, rewardCalculator)
         result    <- underTest.validate(body)
         _         <- IO(result.isInvalid).assert

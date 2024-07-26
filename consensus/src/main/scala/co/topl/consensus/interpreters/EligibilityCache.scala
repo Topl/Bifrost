@@ -27,10 +27,10 @@ object EligibilityCache {
    */
   def make[F[_]: Async](maximumLength: Int): Resource[F, EligibilityCacheAlgebra[F]] =
     for {
-      ref <- Ref.of(State(maximumLength)).toResource
+      ref <- Ref.of(EligibilityState(maximumLength)).toResource
     } yield new EligibilityCacheAlgebra[F] {
 
-      def tryInclude(blockId: BlockId, vrfVK: Bytes, slot: Slot): F[Boolean] =
+      override def tryInclude(blockId: BlockId, vrfVK: Bytes, slot: Slot): F[Boolean] =
         ref.modify(_.tryInclude(blockId, vrfVK, slot))
     }
 
@@ -69,13 +69,13 @@ object EligibilityCache {
    *                  entry is provided, the oldest entry (by slot) will be removed
    * @param entries A sorted map of entries in the cache, sorted by Slot
    */
-  private case class State(maxLength: Int, entries: SortedMap[(Slot, Bytes), BlockId] = SortedMap.empty) {
+  private case class EligibilityState(maxLength: Int, entries: SortedMap[(Slot, Bytes), BlockId] = SortedMap.empty) {
 
     /**
      * Attempt to include the entry.  If the entry already existed, the state remains unchanged, and "false" is returned.
      * Otherwise, a new state and "true" is returned
      */
-    def tryInclude(blockId: BlockId, vrfVK: Bytes, slot: Slot): (State, Boolean) = {
+    def tryInclude(blockId: BlockId, vrfVK: Bytes, slot: Slot): (EligibilityState, Boolean) = {
       // Note: An entry may already exist in the cache at the provided vrfVK under a different slot.  A future
       // optimization may be to take the vrfVK instance from the old entry and use it in the new entry as well.
       // This would avoid a memory penalty of duplicating the same bytes in memory, but would come at the expense of
@@ -91,7 +91,7 @@ object EligibilityCache {
     /**
      * Discard old entries to keep the entry-set within the [[maxLength]] bound
      */
-    private def trim: State =
+    private def trim: EligibilityState =
       copy(entries = entries.takeRight(maxLength))
   }
 

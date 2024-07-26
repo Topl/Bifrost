@@ -31,9 +31,9 @@ object Fs2TransactionGenerator {
    * updating the local wallet along the way.
    * @param wallet An initial wallet containing an initial set of spendable UTxOs
    */
-  def make[F[_]: Async: Random](
+  def make[F[_]: Async](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F],
+    costCalculator: TransactionCostCalculator,
     metadataF:      F[SmallData]
   ): F[TransactionGenerator[F, Stream[F, *]]] =
     Sync[F].delay(
@@ -50,9 +50,9 @@ object Fs2TransactionGenerator {
    * Given a _current_ wallet, produce a new Transaction and new Wallet.  If the wallet is small, create extra UTxOs.
    * If the wallet is large, consolidate UTxOs.
    */
-  private def nextTransactionOf[F[_]: Async: Random: Logger](
+  private def nextTransactionOf[F[_]: Async: Logger](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F],
+    costCalculator: TransactionCostCalculator,
     metadataF:      F[SmallData]
   ): OptionT[F, (IoTransaction, Wallet)] =
     (if (wallet.spendableBoxes.size < 25) generateExpandingTransaction(wallet, costCalculator, metadataF)
@@ -62,9 +62,9 @@ object Fs2TransactionGenerator {
   /**
    * Constructs a Transaction which attempts to split a UTxO into two
    */
-  private def generateExpandingTransaction[F[_]: Async: Random: Logger](
+  private def generateExpandingTransaction[F[_]: Async: Logger](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F],
+    costCalculator: TransactionCostCalculator,
     metadataF:      F[SmallData]
   ): OptionT[F, IoTransaction] =
     pickSingleInput[F](wallet).semiflatMap { case (inputBoxId, inputBox) =>
@@ -82,7 +82,7 @@ object Fs2TransactionGenerator {
    */
   private def generateConsolidatingTransaction[F[_]: Async: Logger](
     wallet:         Wallet,
-    costCalculator: TransactionCostCalculator[F],
+    costCalculator: TransactionCostCalculator,
     metadataF:      F[SmallData]
   ): OptionT[F, IoTransaction] =
     OptionT
@@ -117,7 +117,7 @@ object Fs2TransactionGenerator {
    * Constructs a proven Transaction from the given inputs and outputs
    */
   private def formTransaction[F[_]: Async: Logger](
-    costCalculator: TransactionCostCalculator[F],
+    costCalculator: TransactionCostCalculator,
     metadataF:      F[SmallData]
   )(inputs: Seq[SpentTransactionOutput], outputs: Seq[UnspentTransactionOutput]) =
     for {
@@ -156,7 +156,7 @@ object Fs2TransactionGenerator {
   /**
    * Constructs two outputs from the given input box.  The two outputs will split the input box in half.
    */
-  private def createManyOutputs[F[_]: Monad: Random](
+  private def createManyOutputs[F[_]: Monad](
     inputBox: Box
   ): F[List[UnspentTransactionOutput]] = for {
     lvlBoxValue <- inputBox.value.getLvl.pure[F]
@@ -179,11 +179,11 @@ object Fs2TransactionGenerator {
       )
   } yield result
 
-  private def applyFee[F[_]: Monad](
-    costCalculator: TransactionCostCalculator[F]
+  private def applyFee[F[_]: Async](
+    costCalculator: TransactionCostCalculator
   )(transaction: IoTransaction): F[IoTransaction] =
     for {
-      cost <- costCalculator.costOf(transaction)
+      cost <- costCalculator.costOf(transaction).pure[F]
       updated = transaction.withOutputs(
         transaction.outputs
           .foldLeft((cost, List.empty[UnspentTransactionOutput])) {

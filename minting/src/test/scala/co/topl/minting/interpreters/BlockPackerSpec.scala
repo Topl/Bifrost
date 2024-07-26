@@ -16,7 +16,6 @@ import co.topl.ledger.models.{MempoolGraph, RewardQuantities, TransactionSemanti
 import co.topl.models.ModelGenerators._
 import co.topl.models.Slot
 import co.topl.models.generators.consensus.ModelGenerators
-import co.topl.node.models.FullBlockBody
 import co.topl.quivr.runtime.DynamicContext
 import com.google.protobuf.ByteString
 import munit.{CatsEffectSuite, ScalaCheckEffectSuite}
@@ -34,25 +33,33 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
       .withMaxSize(3)
       .withMinSuccessfulTests(5)
 
+  private val dummyRewardCalc: TransactionRewardCalculatorAlgebra = (_: IoTransaction) => RewardQuantities()
+  private val dummyCostCalc: TransactionCostCalculator = (tx: IoTransaction) => tx.inputs.size
+
   test("return empty for empty mempool") {
     withMock {
       val mempool = mock[MempoolAlgebra[F]]
-      (mempool.read(_: BlockId)).expects(*).anyNumberOfTimes().returning(MempoolGraph.empty.pure[F])
+      (mempool
+        .read(_: BlockId))
+        .expects(*)
+        .anyNumberOfTimes()
+        .returning(MempoolGraph.empty(dummyRewardCalc, dummyCostCalc).pure[F])
       val testResource =
         for {
           underTest <- BlockPacker.make[F](
             mempool,
             mock[BoxStateAlgebra[F]],
-            mock[TransactionRewardCalculatorAlgebra[F]],
-            mock[TransactionCostCalculator[F]],
+            mock[TransactionRewardCalculatorAlgebra],
+            mock[TransactionCostCalculator],
             mock[BlockPackerValidation[F]],
             mock[RegistrationAccumulatorAlgebra[F]]
           )
-          iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          _ <- iterative
-            .improve(FullBlockBody.defaultInstance)
+          _ <- underTest
+            .blockImprover(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0)
             // Timeout should be less than the Block Packer's mempool polling period
             .timeout(200.milli)
+            .compile
+            .toList
             .intercept[TimeoutException]
             .toResource
         } yield ()
@@ -113,7 +120,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
           .embedId
 
       val mempool = mock[MempoolAlgebra[F]]
-      val mempoolGraph = MempoolGraph.empty.add(tx2).add(tx3).add(tx4)
+      val mempoolGraph = MempoolGraph.empty(dummyRewardCalc, dummyCostCalc).add(tx2).add(tx3).add(tx4)
       (mempool.read(_: BlockId)).expects(*).once().returning(mempoolGraph.pure[F])
       val boxState = mock[BoxStateAlgebra[F]]
       (boxState
@@ -126,14 +133,14 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .expects(*, tx3.inputs(0).address)
         .once()
         .returning(true.pure[F])
-      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
       (rewardCalculator
         .rewardsOf(_: IoTransaction))
         .expects(*)
         .anyNumberOfTimes()
-        .returning(RewardQuantities(BigInt(100)).pure[F])
-      val costCalculator = mock[TransactionCostCalculator[F]]
-      (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
+        .returning(RewardQuantities(BigInt(100)))
+      val costCalculator = mock[TransactionCostCalculator]
+      (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L)
       val validation = mock[BlockPackerValidation[F]]
       (validation
         .transactionIsValid(_: IoTransaction, _: Long, _: Slot))
@@ -151,9 +158,8 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             validation,
             registrationAccumulator
           )
-          iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          result <- fs2.Stream
-            .unfoldEval(FullBlockBody.defaultInstance)(iterative.improve(_).map(v => (v, v).some))
+          stream = underTest.blockImprover(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0)
+          result <- stream
             .interruptAfter(3.seconds)
             .compile
             .lastOrError
@@ -219,7 +225,7 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
           .embedId
 
       val mempool = mock[MempoolAlgebra[F]]
-      val mempoolGraph = MempoolGraph.empty.add(tx2).add(tx3).add(tx4)
+      val mempoolGraph = MempoolGraph.empty(dummyRewardCalc, dummyCostCalc).add(tx2).add(tx3).add(tx4)
       (mempool.read(_: BlockId)).expects(*).once().returning(mempoolGraph.pure[F])
       (mempool.remove(_: TransactionId)).expects(tx3.id).once().returning(().pure[F])
       (mempool.remove(_: TransactionId)).expects(tx4.id).once().returning(().pure[F])
@@ -229,14 +235,14 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
         .expects(*, tx2.inputs(0).address)
         .once()
         .returning(true.pure[F])
-      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra[F]]
+      val rewardCalculator = mock[TransactionRewardCalculatorAlgebra]
       (rewardCalculator
         .rewardsOf(_: IoTransaction))
         .expects(*)
         .anyNumberOfTimes()
-        .returning(RewardQuantities(BigInt(100)).pure[F])
-      val costCalculator = mock[TransactionCostCalculator[F]]
-      (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L.pure[F])
+        .returning(RewardQuantities(BigInt(100)))
+      val costCalculator = mock[TransactionCostCalculator]
+      (costCalculator.costOf(_: IoTransaction)).expects(*).anyNumberOfTimes().returning(50L)
       val validation = mock[BlockPackerValidation[F]]
       (validation
         .transactionIsValid(_: IoTransaction, _: Long, _: Slot))
@@ -257,9 +263,8 @@ class BlockPackerSpec extends CatsEffectSuite with ScalaCheckEffectSuite with As
             validation,
             registrationAccumulator
           )
-          iterative <- underTest.improvePackedBlock(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0).toResource
-          result <- fs2.Stream
-            .unfoldEval(FullBlockBody.defaultInstance)(iterative.improve(_).map(v => (v, v).some))
+          stream = underTest.blockImprover(ModelGenerators.arbitraryBlockId.arbitrary.first, 0, 0)
+          result <- stream
             .interruptAfter(3.seconds)
             .compile
             .lastOrError

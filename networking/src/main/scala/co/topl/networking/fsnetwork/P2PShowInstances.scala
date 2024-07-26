@@ -5,6 +5,7 @@ import cats.implicits.showInterpolator
 import co.topl.codecs.bytes.tetra.instances.blockHeaderAsBlockHeaderOps
 import co.topl.config.ApplicationConfig.Bifrost.NetworkProperties
 import co.topl.consensus.models._
+import co.topl.models.p2p._
 import co.topl.models.utility.byteStringToByteVector
 import co.topl.networking.fsnetwork.NetworkQualityError._
 import co.topl.networking.fsnetwork.PeersManager.Message.PingPongMessagePing
@@ -68,8 +69,8 @@ trait P2PShowInstances {
     s" AggressiveP2PRequestInterval=${config.aggressiveP2PRequestInterval.toMillis} ms;"
 
   implicit def showPeer[F[_]]: Show[Peer[F]] = { peer: Peer[F] =>
-    val connectionAddress = peer.connectedAddress.map(ra => show"$ra").getOrElse("absent")
-    val serverAddress = peer.asServer.map(rp => show"$rp").getOrElse("absent")
+    val connectionAddress = peer.connectedAddress.fold("absent")(ra => show"$ra")
+    val serverAddress = peer.asServer.fold("absent")(rp => show"$rp")
     "<<< Peer" +
     show" Connected address=$connectionAddress;" +
     show" Server address=$serverAddress;" +

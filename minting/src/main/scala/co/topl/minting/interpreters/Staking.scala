@@ -20,10 +20,12 @@ import com.google.protobuf.ByteString
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import co.topl.algebras.Stats
 
 object Staking {
 
-  def make[F[_]: Async](
+  // scalastyle:off method.length
+  def make[F[_]: Async: Stats](
     a:                        StakingAddress,
     rewardAddress:            LockAddress,
     vkVrf:                    ByteString,
@@ -75,6 +77,22 @@ object Staking {
                 show" eligible=$isLeader" +
                 show" relativeStake=$relativeStake" +
                 show" stakingAddress=$a"
+              _ <- OptionT.liftF(
+                Stats[F].recordGauge(
+                  "bifrost_staking_is_eligible",
+                  "Boolean indicating if the staker is eligible in the current operational period.",
+                  Map(),
+                  if (isLeader) 1L else 0L
+                )
+              )
+              _ <- OptionT.liftF(
+                Stats[F].recordGauge(
+                  "bifrost_staking_relative_stake",
+                  "Percentage of stake owned by the operator at the given slot.",
+                  Map(),
+                  (relativeStake.numerator / relativeStake.denominator).toLong
+                )
+              )
               _ <- OptionT.liftF(if (isLeader) Logger[F].info(logMessage) else Logger[F].debug(logMessage))
               vrfHit <- OptionT
                 .whenF[F, VrfHit](isLeader)(
@@ -144,4 +162,5 @@ object Staking {
             }.value
         }
       }
+  // scalastyle:on method.length
 }

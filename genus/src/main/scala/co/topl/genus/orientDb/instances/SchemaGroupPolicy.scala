@@ -31,7 +31,7 @@ object SchemaGroupPolicy {
         .withProperty(Field.GroupPolicyId, _.computeId.value.toByteArray, mandatory = true, readOnly = true, notNull= true)
         .withProperty(Field.Label, _.label, mandatory = true,readOnly = true,  notNull = true )
         .withProperty(Field.RegistrationUtxo, _.registrationUtxo.toByteArray,  mandatory = true, readOnly = true, notNull = true )
-        .withProperty(Field.FixedSeries, _.fixedSeries.map(_.value.toByteArray).getOrElse(Array.empty[Byte]), mandatory = false, readOnly = true, notNull = false)
+        .withProperty(Field.FixedSeries, _.fixedSeries.fold (Array.empty[Byte])(_.value.toByteArray), mandatory = false, readOnly = true, notNull = false)
         .withIndex[GroupPolicy](Field.GroupPolicyIndex, Field.GroupPolicyId)(OIndexable.Instances.groupPolicy),
       // @formatter:on
       v =>

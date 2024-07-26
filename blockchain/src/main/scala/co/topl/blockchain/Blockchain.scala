@@ -6,25 +6,19 @@ import cats.effect.implicits._
 import cats.effect.std.{Queue, Random}
 import cats.implicits._
 import co.topl.algebras._
-import co.topl.blockchain.algebras.EpochDataAlgebra
-import co.topl.blockchain.interpreters.BlockchainPeerServer
-import co.topl.brambl.models.TransactionId
+import co.topl.blockchain.interpreters.{NetworkControlRpcServer, RegtestRpcServer}
 import co.topl.brambl.models.transaction.IoTransaction
 import co.topl.brambl.syntax.ioTransactionAsTransactionSyntaxOps
-import co.topl.brambl.validation._
 import co.topl.catsutils._
 import co.topl.codecs.bytes.tetra.instances._
 import co.topl.config.ApplicationConfig.Bifrost.{KnownPeer, NetworkProperties}
-import co.topl.consensus.algebras._
-import co.topl.consensus.models._
-import co.topl.eventtree.ParentChildTree
 import co.topl.grpc._
-import co.topl.ledger.algebras._
 import co.topl.ledger.implicits._
 import co.topl.ledger.interpreters.{QuivrContext, TransactionSemanticValidation}
 import co.topl.ledger.models.StaticBodyValidationContext
 import co.topl.minting.algebras.StakingAlgebra
 import co.topl.minting.interpreters._
+import co.topl.models.p2p._
 import co.topl.networking.blockchain._
 import co.topl.networking.fsnetwork.DnsResolverInstances.DefaultDnsResolver
 import co.topl.networking.fsnetwork.P2PShowInstances._
@@ -47,93 +41,56 @@ object Blockchain {
   /**
    * A program which executes the blockchain protocol, including a P2P layer, RPC layer, and minter.
    */
-  def make[F[_]: Async: Random: Dns](
-    clock:                     ClockAlgebra[F],
-    stakerResource:            Resource[F, Option[StakingAlgebra[F]]],
-    dataStores:                DataStores[F],
-    localChain:                LocalChainAlgebra[F],
-    chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
-    blockIdTree:               ParentChildTree[F, BlockId],
-    eventSourcedStates:        EventSourcedStates[F],
-    validatorsLocal:           Validators[F],
-    validatorsP2P:             Validators[F],
-    _mempool:                  MempoolAlgebra[F],
-    cryptoResources:           CryptoResources[F],
-    localPeer:                 LocalPeer,
-    knownPeers:                List[KnownPeer],
-    rpcHost:                   String,
-    rpcPort:                   Int,
-    nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
-    additionalGrpcServices:    List[ServerServiceDefinition],
-    _epochData:                EpochDataAlgebra[F],
-    peerAsServer:              Option[KnownPeer],
-    networkProperties:         NetworkProperties
+  def make[F[_]: Async: Random: Dns: Stats](
+    localBlockchain:          BlockchainCore[F],
+    p2pBlockchain:            BlockchainCore[F],
+    stakerResource:           Resource[F, Option[StakingAlgebra[F]]],
+    eventSourcedStates:       EventSourcedStates[F],
+    localPeer:                LocalPeer,
+    knownPeers:               List[KnownPeer],
+    rpcHost:                  String,
+    rpcPort:                  Int,
+    rpcNetworkControlEnabled: Boolean,
+    additionalGrpcServices:   List[ServerServiceDefinition],
+    peerAsServer:             Option[KnownPeer],
+    networkProperties:        NetworkProperties,
+    regtestEnabled:           Boolean
   ): Resource[F, Unit] = new BlockchainImpl[F](
-    clock,
+    localBlockchain,
+    p2pBlockchain,
     stakerResource,
-    dataStores,
-    localChain,
-    chainSelectionAlgebra,
-    blockIdTree,
     eventSourcedStates,
-    validatorsLocal,
-    validatorsP2P,
-    _mempool,
-    cryptoResources,
     localPeer,
     knownPeers,
     rpcHost,
     rpcPort,
-    nodeProtocolConfiguration,
+    rpcNetworkControlEnabled,
     additionalGrpcServices,
-    _epochData,
     peerAsServer,
-    networkProperties
+    networkProperties,
+    regtestEnabled
   ).resource
 
 }
 
-class BlockchainImpl[F[_]: Async: Random: Dns](
-  clock:                     ClockAlgebra[F],
-  stakerResource:            Resource[F, Option[StakingAlgebra[F]]],
-  dataStores:                DataStores[F],
-  localChain:                LocalChainAlgebra[F],
-  chainSelectionAlgebra:     ChainSelectionAlgebra[F, SlotData],
-  blockIdTree:               ParentChildTree[F, BlockId],
-  eventSourcedStates:        EventSourcedStates[F],
-  validatorsLocal:           Validators[F],
-  validatorsP2P:             Validators[F],
-  _mempool:                  MempoolAlgebra[F],
-  cryptoResources:           CryptoResources[F],
-  localPeer:                 LocalPeer,
-  knownPeers:                List[KnownPeer],
-  rpcHost:                   String,
-  rpcPort:                   Int,
-  nodeProtocolConfiguration: ProtocolConfigurationAlgebra[F, Stream[F, *]],
-  additionalGrpcServices:    List[ServerServiceDefinition],
-  _epochData:                EpochDataAlgebra[F],
-  peerAsServer:              Option[KnownPeer],
-  networkProperties:         NetworkProperties
+class BlockchainImpl[F[_]: Async: Random: Dns: Stats](
+  localBlockchain:          BlockchainCore[F],
+  p2pBlockchain:            BlockchainCore[F],
+  stakerResource:           Resource[F, Option[StakingAlgebra[F]]],
+  eventSourcedStates:       EventSourcedStates[F],
+  localPeer:                LocalPeer,
+  knownPeers:               List[KnownPeer],
+  rpcHost:                  String,
+  rpcPort:                  Int,
+  rpcNetworkControlEnabled: Boolean,
+  additionalGrpcServices:   List[ServerServiceDefinition],
+  peerAsServer:             Option[KnownPeer],
+  networkProperties:        NetworkProperties,
+  regtestEnabled:           Boolean
 ) {
   implicit private val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLoggerFromName[F]("Bifrost.Blockchain")
 
-  /**
-   * Whenever a block is adopted locally, broadcast all of its corresponding (non-reward) _transactions_ to eagerly notify peers
-   */
-  private def adoptedBlockTxRebroadcaster(transactionsTopic: Topic[F, TransactionId]) =
-    Resource.make(Logger[F].info("Initializing Block-Tx Rebroadcaster"))(_ =>
-      Logger[F].info("Block-Tx Rebroadcaster Terminated")
-    ) >>
-    Stream
-      .force(localChain.adoptions)
-      .dropOldest(10)
-      .evalMap(id => dataStores.bodies.getOrRaise(id))
-      .flatMap(b => Stream.iterable(b.transactionIds))
-      .through(transactionsTopic.publish)
-      .compile
-      .drain
-      .onError { case e => Logger[F].error(e)("Block-Tx Rebroadcaster failed") }
-      .background
+  private val thisHostId = HostId(localPeer.p2pVK)
 
   /**
    * For each adopted block, trigger all internal event-sourced states to update.  Generally, EventSourcedStates are
@@ -146,7 +103,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       Logger[F].info("Event-Sourced-State Updater Terminated")
     ) >>
     Stream
-      .force(localChain.adoptions)
+      .force(localBlockchain.consensus.localChain.adoptions)
       .dropOldest(1)
       .evalTap(eventSourcedStates.updateLocalStatesTo)
       .compile
@@ -155,7 +112,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       .background
       .void
 
-  private def p2p(mempool: MempoolAlgebra[F], transactionsTopic: Topic[F, TransactionId]) =
+  private def p2p(networkCommands: Topic[F, NetworkCommands]) =
     for {
       _           <- Resource.make(Logger[F].info("Initializing P2P"))(_ => Logger[F].info("P2P Terminated"))
       remotePeers <- Queue.unbounded[F, DisconnectedPeer].toResource
@@ -169,52 +126,22 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         if (networkProperties.useHostNames) new DefaultReverseDnsResolver[F]() else new NoOpReverseResolver[F]
       bridge <- ActorPeerHandlerBridgeAlgebra
         .make(
-          HostId(localPeer.p2pVK),
-          localChain,
-          chainSelectionAlgebra,
-          validatorsP2P.header,
-          validatorsP2P.headerToBody,
-          validatorsP2P.transactionSyntax,
-          validatorsP2P.bodySyntax,
-          validatorsP2P.bodySemantics,
-          validatorsP2P.bodyAuthorization,
-          dataStores.slotData,
-          dataStores.headers,
-          dataStores.bodies,
-          dataStores.transactions,
-          dataStores.knownHosts,
-          blockIdTree,
-          eventSourcedStates.blockHeightsP2P,
-          mempool,
+          thisHostId,
+          p2pBlockchain,
           networkProperties,
-          clock,
           initialPeers,
           peersStatusChangesTopic,
           remotePeers.offer,
-          currentPeers.set
+          currentPeers.set,
+          p2pBlockchain.cryptoResources.ed25519VRF,
+          networkCommands
         )
         .onFinalize(Logger[F].info("P2P Actor system had been shutdown"))
-      p2pBlockAdoptionsTopic <- Resource.make(Topic[F, BlockId])(_.close.void)
-      _ <- Stream
-        .force(localChain.adoptions)
-        .dropOldest(1)
-        .through(p2pBlockAdoptionsTopic.publish)
-        .compile
-        .drain
-        .background
-      _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.map(_.toString).getOrElse("")}").toResource
+      _ <- Logger[F].info(s"Exposing server on: ${peerAsServer.fold("")(_.toString)}").toResource
       peerServerF = BlockchainPeerServer.make(
-        dataStores.slotData.get,
-        dataStores.headers.get,
-        dataStores.bodies.get,
-        dataStores.transactions.get,
-        eventSourcedStates.blockHeightsP2P,
+        p2pBlockchain,
         () => peerAsServer.map(kp => KnownHost(localPeer.p2pVK, kp.host, kp.port)),
         () => currentPeers.get,
-        localChain,
-        mempool,
-        p2pBlockAdoptionsTopic,
-        transactionsTopic,
         peersStatusChangesTopic
       ) _
       _ <- BlockchainNetwork
@@ -226,36 +153,30 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
           bridge,
           peerServerF,
           peersStatusChangesTopic,
-          cryptoResources.ed25519
+          p2pBlockchain.cryptoResources.ed25519,
+          networkProperties.defaultTimeout
         )
     } yield ()
 
-  def rpc(mempool: MempoolAlgebra[F]): Resource[F, Unit] =
+  def rpc(
+    regtestPermitQueue: Option[Queue[F, Unit]],
+    networkCommandsOpt: Option[Topic[F, NetworkCommands]]
+  ): Resource[F, Unit] =
     for {
-      _ <- Resource.make(Logger[F].info("Initializing RPC"))(_ => Logger[F].info("RPC Terminated"))
-      rpcInterpreter <- ToplRpcServer
-        .make(
-          dataStores.headers,
-          dataStores.bodies,
-          dataStores.transactions,
-          mempool,
-          validatorsLocal.transactionSyntax,
-          localChain,
-          eventSourcedStates.blockHeightsLocal,
-          blockIdTree,
-          Stream.force(localChain.adoptions).dropOldest(10),
-          nodeProtocolConfiguration,
-          _epochData,
-          clock
-        )
-        .toResource
+      _               <- Resource.make(Logger[F].info("Initializing RPC"))(_ => Logger[F].info("RPC Terminated"))
+      rpcInterpreter  <- ToplRpcServer.make(localBlockchain).toResource
       nodeGrpcService <- NodeGrpc.Server.service[F](rpcInterpreter)
+      regtestServices <- regtestPermitQueue.toList.traverse(queue =>
+        RegtestRpcServer.service[F](Async[F].defer(queue.offer(())))
+      )
+      _ <- networkCommandsOpt.fold(().pure[F])(_ => Logger[F].error("Network could be controlled via RPC")).toResource
+      networkControl <- NetworkControlRpcServer.service(thisHostId, networkCommandsOpt)
       rpcServer <- ToplGrpc.Server
-        .serve(rpcHost, rpcPort)(nodeGrpcService :: additionalGrpcServices)
+        .serve(rpcHost, rpcPort)(networkControl :: nodeGrpcService :: regtestServices ++ additionalGrpcServices)
       _ <- Logger[F].info(s"RPC Server bound at ${rpcServer.getListenSockets.asScala.toList.mkString(",")}").toResource
     } yield ()
 
-  def blockProduction(mempool: MempoolAlgebra[F]): Resource[F, Unit] =
+  private def blockProduction(regtestPermitQueue: Option[Queue[F, Unit]]): Resource[F, Unit] =
     for {
       _ <- Resource.make(Logger[F].info("Initializing local blocks (potential no-op)"))(_ =>
         Logger[F].info("Local blocks terminated")
@@ -264,38 +185,48 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         for {
           stakerOpt <- Stream.resource(stakerResource)
           staker    <- Stream.fromOption[F](stakerOpt)
-          costCalculator = TransactionCostCalculatorInterpreter.make[F](TransactionCostConfig())
           blockPackerValidation <- Stream.resource(
             TransactionSemanticValidation
-              .makeDataValidation(dataStores.transactions.getOrRaise)
+              .makeDataValidation(localBlockchain.dataStores.transactions.getOrRaise)
               .flatMap(
-                BlockPackerValidation.make[F](_, validatorsLocal.transactionAuthorization)
+                BlockPackerValidation.make[F](_, localBlockchain.ledger.transactionAuthorizationValidation)
               )
           )
           blockPacker <- Stream.resource(
             BlockPacker
               .make[F](
-                mempool,
-                validatorsLocal.boxState,
-                validatorsLocal.rewardCalculator,
-                costCalculator,
+                localBlockchain.ledger.mempool,
+                localBlockchain.validators.boxState,
+                localBlockchain.validators.rewardCalculator,
+                localBlockchain.ledger.transactionCostCalculator,
                 blockPackerValidation,
-                validatorsLocal.registrationAccumulator
+                localBlockchain.validators.registrationAccumulator
               )
           )
           // The BlockProducer needs a stream/Source of "parents" upon which it should build.  This stream is the
           // concatenation of the current local head with the stream of local block adoptions
           parentBlocksStream = Stream
-            .eval(Sync[F].defer(localChain.head))
-            .evalTap(head => clock.delayedUntilSlot(head.slotId.slot))
+            .eval(Sync[F].defer(localBlockchain.consensus.localChain.head))
+            .evalTap(head => localBlockchain.clock.delayedUntilSlot(head.slotId.slot))
             .append(
               Stream
-                .force(localChain.adoptions)
+                .force(localBlockchain.consensus.localChain.adoptions)
                 .dropOldest(1)
-                .evalMap(dataStores.slotData.getOrRaise)
+                .evalMap(localBlockchain.dataStores.slotData.getOrRaise)
+            )
+          productionPermit =
+            regtestPermitQueue.fold(().pure[F])(regtestPermitQueue =>
+              Async[F].defer(Logger[F].info("Awaiting RegtestRpc.MakeBlock") >> regtestPermitQueue.take)
             )
           blockProducer <- Stream.eval(
-            BlockProducer.make[F](parentBlocksStream, staker, clock, blockPacker, validatorsLocal.rewardCalculator)
+            BlockProducer.make[F](
+              parentBlocksStream,
+              staker,
+              localBlockchain.clock,
+              blockPacker,
+              localBlockchain.validators.rewardCalculator,
+              productionPermit
+            )
           )
           block <- Stream.force(blockProducer.blocks)
         } yield block
@@ -303,25 +234,25 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         .evalTap(block => Logger[F].info(show"Saving locally-produced block id=${block.header.id}"))
         .evalTap { block =>
           val id = block.header.id
-          blockIdTree.associate(id, block.header.parentHeaderId) &>
-          dataStores.headers.put(id, block.header) &>
-          dataStores.bodies
+          localBlockchain.blockIdTree.associate(id, block.header.parentHeaderId) &>
+          localBlockchain.dataStores.headers.put(id, block.header) &>
+          localBlockchain.dataStores.bodies
             .put(id, BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id))) &>
-          block.fullBody.rewardTransaction.traverse(tx => dataStores.transactions.put(tx.id, tx)) &>
-          cryptoResources.ed25519VRF
+          block.fullBody.rewardTransaction.traverse(tx => localBlockchain.dataStores.transactions.put(tx.id, tx)) &>
+          localBlockchain.cryptoResources.ed25519VRF
             .use(implicit e => Sync[F].delay(block.header.slotData))
-            .flatTap(dataStores.slotData.put(block.header.id, _))
+            .flatTap(localBlockchain.dataStores.slotData.put(block.header.id, _))
         }
         // Validate the local block.  If invalid, skip it "gracefully"
         .evalFilter(validateLocalBlock(_).toOption.isDefined)
         .evalTap(block =>
-          dataStores.slotData
+          localBlockchain.dataStores.slotData
             .getOrRaise(block.header.id)
             .flatMap(slotData =>
-              localChain
-                .isWorseThan(slotData)
+              localBlockchain.consensus.localChain
+                .isWorseThan(NonEmptyChain.one(slotData))
                 .ifM(
-                  localChain.adopt(Validated.Valid(slotData)),
+                  localBlockchain.consensus.localChain.adopt(Validated.Valid(slotData)),
                   Logger[F].warn("Skipping adoption of locally-produced block due to better local chain.")
                 )
             )
@@ -335,12 +266,15 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
   def resource: Resource[F, Unit] =
     for {
       _ <- Resource.make(Logger[F].info("Initializing Blockchain"))(_ => Logger[F].info("Blockchain Terminated"))
-      (mempool, transactionsTopic) <- MempoolBroadcaster.make(_mempool)
+      // When regtest mode is enabled, allocate a queue to hold commands to produce new blocks
+      regtestPermitQueue <-
+        if (regtestEnabled) Queue.unbounded[F, Unit].toResource.map(_.some)
+        else none[Queue[F, Unit]].pure[F].toResource
+      networkCommandsTopic <- Resource.make(Topic[F, NetworkCommands])(_.close.void)
       _ <- (
-        adoptedBlockTxRebroadcaster(transactionsTopic),
-        p2p(mempool, transactionsTopic),
-        rpc(mempool),
-        blockProduction(mempool),
+        p2p(networkCommandsTopic),
+        rpc(regtestPermitQueue, if (rpcNetworkControlEnabled) networkCommandsTopic.some else None),
+        blockProduction(regtestPermitQueue),
         eventSourcedStateUpdater
       ).parTupled
       _ <- Resource.never[F, Unit]
@@ -356,7 +290,7 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         Logger[F].info(show"Performing validation of local blockId=${fullBlock.header.id}")
       )
       _ <- EitherT(
-        validatorsLocal.header
+        localBlockchain.validators.header
           .validate(fullBlock.header)
           .warnIfSlow("Validate local header")
       ).leftMap(_.show)
@@ -368,12 +302,12 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
       )
       block = Block(fullBlock.header, body)
       _ <- EitherT(
-        validatorsLocal.headerToBody
+        localBlockchain.validators.headerToBody
           .validate(block)
           .warnIfSlow("Validate local header-to-body")
       ).leftMap(_.show)
       _ <- EitherT(
-        validatorsLocal.bodySyntax
+        localBlockchain.validators.bodySyntax
           .validate(body)
           .map(_.toEither)
           .warnIfSlow("Validate local body syntax")
@@ -384,14 +318,14 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
         block.header.slot
       )
       _ <- EitherT(
-        validatorsLocal.bodySemantics
+        localBlockchain.validators.bodySemantics
           .validate(semanticContext)(body)
           .map(_.toEither)
           .warnIfSlow("Validate local body semantics")
       ).leftMap(_.show)
       authContext = (tx: IoTransaction) => QuivrContext.forProposedBlock(block.header.height, block.header.slot, tx)
       _ <- EitherT(
-        validatorsLocal.bodyAuthorization
+        localBlockchain.validators.bodyAuthorization
           .validate(authContext)(body)
           .map(_.toEither)
           .warnIfSlow("Validate local body authorization")
@@ -400,8 +334,8 @@ class BlockchainImpl[F[_]: Async: Random: Dns](
     } yield ())
       .leftSemiflatTap(reason =>
         Logger[F].warn(show"Locally produced block id=${fullBlock.header.id} is invalid. reason=$reason") &>
-        dataStores.headers.remove(fullBlock.header.id) &>
-        dataStores.bodies.remove(fullBlock.header.id) &>
-        fullBlock.fullBody.rewardTransaction.traverseTap(tx => dataStores.transactions.remove(tx.id))
+        localBlockchain.dataStores.headers.remove(fullBlock.header.id) &>
+        localBlockchain.dataStores.bodies.remove(fullBlock.header.id) &>
+        fullBlock.fullBody.rewardTransaction.traverseTap(tx => localBlockchain.dataStores.transactions.remove(tx.id))
       )
 }

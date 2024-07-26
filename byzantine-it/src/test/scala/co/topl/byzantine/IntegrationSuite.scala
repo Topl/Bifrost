@@ -12,6 +12,6 @@ trait IntegrationSuite extends CatsEffectSuite {
 
   implicit val logger: Logger[F] = Slf4jLogger.getLoggerFromClass[F](this.getClass)
 
-  override def munitTimeout: Duration = 10.minutes
+  override def munitIOTimeout: Duration = 10.minutes
 
 }

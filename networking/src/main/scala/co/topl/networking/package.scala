@@ -1,7 +1,7 @@
 package co.topl
 
-import co.topl.networking.fsnetwork.{HostId, RemotePeer}
-import co.topl.networking.p2p.RemoteAddress
+import co.topl.models.p2p._
+import co.topl.networking.fsnetwork.RemotePeer
 import co.topl.node.models.KnownHost
 import com.comcast.ip4s.{IpAddress, SocketAddress}
 

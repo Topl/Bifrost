@@ -26,6 +26,7 @@ import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import quivr.models.SmallData
 
 import scala.concurrent.duration._
+import co.topl.algebras.Stats
 
 object BlockProducer {
 
@@ -40,26 +41,40 @@ object BlockProducer {
    * @param blockPacker a function which returns a Source that should emit a single element when demanded.  The Source
    *                    should immediately start constructing a result once created, and it should emit its best attempt
    *                    when demanded.
+   * @param constructionPermit an effect which semantically blocks until permission to produce a new block is provided.
+   *                      Under normal chains, this is a no-op (permission immediately provided).
+   *                      Under regtest mode, this semantically blocks until an RPC is invoked granting permission
    */
-  def make[F[_]: Async](
-    parentHeaders:    Stream[F, SlotData],
-    staker:           StakingAlgebra[F],
-    clock:            ClockAlgebra[F],
-    blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F]
+  def make[F[_]: Async: Stats](
+    parentHeaders:      Stream[F, SlotData],
+    staker:             StakingAlgebra[F],
+    clock:              ClockAlgebra[F],
+    blockPacker:        BlockPackerAlgebra[F],
+    rewardCalculator:   TransactionRewardCalculatorAlgebra,
+    constructionPermit: F[Unit]
   ): F[BlockProducerAlgebra[F]] =
     (staker.address, Ref.of(0L)).mapN((address, lastUsedSlotRef) =>
-      new Impl[F](address, parentHeaders, staker, clock, blockPacker, rewardCalculator, lastUsedSlotRef)
+      new Impl[F](
+        address,
+        parentHeaders,
+        staker,
+        clock,
+        blockPacker,
+        rewardCalculator,
+        lastUsedSlotRef,
+        constructionPermit
+      )
     )
 
-  private class Impl[F[_]: Async](
-    stakerAddress:    StakingAddress,
-    parentHeaders:    Stream[F, SlotData],
-    staker:           StakingAlgebra[F],
-    clock:            ClockAlgebra[F],
-    blockPacker:      BlockPackerAlgebra[F],
-    rewardCalculator: TransactionRewardCalculatorAlgebra[F],
-    lastUsedSlotRef:  Ref[F, Slot]
+  private class Impl[F[_]: Async: Stats](
+    stakerAddress:      StakingAddress,
+    parentHeaders:      Stream[F, SlotData],
+    staker:             StakingAlgebra[F],
+    clock:              ClockAlgebra[F],
+    blockPacker:        BlockPackerAlgebra[F],
+    rewardCalculator:   TransactionRewardCalculatorAlgebra,
+    lastUsedSlotRef:    Ref[F, Slot],
+    constructionPermit: F[Unit]
   ) extends BlockProducerAlgebra[F] {
 
     implicit private val logger: SelfAwareStructuredLogger[F] =
@@ -134,7 +149,13 @@ object BlockProducer {
           .semiflatTap(block =>
             Sync[F]
               .delay(BlockBody(block.fullBody.transactions.map(_.id), block.fullBody.rewardTransaction.map(_.id)))
-              .flatMap(body => Logger[F].info(show"Minted header=${block.header} body=$body"))
+              .flatMap(body => Logger[F].info(show"Minted header=${block.header} body=$body")) >>
+            Stats[F].recordHistogram(
+              "bifrost_blocks_minted",
+              "Blocks minted",
+              Map(),
+              block.header.height
+            )
           )
           // Despite being eligible, there may not be a corresponding linear KES key if the node restarted in the middle
           // of an operational period.  The node must wait until the next operational period
@@ -181,18 +202,18 @@ object BlockProducer {
      * @param untilSlot The slot at which the block packer function should be halted and a value extracted
      */
     private def packBlock(parentId: BlockId, height: Long, untilSlot: Slot): F[FullBlockBody] =
-      blockPacker
-        .improvePackedBlock(parentId, height, untilSlot)
-        .flatMap(
-          Iterative
-            .run(FullBlockBody().pure[F])(_)
-            .use(resF =>
-              clock.delayedUntilSlot(untilSlot) >>
-              Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
-              resF
-                .flatTap(_ => Logger[F].info(s"Captured packed block at slot=$untilSlot"))
-            )
-        )
+      OptionT(
+        (blockPacker.blockImprover(parentId, height, untilSlot) ++ Stream.never)
+          .interruptWhen(
+            constructionPermit >>
+            clock.delayedUntilSlot(untilSlot) >>
+            Logger[F].info(s"Capturing packed block at slot=$untilSlot") >>
+            ().asRight[Throwable].pure[F]
+          )
+          .compile
+          .last
+      ).getOrElse(FullBlockBody())
+        .flatTap(_ => Logger[F].info(s"Captured packed block at slot=$untilSlot"))
         .flatMap(insertReward(parentId, untilSlot, _))
 
     /**
@@ -205,7 +226,7 @@ object BlockProducer {
      */
     private def insertReward(parentBlockId: BlockId, slot: Slot, base: FullBlockBody): F[FullBlockBody] =
       base.transactions
-        .foldMapM(rewardCalculator.rewardsOf)
+        .foldMapM(t => rewardCalculator.rewardsOf(t).pure[F])
         .flatMap(rewardQuantities =>
           if (!rewardQuantities.isEmpty) {
             staker.rewardAddress

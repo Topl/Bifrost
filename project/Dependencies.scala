@@ -2,21 +2,21 @@ import sbt._
 
 object Dependencies {
 
-  val circeVersion = "0.14.6"
-  val kamonVersion = "2.7.1"
+  val circeVersion = "0.14.7"
+  val kamonVersion = "2.7.2"
   val simulacrumVersion = "1.0.1"
   val catsCoreVersion = "2.10.0"
   val catsEffectVersion = "3.5.4"
-  val fs2Version = "3.9.4"
-  val logback = "1.5.3"
+  val fs2Version = "3.10.2"
+  val logback = "1.5.6"
   val orientDbVersion = "3.2.29"
-  val ioGrpcVersion = "1.62.2"
+  val ioGrpcVersion = "1.64.0"
   val http4sVersion = "0.23.26"
-  val protobufSpecsVersion = "2.0.0-beta2" // scala-steward:off
-  val bramblScVersion = "2.0.0-beta3" // scala-steward:off
+  val protobufSpecsVersion = "2.0.0-beta3+3-bd44cc82-SNAPSHOT"
+  val bramblScVersion = "2.0.0-beta3+3-de74a6dd-SNAPSHOT"
 
   val catsSlf4j =
-    "org.typelevel" %% "log4cats-slf4j" % "2.6.0"
+    "org.typelevel" %% "log4cats-slf4j" % "2.7.0"
 
   val logging: Seq[ModuleID] = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
@@ -26,14 +26,14 @@ object Dependencies {
     catsSlf4j
   )
 
-  val scalamockBase = "org.scalamock" %% "scalamock" % "5.2.0"
+  val scalamockBase = "org.scalamock" %% "scalamock" % "6.0.0"
   val scalamock = scalamockBase        % Test
 
   private val mUnitTestBase: Seq[ModuleID] = Seq(
-    "org.scalameta" %% "munit"                   % "0.7.29",
-    "org.scalameta" %% "munit-scalacheck"        % "0.7.29",
-    "org.typelevel" %% "munit-cats-effect-3"     % "1.0.7",
-    "org.typelevel" %% "scalacheck-effect-munit" % "1.0.4",
+    "org.scalameta" %% "munit"                   % "1.0.0",
+    "org.scalameta" %% "munit-scalacheck"        % "1.0.0",
+    "org.typelevel" %% "munit-cats-effect"       % "2.0.0",
+    "org.typelevel" %% "scalacheck-effect-munit" % "2.0-9366e44",
     scalamockBase
   )
 
@@ -52,8 +52,9 @@ object Dependencies {
   )
 
   val monitoring: Seq[ModuleID] = Seq(
-    "io.kamon" %% "kamon-core"      % kamonVersion,
-    "io.kamon" %% "kamon-cats-io-3" % kamonVersion
+    "io.kamon" %% "kamon-system-metrics" % kamonVersion,
+    "io.kamon" %% "kamon-cats-io-3"      % kamonVersion,
+    "io.kamon" %% "kamon-prometheus"     % kamonVersion
   )
 
   val cats: Seq[ModuleID] = Seq(
@@ -74,7 +75,7 @@ object Dependencies {
   )
 
   val externalCrypto: Seq[ModuleID] = Seq(
-    "org.bouncycastle" % "bcprov-jdk18on" % "1.77"
+    "org.bouncycastle" % "bcprov-jdk18on" % "1.78.1"
   )
 
   val levelDb: Seq[ModuleID] = Seq(
@@ -89,10 +90,10 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.6.2"
+    "com.lihaoyi" %% "mainargs" % "0.6.3"
   )
 
-  val fastparse = "com.lihaoyi" %% "fastparse" % "3.0.2"
+  val fastparse = "com.lihaoyi" %% "fastparse" % "3.1.0"
 
   val monocle: Seq[ModuleID] = Seq(
     "com.github.julien-truffaut" %% "monocle-core"  % "3.0.0-M6",
@@ -104,7 +105,7 @@ object Dependencies {
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
   val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.6"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "19.0.0"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "20.0.1"
 
   val http4s = Seq(
     "org.http4s" %% "http4s-ember-client" % http4sVersion,
@@ -122,6 +123,10 @@ object Dependencies {
   val protobufSpecs: Seq[ModuleID] = Seq(
     "co.topl" %% "protobuf-fs2" % protobufSpecsVersion
   )
+
+  val ipaddress = "com.github.seancfoley" % "ipaddress" % "5.5.0"
+
+  val apacheCommonLang = "org.apache.commons" % "commons-lang3" % "3.0"
 
   // For NTP-UDP
   val commonsNet = "commons-net" % "commons-net" % "3.10.0"
@@ -165,7 +170,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.35.0"
+      "com.google.cloud" % "google-cloud-storage" % "2.36.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -211,7 +216,7 @@ object Dependencies {
     Dependencies.mUnitTest ++ Dependencies.catsEffect
 
   lazy val networking: Seq[ModuleID] =
-    Dependencies.mUnitTest ++ Dependencies.catsEffect
+    Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(ipaddress, apacheCommonLang)
 
   lazy val transactionGenerator: Seq[ModuleID] =
     Dependencies.mUnitTest ++ Dependencies.catsEffect ++ Seq(Dependencies.fs2Core)
@@ -228,6 +233,7 @@ object Dependencies {
     cats ++
     catsEffect ++
     scalacache ++
+    monitoring ++
     Seq(
       commonsNet,
       catsSlf4j % Test

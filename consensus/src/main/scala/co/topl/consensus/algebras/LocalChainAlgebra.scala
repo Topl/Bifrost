@@ -1,6 +1,6 @@
 package co.topl.consensus.algebras
 
-import cats.data.Validated
+import cats.data.{NonEmptyChain, Validated}
 import co.topl.consensus.models.{BlockId, SlotData}
 
 /**
@@ -14,10 +14,10 @@ trait LocalChainAlgebra[F[_]] {
    * The `newHead` _can_ be invalid.  (For example, the block needs to have the proper syntax,
    * but it may not necessarily need to be validated for consensus and ledger purposes)
    *
-   * @param newHead The head of a new tine, either from a network peer or from a local staker
+   * @param newHeadChain New tine, either from a network peer or from a local staker
    * @return True if the provided segment is better than the local canonical chain
    */
-  def isWorseThan(newHead: SlotData): F[Boolean]
+  def isWorseThan(newHeadChain: NonEmptyChain[SlotData]): F[Boolean]
 
   /**
    * Instructs the node to adopt the given canonical head.  This head, along with all of its ancestors, should be
@@ -42,5 +42,5 @@ trait LocalChainAlgebra[F[_]] {
    */
   def genesis: F[SlotData]
 
-  def chainSelectionAlgebra: F[ChainSelectionAlgebra[F, SlotData]]
+  def blockIdAtHeight(height: Long): F[Option[BlockId]]
 }

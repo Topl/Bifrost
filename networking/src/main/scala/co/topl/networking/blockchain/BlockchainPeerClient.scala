@@ -93,10 +93,8 @@ trait BlockchainPeerClient[F[_]] {
   /**
    * A lookup to retrieve the remote node's block ID associated with the given height.
    * @param height The height to lookup
-   * @param localBlockId The block ID of the local node at the requested height (the remote peer can cache this to avoid
-   *                     an extra lookup from their end)
    */
-  def getRemoteBlockIdAtHeight(height: Long, localBlockId: Option[BlockId]): F[Option[BlockId]]
+  def getRemoteBlockIdAtHeight(height: Long): F[Option[BlockId]]
 
   /**
    * A lookup to retrieve known hosts from remote peer
@@ -157,7 +155,7 @@ trait BlockchainPeerClient[F[_]] {
    */
   private def narySearch[T: Eq](
     getLocal:          Long => F[T],
-    getRemote:         (Long, Option[T]) => F[Option[T]],
+    getRemote:         Long => F[Option[T]],
     searchSpaceTarget: Ratio
   )(implicit monadF: Monad[F], loggerF: Logger[F]): (Long, Long) => F[Option[T]] = {
     lazy val f: (Long, Long, Option[T]) => F[Option[T]] = (min, max, ifNone) =>
@@ -167,7 +165,7 @@ trait BlockchainPeerClient[F[_]] {
         .ifM(
           ifTrue = getLocal(min)
             .flatMap(localValue =>
-              OptionT(getRemote(min, localValue.some))
+              OptionT(getRemote(min))
                 .filter(_ === localValue)
                 .orElse(OptionT.fromOption[F](ifNone))
                 .value
@@ -175,7 +173,7 @@ trait BlockchainPeerClient[F[_]] {
           ifFalse = for {
             targetHeight <- (min + ((max - min) * searchSpaceTarget.toDouble).floor.round).pure[F]
             localValue   <- getLocal(targetHeight)
-            remoteValue  <- getRemote(targetHeight, localValue.some)
+            remoteValue  <- getRemote(targetHeight)
             result <- remoteValue
               .filter(_ === localValue)
               .fold(f(min, targetHeight, ifNone))(remoteValue => f(targetHeight + 1, max, remoteValue.some))
