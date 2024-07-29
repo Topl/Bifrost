@@ -196,7 +196,7 @@ object LegacyBlockchainSocketHandler {
 
           def closeConnection(): F[Unit] = close
 
-          def getRemoteSlotDataWithParents(to: BlockId, from: BlockId): F[Option[List[SlotData]]] =
+          def getRemoteSlotDataWithParents(from: BlockId, to: BlockId): F[Option[List[SlotData]]] =
             getRemoteSlotData(to).map(_.map(List(_)))
         }
 
