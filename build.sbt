@@ -3,7 +3,7 @@ import sbt.Keys.{organization, test}
 import sbtassembly.MergeStrategy
 import NativePackagerHelper.*
 
-val scala213 = "2.13.13"
+val scala213 = "2.13.14"
 
 inThisBuild(
   List(
