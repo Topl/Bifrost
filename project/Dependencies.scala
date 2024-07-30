@@ -59,7 +59,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.2.3"
+    "org.typelevel" %% "mouse"     % "1.2.4"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
