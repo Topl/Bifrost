@@ -90,7 +90,7 @@ object Dependencies {
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.6.3"
+    "com.lihaoyi" %% "mainargs" % "0.7.1"
   )
 
   val fastparse = "com.lihaoyi" %% "fastparse" % "3.1.0"
