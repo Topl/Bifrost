@@ -129,7 +129,7 @@ object Dependencies {
   val apacheCommonLang = "org.apache.commons" % "commons-lang3" % "3.0"
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.10.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.11.1"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
