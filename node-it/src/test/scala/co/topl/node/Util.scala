@@ -264,7 +264,7 @@ case class TestnetConfig(
 trait NodeControlRpc[F[_]] {
   def getHostId(): F[HostId]
   def forgetPeer(hostId: HostId): F[Unit]
-  def addPeer(ip: String, port: Int, HostIdOpt: Option[HostId]): F[Unit]
+  def addPeer(ip:        String, port: Int, HostIdOpt: Option[HostId]): F[Unit]
 }
 
 object NetworkControlClient {
