@@ -2,18 +2,18 @@ import sbt._
 
 object Dependencies {
 
-  val circeVersion = "0.14.7"
-  val kamonVersion = "2.7.2"
+  val circeVersion = "0.14.9"
+  val kamonVersion = "2.7.3"
   val simulacrumVersion = "1.0.1"
-  val catsCoreVersion = "2.10.0"
+  val catsCoreVersion = "2.12.0"
   val catsEffectVersion = "3.5.4"
   val fs2Version = "3.10.2"
   val logback = "1.5.6"
-  val orientDbVersion = "3.2.29"
-  val ioGrpcVersion = "1.64.0"
-  val http4sVersion = "0.23.26"
+  val orientDbVersion = "3.2.32"
+  val ioGrpcVersion = "1.64.2"
+  val http4sVersion = "0.23.27"
   val protobufSpecsVersion = "2.0.0-beta3+3-bd44cc82-SNAPSHOT"
-  val bramblScVersion = "2.0.0-beta3+3-de74a6dd-SNAPSHOT"
+  val bramblScVersion = "2.0.0-beta8"
 
   val catsSlf4j =
     "org.typelevel" %% "log4cats-slf4j" % "2.7.0"
@@ -22,7 +22,7 @@ object Dependencies {
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.9.5",
     "ch.qos.logback"              % "logback-classic" % logback,
     "ch.qos.logback"              % "logback-core"    % logback,
-    "org.slf4j"                   % "slf4j-api"       % "2.0.12",
+    "org.slf4j"                   % "slf4j-api"       % "2.0.13",
     catsSlf4j
   )
 
@@ -59,7 +59,7 @@ object Dependencies {
 
   val cats: Seq[ModuleID] = Seq(
     "org.typelevel" %% "cats-core" % catsCoreVersion,
-    "org.typelevel" %% "mouse"     % "1.2.3"
+    "org.typelevel" %% "mouse"     % "1.2.4"
   )
 
   val catsEffect: Seq[ModuleID] = Seq(
@@ -85,12 +85,12 @@ object Dependencies {
 
   val scodec = Seq(
     "org.scodec" %% "scodec-core" % "1.11.10",
-    "org.scodec" %% "scodec-bits" % "1.1.38",
+    "org.scodec" %% "scodec-bits" % "1.2.0",
     "org.scodec" %% "scodec-cats" % "1.2.0"
   )
 
   val mainargs = Seq(
-    "com.lihaoyi" %% "mainargs" % "0.6.3"
+    "com.lihaoyi" %% "mainargs" % "0.7.1"
   )
 
   val fastparse = "com.lihaoyi" %% "fastparse" % "3.1.0"
@@ -103,9 +103,9 @@ object Dependencies {
   val fs2Core = "co.fs2"                   %% "fs2-core"             % fs2Version
   val fs2IO = "co.fs2"                     %% "fs2-io"               % fs2Version
   val fs2ReactiveStreams = "co.fs2"        %% "fs2-reactive-streams" % fs2Version
-  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.6"
+  val pureConfig = "com.github.pureconfig" %% "pureconfig"           % "0.17.7"
   val circeYaml = "io.circe"               %% "circe-yaml"           % "1.15.0"
-  val kubernetes = "io.kubernetes"          % "client-java"          % "20.0.1"
+  val kubernetes = "io.kubernetes"          % "client-java"          % "21.0.0"
 
   val http4s = Seq(
     "org.http4s" %% "http4s-ember-client" % http4sVersion,
@@ -126,10 +126,10 @@ object Dependencies {
 
   val ipaddress = "com.github.seancfoley" % "ipaddress" % "5.5.0"
 
-  val apacheCommonLang = "org.apache.commons" % "commons-lang3" % "3.0"
+  val apacheCommonLang = "org.apache.commons" % "commons-lang3" % "3.15.0"
 
   // For NTP-UDP
-  val commonsNet = "commons-net" % "commons-net" % "3.10.0"
+  val commonsNet = "commons-net" % "commons-net" % "3.11.1"
 
   val catsAll: Seq[ModuleID] = cats ++ catsEffect ++ Seq(catsSlf4j)
   val fs2All: Seq[ModuleID] = catsAll ++ Seq(fs2Core, fs2IO)
@@ -170,7 +170,7 @@ object Dependencies {
       fs2IO,
       pureConfig,
       kubernetes,
-      "com.google.cloud" % "google-cloud-storage" % "2.36.1"
+      "com.google.cloud" % "google-cloud-storage" % "2.40.1"
     )
 
   lazy val actor: Seq[sbt.ModuleID] = fs2All
@@ -264,10 +264,13 @@ object Dependencies {
 
   lazy val orientDb: Seq[ModuleID] =
     Seq(
-      "com.orientechnologies" % "orientdb-core"   % orientDbVersion,
-      "com.orientechnologies" % "orientdb-server" % orientDbVersion,
-      "com.orientechnologies" % "orientdb-tools"  % orientDbVersion,
-      "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude ("commons-beanutils", "commons-beanutils") exclude ("commons-beanutils", "commons-beanutils-core"),
+      "com.orientechnologies" % "orientdb-core"    % orientDbVersion,
+      "com.orientechnologies" % "orientdb-server"  % orientDbVersion,
+      "com.orientechnologies" % "orientdb-tools"   % orientDbVersion,
+      "com.orientechnologies" % "orientdb-graphdb" % orientDbVersion exclude (
+        "commons-beanutils",
+        "commons-beanutils"
+      ) exclude ("commons-beanutils", "commons-beanutils-core"),
       "com.googlecode.concurrentlinkedhashmap" % "concurrentlinkedhashmap-lru" % "1.4.2",
       "org.lz4"                                % "lz4-java"                    % "1.8.0"
       // Add jna
