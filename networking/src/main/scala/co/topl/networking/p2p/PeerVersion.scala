@@ -3,6 +3,7 @@ package co.topl.networking.p2p
 import cats.data.{EitherT, OptionT}
 import cats.effect.Async
 import cats.implicits._
+import co.topl.networking._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.net.Socket
@@ -21,7 +22,7 @@ object PeerVersion {
     (
       for {
         _ <- EitherT.liftF(socket.write(Chunk.byteBuffer(localVersion.asReadOnlyByteBuffer())))
-        remoteVersion <- OptionT(socket.read(localVersion.size()))
+        remoteVersion <- OptionT(socket.readExactly(localVersion.size()))
           .toRight(ExtractionException.VersionNotProvided)
           .leftWiden[ExtractionException]
           .map(_.toArray)

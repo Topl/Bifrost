@@ -5,6 +5,7 @@ import cats.data.{EitherT, OptionT}
 import cats.effect.{Async, Resource}
 import cats.effect.std.Random
 import co.topl.crypto.signing.Ed25519
+import co.topl.networking._
 import com.google.protobuf.ByteString
 import fs2.Chunk
 import fs2.io.net.Socket
@@ -35,14 +36,14 @@ object PeerIdentity {
           (
             for {
               _ <- EitherT.liftF(socket.write(Chunk.byteBuffer(localPeerVK.asReadOnlyByteBuffer())))
-              remoteVK <- OptionT(socket.read(32))
+              remoteVK <- OptionT(socket.readExactly(32))
                 .toRight(ExtractionException.VKNotProvided)
                 .leftWiden[ExtractionException]
                 .map(_.toArray)
               remoteVKBS = ByteString.copyFrom(remoteVK)
               localChallenge <- EitherT.liftF(Random[F].nextBytes(16).map(PostLegacyChallengePrefix ++ _))
               _              <- EitherT.liftF(socket.write(Chunk.array(localChallenge)))
-              remoteChallenge <- OptionT(socket.read(32))
+              remoteChallenge <- OptionT(socket.readExactly(32))
                 .toRight(ExtractionException.ChallengeNotProvided)
                 .leftWiden[ExtractionException]
                 .map(_.toArray)
@@ -51,7 +52,7 @@ object PeerIdentity {
                 .liftF(ed25519Resource.use(e => Async[F].delay(e.sign(localPeerSK, remoteChallenge))))
               _ <- EitherT.liftF(Async[F].cede)
               _ <- EitherT.liftF(socket.write(Chunk.array(localSignature)))
-              remoteSignature <- OptionT(socket.read(64))
+              remoteSignature <- OptionT(socket.readExactly(64))
                 .toRight(ExtractionException.SignatureNotProvided)
                 .leftWiden[ExtractionException]
                 .map(_.toArray)

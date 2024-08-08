@@ -7,6 +7,7 @@ import cats.effect.implicits._
 import cats.effect.std.Mutex
 import cats.implicits._
 import co.topl.models.Bytes
+import co.topl.networking._
 import com.google.common.primitives.Ints
 import com.google.protobuf.ByteString
 import fs2._
@@ -51,7 +52,7 @@ object MultiplexedReaderWriter {
   def reader[F[_]: Monad](socket: Socket[F]): Stream[F, (Int, Chunk[Byte])] =
     Stream
       .repeatEval(
-        OptionT(socket.read(8))
+        OptionT(socket.readExactly(8))
           .map(prefix =>
             (
               Ints.fromBytes(prefix(0), prefix(1), prefix(2), prefix(3)),
@@ -60,7 +61,7 @@ object MultiplexedReaderWriter {
           )
           .flatMap { case (port, length) =>
             if (length == 0) OptionT.some[F]((port, Chunk.empty[Byte]))
-            else OptionT(socket.read(length)).tupleLeft(port)
+            else OptionT(socket.readExactly(length)).tupleLeft(port)
           }
           .value
       )
